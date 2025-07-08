@@ -128,7 +128,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         doReturn(eventLoopGroup).when(brokerMock).executor();
         doAnswer(invocation -> {
-            orderedExecutor.execute(((Runnable)invocation.getArguments()[0]));
+            orderedExecutor.execute(((Runnable) invocation.getArguments()[0]));
             return null;
         }).when(eventLoopGroup).execute(any(Runnable.class));
 
@@ -232,8 +232,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
 
         assertEquals(persistentDispatcher.getRecentlyJoinedConsumers().size(), 6);
 
-        Iterator<Map.Entry<Consumer, Position>> itr
-                = persistentDispatcher.getRecentlyJoinedConsumers().entrySet().iterator();
+        Iterator<Map.Entry<Consumer, Position>> itr =
+                persistentDispatcher.getRecentlyJoinedConsumers().entrySet().iterator();
 
         Map.Entry<Consumer, Position> entry1 = itr.next();
         assertEquals(entry1.getValue(), PositionFactory.create(4, 1));
@@ -273,7 +273,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         }
 
         List<Entry> entries = new ArrayList<>();
-        ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
+        ByteBuf markerMessage =
+                Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
         entries.add(EntryImpl.create(1, 1, markerMessage));
         entries.add(EntryImpl.create(1, 2, createMessage("message1", 1)));
         entries.add(EntryImpl.create(1, 3, createMessage("message2", 2)));
@@ -282,7 +283,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         entries.add(EntryImpl.create(1, 6, createMessage("message5", 5)));
 
         try {
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(entries,
+                    PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
@@ -329,7 +331,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
 
         try {
             //Should success,see issue #8960
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(entries,
+                    PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
@@ -341,19 +344,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         final ChannelPromise slowChannelMock = mock(ChannelPromise.class);
         // add entries to redeliver and read target
         final List<Entry> redeliverEntries = new ArrayList<>();
-        redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
+        redeliverEntries.add(EntryImpl.create(1, 1,
+                createMessage("message1", 1, "key1")));
         final List<Entry> readEntries = new ArrayList<>();
-        readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
+        readEntries.add(EntryImpl.create(1, 2,
+                createMessage("message2", 2, "key1")));
+        readEntries.add(EntryImpl.create(1, 3,
+                createMessage("message3", 3, "key2")));
 
         try {
-            Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumersClassic.class.getDeclaredField("totalAvailablePermits");
+            Field totalAvailablePermitsField =
+                    PersistentDispatcherMultipleConsumersClassic.class.getDeclaredField("totalAvailablePermits");
             totalAvailablePermitsField.setAccessible(true);
             totalAvailablePermitsField.set(persistentDispatcher, 1000);
 
             doAnswer(invocationOnMock -> {
                 ((PersistentStickyKeyDispatcherMultipleConsumersClassic) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
+                        .readEntriesComplete(readEntries,
+                                PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumersClassic.class),
@@ -391,7 +399,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         // Change slowConsumer availablePermits to 1
         // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers internally
         // and then stop to dispatch to slowConsumer
-        if (persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal,
+        if (persistentDispatcher.sendMessagesToConsumers(
+                PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal,
                 redeliverEntries, true)) {
             persistentDispatcher.readMoreEntriesAsync();
         }
@@ -463,7 +472,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                 actualEntriesToConsumer1.add(entry.getPosition());
             }
             return channelMock;
-        }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
+        }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
 
         final Consumer consumer2 = mock(Consumer.class);
@@ -478,7 +488,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                 actualEntriesToConsumer2.add(entry.getPosition());
             }
             return channelMock;
-        }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
+        }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
 
         persistentDispatcher.addConsumer(consumer1);
@@ -507,10 +518,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                     .collect(Collectors.toList());
             if (!entries.isEmpty()) {
                 ((PersistentStickyKeyDispatcherMultipleConsumersClassic) invocationOnMock.getArgument(1))
-                        .readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Replay);
+                        .readEntriesComplete(entries,
+                                PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Replay);
             }
             return Collections.emptySet();
-        }).when(cursorMock).asyncReplayEntries(anySet(), any(PersistentStickyKeyDispatcherMultipleConsumersClassic.class),
+        }).when(cursorMock).asyncReplayEntries(anySet(),
+                any(PersistentStickyKeyDispatcherMultipleConsumersClassic.class),
                 eq(PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Replay), anyBoolean());
 
         // Mock Cursor#asyncReadEntriesOrWait
@@ -518,10 +531,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         doAnswer(invocationOnMock -> {
             if (asyncReadEntriesOrWaitCalled.compareAndSet(false, true)) {
                 ((PersistentStickyKeyDispatcherMultipleConsumersClassic) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
+                        .readEntriesComplete(readEntries,
+                                PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
             } else {
                 ((PersistentStickyKeyDispatcherMultipleConsumersClassic) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(Collections.emptyList(), PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
+                        .readEntriesComplete(Collections.emptyList(),
+                                PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
             }
             return null;
         }).when(cursorMock).asyncReadEntriesOrWait(anyInt(), anyLong(),
@@ -534,7 +549,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         // (4) Run readMoreEntries internally
         // (5) Run sendMessagesToConsumers internally
         // (6) Attempts to send message3 to consumer2 but skipped because redeliveryMessages contains message2
-        persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Replay,
+        persistentDispatcher.sendMessagesToConsumers(
+                PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Replay,
                 redeliverEntries, true);
         while (remainingEntriesNum.get() > 0) {
             // (7) Run readMoreEntries and resend message1 to consumer1 and message2-3 to consumer2
@@ -558,6 +574,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
+                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 }

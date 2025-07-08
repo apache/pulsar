@@ -140,7 +140,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
-    private static final int TIMEOUT_MULTIPLIER = Integer.getInteger("SimpleProducerConsumerTest.receive.timeout.multiplier", 1);
+    private static final int TIMEOUT_MULTIPLIER =
+            Integer.getInteger("SimpleProducerConsumerTest.receive.timeout.multiplier", 1);
     private static final int RECEIVE_TIMEOUT_SECONDS = 5 * TIMEOUT_MULTIPLIER;
     private static final int RECEIVE_TIMEOUT_SHORT_MILLIS = 200 * TIMEOUT_MULTIPLIER;
     private static final int RECEIVE_TIMEOUT_MEDIUM_MILLIS = 1000 * TIMEOUT_MULTIPLIER;
@@ -517,21 +518,26 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         consumer.pause();
 
-        for (int i = 0; i < receiverQueueSize * 2; i++) producer.send(("my-message-" + i).getBytes());
+        for (int i = 0; i < receiverQueueSize * 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
 
         log.info("Waiting for message listener to ack " + receiverQueueSize + " messages");
-        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
 
         log.info("Giving message listener an opportunity to receive messages while paused");
         Awaitility.await().untilAsserted(
-                () -> assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused"));
+                () -> assertEquals(received.intValue(), receiverQueueSize,
+                        "Consumer received messages while paused"));
 
         latch.set(new CountDownLatch(receiverQueueSize));
 
         consumer.resume();
 
         log.info("Waiting for message listener to ack all messages");
-        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
 
         consumer.close();
         producer.close();
@@ -768,7 +774,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         try {
             @Cleanup
-            Producer<byte[]> producer = client1.newProducer().topic("persistent://my-property/my-ns/my-topic6").create();
+            Producer<byte[]> producer = client1.newProducer()
+                    .topic("persistent://my-property/my-ns/my-topic6").create();
             Assert.fail("Should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
@@ -1122,7 +1129,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * Usecase 1: Only 1 Active Subscription - 1 subscriber - Produce Messages - EntryCache should cache messages -
-     * EntryCache should be cleaned : Once active subscription consumes messages
+     * EntryCache should be cleaned : Once active subscription consumes messages.
      *
      * Usecase 2: 2 Active Subscriptions (faster and slower) and slower gets closed - 2 subscribers - Produce Messages -
      * 1 faster-subscriber consumes all messages and another slower-subscriber none - EntryCache should have cached
@@ -1177,7 +1184,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // sleep for a second: as ledger.updateCursorRateLimit RateLimiter will allow to invoke cursor-update after a
         // second
-        Thread.sleep(1000);//
+        Thread.sleep(1000); //
         // produce-consume one more message to trigger : ledger.internalReadFromLedger(..) which updates cursor and
         // EntryCache
         producer.send("message".getBytes());
@@ -1201,7 +1208,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // sleep for a second: as ledger.updateCursorRateLimit RateLimiter will allow to invoke cursor-update after a
         // second
-        Thread.sleep(1000);//
+        Thread.sleep(1000); //
         // produce-consume one more message to trigger : ledger.internalReadFromLedger(..) which updates cursor and
         // EntryCache
         producer.send("message".getBytes());
@@ -1395,8 +1402,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // Trigger the send timeout
         stopBroker();
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();
-        for(int i = 0 ; i < 3 ; i++) {
-             CompletableFuture<MessageId> future = producer.newMessage().sequenceId(i).value(message.getBytes()).sendAsync();
+        for (int i = 0; i < 3; i++) {
+             CompletableFuture<MessageId> future =
+                     producer.newMessage().sequenceId(i).value(message.getBytes()).sendAsync();
              futures.add(future);
         }
         Awaitility.await().until(() -> {
@@ -1453,7 +1461,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * consume message from consumer1 and send acknowledgement from different consumer subscribed under same
-     * subscription-name
+     * subscription-name.
      *
      * @throws Exception
      */
@@ -1761,7 +1769,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             @Cleanup
-            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
             Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .isAckReceiptEnabled(ackReceiptEnabled)
@@ -2056,7 +2064,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     /**
-     * Verify: Consumer2 sends ack of Consumer1 and consumer1 should be unblock if it is blocked due to unack-messages
+     * Verify: Consumer2 sends ack of Consumer1 and consumer1 should be unblock if it is blocked due to unack-messages.
      *
      *
      */
@@ -2185,7 +2193,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messages
+     * blocked due to unacked messages.
      *
      * Usecase: produce message with 10ms interval: so, consumer can consume only 10 messages without acking
      *
@@ -2356,19 +2364,19 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer3 = newPulsarClient1.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer4 = newPulsarClient2.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(2).subscribe();
@@ -2441,14 +2449,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .create();
 
         @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> c1 = newPulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> c2 = newPulsarClient1.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
@@ -2492,21 +2500,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // create new consumers with the same priority
         @Cleanup
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> c3 = newPulsarClient2.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient3 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient3 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> c4 = newPulsarClient3.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient4 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient4 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> c5 = newPulsarClient4.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
@@ -2680,32 +2688,32 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -2759,7 +2767,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Test(timeOut = 100000)
     public void testRSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
+        String topicName = "persistent://my-property/my-ns/myrsa-topic1-" + System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -2767,32 +2775,32 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -2882,12 +2890,55 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topic = "persistent://my-property/my-ns/default-crypto-key-reader" + System.currentTimeMillis();
         final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
         final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
-        final String ecdsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlIS01JR2pCZ2NxaGtqT1BRSUJNSUdYQWdFQk1Cd0dCeXFHU000OUFRRUNFUUQvLy8vOS8vLy8vLy8vLy8vLwovLy8vTURzRUVQLy8vLzMvLy8vLy8vLy8vLy8vLy93RUVPaDFlY0VRZWZROTJDU1pQQ3p1WHRNREZRQUFEZzFOCmFXNW5hSFZoVVhVTXdEcEVjOUEyZVFRaEJCWWY5MUtMaVpzdERDaGdmS1VzVzRiUFdzZzVXNi9yRThBdG9wTGQKN1hxREFoRUEvLy8vL2dBQUFBQjFvdzBia0RpaEZRSUJBUU1pQUFUcktqNlJQSEdQTktjWktJT2NjTjR0Z0VOTQpuMWR6S2pMck1aVGtKNG9BYVE9PQotLS0tLUVORCBQVUJMSUMgS0VZLS0tLS0K";
-        final String ecdsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBFQyBQQVJBTUVURVJTLS0tLS0KTUlHWEFnRUJNQndHQnlxR1NNNDlBUUVDRVFELy8vLzkvLy8vLy8vLy8vLy8vLy8vTURzRUVQLy8vLzMvLy8vLwovLy8vLy8vLy8vd0VFT2gxZWNFUWVmUTkyQ1NaUEN6dVh0TURGUUFBRGcxTmFXNW5hSFZoVVhVTXdEcEVjOUEyCmVRUWhCQllmOTFLTGlac3REQ2hnZktVc1c0YlBXc2c1VzYvckU4QXRvcExkN1hxREFoRUEvLy8vL2dBQUFBQjEKb3cwYmtEaWhGUUlCQVE9PQotLS0tLUVORCBFQyBQQVJBTUVURVJTLS0tLS0KLS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1JSFlBZ0VCQkJEZXU5aGM4a092TDNwbCtMWVNqTHE5b0lHYU1JR1hBZ0VCTUJ3R0J5cUdTTTQ5QVFFQ0VRRC8KLy8vOS8vLy8vLy8vLy8vLy8vLy9NRHNFRVAvLy8vMy8vLy8vLy8vLy8vLy8vL3dFRU9oMWVjRVFlZlE5MkNTWgpQQ3p1WHRNREZRQUFEZzFOYVc1bmFIVmhVWFVNd0RwRWM5QTJlUVFoQkJZZjkxS0xpWnN0RENoZ2ZLVXNXNGJQCldzZzVXNi9yRThBdG9wTGQ3WHFEQWhFQS8vLy8vZ0FBQUFCMW93MGJrRGloRlFJQkFhRWtBeUlBQk9zcVBwRTgKY1k4MHB4a29nNXh3M2kyQVEweWZWM01xTXVzeGxPUW5pZ0JwCi0tLS0tRU5EIEVDIFBSSVZBVEUgS0VZLS0tLS0K";
+        final String ecdsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlI"
+                + "S01JR2pCZ2NxaGtqT1BRSUJNSUdYQWdFQk1Cd0dCeXFHU000OUFRRUNFUUQvLy8vOS8vLy8vLy8vLy8vLwovLy8vTURzRUVQLy8v"
+                + "LzMvLy8vLy8vLy8vLy8vLy93RUVPaDFlY0VRZWZROTJDU1pQQ3p1WHRNREZRQUFEZzFOCmFXNW5hSFZoVVhVTXdEcEVjOUEyZVF"
+                + "RaEJCWWY5MUtMaVpzdERDaGdmS1VzVzRiUFdzZzVXNi9yRThBdG9wTGQKN1hxREFoRUEvLy8vL2dBQUFBQjFvdzBia0RpaEZRSU"
+                + "JBUU1pQUFUcktqNlJQSEdQTktjWktJT2NjTjR0Z0VOTQpuMWR6S2pMck1aVGtKNG9BYVE9PQotLS0tLUVORCBQVUJMSUMgS0VZ"
+                + "LS0tLS0K";
+        final String ecdsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBFQyBQQVJBTUVURVJTLS0tLS"
+                + "0KTUlHWEFnRUJNQndHQnlxR1NNNDlBUUVDRVFELy8vLzkvLy8vLy8vLy8vLy8vLy8vTURzRUVQLy8vLzMvLy8vLwovLy8vLy8vL"
+                + "y8vd0VFT2gxZWNFUWVmUTkyQ1NaUEN6dVh0TURGUUFBRGcxTmFXNW5hSFZoVVhVTXdEcEVjOUEyCmVRUWhCQllmOTFLTGlac3"
+                + "REQ2hnZktVc1c0YlBXc2c1VzYvckU4QXRvcExkN1hxREFoRUEvLy8vL2dBQUFBQjEKb3cwYmtEaWhGUUlCQVE9PQotLS0tLUV"
+                + "ORCBFQyBQQVJBTUVURVJTLS0tLS0KLS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1JSFlBZ0VCQkJEZXU5aGM4a092"
+                + "TDNwbCtMWVNqTHE5b0lHYU1JR1hBZ0VCTUJ3R0J5cUdTTTQ5QVFFQ0VRRC8KLy8vOS8vLy8vLy8vLy8vLy8vLy9NRHNFRVAvL"
+                + "y8vMy8vLy8vLy8vLy8vLy8vL3dFRU9oMWVjRVFlZlE5MkNTWgpQQ3p1WHRNREZRQUFEZzFOYVc1bmFIVmhVWFVNd0RwRWM5QT"
+                + "JlUVFoQkJZZjkxS0xpWnN0RENoZ2ZLVXNXNGJQCldzZzVXNi9yRThBdG9wTGQ3WHFEQWhFQS8vLy8vZ0FBQUFCMW93MGJrRGl"
+                + "oRlFJQkFhRWtBeUlBQk9zcVBwRTgKY1k4MHB4a29nNXh3M2kyQVEweWZWM01xTXVzeGxPUW5pZ0JwCi0tLS0tRU5EIEVDIFBSS"
+                + "VZBVEUgS0VZLS0tLS0K";
         final String rsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-rsa.pem";
         final String rsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-rsa.pem";
-        final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0hxTDdzQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtRzRNKzZ4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzdIVHUwTFNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
-        final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQklyVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMFRPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNczdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJBb0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGVnNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNOQTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15VityUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUENXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzcHJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hDalNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbStTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4dDgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZQVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJek85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tLeApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==";
+        final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQ"
+                + "klqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmNh"
+                + "OXdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zOXJ"
+                + "6WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0hxTD"
+                + "dzQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtRzRNKz"
+                + "Z4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzdIVHUw"
+                + "TFNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
+        final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tL"
+                + "QpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1"
+                + "Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQkl"
+                + "yVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMF"
+                + "RPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNc"
+                + "zdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJB"
+                + "b0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGV"
+                + "nNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2"
+                + "oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY"
+                + "3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNO"
+                + "QTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15Vit"
+                + "yUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUE"
+                + "NXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzc"
+                + "HJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hD"
+                + "alNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp"
+                + "2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbS"
+                + "tTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4d"
+                + "DgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZ"
+                + "QVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25"
+                + "Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU"
+                + "1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJe"
+                + "k85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tL"
+                + "eApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVR"
+                + "FIEtFWS0tLS0tCg==";
         final int numMsg = 10;
 
         Map<String, String> privateKeyFileMap = new HashMap<>();
@@ -2986,34 +3037,34 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -3034,12 +3085,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         /*
          * Redelivery functionality guarantees that customer will get a chance to process the message again.
-         * In case of shared subscription eventually every client will get a chance to process the message, till one of them acks it.
+         * In case of shared subscription eventually every client will get a chance to process the message,
+         * till one of them acks it.
          *
-         * For client with Encryption enabled where in cases like a new production rollout or a buggy client configuration, we might have a mismatch of consumers
+         * For client with Encryption enabled where in cases like a new production rollout or
+         * a buggy client configuration, we might have a mismatch of consumers
          * - few which can decrypt, few which can't (due to errors or cryptoReader not configured).
          *
-         * In that case eventually all messages should be acked as long as there is a single consumer who can decrypt the message.
+         * In that case eventually all messages should be acked as long as there is a single consumer
+         * who can decrypt the message.
          *
          * Consumer 1 - Can decrypt message
          * Consumer 2 - Has invalid Reader configured.
@@ -3078,7 +3132,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int numberOfMessages = 100;
         String message = "my-message";
         Set<String> messages = new HashSet<>(); // Since messages are in random order
-        for (int i = 0; i<numberOfMessages; i++) {
+        for (int i = 0; i < numberOfMessages; i++) {
             producer.send((message + i).getBytes());
         }
 
@@ -3092,7 +3146,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // delay to reduce flakiness
         Thread.sleep(1000L);
 
-        for (int i = 0; i<numberOfMessages; i++) {
+        for (int i = 0; i < numberOfMessages; i++) {
             // All messages would be received by consumer 1
             m = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             assertNotNull(m, "reading message index #" + i + " failed");
@@ -3108,7 +3162,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertNull(m);
 
         // checking if all messages were received
-        for (int i = 0; i<numberOfMessages; i++) {
+        for (int i = 0; i < numberOfMessages; i++) {
             assertTrue(messages.contains((message + i)));
         }
 
@@ -3128,13 +3182,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                        log.error("Failed to read certificate from {}", certFilePath);
                     }
                 }
                 return null;
@@ -3142,13 +3196,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                        log.error("Failed to read certificate from {}", certFilePath);
                     }
                 }
                 return null;
@@ -3262,34 +3316,34 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -3300,14 +3354,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topicsPattern("persistent://my-property/my-ns/myrsa-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscribe();
 
         String message = "my-message";
         producer.send(message.getBytes());
 
-        TopicMessageImpl<byte[]> msg = (TopicMessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        TopicMessageImpl<byte[]> msg =
+                (TopicMessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         String receivedMessage = decryptMessage(msg, encryptionKeyName, new EncKeyReader());
         assertEquals(message, receivedMessage);
@@ -3408,9 +3464,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // 4, verify consumer get right message.
-        assertEquals(defaultConsumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), "my-message-5".getBytes());
-        assertEquals(latestConsumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), "my-message-5".getBytes());
-        assertEquals(earliestConsumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), "my-message-0".getBytes());
+        assertEquals(defaultConsumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(),
+                "my-message-5".getBytes());
+        assertEquals(latestConsumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(),
+                "my-message-5".getBytes());
+        assertEquals(earliestConsumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(),
+                "my-message-0".getBytes());
 
         defaultConsumer.close();
         latestConsumer.close();
@@ -3450,8 +3509,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscriptionName("test-multi-topic-consumer").subscribe();
 
         int counter = 0;
-        for (; counter < 5 - receiverQueueSize; counter ++) {
-            assertEquals(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), ("my-message-" + counter).getBytes());
+        for (; counter < 5 - receiverQueueSize; counter++) {
+            assertEquals(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(),
+                    ("my-message-" + counter).getBytes());
         }
 
         // 2. pause multi-topic consumer
@@ -3483,7 +3543,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.resume();
 
         // 9. continue to consume
-        while(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
+        while (consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
            counter++;
         }
         assertEquals(counter, 10);
@@ -3539,7 +3599,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.pause();
 
         // 3. manually add the third consumer
-        ((MultiTopicsConsumerImpl)consumer).subscribeAsync(topicNameBase + "3", true).join();
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicNameBase + "3", true).join();
 
         // 4. produce 5 more messages per topic
         for (int i = 5; i < 10; i++) {
@@ -3563,7 +3623,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.resume();
 
         // 8. continue to consume
-        while(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
+        while (consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
             counter++;
         }
         assertEquals(counter, 30);
@@ -3652,8 +3712,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     // reachedEndOfTopic should be called only once if a topic has been terminated before subscription
     @SuppressWarnings("rawtypes")
     @Test(timeOut = 100000)
-    public void testReachedEndOfTopic() throws Exception
-    {
+    public void testReachedEndOfTopic() throws Exception {
         String topicName = "persistent://my-property/my-ns/testReachedEndOfTopic";
         Producer producer = pulsarClient.newProducer()
             .topic(topicName)
@@ -3666,18 +3725,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         @SuppressWarnings("unchecked") Consumer consumer = pulsarClient.newConsumer()
             .topic(topicName)
             .subscriptionName("my-subscriber-name")
-            .messageListener(new MessageListener()
-            {
+            .messageListener(new MessageListener() {
                 @Override
-                public void reachedEndOfTopic(Consumer consumer)
-                {
+                public void reachedEndOfTopic(Consumer consumer) {
                     log.info("called reachedEndOfTopic  {}", methodName);
                     latch.countDown();
                 }
 
                 @Override
-                public void received(Consumer consumer, Message message)
-                {
+                public void received(Consumer consumer, Message message) {
                     // do nothing
                 }
             })
@@ -3692,7 +3748,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * This test verifies that broker activates fail-over consumer by considering priority-level as well.
      *
      * <pre>
-     * 1. Start two failover consumer with same priority level, broker selects consumer based on name-sorting (consumer1).
+     * 1. Start two failover consumer with same priority level,
+     * broker selects consumer based on name-sorting (consumer1).
      * 2. Switch non-active consumer to active (consumer2): by giving it higher priority
      * Partitioned-topic with 9 partitions:
      * 1. C1 (priority=1)
@@ -3726,7 +3783,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         AtomicInteger consumer1Count = new AtomicInteger(0);
         admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
-            String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next().getValue().getActiveConsumerName();
+            String activeConsumerName = stats.getSubscriptions().entrySet().iterator()
+                    .next().getValue().getActiveConsumerName();
             if (activeConsumerName.equals("aaa")) {
                 consumer1Count.incrementAndGet();
             }
@@ -3762,7 +3820,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Map<String, Integer> subsCount = new HashMap<>();
         admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
-            String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next().getValue().getActiveConsumerName();
+            String activeConsumerName = stats.getSubscriptions().entrySet().iterator()
+                    .next().getValue().getActiveConsumerName();
             subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
         });
         assertEquals(subsCount.size(), 3);
@@ -3936,7 +3995,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .topic("persistent://my-property/my-ns/my-topic2");
 
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>)producerBuilder.create();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) producerBuilder.create();
         List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
@@ -3958,8 +4017,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topic = "persistent://my-property/my-ns/testCompletedWhenClosing";
         final String partitionedTopic = "persistent://my-property/my-ns/testCompletedWhenClosing-partitioned";
         final String errorMsg = "cleaning and closing the consumers";
-        BatchReceivePolicy batchReceivePolicy
-                = BatchReceivePolicy.builder().maxNumBytes(10 * 1024).maxNumMessages(10).timeout(-1, TimeUnit.SECONDS).build();
+        BatchReceivePolicy batchReceivePolicy =
+                BatchReceivePolicy.builder().maxNumBytes(10 * 1024).maxNumMessages(10)
+                .timeout(-1, TimeUnit.SECONDS).build();
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic).subscriptionName("my-subscriber-name")
@@ -4047,34 +4107,38 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertNotNull(lastMsg);
             consumer.acknowledge(lastMsg);
         }
-        MessageIdImpl lastMessageId = (MessageIdImpl)lastMsg.getMessageId();
+        MessageIdImpl lastMessageId = (MessageIdImpl) lastMsg.getMessageId();
         consumer.close();
         producer.close();
 
         admin.topics().resetCursor(topicName, subName, lastMsg.getMessageId());
-        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subName).subscribe();
         Message<String> message = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertEquals(message.getMessageId(), lastMsg.getMessageId());
         consumer2.close();
 
         admin.topics().resetCursor(topicName, subName, lastMsg.getMessageId(), true);
-        Consumer<String> consumer3 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<String> consumer3 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subName).subscribe();
         message = consumer3.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertNotEquals(message.getMessageId(), lastMsg.getMessageId());
-        MessageIdImpl messageId = (MessageIdImpl)message.getMessageId();
+        MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
         assertEquals(messageId.getEntryId() - 1, lastMessageId.getEntryId());
         consumer3.close();
 
         admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId(), true).get(3, TimeUnit.SECONDS);
-        Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subName).subscribe();
         message = consumer4.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertNotEquals(message.getMessageId(), lastMsg.getMessageId());
-        messageId = (MessageIdImpl)message.getMessageId();
+        messageId = (MessageIdImpl) message.getMessageId();
         assertEquals(messageId.getEntryId() - 1, lastMessageId.getEntryId());
         consumer4.close();
 
         admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId()).get(3, TimeUnit.SECONDS);
-        Consumer<String> consumer5 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<String> consumer5 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subName).subscribe();
         message = consumer5.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertEquals(message.getMessageId(), lastMsg.getMessageId());
         consumer5.close();
@@ -4139,7 +4203,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         //Give some time to consume
         Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats()
+                        .getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
     }
@@ -4168,7 +4233,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         //Give some time to consume
         Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats()
+                        .getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
     }
@@ -4197,7 +4263,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         //Give some time to consume
         Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats()
+                        .getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
     }
@@ -4209,8 +4276,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 100000, dataProvider = "partitioned")
     public void testIncomingMessageSize(boolean isPartitioned) throws Exception {
-        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-" +
-                UUID.randomUUID().toString();
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-"
+                + UUID.randomUUID().toString();
         final String subName = "my-sub";
 
         if (isPartitioned) {
@@ -4254,8 +4321,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 100000)
     public void testNegativeIncomingMessageSize() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-" +
-                UUID.randomUUID().toString();
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-"
+                + UUID.randomUUID().toString();
         final String subName = "my-sub";
 
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -4346,7 +4413,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
         consumer.close();
         assertEquals(SchemaType.AVRO, res.getSchemaType());
-        org.apache.avro.generic.GenericRecord nativeRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
+        org.apache.avro.generic.GenericRecord nativeRecord =
+                (org.apache.avro.generic.GenericRecord) res.getNativeObject();
         org.apache.avro.Schema schema = nativeRecord.getSchema();
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
@@ -4389,7 +4457,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
         consumer.close();
         assertEquals(SchemaType.AVRO, res.getSchemaType());
-        org.apache.avro.generic.GenericRecord nativeRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
+        org.apache.avro.generic.GenericRecord nativeRecord =
+                (org.apache.avro.generic.GenericRecord) res.getNativeObject();
         org.apache.avro.Schema schema = nativeRecord.getSchema();
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
@@ -4448,8 +4517,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
                     // a nullable string is an UNION
                     assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
-                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
-                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType()
+                            == org.apache.avro.Schema.Type.STRING));
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType()
+                            == org.apache.avro.Schema.Type.NULL));
                 } else {
                     assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
                 }
@@ -4947,32 +5018,32 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
            @Override
            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-               String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-               if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+               String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+               if (Files.isReadable(Paths.get(certFilePath))) {
                    try {
-                       keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                       keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                        return keyInfo;
                    } catch (IOException e) {
-                       Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                       Assert.fail("Failed to read certificate from " + certFilePath);
                    }
                } else {
-                   Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                   Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                }
                return null;
            }
 
            @Override
            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-               String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-               if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+               String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+               if (Files.isReadable(Paths.get(certFilePath))) {
                    try {
-                       keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                       keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                        return keyInfo;
                    } catch (IOException e) {
-                       Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                       Assert.fail("Failed to read certificate from " + certFilePath);
                    }
                } else {
-                   Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                   Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                }
                return null;
            }

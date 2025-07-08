@@ -81,7 +81,7 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         for (MsgPayloadTouchableMessageBuilder<String> msgBuilder: msgBuilderList) {
             latestSendFuture = msgBuilder.value("msg-1").sendAsync();
         }
-        try{
+        try {
             latestSendFuture.join();
         } catch (Exception ex) {
             // Ignore the error PulsarClientException$ProducerQueueIsFullError.
@@ -154,9 +154,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
             });
             // Verify: ByteBufPair generated for Pulsar Command.
             if (maxMessageSize == 1) {
-                assertEquals(generatedByteBufPairs.size(),0);
+                assertEquals(generatedByteBufPairs.size(), 0);
             } else {
-                assertEquals(generatedByteBufPairs.size(),1);
+                assertEquals(generatedByteBufPairs.size(), 1);
                 if (compressionType == CompressionType.NONE) {
                     assertEquals(msgBuilder.payload.refCnt(), 2);
                 } else {

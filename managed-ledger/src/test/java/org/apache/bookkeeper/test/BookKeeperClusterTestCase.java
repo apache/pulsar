@@ -26,7 +26,6 @@ package org.apache.bookkeeper.test;
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertFalse;
-
 import com.google.common.base.Stopwatch;
 import java.io.File;
 import java.io.IOException;

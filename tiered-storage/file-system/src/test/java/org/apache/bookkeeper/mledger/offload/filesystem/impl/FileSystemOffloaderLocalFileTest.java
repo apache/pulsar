@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -65,9 +64,9 @@ public class FileSystemOffloaderLocalFileTest {
 
         // prepare the data in bookkeeper
         BookKeeper bk = new PulsarMockBookKeeper(scheduler);
-        LedgerHandle lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "".getBytes());
+        LedgerHandle lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "".getBytes());
         for (int i = 0; i <  numberOfEntries; i++) {
-            byte[] entry = ("foobar"+i).getBytes();
+            byte[] entry = ("foobar" + i).getBytes();
             lh.addEntry(entry);
         }
         lh.close();
@@ -86,10 +85,10 @@ public class FileSystemOffloaderLocalFileTest {
         ReadHandle toTest = offloader.readOffloaded(read.getId(), uuid, offloadDriverMetadata).get();
         assertEquals(toTest.getLastAddConfirmed(), read.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-        LedgerEntries toWriteEntries = read.read(0,numberOfEntries - 1);
+        LedgerEntries toWriteEntries = read.read(0, numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -99,10 +98,10 @@ public class FileSystemOffloaderLocalFileTest {
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
         toTestEntries = toTest.read(1, numberOfEntries - 1);
-        toWriteEntries = read.read(1,numberOfEntries - 1);
+        toWriteEntries = read.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 

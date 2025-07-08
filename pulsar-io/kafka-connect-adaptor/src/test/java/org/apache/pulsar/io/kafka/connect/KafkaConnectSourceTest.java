@@ -20,11 +20,11 @@ package org.apache.pulsar.io.kafka.connect;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -164,7 +164,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         assertNotNull(transformedValue);
 
         if (expectTransformed) {
-            assertEquals(42, ((Number)transformedValue.get("myField")).intValue());
+            assertEquals(42, ((Number) transformedValue.get("myField")).intValue());
             assertTrue(transformedValue.get("myField") instanceof Number);
         } else {
             assertEquals("42", transformedValue.get("myField"));

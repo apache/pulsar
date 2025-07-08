@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;

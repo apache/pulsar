@@ -332,8 +332,10 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
 
         // 5. Add another consumer which does not change active consumer
-        Consumer consumer2 = spy(new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                true, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
+        Consumer consumer2 = spy(new Consumer(sub, SubType.Exclusive,
+                topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
+                true, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
@@ -511,8 +513,10 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
 
         // 5. Add another consumer which has higher priority level
-        Consumer consumer3 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0, "Cons3"/* consumer name */,
-                true, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
+        Consumer consumer3 = spy(new Consumer(sub, SubType.Failover,
+                topic.getName(), 3 /* consumer id */, 0, "Cons3"/* consumer name */,
+                true, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
         pdfc.addConsumer(consumer3);
         consumers = pdfc.getConsumers();
         assertEquals(3, consumers.size());
@@ -689,18 +693,21 @@ public class PersistentDispatcherFailoverConsumerTest {
         if (consumer != null) {
             Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
             field.setAccessible(true);
-            AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater<Consumer>) field.get(consumer);
+            AtomicIntegerFieldUpdater<Consumer> messagePermits =
+                    (AtomicIntegerFieldUpdater<Consumer>) field.get(consumer);
             messagePermits.decrementAndGet(consumer);
             return consumer;
         }
         return null;
     }
 
-    private Consumer createConsumer(PersistentTopic topic, int priority, int permit, boolean blocked, int id) throws Exception {
+    private Consumer createConsumer(PersistentTopic topic, int priority, int permit, boolean blocked, int id)
+            throws Exception {
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         Consumer consumer =
-                new Consumer(sub, SubType.Shared, "test-topic", id, priority, ""+id, true,
-                        serverCnx, "appId", Collections.emptyMap(), false /* read compacted */, null, MessageId.latest,DEFAULT_CONSUMER_EPOCH);
+                new Consumer(sub, SubType.Shared, "test-topic", id, priority,
+                        "" + id, true, serverCnx, "appId", Collections.emptyMap(),
+                        false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
         try {
             consumer.flowPermits(permit);
         } catch (Exception e) {

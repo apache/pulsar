@@ -46,7 +46,7 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Test
     public void testProducerBlockedByPrecisTopicPublishRateLimiting() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
+        PublishRate publishRate = new PublishRate(1, 10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
@@ -77,7 +77,7 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
     @Test
     public void testSystemTopicPublishNonBlock() throws Exception {
         super.baseSetup();
-        PublishRate publishRate = new PublishRate(1,10);
+        PublishRate publishRate = new PublishRate(1, 10);
         admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
         final String topic = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
         PulsarAdmin admin1 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
@@ -92,7 +92,7 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Test
     public void testPrecisTopicPublishRateLimitingProduceRefresh() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
+        PublishRate publishRate = new PublishRate(1, 10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
@@ -145,7 +145,8 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "" + rateInMsg);
         Awaitility.await()
             .untilAsserted(() ->
-                Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
+                Assert.assertEquals(admin.brokers()
+                                .getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
                     "" + rateInMsg));
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);

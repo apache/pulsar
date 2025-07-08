@@ -94,8 +94,9 @@ import org.mockito.internal.util.MockUtil;
  *
  * There are few motivations for PulsarTestContext:
  * <ul>
- * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the behavior of some
- * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issues: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
+ * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the
+ * behavior of some collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples
+ * of the issues: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
  * <li>Since the Mockito issue causes test flakiness, this change will improve reliability.</li>
  * <li>It makes it possible to use composition over inheritance in test classes. This can help reduce the dependency on
  * deep test base cases hierarchies.</li>
@@ -352,7 +353,8 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         /**
-         * Configure the PulsarService instance and the PulsarService collaborator objects to use Mockito spies by default.
+         * Configure the PulsarService instance and
+         * the PulsarService collaborator objects to use Mockito spies by default.
          * @see SpyConfig
          * @return the builder
          */
@@ -586,7 +588,7 @@ public class PulsarTestContext implements AutoCloseable {
      * With Lombok, it is necessary to extend the generated Builder class for adding customizations related to
      * instantiation and completing the builder.
      */
-    static abstract class AbstractCustomBuilder extends Builder {
+    abstract static class AbstractCustomBuilder extends Builder {
         AbstractCustomBuilder(boolean startable) {
             super.startable = startable;
         }
@@ -961,7 +963,8 @@ public class PulsarTestContext implements AutoCloseable {
                     if (metadataStore == null) {
                         metadataStore = builder.configurationMetadataStore;
                     }
-                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,metadataStore, 30);
+                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,
+                            metadataStore, 30);
                     TopicResources tsr = spyConfigPulsarResources.spy(TopicResources.class, metadataStore);
                     pulsarResources(
                             spyConfigPulsarResources.spy(

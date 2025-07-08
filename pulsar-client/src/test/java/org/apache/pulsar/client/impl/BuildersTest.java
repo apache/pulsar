@@ -22,11 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.ImmutableSet;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.ImmutableSet;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -56,27 +56,27 @@ public class BuildersTest {
 
     @Test
     public void enableTlsTest() {
-        ClientBuilderImpl builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar://service:6650");
+        ClientBuilderImpl builder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl("pulsar://service:6650");
         assertFalse(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar://service:6650");
 
-        builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("http://service:6650");
+        builder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl("http://service:6650");
         assertFalse(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "http://service:6650");
 
-        builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650");
+        builder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650");
         assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
 
-        builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("https://service:6650");
+        builder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl("https://service:6650");
         assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "https://service:6650");
 
-        builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar://service:6650").enableTls(true);
+        builder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl("pulsar://service:6650").enableTls(true);
         assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar://service:6650");
 
-        builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650").enableTls(false);
+        builder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650").enableTls(false);
         assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
     }
@@ -103,7 +103,8 @@ public class BuildersTest {
         assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp =
+            ".* must be specified but they cannot be specified at the same time.*")
     public void shouldNotSetTwoOptAtTheSameTime() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         try (Reader reader = client.newReader().topic("abc").startMessageId(MessageId.latest)
@@ -114,7 +115,8 @@ public class BuildersTest {
         }
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp =
+            ".* must be specified but they cannot be specified at the same time.*")
     public void shouldSetOneStartOpt() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         try (Reader reader = client.newReader().topic("abc").create()) {

@@ -124,7 +124,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Starts 3 brokers that are in 3 different clusters
+ * Starts 3 brokers that are in 3 different clusters.
  */
 @Test(groups = "broker")
 public class ReplicatorTest extends ReplicatorTestBase {
@@ -695,7 +695,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         MessageId id = topic.getLastMessageId().get();
         admin1.topics().expireMessages(dest.getPartitionedTopicName(),
                 replicator.getCursor().getName(),
-                id,false);
+                id, false);
 
         replicator.updateRates();
 
@@ -781,7 +781,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     /**
      * It verifies that: if it fails while removing replicator-cluster-cursor: it should not restart the replicator and
-     * it should have cleaned up from the list
+     * it should have cleaned up from the list.
      *
      * @throws Exception
      */
@@ -982,7 +982,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
             MessageConsumer consumer2 = new MessageConsumer(url2, dest);
 
             // Replicator for r1 -> r2
-            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
+            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
+                    .getTopicReference(dest.toString()).get();
             Replicator replicator = topic.getPersistentReplicator("r2");
 
             // Produce 1 message in r1. This message will be replicated immediately into r2 and it will become part of
@@ -1167,7 +1168,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     /**
-     * It verifies that broker should not start replicator for partitioned-topic (topic without -partition postfix)
+     * It verifies that broker should not start replicator for partitioned-topic (topic without -partition postfix).
      *
      * @param isPartitionedTopic
      * @throws Exception
@@ -1178,8 +1179,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/partitionedNs-" + isPartitionedTopic);
-        final String persistentTopicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/partTopic-" + isPartitionedTopic);
-        final String nonPersistentTopicName = BrokerTestUtil.newUniqueName("non-persistent://" + namespace + "/partTopic-" + isPartitionedTopic);
+        final String persistentTopicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/partTopic-"
+                + isPartitionedTopic);
+        final String nonPersistentTopicName = BrokerTestUtil.newUniqueName("non-persistent://" + namespace
+                + "/partTopic-" + isPartitionedTopic);
         BrokerService brokerService = pulsar1.getBrokerService();
 
         admin1.namespaces().createNamespace(namespace);
@@ -1245,8 +1248,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .build();
 
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName)
+                .subscriptionName("s1").subscribe();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName)
+                .subscriptionName("s1").subscribe();
         byte[] value = "test".getBytes();
 
         // publish message local only
@@ -1367,8 +1372,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");
-        final String partitionedTopicName = BrokerTestUtil.newUniqueName(topicPrefix + namespace + topicName + "-partitioned");
-        final String nonPartitionedTopicName = BrokerTestUtil.newUniqueName(topicPrefix + namespace + topicName + "-non-partitioned");
+        final String partitionedTopicName = BrokerTestUtil.newUniqueName(topicPrefix + namespace + topicName
+                + "-partitioned");
+        final String nonPartitionedTopicName = BrokerTestUtil.newUniqueName(topicPrefix + namespace + topicName
+                + "-non-partitioned");
         final int startPartitions = 4;
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
@@ -1422,8 +1429,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar1.getDefaultManagedLedgerFactory();
         Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
-        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
-                .get(mlFactory);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField.get(mlFactory);
         CompletableFuture<ManagedLedgerImpl> mlFuture = new CompletableFuture<>();
         ledgers.put(topicMlName, mlFuture);
 
@@ -1575,7 +1582,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         setup();
     }
 
-    private void initTransaction(int coordinatorSize, PulsarAdmin admin, String ServiceUrl,
+    private void initTransaction(int coordinatorSize, PulsarAdmin admin, String serviceUrlLocal,
                                  PulsarService pulsarService) throws Exception {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString(), coordinatorSize);
         pulsarService.getPulsarResources()
@@ -1584,7 +1591,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(coordinatorSize));
         admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(ServiceUrl).enableTransaction(true).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(serviceUrlLocal).enableTransaction(true).build();
         pulsarClient.close();
         Awaitility.await().until(() ->
                 pulsarService.getTransactionMetadataStoreService().getStores().size() == coordinatorSize);
@@ -1703,7 +1710,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test
     public void testWhenUpdateReplicationCluster() throws Exception {
         log.info("--- testWhenUpdateReplicationCluster ---");
-        String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");;
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         final TopicName dest = TopicName.get(

@@ -269,7 +269,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     }
 
     /**
-     * Delete all the empty container nodes
+     * Delete all the empty container nodes.
      * @param provider the metadata store provider
      * @throws Exception
      */

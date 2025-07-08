@@ -54,11 +54,12 @@ public class OpenTelemetryMetadataStoreStatsTest extends BrokerTestBase {
                 localMetadataStoreName, pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
         FieldUtils.writeField(localMetadataStore, "metadataStoreStats", newStats, true);
 
-        var currentBatchedStats = (BatchMetadataStoreStats) FieldUtils.readField(localMetadataStore, "batchMetadataStoreStats", true);
+        var currentBatchedStats = (BatchMetadataStoreStats) FieldUtils.readField(localMetadataStore,
+                "batchMetadataStoreStats", true);
         currentBatchedStats.close();
         var currentExecutor = (ExecutorService) FieldUtils.readField(currentBatchedStats, "executor", true);
-        var newBatchedStats = new BatchMetadataStoreStats(
-                localMetadataStoreName, currentExecutor, pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
+        var newBatchedStats = new BatchMetadataStoreStats(localMetadataStoreName, currentExecutor,
+                pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
         FieldUtils.writeField(localMetadataStore, "batchMetadataStoreStats", newBatchedStats, true);
     }
 

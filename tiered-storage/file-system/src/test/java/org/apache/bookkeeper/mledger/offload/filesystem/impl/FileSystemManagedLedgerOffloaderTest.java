@@ -74,12 +74,12 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
     private ReadHandle buildReadHandle() throws Exception {
 
-        lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+        lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
 
         int i = 0;
         int blocksWritten = 1;
         while (blocksWritten <= numberOfEntries) {
-            byte[] entry = ("foobar"+i).getBytes();
+            byte[] entry = ("foobar" + i).getBytes();
             blocksWritten++;
             lh.addEntry(entry);
             i++;
@@ -110,10 +110,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-        LedgerEntries toWriteEntries = toWrite.read(0,numberOfEntries - 1);
+        LedgerEntries toWriteEntries = toWrite.read(0, numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -123,10 +123,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
         toTestEntries = toTest.read(1, numberOfEntries - 1);
-        toWriteEntries = toWrite.read(1,numberOfEntries - 1);
+        toWriteEntries = toWrite.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 

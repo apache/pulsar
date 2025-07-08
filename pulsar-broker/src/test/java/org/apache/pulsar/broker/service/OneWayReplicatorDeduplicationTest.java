@@ -251,7 +251,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                         }
 
                         Object data = invocation.getArguments()[0];
-                        if (true && !(data instanceof ByteBufPair)) {
+                        if (!(data instanceof ByteBufPair)) {
                             return invocation.callRealMethod();
                         }
                         // Repeatedly send every message.
@@ -556,7 +556,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             }
 
                             Object data = invocation.getArguments()[0];
-                            if (true && !(data instanceof ByteBufPair)) {
+                            if (!(data instanceof ByteBufPair)) {
                                 return invocation.callRealMethod();
                             }
                             // Repeatedly send every message.

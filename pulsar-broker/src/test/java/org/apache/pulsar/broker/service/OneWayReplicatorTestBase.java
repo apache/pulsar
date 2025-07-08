@@ -22,9 +22,9 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_C
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_KEY_FILE_PATH;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CA_CERT_FILE_PATH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
@@ -434,7 +434,8 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
         Set<String> expected = new HashSet<>(clusters);
-        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getReplicationClusters());
+        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic)
+                .getReplicationClusters());
         assertEquals(act, expected);
     }
 
@@ -494,7 +495,8 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             assertTrue(topicOptional1.isPresent());
             PersistentTopic persistentTopic1 = (PersistentTopic) topicOptional1.get();
             assertTrue(persistentTopic1.getReplicators().isEmpty()
-                    || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
+                    || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName())
+                    .isConnected());
         });
     }
 }

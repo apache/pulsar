@@ -243,10 +243,10 @@ public class TopicGCTest extends ProducerConsumerBase {
                 .topicsPattern(Pattern.compile(topicPattern)).subscribe();
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
             assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 3);
@@ -258,10 +258,10 @@ public class TopicGCTest extends ProducerConsumerBase {
         admin.topics().delete(partition0, true);
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
             assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 2);
@@ -272,10 +272,10 @@ public class TopicGCTest extends ProducerConsumerBase {
         admin.topics().delete(partition1, true);
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
             assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 1);
@@ -285,10 +285,10 @@ public class TopicGCTest extends ProducerConsumerBase {
         admin.topics().delete(partition2, true);
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 0);
             assertEquals(consumers.size(), 0);
         });
@@ -318,10 +318,10 @@ public class TopicGCTest extends ProducerConsumerBase {
                 .topicsPattern(Pattern.compile(topicPattern)).subscribe();
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 0);
             assertEquals(consumers.size(), 0);
         });
@@ -330,10 +330,10 @@ public class TopicGCTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Shared).topic(topic).subscribe().close();
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
             assertEquals(partitionedTopics.get(topic), 2);
             assertEquals(consumers.size(), 2);
@@ -345,10 +345,10 @@ public class TopicGCTest extends ProducerConsumerBase {
         final String partition2 = topic + "-partition-2";
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
             assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 3);
@@ -361,10 +361,10 @@ public class TopicGCTest extends ProducerConsumerBase {
         final String partition3 = topic + "-partition-3";
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentHashMap<String, ConsumerImpl<?>> consumers
-                    = WhiteboxImpl.getInternalState(c1, "consumers");
-            ConcurrentHashMap<String, Integer> partitionedTopics
-                    = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
+            ConcurrentHashMap<String, ConsumerImpl<?>> consumers =
+                    WhiteboxImpl.getInternalState(c1, "consumers");
+            ConcurrentHashMap<String, Integer> partitionedTopics =
+                    WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
             assertEquals(partitionedTopics.get(topic), 4);
             assertEquals(consumers.size(), 4);

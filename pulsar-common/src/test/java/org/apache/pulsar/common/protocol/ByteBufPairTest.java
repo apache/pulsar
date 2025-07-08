@@ -22,11 +22,9 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.testng.annotations.Test;
 
