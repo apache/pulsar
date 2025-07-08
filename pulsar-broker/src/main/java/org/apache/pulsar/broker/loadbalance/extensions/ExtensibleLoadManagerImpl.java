@@ -180,6 +180,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private SplitManager splitManager;
 
+    @Getter
     private volatile boolean started = false;
 
     private boolean configuredSystemTopics = false;
