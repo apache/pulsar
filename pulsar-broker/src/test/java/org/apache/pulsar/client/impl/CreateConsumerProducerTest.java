@@ -112,64 +112,6 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void cleanupAfterMethod() throws Exception {
-        try {
-            pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
-            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
-
-            for (String tenant : admin.tenants().getTenants()) {
-                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                    deleteNamespaceWithRetry(namespace, true);
-                }
-                admin.tenants().deleteTenant(tenant, true);
-            }
-
-            for (String cluster : admin.clusters().getClusters()) {
-                admin.clusters().deleteCluster(cluster);
-            }
-
-            pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
-            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
-            super.producerBaseSetup();
-        } catch (Exception | AssertionError e) {
-            log.warn("Failed to clean up state. Restarting broker.", e);
-            log.warn("Thread dump:\n{}", ThreadDumpUtil.buildThreadDiagnosticString());
-            cleanup();
-            setup();
-        }
-    }
-
-    @DataProvider
-    public static Object[][] variationsForExpectedPos() {
-        return new Object[][]{
-                // batching / start-inclusive / num-of-messages
-                {true, true, 10},
-                {true, false, 10},
-                {false, true, 10},
-                {false, false, 10},
-
-                {true, true, 100},
-                {true, false, 100},
-                {false, true, 100},
-                {false, false, 100},
-        };
-    }
-
-    @DataProvider(name = "ackReceiptEnabled")
-    public Object[][] ackReceiptEnabled() {
-        return new Object[][]{{true}, {false}};
-    }
-
-    @DataProvider(name = "ackReceiptEnabledAndSubscriptionTypes")
-    public Object[][] ackReceiptEnabledAndSubscriptionTypes() {
-        return new Object[][]{
-                {true, SubscriptionType.Shared},
-                {true, SubscriptionType.Key_Shared},
-                {false, SubscriptionType.Shared},
-                {false, SubscriptionType.Key_Shared},
-        };
-    }
 
     @AfterClass(alwaysRun = true)
     @Override
