@@ -245,7 +245,7 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
 
     @FieldDoc(
             defaultValue = "",
-            help = "Extra KinesisProducerConfiguration parameters. See https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.14.0/index.html?com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html for all the available parameters."
+            help = "Extra KinesisProducerConfiguration parameters. See https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.15.2/index.html?com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html for all the available parameters."
                     + "Parameters that are explicitly set take preference over extra config.")
     private Map<String, String> extraKinesisProducerConfig = new HashMap<>();
 
