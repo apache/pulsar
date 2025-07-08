@@ -213,7 +213,6 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                 InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), false);
     }
 
-    @SneakyThrows
     private void doTestServiceUrlResolve(PulsarClientImpl pulsarClient, String serviceUrl,
                                          InetSocketAddress healthyAddress, boolean enableQuarantine)
             throws Exception {
@@ -253,7 +252,13 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                     .subscriptionMode(SubscriptionMode.Durable)
                     .topic(topic).receiverQueueSize(1).subscriptionName(subName)
                     .subscribeAsync()
-                    .thenAccept(Consumer::close);
+                    .thenAccept(e -> {
+                        try {
+                            e.close();
+                        } catch (PulsarClientException e1) {
+                            log.warn("Failed to close consumer {} for topic {}: {}", subName, topic, e1.getMessage());
+                        }
+                    });
         }
         Uninterruptibles.sleepUninterruptibly(10, java.util.concurrent.TimeUnit.SECONDS);
         // check if the unhealthy address is removed
