@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -198,6 +199,11 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             log.info("service name resolver available hosts changed, current available hosts: {}",
                     availableAddressList);
         }
+    }
+
+    @VisibleForTesting
+    List<InetSocketAddress> getAvailableAddressList() {
+        return availableAddressList;
     }
 
     /**

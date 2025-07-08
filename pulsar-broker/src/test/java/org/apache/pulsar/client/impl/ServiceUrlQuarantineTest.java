@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
@@ -37,20 +38,16 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionMode;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.net.ServiceURI;
-import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class CreateConsumerProducerTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(CreateConsumerProducerTest.class);
+public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
+    private static final Logger log = LoggerFactory.getLogger(ServiceUrlQuarantineTest.class);
     private String binaryServiceUrlWithUnavailableNodes;
     private String httpServiceUrlWithUnavailableNodes;
     private PulsarClientImpl pulsarClientWithBinaryServiceUrl;
@@ -216,6 +213,7 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), false);
     }
 
+    @SneakyThrows
     private void doTestServiceUrlResolve(PulsarClientImpl pulsarClient, String serviceUrl,
                                          InetSocketAddress healthyAddress, boolean enableQuarantine)
             throws Exception {
@@ -255,7 +253,7 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                     .subscriptionMode(SubscriptionMode.Durable)
                     .topic(topic).receiverQueueSize(1).subscriptionName(subName)
                     .subscribeAsync()
-                    .thenAccept(Consumer::closeAsync);
+                    .thenAccept(Consumer::close);
         }
         Uninterruptibles.sleepUninterruptibly(10, java.util.concurrent.TimeUnit.SECONDS);
         // check if the unhealthy address is removed
@@ -263,7 +261,7 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         expectedHealthyAddresses.add(healthyAddress);
 
         Set<InetSocketAddress> resolvedAddresses = new HashSet<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < hosts.length; i++) {
             if (enableQuarantine) {
                 assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
             } else {
