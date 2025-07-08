@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.client.impl.RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
@@ -28,12 +31,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -45,6 +53,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -55,6 +64,8 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -214,7 +225,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         consumerConfiguration.setReadCompacted(true);
         consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
         consumerConfiguration.setAckReceiptEnabled(true);
-        RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true).get();
+        RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true, true).get();
 
         MessageId lastMessageId = reader.getLastMessageIdAsync().get();
         while (true) {
@@ -550,11 +561,62 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         String topic2 = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
         try {
-            reader = RawReader.create(pulsarClient, topic2, subscription, false).get();
+            reader = RawReader.create(pulsarClient, topic2, subscription, false, true).get();
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.TopicDoesNotExistException);
         }
         reader.closeAsync().join();
+    }
+
+    @Test(timeOut = 60000)
+    public void testReconnectsWhenServiceNotReady() throws Exception {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        String subscriptionName = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+
+        // Inject a delay event for topic close, which leads to that the raw-reader will get a ServiceNotReady error,
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursor compactionCursor = ml.openCursor(subscriptionName);
+        ManagedCursor spyCompactionCursor = spy(compactionCursor);
+        CountDownLatch delayCloseCursorSignal = new CountDownLatch(1);
+        Answer answer = new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                delayCloseCursorSignal.await();
+                return invocationOnMock.callRealMethod();
+            }
+        };
+        doAnswer(answer).when(spyCompactionCursor).asyncClose(any(AsyncCallbacks.CloseCallback.class), any());
+        ml.getCursors().removeCursor(subscriptionName);
+        ml.getCursors().add(spyCompactionCursor, ml.getLastConfirmedEntry());
+
+        // Unload topic after reader is connected.
+        // The topic state comes to "fenced", then RawReader will get a ServiceNotReady error,
+        CompletableFuture<RawMessage> msgFuture = reader.readNextAsync();
+        CompletableFuture<Void> unloadFuture = admin.topics().unloadAsync(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(persistentTopic.isFenced());
+        });
+
+        // Verify: RasReader reconnected after that the unloading is finished, and it can consume successfully.
+        delayCloseCursorSignal.countDown();
+        unloadFuture.get();
+        MessageIdImpl msgIdSent = (MessageIdImpl) producer.send("msg");
+        RawMessage rawMessage = msgFuture.get();
+        Assert.assertNotNull(rawMessage);
+        MessageIdImpl msgIdReceived = (MessageIdImpl) rawMessage.getMessageId();
+        Assert.assertEquals(msgIdSent.getLedgerId(), msgIdReceived.getLedgerId());
+        Assert.assertEquals(msgIdSent.getEntryId(), msgIdReceived.getEntryId());
+
+        // cleanup.
+        rawMessage.close();
+        producer.close();
+        reader.closeAsync().get();
+        admin.topics().delete(topic, false);
     }
 }

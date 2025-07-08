@@ -22,10 +22,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.ImmutableSet;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
@@ -88,7 +88,7 @@ public class BuildersTest {
         String topicName = "test_src";
         MessageId messageId = new MessageIdImpl(1, 2, 3);
         Map<String, Object> config = new HashMap<>();
-        config.put("topicNames", ImmutableSet.of(topicName));
+        config.put("topicNames", Set.of(topicName));
         config.put("receiverQueueSize", 2000);
         ReaderBuilderImpl<byte[]> builder = (ReaderBuilderImpl<byte[]>) client.newReader()
             .startMessageId(messageId)

@@ -25,7 +25,6 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBufAllocator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
 import org.apache.bookkeeper.common.allocator.OutOfMemoryPolicy;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
@@ -48,7 +47,6 @@ public class PulsarByteBufAllocatorDefaultTest {
             assertTrue(arguments.get(0) instanceof ByteBufAllocator);
             assertEquals(arguments.get(2), PoolingPolicy.PooledDirect);
             assertEquals(arguments.get(4), OutOfMemoryPolicy.FallbackToHeap);
-            assertEquals(arguments.get(6), LeakDetectionPolicy.Advanced);
         })) {
             assertFalse(called.get());
             PulsarByteBufAllocator.createByteBufAllocator();

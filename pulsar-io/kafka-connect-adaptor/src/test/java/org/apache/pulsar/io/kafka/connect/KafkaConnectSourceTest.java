@@ -30,6 +30,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
@@ -39,6 +40,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.kafka.connect.KafkaConnectSource.KafkaSourceRecord;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -120,6 +122,48 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     void testTransformationWithNegatedPredicate() throws Exception {
         Map<String, Object> config = setupTransformConfig(true, true);
         runTransformTest(config, false);
+    }
+
+    @Test
+    void testShortTopicNames() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, "default-tenant/default-ns");
+
+        runTopicNameTest(config, "a-topic", "persistent://default-tenant/default-ns/a-topic");
+    }
+
+    @Test
+    void testFullyQualifiedTopicNames() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, "default-tenant/default-ns");
+
+        runTopicNameTest(config, "persistent://a-tenant/a-ns/a-topic", "persistent://a-tenant/a-ns/a-topic");
+    }
+
+    private void runTopicNameTest(Map<String, Object> config, String topicName, String expectedDestinationTopicName)
+            throws Exception {
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, "default-tenant/default-ns");
+
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        Map<String, Object> sourcePartition = new HashMap<>();
+        Map<String, Object> sourceOffset = new HashMap<>();
+        Map<String, Object> value = new HashMap<>();
+        sourcePartition.put("test", "test");
+        sourceOffset.put("test", 0);
+        value.put("myField", "42");
+        SourceRecord srcRecord = new SourceRecord(
+            sourcePartition, sourceOffset, topicName, null,
+            null, null, null, value
+        );
+
+        KafkaSourceRecord record = kafkaConnectSource.processSourceRecord(srcRecord);
+
+        assertEquals(Optional.of(expectedDestinationTopicName), record.destinationTopic);
     }
 
     private Map<String, Object> setupTransformConfig(boolean withPredicate, boolean negated) {

@@ -632,6 +632,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     void shouldSupportCancellingReadNextAsync() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
         MultiTopicsReaderImpl<byte[]> reader = (MultiTopicsReaderImpl<byte[]>) pulsarClient.newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)

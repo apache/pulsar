@@ -156,6 +156,7 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.Metadata;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -638,7 +639,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 && brokerAllowAutoCreate;
                         if (!autoCreateIfNotExist) {
                             NamespaceService namespaceService = getBrokerService().getPulsar().getNamespaceService();
-                            namespaceService.checkTopicExists(topicName).thenAccept(topicExistsInfo -> {
+                            namespaceService.checkTopicExistsAsync(topicName).thenAccept(topicExistsInfo -> {
                                 lookupSemaphore.release();
                                 if (!topicExistsInfo.isExists()) {
                                     writeAndFlush(Commands.newPartitionMetadataResponse(
@@ -1350,9 +1351,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
                             return service.isAllowAutoSubscriptionCreationAsync(topicName)
                                     .thenCompose(isAllowedAutoSubscriptionCreation -> {
+                                        boolean subscriptionExists =
+                                                topic.getSubscriptions().containsKey(subscriptionName);
+                                        // If subscription is as "a/b". The url of HTTP API that defined as
+                                        // "{tenant}/{namespace}/{topic}/{subscription}" will be like below:
+                                        // "public/default/tp/a/b", then the broker will assume it is a topic that
+                                        // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
+                                        // So denied to create a subscription that contains "/".
+                                        if (getBrokerService().pulsar().getConfig().isStrictlyVerifySubscriptionName()
+                                                && !subscriptionExists
+                                                && !NamedEntity.isAllowed(subscriptionName)) {
+                                            return FutureUtil.failedFuture(
+                                                new BrokerServiceException.NamingException(
+                                                 "Please let the subscription only contains '/w(a-zA-Z_0-9)' or '_',"
+                                                 + " the current value is " + subscriptionName));
+                                        }
+
                                         boolean rejectSubscriptionIfDoesNotExist = isDurable
                                                 && !isAllowedAutoSubscriptionCreation
-                                                && !topic.getSubscriptions().containsKey(subscriptionName)
+                                                && !subscriptionExists
                                                 && topic.isPersistent();
 
                                         if (rejectSubscriptionIfDoesNotExist) {
@@ -3777,5 +3794,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void decrementThrottleCount() {
         throttleTracker.decrementThrottleCount();
+    }
+
+    @VisibleForTesting
+    void setAuthState(AuthenticationState authState) {
+        this.authState = authState;
     }
 }

@@ -77,6 +77,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         ServiceConfiguration configuration = mock(ServiceConfiguration.class);
         doReturn(brokerService).when(topic).getBrokerService();
         doReturn(pulsarService).when(brokerService).getPulsar();
+        doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(configuration).when(pulsarService).getConfig();
         doReturn(false).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();

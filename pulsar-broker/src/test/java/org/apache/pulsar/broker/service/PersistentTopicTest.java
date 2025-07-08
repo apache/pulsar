@@ -47,9 +47,11 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.ReferenceCountUtil;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -171,6 +173,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private EventLoopGroup eventLoopGroup;
     private ManagedLedgerFactory managedLedgerFactory;
+    private ChannelHandlerContext ctx;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -208,7 +211,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
 
         eventLoopGroup = new DefaultEventLoopGroup();
@@ -223,7 +226,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(true).when(nsSvc).isServiceUnitActive(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isServiceUnitActiveAsync(any());
-        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any());
+        doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
 
         setupMLAsyncCallbackMocks();
     }
@@ -2276,16 +2280,26 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testSendProducerTxnPrechecks() throws Exception {
         PersistentTopic topic = mock(PersistentTopic.class);
+        CountDownLatch latch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            Object msg = invocation.getArgument(0);
+            ReferenceCountUtil.safeRelease(msg);
+            latch.countDown();
+            return mock(ChannelFuture.class);
+        }).when(ctx).writeAndFlush(any(), any());
         String role = "appid1";
         Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest, 0, true,
                 ProducerAccessMode.Shared, Optional.empty(), true);
         producer1.close(false).get();
+        ByteBuf headersAndPayload = Unpooled.wrappedBuffer("test".getBytes());
         producer1.publishTxnMessage(
                 new TxnID(1L, 0L),
-                1, 1, 1, null, 1, false, false
+                1, 1, 1, headersAndPayload, 1, false, false
         );
         verify(topic, times(0)).publishTxnMessage(any(), any(), any());
+        // wait for the writeAndFlush to be called so that ByteBuf leak isn't reported
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
 }

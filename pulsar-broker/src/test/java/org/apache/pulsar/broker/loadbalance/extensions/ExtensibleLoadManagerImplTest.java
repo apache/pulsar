@@ -205,6 +205,41 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertEquals(webServiceUrl.get().toString(), brokerLookupData.get().getWebServiceUrl());
     }
 
+    // Test that the load manager will use round-robin assignment
+    // if the namespace is in loadBalancerSheddingExcludedNamespaces.
+    @Test
+    public void testSelectBrokerForSheddingExcludedNamespaces() throws Exception {
+        pulsar1.getConfiguration().setLoadBalancerSheddingExcludedNamespaces(Set.of(defaultTestNamespace));
+        try {
+            Pair<TopicName, NamespaceBundle> topicAndBundle =
+                    getBundleIsNotOwnByChangeEventTopic("test-topic" + UUID.randomUUID());
+            NamespaceBundle bundle1 = topicAndBundle.getRight();
+            Optional<BrokerLookupData> brokerLookupData1 = primaryLoadManager.assign(Optional.empty(), bundle1,
+                    LookupOptions.builder().build()).get();
+            assertTrue(brokerLookupData1.isPresent());
+            log.info("Assign the bundle1 {} to {}", bundle1, brokerLookupData1);
+
+            String webServiceUrl1 = brokerLookupData1.get().getWebServiceUrl();
+
+            Pair<TopicName, NamespaceBundle> topicAndBundle2 =
+                    getBundleIsNotOwnByChangeEventTopic("test-topic-" + UUID.randomUUID());
+
+            while (topicAndBundle2.getRight().toString().equals(topicAndBundle.getRight().toString())
+                    || primaryLoadManager.checkOwnershipAsync(Optional.empty(), topicAndBundle2.getRight()).get()) {
+                topicAndBundle2 = getBundleIsNotOwnByChangeEventTopic("test-topic-" + UUID.randomUUID());
+            }
+            NamespaceBundle bundle2 = topicAndBundle2.getRight();
+            Optional<BrokerLookupData> brokerLookupData2 = primaryLoadManager.assign(Optional.empty(), bundle2,
+                    LookupOptions.builder().build()).get();
+            assertTrue(brokerLookupData2.isPresent());
+            log.info("Assign the bundle2 {} to {}", bundle2, brokerLookupData2);
+            String webServiceUrl2 = brokerLookupData2.get().getWebServiceUrl();
+            assertNotEquals(webServiceUrl1, webServiceUrl2);
+        } finally {
+            pulsar1.getConfiguration().setLoadBalancerSheddingExcludedNamespaces(Set.of());
+        }
+    }
+
     @Test
     public void testLookupOptions() throws Exception {
         Pair<TopicName, NamespaceBundle> topicAndBundle =

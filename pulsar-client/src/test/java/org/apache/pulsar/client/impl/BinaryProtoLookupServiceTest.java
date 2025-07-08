@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -36,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
@@ -70,8 +72,17 @@ public class BinaryProtoLookupServiceTest {
         CompletableFuture<LookupDataResult> lookupFuture2 = CompletableFuture.completedFuture(lookupResult2);
 
         ClientCnx clientCnx = mock(ClientCnx.class);
-        when(clientCnx.newLookup(any(ByteBuf.class), anyLong())).thenReturn(lookupFuture1, lookupFuture1,
-                lookupFuture2);
+        AtomicInteger lookupInvocationCounter = new AtomicInteger();
+        doAnswer(invocation -> {
+            ByteBuf byteBuf = invocation.getArgument(0);
+            byteBuf.release();
+            int lookupInvocationCount = lookupInvocationCounter.incrementAndGet();
+            if (lookupInvocationCount < 3) {
+                return lookupFuture1;
+            } else {
+                return lookupFuture2;
+            }
+        }).when(clientCnx).newLookup(any(ByteBuf.class), anyLong());
 
         CompletableFuture<ClientCnx> connectionFuture = CompletableFuture.completedFuture(clientCnx);
 

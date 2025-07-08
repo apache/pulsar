@@ -61,7 +61,7 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.awaitility.Awaitility;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -220,7 +220,7 @@ public class JavaInstanceRunnableTest {
         verify(record, times(1)).ack();
     }
 
-    @NotNull
+    @NonNull
     private JavaInstanceRunnable getJavaInstanceRunnable(boolean autoAck,
                org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()

@@ -171,6 +171,8 @@ public class CompressorCodecTest {
         ByteBuf uncompressed = codec.decode(compressed, 0);
 
         assertEquals(uncompressed, Unpooled.EMPTY_BUFFER);
+        compressed.release();
+        uncompressed.release();
     }
 
     @Test(dataProvider = "codecAndText")

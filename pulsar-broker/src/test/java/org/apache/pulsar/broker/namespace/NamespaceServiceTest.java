@@ -964,7 +964,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void checkTopicExistsForNonPartitionedTopic(String topicDomain) throws Exception {
         TopicName topicName = TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID());
         admin.topics().createNonPartitionedTopic(topicName.toString());
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -981,7 +981,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topicName.toString(), 3);
 
         // Check the topic exists by the partitions.
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -992,7 +992,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 });
 
         // Check the specific partition.
-        result = pulsar.getNamespaceService().checkTopicExists(topicName.getPartition(2));
+        result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName.getPartition(2));
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -1003,7 +1003,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 });
 
         // Partition index is out of range.
-        result = pulsar.getNamespaceService().checkTopicExists(topicName.getPartition(10));
+        result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName.getPartition(10));
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -1017,7 +1017,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test(dataProvider = "topicDomain")
     public void checkTopicExistsForNonExistentNonPartitionedTopic(String topicDomain) {
         TopicName topicName = TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID());
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -1034,7 +1034,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void checkTopicExistsForNonExistentPartitionTopic(String topicDomain) {
         TopicName topicName =
                 TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID() + "-partition-10");
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {

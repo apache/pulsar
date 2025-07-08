@@ -72,9 +72,9 @@ import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterTest;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.BeforeTest;
 
 /**
  * A class runs several bookie servers for testing.
@@ -147,7 +147,7 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
-    @BeforeTest(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     public void setUp() throws Exception {
         setUp(getLedgersRootPath());
     }
@@ -186,7 +186,7 @@ public abstract class BookKeeperClusterTestCase {
         return "";
     }
 
-    @AfterTest(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     public void tearDown() throws Exception {
         boolean failed = false;
         for (Throwable e : asyncExceptions) {

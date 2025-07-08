@@ -1292,7 +1292,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
                                                            Map<String, String> offloadDriverMetadata) {
             CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-            promise.completeExceptionally(new UnsupportedOperationException());
+            promise.completeExceptionally(new UnsupportedOperationException(
+                    "MockLedgerOffloader does not support read"));
             return promise;
         }
 

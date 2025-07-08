@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.pulsar.io.core.SinkContext;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -88,7 +88,7 @@ public class ADXSinkConfigTest {
         assertEquals(config.getBatchTimeMs(), 10000);
     }
 
-    @NotNull
+    @NonNull
     private static Map<String, Object> getConfig() {
         Map<String, Object> map = new HashMap<>();
         map.put("clusterUrl", "https://somecluster.eastus.kusto.windows.net");
@@ -106,7 +106,7 @@ public class ADXSinkConfigTest {
         return map;
     }
 
-    private @NotNull File readSinkConfig(String name) {
+    private @NonNull File readSinkConfig(String name) {
         ClassLoader classLoader = getClass().getClassLoader();
         return new File(Objects.requireNonNull(classLoader.getResource(name)).getFile());
     }

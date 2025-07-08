@@ -84,10 +84,14 @@ public abstract class FileStoreTestBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() {
+    public void tearDown() throws Exception {
         if (fileSystemManagedLedgerOffloader != null) {
             fileSystemManagedLedgerOffloader.close();
             fileSystemManagedLedgerOffloader = null;
+        }
+        if (offloaderStats != null) {
+            offloaderStats.close();
+            offloaderStats = null;
         }
         if (hdfsCluster != null) {
             hdfsCluster.shutdown(true, true);

@@ -29,7 +29,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -50,7 +49,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -693,35 +691,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}.
+     * see {@link #deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}.
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}.
-     */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
-            throws Exception {
-        deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
+        deleteNamespaceWithRetry(ns, force, admin);
     }
 
     /**
      * 1. Pause system "__change_event" topic creates.
      * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
      */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
-                                                Collection<PulsarService> pulsars) throws Exception {
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
                 .pollDelay(500, TimeUnit.MILLISECONDS)
                 .until(() -> {

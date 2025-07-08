@@ -180,6 +180,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.jspecify</groupId>
+      <artifactId>jspecify</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.github.spotbugs</groupId>
       <artifactId>spotbugs-annotations</artifactId>
       <scope>provided</scope>
@@ -240,7 +245,7 @@
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
           <failOnViolations>true</failOnViolations>
-          <javaVersion>8</javaVersion>
+          <javaVersion>17</javaVersion>
         </configuration>
         <executions>
           <execution>

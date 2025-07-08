@@ -301,6 +301,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
+    private final ExecutorProvider transactionSnapshotRecoverExecutorProvider;
     private final MonotonicClock monotonicClock;
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
@@ -371,8 +372,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
                     .getNumTransactionReplayThreadPoolSize(), "pulsar-transaction-executor");
+            this.transactionSnapshotRecoverExecutorProvider = new ExecutorProvider(this.getConfiguration()
+                    .getNumTransactionReplayThreadPoolSize(), "pulsar-transaction-snapshot-recover");
         } else {
             this.transactionExecutorProvider = null;
+            this.transactionSnapshotRecoverExecutorProvider = null;
         }
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
@@ -660,6 +664,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             if (transactionExecutorProvider != null) {
                 transactionExecutorProvider.shutdownNow();
+            }
+            if (transactionSnapshotRecoverExecutorProvider != null) {
+                transactionSnapshotRecoverExecutorProvider.shutdownNow();
+            }
+            if (transactionTimer != null) {
+                transactionTimer.stop();
             }
             MLPendingAckStoreProvider.closeBufferedWriterMetrics();
             MLTransactionMetadataStoreProvider.closeBufferedWriterMetrics();

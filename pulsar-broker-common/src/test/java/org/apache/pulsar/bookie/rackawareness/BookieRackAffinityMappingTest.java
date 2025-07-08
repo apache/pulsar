@@ -247,6 +247,7 @@ public class BookieRackAffinityMappingTest {
         ClientConfiguration bkClientConf = new ClientConfiguration();
         bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
 
+        @Cleanup
         PulsarRegistrationClient pulsarRegistrationClient = new PulsarRegistrationClient(store, "/ledgers");
         DefaultBookieAddressResolver defaultBookieAddressResolver =
                 new DefaultBookieAddressResolver(pulsarRegistrationClient);

@@ -153,7 +153,7 @@ public class HttpTopicLookupv2Test {
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExistsAsync(any(TopicName.class));
         CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
         booleanFuture.complete(false);
         doReturn(booleanFuture).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class));
@@ -271,7 +271,7 @@ public class HttpTopicLookupv2Test {
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExistsAsync(any(TopicName.class));
         CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
         booleanFuture.complete(false);
         doReturn(future).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class));
@@ -308,7 +308,7 @@ public class HttpTopicLookupv2Test {
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExistsAsync(any(TopicName.class));
 
         // Get the current semaphore first
         Integer state1 = pulsar.getBrokerService().getLookupRequestSemaphore().availablePermits();

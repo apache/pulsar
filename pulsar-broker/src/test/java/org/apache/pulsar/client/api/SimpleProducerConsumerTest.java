@@ -284,6 +284,40 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
+    @Test(timeOut = 30000)
+    public void testSlashSubscriptionName() throws Exception {
+        // Enable strictlyVerifySubscriptionName.
+        admin.brokers().updateDynamicConfiguration("strictlyVerifySubscriptionName", "true");
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getConfiguration().isStrictlyVerifySubscriptionName());
+        });
+
+        final String topic = BrokerTestUtil.newUniqueName("my-property/my-ns/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        try {
+            admin.topics().createSubscription(topic, "a/b", MessageId.earliest);
+            fail("The creation for the subscription that contains '/' should fail");
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getMessage().contains("Please let the subscription only contains"));
+            // Expected.
+        }
+        try {
+            pulsarClient.newConsumer().topic(topic).subscriptionName("b/c").subscribe();
+            fail("The creation for the subscription that contains '/' should fail");
+        } catch (PulsarClientException ex) {
+            assertTrue(ex.getMessage().contains("Please let the subscription only contains"));
+            // Expected.
+        }
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 0);
+
+        // cleanup.
+        admin.topics().delete(topic);
+        admin.brokers().updateDynamicConfiguration("strictlyVerifySubscriptionName", "false");
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(pulsar.getConfiguration().isStrictlyVerifySubscriptionName());
+        });
+    }
+
     @Test(timeOut = 100000)
     public void testPublishTimestampBatchEnabled() throws Exception {
 
@@ -5132,5 +5166,94 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Reader<byte[]> reader = newPulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
                 .createAsync().get(5, TimeUnit.SECONDS);
         assertNotNull(reader);
+    }
+
+    /**
+     * Creates a CryptoKeyReader that always returns keys from specified file paths,
+     * regardless of the key name provided.
+     *
+     * <p>This method creates a CryptoKeyReader instance that reads the public and
+     * private keys from fixed file paths. The key name and metadata provided to
+     * the getPublicKey and getPrivateKey methods are ignored, and the keys are
+     * always read from the specified paths.</p>
+     *
+     * @param publicKeyPath  the file path to the public key
+     * @param privateKeyPath the file path to the private key
+     * @return a CryptoKeyReader that reads keys from the specified file paths
+     * @throws AssertionError if the key files are not present or not readable
+     */
+    private static CryptoKeyReader createFixedFileCryptoKeyReader(String publicKeyPath, String privateKeyPath) {
+        return new CryptoKeyReader() {
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                if (Files.isReadable(Paths.get(publicKeyPath))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyPath)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + publicKeyPath);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + publicKeyPath + " is not present or not readable.");
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                if (Files.isReadable(Paths.get(privateKeyPath))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyPath)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + privateKeyPath);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + privateKeyPath + " is not present or not readable.");
+                }
+                return null;
+            }
+        };
+    }
+
+    @Test
+    public void testE2EEncryptionWithCompression() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testE2EEncryptionWithCompression-" + UUID.randomUUID();
+
+        final var producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(createFixedFileCryptoKeyReader(
+                        "./src/test/resources/certificate/public-key.client-rsa.pem",
+                        "./src/test/resources/certificate/private-key.client-rsa.pem"
+                ))
+                .compressionMinMsgBodySize(1) // enforce compression
+                .compressionType(CompressionType.LZ4)
+                .create();
+
+        final var consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test")
+                .cryptoKeyReader(createFixedFileCryptoKeyReader(
+                        "./src/test/resources/certificate/public-key.client-mismatch-rsa.pem",
+                        "./src/test/resources/certificate/private-key.client-mismatch-rsa.pem"
+                ))
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.send("message-" + i);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            final var msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            consumer.acknowledge(msg);
+        }
+
+        producer.close();
+        consumer.close();
     }
 }

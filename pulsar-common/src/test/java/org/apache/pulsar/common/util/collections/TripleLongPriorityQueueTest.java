@@ -189,6 +189,7 @@ public class TripleLongPriorityQueueTest {
         // Trigger shrinking
         pq.clear();
         capacity = scaleCapacity - (int) (scaleCapacity * 0.5f * 0.9f);
+        pq.close();
     }
 
     private void triggerScaleOut(int initialCapacity, TripleLongPriorityQueue pq) {

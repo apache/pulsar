@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -53,8 +52,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
-import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
@@ -118,6 +117,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.zookeeper.KeeperException;
+import org.jspecify.annotations.NonNull;
 
 @Slf4j
 public abstract class NamespacesBase extends AdminResource {
@@ -211,13 +211,13 @@ public abstract class NamespacesBase extends AdminResource {
      * Delete the namespace and retry to resolve some topics that were not created successfully(in metadata)
      * during the deletion.
      */
-    protected @Nonnull CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
+    protected @NonNull CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         internalRetryableDeleteNamespaceAsync0(force, 5, future);
         return future;
     }
     private void internalRetryableDeleteNamespaceAsync0(boolean force, int retryTimes,
-                                                        @Nonnull CompletableFuture<Void> callback) {
+                                                        @NonNull CompletableFuture<Void> callback) {
         precheckWhenDeleteNamespace(namespaceName, force)
                 .thenCompose(policies -> {
                     final CompletableFuture<List<String>> topicsFuture;

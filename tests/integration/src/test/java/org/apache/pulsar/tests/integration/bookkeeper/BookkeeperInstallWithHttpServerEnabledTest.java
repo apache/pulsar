@@ -79,4 +79,14 @@ public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTes
         assertEquals(result.getExitCode(), 0);
         assertEquals(result.getStdout(), "OK\n");
     }
+
+    @Test
+    public void testGetBookieMetrics() throws Exception {
+        ContainerExecResult result = pulsarCluster.getAnyBookie().execCmd(
+                PulsarCluster.CURL,
+                "-X",
+                "GET",
+                "http://localhost:8000/metrics");
+        assertEquals(result.getExitCode(), 0);
+    }
 }

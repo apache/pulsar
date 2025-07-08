@@ -20,7 +20,11 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -60,9 +64,11 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -101,6 +107,8 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -2335,6 +2343,65 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test(timeOut = 120 * 1000)
+    public void testConcurrentCompactionAndTopicDelete() throws Exception {
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        // Load up the topic.
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+        // Inject a reading delay to the compaction task,
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursor compactionCursor = ml.openCursor(COMPACTION_SUBSCRIPTION);
+        ManagedCursor spyCompactionCursor = spy(compactionCursor);
+        CountDownLatch delayReadSignal = new CountDownLatch(1);
+        Answer answer = new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                delayReadSignal.await();
+                return invocationOnMock.callRealMethod();
+            }
+        };
+        doAnswer(answer).when(spyCompactionCursor).asyncReadEntries(anyInt(),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(), any(Position.class));
+        doAnswer(answer).when(spyCompactionCursor).asyncReadEntries(anyInt(), anyLong(),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(), any(Position.class));
+        doAnswer(answer).when(spyCompactionCursor).asyncReadEntriesOrWait(anyInt(), anyLong(),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(), any(Position.class));
+        ml.getCursors().removeCursor(COMPACTION_SUBSCRIPTION);
+        ml.getCursors().add(spyCompactionCursor, ml.getLastConfirmedEntry());
+
+        // Trigger a compaction task.
+        for (int i = 0; i < 2000; i++) {
+            producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i)).send();
+        }
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).subscriptionName("s1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        persistentTopic.triggerCompaction();
+        Awaitility.await().untilAsserted(() -> {
+           assertEquals(persistentTopic.getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 1);
+        });
+
+        // Since we injected a delay reading, the compaction task started and not finish yet.
+        // Call topic deletion, they two tasks are concurrently executed.
+        producer.close();
+        consumer.close();
+        CompletableFuture<Void> deleteTopicFuture = persistentTopic.deleteForcefully();
+
+        // Remove the injection after 3s.
+        Thread.sleep(3000);
+        delayReadSignal.countDown();
+
+        // Verify: topic deletion is successfully executed.
+        Awaitility.await().atMost(15, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(deleteTopicFuture.isDone());
+        });
     }
 
     @Test

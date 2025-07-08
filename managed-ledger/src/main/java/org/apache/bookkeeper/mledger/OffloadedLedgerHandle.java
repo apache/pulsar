@@ -16,12 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.stats;
+package org.apache.bookkeeper.mledger;
 
-import lombok.experimental.UtilityClass;
+/**
+ *  This is a marked interface for ledger handle that represent offloaded data.
+ */
+public interface OffloadedLedgerHandle {
 
-@UtilityClass
-public class CacheMetricsCollector {
-    public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE =
-        new io.prometheus.client.cache.caffeine.CacheMetricsCollector().register();
+    default long lastAccessTimestamp() {
+        return -1;
+    }
+
+    default int getPendingRead() {
+        return 0;
+    }
 }

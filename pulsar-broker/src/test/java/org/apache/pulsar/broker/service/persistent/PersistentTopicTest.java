@@ -709,7 +709,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         TopicPolicies policies = new TopicPolicies();
         policies.setRetentionPolicies(retentionPolicies);
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(policiesService)
-                .getTopicPoliciesAsync(TopicName.get(topic), TopicPoliciesService.GetType.DEFAULT);
+                .getTopicPoliciesAsync(TopicName.get(topic), TopicPoliciesService.GetType.LOCAL_ONLY);
         persistentTopic.onUpdate(policies);
         verify(persistentTopic, times(1)).checkPersistencePolicies();
         Awaitility.await().untilAsserted(() -> {

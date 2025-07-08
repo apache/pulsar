@@ -26,7 +26,7 @@ import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Multiple brokers with a real test Zookeeper server (instead of the mock server).
@@ -71,7 +71,7 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
                 .configurationMetadataStore(createMetadataStore(MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
     }
 
-    @NotNull
+    @NonNull
     protected MetadataStoreExtended createMetadataStore(String metadataStoreName)  {
         try {
             MetadataStoreExtended store =

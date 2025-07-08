@@ -38,7 +38,6 @@ import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -110,19 +109,19 @@ public class BacklogQuotaManagerTest {
     private static final int MAX_ENTRIES_PER_LEDGER = 5;
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}.
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsar);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin);
     }
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}.
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsar);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin);
     }
 
     @DataProvider(name = "backlogQuotaSizeGB")

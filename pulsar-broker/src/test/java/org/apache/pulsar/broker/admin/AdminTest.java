@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -69,7 +70,6 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -953,14 +953,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         final String partitionedTopicName = "error-500-topic";
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
-        NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
         CompletableFuture<List<String>> future = new CompletableFuture();
         future.completeExceptionally(new RuntimeException("500 error contains error message"));
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        doReturn(future).when(namespaceService).getListOfTopics(namespaceName,
-                CommandGetTopicsOfNamespace.Mode.ALL);
+
+        doReturn(future).when(namespaceService).checkTopicExists(any());
         persistentTopics.createPartitionedTopic(response1, property, cluster, namespace,
                 partitionedTopicName, 5, false);
+
         verify(response1, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(),
                 Status.INTERNAL_SERVER_ERROR.getStatusCode());

@@ -27,6 +27,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -154,13 +155,15 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
                         "f2_" + i,
                         Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
-                        ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
+                        ImmutableMap.of("map1_k_" + i, "map1_kv_" + i),
+                        ("key_bytes_" + i).getBytes(StandardCharsets.UTF_8));
                 final SimplePojo valuePojo = new SimplePojo(
                         String.valueOf(i),
                         "v2_" + i,
                         Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
-                        ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
+                        ImmutableMap.of("map1_v_" + i, "map1_vv_" + i),
+                        ("value_bytes_" + i).getBytes(StandardCharsets.UTF_8));
                 producer.newMessage()
                         .value(new KeyValue<>(keyPojo, valuePojo))
                         .send();
@@ -220,8 +223,12 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
             JsonNode payload = READER.readTree(data).at("/payload");
             String i = payload.at("/value/field1").asText();
             assertEquals(payload.at("/value/field2").asText(), "v2_" + i);
+            assertEquals(payload.at("/value/bytes").asText(),
+                    Base64.getEncoder().encodeToString(("value_bytes_" + i).getBytes(StandardCharsets.UTF_8)));
             assertEquals(payload.at("/key/field1").asText(), "f1_" + i);
             assertEquals(payload.at("/key/field2").asText(), "f2_" + i);
+            assertEquals(payload.at("/key/bytes").asText(),
+                    Base64.getEncoder().encodeToString(("key_bytes_" + i).getBytes(StandardCharsets.UTF_8)));
             actualKvs.put(i, i);
         } else {
             actualKvs.put(partitionKey, data);
@@ -270,6 +277,7 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
         private List<Integer> list1;
         private Set<Long> set1;
         private Map<String, String> map1;
+        private byte[] bytes;
     }
 
     @Override

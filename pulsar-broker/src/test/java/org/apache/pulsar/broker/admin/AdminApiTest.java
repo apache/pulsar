@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -3723,5 +3724,23 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // reset config
             pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(false);
         }
+    }
+
+    @Test
+    public void testRecreatePartitionedTopicAfterMetadataLoss()
+            throws PulsarAdminException, ExecutionException, InterruptedException {
+        String namespace = "prop-xyz/ns1/";
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://" + namespace + random;
+        admin.topics().createPartitionedTopic(topic, 5);
+
+        // Delete the topic metadata.
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .deletePartitionedTopicAsync(TopicName.get(topic)).get();
+        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespace);
+        assertThat(partitionedTopicList).doesNotContain(topic);
+
+        // Create the partitioned topic again.
+        admin.topics().createPartitionedTopic(topic, 5);
     }
 }

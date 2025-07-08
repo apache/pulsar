@@ -3330,7 +3330,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<OpAddEntry> oldOps = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             OpAddEntry op = OpAddEntry.createNoRetainBuffer(ledger,
-                    ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null, new AtomicBoolean());
+                    ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean());
             if (i > 4) {
                 op.setLedger(mock(LedgerHandle.class));
             }
@@ -3347,6 +3347,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             } else {
                 Assert.assertSame(oldOp, newOp);
             }
+            oldOp.getData().release();
         }
     }
 
@@ -3876,7 +3877,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < entries; i++) {
             ledger.addEntry(data);
         }
-        assertEquals(ledger.ledgers.size(), 10);
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 11));
 
         // Set a new offloader to cleanup the execution times of getOffloadPolicies()
         ledgerOffloader = mock(NullLedgerOffloader.class);

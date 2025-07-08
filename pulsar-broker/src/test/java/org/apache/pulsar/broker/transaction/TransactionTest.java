@@ -145,6 +145,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
@@ -177,7 +178,10 @@ public class TransactionTest extends TransactionTestBase {
 
     @BeforeClass
     protected void setup() throws Exception {
-       setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
+        // Use a single transaction thread to reproduce possible deadlock easily
+        conf.setNumTransactionReplayThreadPoolSize(1);
+        conf.setManagedLedgerNumSchedulerThreads(1);
+        setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     @AfterClass(alwaysRun = true)
@@ -1549,6 +1553,7 @@ public class TransactionTest extends TransactionTestBase {
         when(topic.getName()).thenReturn("topic-a");
         // Mock cursor for subscription.
         ManagedCursor cursorSubscription = mock(ManagedCursor.class);
+        doReturn(Codec.encode("sub-a")).when(cursorSubscription).getName();
         doThrow(new RuntimeException("1")).when(cursorSubscription).updateLastActive();
         // Create subscription.
         String subscriptionName = "sub-a";

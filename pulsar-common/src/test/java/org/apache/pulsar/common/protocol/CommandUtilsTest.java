@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.protocol;
 
-import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
@@ -31,7 +30,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.testng.Assert;
@@ -126,6 +124,7 @@ public class CommandUtilsTest {
         byte[] content = new byte[b1.readableBytes() + b2.readableBytes()];
         b3.readBytes(content);
         assertEquals(head + tail, new String(content, StandardCharsets.UTF_8));
+        b3.release();
     }
 
     @Test
@@ -146,6 +145,7 @@ public class CommandUtilsTest {
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertTrue(new String(content, StandardCharsets.UTF_8).endsWith(data));
+        dataWithBrokerEntryMetadata.release();
     }
 
     @Test
@@ -155,13 +155,13 @@ public class CommandUtilsTest {
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), 11);
-
         Commands.skipBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
         assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
 
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
+        dataWithBrokerEntryMetadata.release();
     }
 
     @Test
@@ -182,6 +182,7 @@ public class CommandUtilsTest {
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
+        dataWithBrokerEntryMetadata.release();
     }
 
     @Test
@@ -214,6 +215,7 @@ public class CommandUtilsTest {
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
+        dataWithBrokerEntryMetadata.release();
     }
 
     public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
@@ -222,15 +224,5 @@ public class CommandUtilsTest {
         interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
         return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
                 Thread.currentThread().getContextClassLoader());
-    }
-
-
-    public ByteBuf getMessage(String producerName, long seqId) {
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setProducerName(producerName).setSequenceId(seqId)
-                .setPublishTime(System.currentTimeMillis());
-
-        return serializeMetadataAndPayload(
-                Commands.ChecksumType.Crc32c, messageMetadata, io.netty.buffer.Unpooled.copiedBuffer(new byte[0]));
     }
 }

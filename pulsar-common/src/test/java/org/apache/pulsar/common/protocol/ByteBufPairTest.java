@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -81,4 +82,15 @@ public class ByteBufPairTest {
         assertEquals(b2.refCnt(), 0);
     }
 
+    @Test
+    public void testCoalesce() {
+        ByteBuf b1 = Unpooled.wrappedBuffer("hello".getBytes());
+        ByteBuf b2 = Unpooled.wrappedBuffer("world".getBytes());
+        ByteBufPair buf = ByteBufPair.get(b1, b2);
+        ByteBuf coalesced = ByteBufPair.coalesce(buf);
+        assertEquals(b1.refCnt(), 0);
+        assertEquals(b2.refCnt(), 0);
+        assertEquals(new String(ByteBufUtil.getBytes(coalesced)), "helloworld");
+        coalesced.release();
+    }
 }

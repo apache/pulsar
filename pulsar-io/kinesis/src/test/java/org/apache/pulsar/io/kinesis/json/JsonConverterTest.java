@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -73,7 +74,7 @@ public class JsonConverterTest {
         genericRecord.put("l", 1L);
         genericRecord.put("i", 1);
         genericRecord.put("b", true);
-        genericRecord.put("bb", "10".getBytes(StandardCharsets.UTF_8));
+        genericRecord.put("bb", ByteBuffer.wrap("10".getBytes(StandardCharsets.UTF_8)));
         genericRecord.put("d", 10.0);
         genericRecord.put("f", 10.0f);
         genericRecord.put("s", "toto");

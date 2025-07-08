@@ -1560,16 +1560,27 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
 
         ProducerImpl producer = (ProducerImpl) pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
-                .maxPendingMessages(50).enableBatching(false).topic(topic).create();
-        producer.newMessage(Schema.STRING).value("msg").sendAsync();
+                .maxPendingMessages(1000).enableBatching(false).topic(topic).create();
+        producer.newMessage(Schema.STRING).value("msg-1").sendAsync();
         AtomicReference<CompletableFuture<MessageId>> latestSend = new AtomicReference<>();
         for (int i = 0; i < 100; i++) {
-            latestSend.set(producer.newMessage(Schema.BOOL).value(false).sendAsync());
+            final String msg = "msg-with-broken-schema-" + i;
+            latestSend.set(producer.newMessage(Schema.BOOL).value(false).sendAsync().thenApply(v -> {
+                log.info("send complete {}", msg);
+                return null;
+            }).exceptionally(ex -> {
+                log.error("failed to send {}", msg, ex);
+                return null;
+            }));
         }
+        // Verify: msgs with broken schema will be discarded.
         Awaitility.await().untilAsserted(() -> {
             assertTrue(latestSend.get().isDone());
             assertEquals(producer.getPendingQueueSize(), 0);
         });
+
+        // Verify: msgs with compatible schema can be sent successfully.
+        producer.newMessage(Schema.STRING).value("msg-2").sendAsync();
 
         // cleanup.
         producer.close();

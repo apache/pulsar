@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Sets;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,7 +42,6 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
 public class TopicPolicies {
 
     @Builder.Default

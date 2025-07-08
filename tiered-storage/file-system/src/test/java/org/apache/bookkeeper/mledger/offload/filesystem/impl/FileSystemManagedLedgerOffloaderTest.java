@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -98,7 +99,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
     @AfterMethod(alwaysRun = true)
     @Override
-    public void tearDown() {
+    public void tearDown() throws Exception {
         super.tearDown();
     }
 
@@ -122,6 +123,8 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
+        toTestEntries.close();
+        toWriteEntries.close();
         toTestEntries = toTest.read(1, numberOfEntries - 1);
         toWriteEntries = toWrite.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
@@ -135,6 +138,8 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
+        toTestEntries.close();
+        toWriteEntries.close();
     }
 
     @Test
@@ -155,6 +160,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         while (toTestIter.hasNext()) {
             LedgerEntry toTestEntry = toTestIter.next();
         }
+        toTestEntries.close();
 
         assertTrue(offloaderStats.getReadOffloadError(topicName) == 0);
         assertTrue(offloaderStats.getReadOffloadBytes(topicName) > 0);
@@ -168,10 +174,11 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, map).get();
         Configuration configuration = new Configuration();
+        @Cleanup
         FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration);
         assertTrue(fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
         assertTrue(fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
-        offloader.deleteOffloaded(lh.getId(), uuid, map);
+        offloader.deleteOffloaded(lh.getId(), uuid, map).get();
         assertFalse(fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
         assertFalse(fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
     }
