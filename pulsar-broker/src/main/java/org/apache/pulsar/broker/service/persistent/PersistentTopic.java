@@ -1893,6 +1893,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public CompletableFuture<Void> checkDeduplicationStatus() {
+        createFuture.exceptionallyAsync(e -> {
+            log.info("Cancelling message deduplication due to {}", e.getMessage());
+            messageDeduplication.cancelRecovery();
+            close();
+            return Optional.empty();
+        }, orderedExecutor);
         return messageDeduplication.checkStatus();
     }
 

@@ -56,10 +56,15 @@ import org.slf4j.LoggerFactory;
  */
 public class MessageDeduplication {
 
+    private static final CompletableFuture<Void> RECOVERY_FAILURE = CompletableFuture.failedFuture(
+            new IllegalStateException("recovery is cancelled"));
     private final PulsarService pulsar;
     private final PersistentTopic topic;
     private final ManagedLedger managedLedger;
+    private final Object recoverLock = new Object();
     private ManagedCursor managedCursor;
+    private CompletableFuture<Void> recoverFuture;
+    private boolean recoverCancelled = false;
 
     private static final String IS_LAST_CHUNK = "isLastChunk";
 
@@ -154,25 +159,36 @@ public class MessageDeduplication {
         });
 
         // Replay all the entries and apply all the sequence ids updates
-        log.info("[{}] Replaying {} entries for deduplication", topic.getName(), managedCursor.getNumberOfEntries());
-        CompletableFuture<Position> future = new CompletableFuture<>();
-        replayCursor(future);
-        return future.thenCompose(lastPosition -> {
-            if (lastPosition != null && snapshotCounter >= snapshotInterval) {
-                snapshotCounter = 0;
-                return takeSnapshot(lastPosition);
+        synchronized (recoverLock) {
+            if (recoverCancelled) {
+                return RECOVERY_FAILURE;
             }
-            return CompletableFuture.completedFuture(null);
-        });
+            if (recoverFuture == null) {
+                recoverFuture = new CompletableFuture<>();
+            }
+        }
+        log.info("[{}] Replaying {} entries for deduplication", topic.getName(), managedCursor.getNumberOfEntries());
+        replayCursor();
+        return recoverFuture;
     }
 
     /**
      * Read all the entries published from the cursor position until the most recent and update the highest sequence id
      * from each producer.
-     *
-     * @param future future to trigger when the replay is complete
      */
-    private void replayCursor(CompletableFuture<Position> future) {
+    private void replayCursor() {
+        final CompletableFuture<Void> future;
+        synchronized (recoverLock) {
+            if (recoverCancelled) {
+                log.info("Cancelled replaying cursor for {} (snapshotCounter: {})", topic.getName(), snapshotCounter);
+                return;
+            }
+            if (recoverFuture == null) {
+                log.error("Unexpected null recoverFuture for {}", topic.getName());
+                return;
+            }
+            future = recoverFuture;
+        }
         managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
@@ -193,10 +209,21 @@ public class MessageDeduplication {
 
                 if (managedCursor.hasMoreEntries()) {
                     // Read next batch of entries
-                    pulsar.getExecutor().execute(() -> replayCursor(future));
+                    pulsar.getExecutor().execute(() -> replayCursor());
                 } else {
                     // Done replaying
-                    future.complete(lastPosition);
+                    if (lastPosition != null && snapshotCounter >= snapshotInterval) {
+                        snapshotCounter = 0;
+                        takeSnapshot(lastPosition).whenComplete((ignored, e) -> {
+                            if (e == null) {
+                                future.complete(null);
+                            } else {
+                                future.completeExceptionally(e);
+                            }
+                        });
+                    } else {
+                        future.complete(null);
+                    }
                 }
             }
 
@@ -737,6 +764,16 @@ public class MessageDeduplication {
     @VisibleForTesting
     Map<String, Long> getInactiveProducers() {
         return inactiveProducers;
+    }
+
+    public void cancelRecovery() {
+        synchronized (recoverLock) {
+            recoverCancelled = true;
+            if (recoverFuture != null) {
+                recoverFuture.completeExceptionally(new IllegalStateException(
+                        "MessageDeduplication recovery is interrupted"));
+            }
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);
