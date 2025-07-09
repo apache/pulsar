@@ -294,7 +294,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             TopicName paramTp = (TopicName) invocation.getArguments()[0];
             if (paramTp.toString().equalsIgnoreCase(tpName) && mockRaceConditionCounter.incrementAndGet() <= 1) {
                 if (injectTimeout) {
-                    Thread.sleep(10 * 1000);
+                    Thread.sleep(conf.getTopicLoadTimeoutSeconds() * 1000 + 500);
                 }
                 log.info("Race condition occurs {} times", mockRaceConditionCounter.get());
                 pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
