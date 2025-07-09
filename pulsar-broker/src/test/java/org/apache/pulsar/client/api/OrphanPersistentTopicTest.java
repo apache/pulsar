@@ -310,13 +310,17 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         }
 
         // Verify: the consumer create successfully after allowing to create topic automatically.
-        Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            try (final var consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe()) {
+            } catch (PulsarClientException.TopicDoesNotExistException e) {
+                fail();
+            }
+        });
 
         // cleanup.
         if (injectTimeout) {
             pulsar.getConfig().setTopicLoadTimeoutSeconds(60);
         }
-        consumer.close();
         admin.topics().delete(tpName);
     }
 

@@ -1879,15 +1879,6 @@ public class BrokerService implements Closeable {
                                                     log.error("{} future is already completed by another thread, "
                                                             + "which is not expected. Closing the current one", topic);
                                                 }
-                                                executor().submit(() -> {
-                                                    persistentTopic.close().whenComplete((ignore, ex) -> {
-                                                        topics.remove(topic, topicFuture);
-                                                        if (ex != null) {
-                                                            log.warn("[{}] Get an error when closing topic.",
-                                                                    topic, ex);
-                                                        }
-                                                    });
-                                                });
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
                                             }
