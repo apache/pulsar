@@ -1812,22 +1812,22 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
                         policies);
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = Mockito.spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         topic.initialize().get();
 
         topic.checkCompaction();
 
-        verify(compactor, times(0)).compact(anyString());
+        verify(topic, times(0)).triggerCompactionWithCheckHasMoreMessages();
 
         doReturn(10L).when(ledgerMock).getTotalSize();
         doReturn(10L).when(ledgerMock).getEstimatedBacklogSize();
 
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
 
         // run a second time, shouldn't run again because already running
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
     }
 
     @Test
@@ -1848,8 +1848,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
                         policies);
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = Mockito.spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         topic.initialize().get();
+        doAnswer(invocationOnMock -> {
+            topic.triggerCompaction();
+            return CompletableFuture.completedFuture(null);
+        }).when(topic).triggerCompactionWithCheckHasMoreMessages();
 
         topic.checkCompaction();
 
