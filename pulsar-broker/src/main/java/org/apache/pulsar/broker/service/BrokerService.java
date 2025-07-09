@@ -1894,6 +1894,7 @@ public class BrokerService implements Closeable {
                                         })
                                         .exceptionally((ex) -> {
                                             if (MessageDeduplication.RECOVERY_FAILURE.equals(ex.getCause())) {
+                                                log.info("Deduplication recovery of {} is cancelled", topic);
                                                 return null;
                                             }
                                             log.warn("Replication or dedup check failed."

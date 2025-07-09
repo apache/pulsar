@@ -51,7 +51,6 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -557,9 +556,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testFinishTakeSnapshotWhenTopicLoading() throws Exception {
-        cleanup();
-        setup();
-
         // Create a topic and wait deduplication is started.
         int brokerDeduplicationEntriesInterval = 1000;
         pulsar.getConfiguration().setBrokerDeduplicationEnabled(true);
@@ -585,8 +581,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             producer.send(i + "");
         }
         producer.close();
-        int snapshotCounter1 = WhiteboxImpl.getInternalState(deduplication1, "snapshotCounter");
-        assertEquals(snapshotCounter1, brokerDeduplicationEntriesInterval - 1);
+        assertEquals(deduplication1.getSnapshotCounter(), brokerDeduplicationEntriesInterval - 1);
 
 
         // Unload and load topic, simulate topic load is timeout.
@@ -637,13 +632,11 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         pulsar.getConfiguration().setTopicLoadTimeoutSeconds(60);
         PersistentTopic persistentTopic2 = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false)
                 .get(3, TimeUnit.SECONDS).orElseThrow();
-        assertEquals(persistentTopic2.messageDeduplication.snapshotCounter, 899);
+        assertEquals(persistentTopic2.messageDeduplication.getSnapshotCounter(), 899);
 
 
         // cleanup.
         admin.topics().delete(topic);
-        cleanup();
-        setup();
     }
 
     private void waitCacheInit(String topicName) throws Exception {

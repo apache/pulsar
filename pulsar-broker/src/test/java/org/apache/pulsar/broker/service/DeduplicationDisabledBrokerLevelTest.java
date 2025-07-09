@@ -33,7 +33,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -127,8 +126,7 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         for (int i = 0; i < brokerDeduplicationEntriesInterval - 1; i++) {
             producer.send(i + "");
         }
-        int snapshotCounter1 = WhiteboxImpl.getInternalState(deduplication1, "snapshotCounter");
-        assertEquals(snapshotCounter1, brokerDeduplicationEntriesInterval - 1);
+        assertEquals(deduplication1.getSnapshotCounter(), brokerDeduplicationEntriesInterval - 1);
         admin.topics().unload(topic);
         PersistentTopic persistentTopic2 =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
@@ -145,8 +143,7 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         ml2.trimConsumedLedgersInBackground(new CompletableFuture<>());
         // step 4.
         Awaitility.await().untilAsserted(() -> {
-            int snapshotCounter3 = WhiteboxImpl.getInternalState(deduplication2, "snapshotCounter");
-            assertTrue(snapshotCounter3 < brokerDeduplicationEntriesInterval);
+            assertTrue(deduplication2.getSnapshotCounter() < brokerDeduplicationEntriesInterval);
             // Verify: the previous ledger will be removed because all messages have been acked.
             assertEquals(ml2.getLedgersInfo().size(), 1);
         });
