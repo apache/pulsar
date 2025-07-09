@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.MetadataSessionExpiredPolicy;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -77,6 +78,13 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     protected LookupService lookupService;
 
     protected String serviceUnitStateTableViewClassName;
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        conf.setZookeeperSessionExpiredPolicy(MetadataSessionExpiredPolicy.shutdown);
+        return conf;
+    }
 
     protected ArrayList<PulsarClient> clients = new ArrayList<>();
 

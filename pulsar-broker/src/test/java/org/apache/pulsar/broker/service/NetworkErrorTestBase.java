@@ -23,17 +23,20 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -296,6 +299,23 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         } else if (loadManager instanceof ExtensibleLoadManagerImpl) {
             return new HashSet<>(((ExtensibleLoadManagerImpl) loadManager).getBrokerRegistry()
                     .getAvailableBrokersAsync().join());
+        } else {
+            throw new RuntimeException("Not support for the load manager: " + loadManager.getClass().getName());
+        }
+    }
+
+    public static Collection<String> getOwnedBundles(PulsarService pulsar) {
+        Object loadManagerWrapper = pulsar.getLoadManager().get();
+        Object loadManager = WhiteboxImpl.getInternalState(loadManagerWrapper, "loadManager");
+        if (loadManager instanceof ModularLoadManagerImpl) {
+            return pulsar.getNamespaceService().getOwnershipCache().getOwnedBundles()
+                .keySet().stream().map(k -> k.getNamespaceObject().toString() + "/" + k.getBundleRange())
+                .collect(Collectors.toList());
+        } else if (loadManager instanceof ExtensibleLoadManagerImpl extensibleLoadManager) {
+            ServiceUnitStateChannel serviceUnitStateChannel = extensibleLoadManager.getServiceUnitStateChannel();
+            return serviceUnitStateChannel.getOwnedServiceUnits().stream()
+                .map(k -> k.getNamespaceObject().toString() + "/" + k.getBundleRange())
+                .collect(Collectors.toList());
         } else {
             throw new RuntimeException("Not support for the load manager: " + loadManager.getClass().getName());
         }

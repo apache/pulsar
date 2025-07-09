@@ -47,10 +47,18 @@ public interface ServiceUnitStateTableView extends Closeable {
      * @param tailItemListener listener to listen tail(newly updated) items
      * @param existingItemListener listener to listen existing items
      * @throws IOException if it fails to init the tableview.
+     * @param itemOutdatedListeners Let's introduce how to ensure the correct element values: 1. The table
+     *      view will try its best to ensure that the data is always the latest. When it cannot be guaranteed, see
+     *      the next Article 2. If you get an old value, you will receive an update event later, ultimately ensuring
+     *      the accuracy of the data. 3. You will receive this notification when the first two cannot be guaranteed
+     *      due to the expiration of the metadata store session of the table view。After that, you also received
+     *      notifications {@param tailItemListeners} and {@param existingItemListeners}, indicating that the table
+     *      view can once again ensure that the first two can work properly.
      */
     void start(PulsarService pulsar,
                BiConsumer<String, ServiceUnitStateData> tailItemListener,
-               BiConsumer<String, ServiceUnitStateData> existingItemListener) throws IOException;
+               BiConsumer<String, ServiceUnitStateData> existingItemListener,
+               BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners) throws IOException;
 
 
     /**
@@ -110,4 +118,9 @@ public interface ServiceUnitStateTableView extends Closeable {
      * @throws TimeoutException
      */
     void flush(long waitDurationInMillis) throws ExecutionException, InterruptedException, TimeoutException;
+
+    /**
+     * Whether it depends on the local metadata store.
+     */
+    boolean isMetadataStoreBased();
 }

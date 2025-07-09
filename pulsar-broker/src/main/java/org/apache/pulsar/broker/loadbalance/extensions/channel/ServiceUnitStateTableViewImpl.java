@@ -51,9 +51,11 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
     private volatile Producer<ServiceUnitStateData> producer;
     private volatile TableView<ServiceUnitStateData> tableview;
 
+    @Override
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
-                      BiConsumer<String, ServiceUnitStateData> existingItemListener) throws IOException {
+                      BiConsumer<String, ServiceUnitStateData> existingItemListener,
+                      BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners) throws IOException {
         boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
 
         init(pulsar);
@@ -173,6 +175,11 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
             waitTimeMs = 0;
         }
         tableview.refreshAsync().get(waitTimeMs, MILLISECONDS);
+    }
+
+    @Override
+    public boolean isMetadataStoreBased() {
+        return false;
     }
 
     @Override
