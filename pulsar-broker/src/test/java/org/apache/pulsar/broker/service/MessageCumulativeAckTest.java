@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Key_Sh
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -84,7 +85,7 @@ public class MessageCumulativeAckTest {
         doReturn(Codec.encode("sub-1")).when(cursor).getName();
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
             cursor, false));
-        doNothing().when(sub).acknowledgeMessage(any(), any(), any(), any());
+        doNothing().when(sub).acknowledgeMessage(any(), any(), any(), any(), anyBoolean());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -124,7 +125,7 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(1L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, never()).acknowledgeMessage(any(), any(), any(), any());
+        verify(sub, never()).acknowledgeMessage(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test(timeOut = 5000, dataProvider = "notIndividualAckModes")
@@ -139,7 +140,7 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(1L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, times(1)).acknowledgeMessage(any(), any(), any(), any());
+        verify(sub, times(1)).acknowledgeMessage(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test(timeOut = 5000)
@@ -155,6 +156,6 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(2L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, never()).acknowledgeMessage(any(), any(), any(), any());
+        verify(sub, never()).acknowledgeMessage(any(), any(), any(), any(), anyBoolean());
     }
 }

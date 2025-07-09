@@ -62,7 +62,7 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
 
     @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties,
-                                   Consumer ackFrom) {
+                                   Consumer ackFrom, boolean triggerByTxnCommit) {
         checkArgument(ackType == AckType.Cumulative);
         checkArgument(positions.size() == 1);
         checkArgument(properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));

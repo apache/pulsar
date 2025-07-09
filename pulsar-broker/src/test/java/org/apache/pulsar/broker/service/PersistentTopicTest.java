@@ -1776,7 +1776,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Position position = PositionFactory.create(1, 1);
         long ledgerId = 0xc0bfefeL;
         sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
-                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId), null);
+                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId), null, false);
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
 

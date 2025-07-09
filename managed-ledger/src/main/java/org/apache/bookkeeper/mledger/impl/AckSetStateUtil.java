@@ -56,36 +56,6 @@ public class AckSetStateUtil {
         return maybeGetAckSetState(position).map(AckSetState::getAckSet).orElse(null);
     }
 
-    public static void setBatchMessagesAckedCount(Position position, int messagesCountAcked) {
-        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
-        if (ackSetState.isPresent()) {
-            ackSetState.get().setBatchMessagesAckedCount(messagesCountAcked);
-        }
-    }
-
-    public static int getBatchMessagesAckedCount(Position position) {
-        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
-        if (ackSetState.isPresent()) {
-            return ackSetState.get().getBatchMessagesAckedCount();
-        }
-        return 0;
-    }
-
-    public static void markPositionRemovedFromCursor(Position position) {
-        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
-        if (ackSetState.isPresent()) {
-            ackSetState.get().markPositionRemovedFromCursor();
-        }
-    }
-
-    public static boolean isPositionRemovedFromCursor(Position position) {
-        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
-        if (ackSetState.isPresent()) {
-            return ackSetState.get().isPositionRemovedFromCursor();
-        }
-        return true;
-    }
-
     /**
      * Get the AckSetState instance from the position.
      * @param position position which contains the AckSetState

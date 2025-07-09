@@ -55,7 +55,7 @@ public interface Subscription extends MessageExpirer {
      *               who are being acked when {@param ackType} is {@link AckType#Individual}.
      */
     void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties,
-                            @Nullable Consumer ackFrom);
+                            @Nullable Consumer ackFrom, boolean triggeredByTxnCommit);
 
     String getTopicName();
 

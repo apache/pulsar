@@ -40,16 +40,35 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class ConsumerAckTest extends BrokerTestBase {
+public class ConsumerConcurrencyAckTest extends BrokerTestBase {
+
+    @DataProvider(name = "brokerParams")
+    public static Object[][] brokerParams() {
+        return new Object[][]{
+                // subscriptionSharedUseClassicPersistentImplementation, acknowledgmentAtBatchIndexLevelEnabled
+                {false, true},
+                {false, false},
+                {true, true},
+                {true, false}
+        };
+    }
+
+    @Factory(dataProvider = "brokerParams")
+    public ConsumerConcurrencyAckTest(boolean subscriptionSharedUseClassicPersistentImplementation,
+                                      boolean acknowledgmentAtBatchIndexLevelEnabled) {
+        conf.setSubscriptionSharedUseClassicPersistentImplementation(
+                subscriptionSharedUseClassicPersistentImplementation);
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(acknowledgmentAtBatchIndexLevelEnabled);
+    }
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.baseSetup();
     }
 
@@ -63,14 +82,14 @@ public class ConsumerAckTest extends BrokerTestBase {
     public Object[][] argsOfTestAcknowledgeConcurrently() {
         // enableBatchSend, enableBatchIndexAcknowledgment1, enableBatchIndexAcknowledgment2
         return new Object[][] {
-            {true, true, true},
-            {true, false, false},
-            {true, true, false},
-            {true, false, true},
-            {false, true, true},
-            {false, false, false},
-            {false, true, false},
-            {false, false, true},
+                {true, true, true},
+                {true, false, false},
+                {true, true, false},
+                {true, false, true},
+                {false, true, true},
+                {false, false, false},
+                {false, true, false},
+                {false, false, true},
         };
     }
 
@@ -86,6 +105,12 @@ public class ConsumerAckTest extends BrokerTestBase {
     public void testAcknowledgeConcurrently(boolean enableBatchSend, boolean enableBatchIndexAcknowledgment1,
                                             boolean enableBatchIndexAcknowledgment2)
             throws Exception {
+        log.info("start test. classic dispatcher: {}, broker enabled batch ack: {}, enableBatchSend: {},"
+                + " enableBatchIndexAcknowledgment1: {}, enableBatchIndexAcknowledgment2: {}",
+                pulsar.getConfig().isSubscriptionSharedUseClassicPersistentImplementation(),
+                pulsar.getConfig().isAcknowledgmentAtBatchIndexLevelEnabled(),
+                enableBatchSend, enableBatchIndexAcknowledgment1, enableBatchIndexAcknowledgment2
+        );
         PulsarClientImpl client1 =
                 (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         PulsarClientImpl client2 =
