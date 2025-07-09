@@ -28,6 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.lookup.data.LookupDataInterface;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -2106,6 +2107,53 @@ public interface Namespaces {
      * @return Replication configuration version
      */
     CompletableFuture<String> getReplicationConfigVersionAsync(String namespace);
+
+    /**
+     * Load namespace.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void loadNamespace(String namespace, boolean loadTopicInBundle,
+                       boolean authoritative) throws PulsarAdminException;
+
+    /**
+     * Load namespace.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    CompletableFuture<Void> loadNamespaceAsync(String namespace,
+                                      boolean loadTopicInBundle,
+                                      boolean authoritative);
+
+    /**
+     * Load namespace bundle.
+     *
+     * @param namespace
+     * @param bundle
+     *           range of bundle to unload
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    LookupDataInterface loadNamespaceBundle(String namespace, String bundle,
+                                            boolean loadTopicInBundle,
+                                            boolean authoritative) throws PulsarAdminException;
+
+    /**
+     * Load namespace bundle.
+     *
+     * @param namespace
+     * @param bundle
+     *           range of bundle to unload
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    CompletableFuture<LookupDataInterface> loadNamespaceBundleAsync(String namespace, String bundle,
+                                                                    boolean loadTopicInBundle,
+                                                                    boolean authoritative);
 
     /**
      * Unload namespace bundle.
