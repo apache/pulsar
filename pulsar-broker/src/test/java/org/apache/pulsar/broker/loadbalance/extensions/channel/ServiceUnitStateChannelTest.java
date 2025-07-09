@@ -96,6 +96,7 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -1791,15 +1792,34 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertTrue(ex.getCause() instanceof IllegalStateException);
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
-        try {
-            // verify getOwnerAsync returns immediately when not registered
-            registry.unregister();
-            start = System.currentTimeMillis();
-            assertEquals(broker, channel1.getOwnerAsync(bundle).get().get());
-            elapsed = System.currentTimeMillis() - start;
-            assertTrue(elapsed < 1000);
-        } finally {
-            registry.registerAsync().join();
+        if (pulsar1.getConfig().getLoadManagerServiceUnitStateTableViewClassName()
+            .equals(ServiceUnitStateTableViewImpl.class.getName())) {
+            try {
+                // verify getOwnerAsync returns immediately when not registered
+                registry.unregister();
+                start = System.currentTimeMillis();
+                assertEquals(broker, channel1.getOwnerAsync(bundle).get().get());
+                elapsed = System.currentTimeMillis() - start;
+                assertTrue(elapsed < 1000);
+            } finally {
+                registry.registerAsync().join();
+            }
+        }
+
+        if (pulsar1.getConfig().getLoadManagerServiceUnitStateTableViewClassName()
+                .equals(ServiceUnitStateMetadataStoreTableViewImpl.class.getName())) {
+            try {
+                // verify getOwnerAsync returns immediately when not registered
+                registry.unregister();
+                channel1.getOwnerAsync(bundle).get().get();
+                fail("Request should fail because it is in the state that tries to reconnect to the metadata store");
+            } catch (Exception e) {
+                Throwable actEx = FutureUtil.unwrapCompletionException(e);
+                assertTrue(actEx instanceof MetadataStoreException);
+                assertTrue(actEx.getMessage().contains("reconnect to the metadata store."));
+            } finally {
+                registry.registerAsync().join();
+            }
         }
 
 
