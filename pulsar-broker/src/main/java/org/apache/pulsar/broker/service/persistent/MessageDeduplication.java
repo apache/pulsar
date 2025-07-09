@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MessageDeduplication {
 
-    public static IllegalStateException RECOVERY_FAILURE = new IllegalStateException("recovery is cancelled");
+    public static final IllegalStateException RECOVERY_FAILURE = new IllegalStateException("recovery is cancelled");
     private final PulsarService pulsar;
     private final PersistentTopic topic;
     private final ManagedLedger managedLedger;
