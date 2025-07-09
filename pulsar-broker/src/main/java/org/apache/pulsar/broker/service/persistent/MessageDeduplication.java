@@ -726,17 +726,17 @@ public class MessageDeduplication {
     }
 
     public CompletableFuture<Void> cancelRecovery() {
-        final boolean cancelled;
+        final boolean takeSnapshot;
         synchronized (this) {
             if (status == Status.Recovering) {
                 status = Status.Failed;
                 replayFuture.completeExceptionally(RECOVERY_FAILURE);
-                cancelled = true;
+                takeSnapshot = snapshotCounter.get() > 0;
             } else {
-                cancelled = false;
+                takeSnapshot = false;
             }
         }
-        if (cancelled) {
+        if (takeSnapshot) {
             log.info("[{}] Take snapshot at {} when the deduplication replay is cancelled", topic.getName(),
                     lastPosition);
             return takeSnapshot(lastPosition);
