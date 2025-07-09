@@ -355,14 +355,14 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             }
         });
         admin.topics().unload(topic);
-        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).createAsync()
-                .get(3, TimeUnit.SECONDS);
-        producer.sendAsync("msg").get(3, TimeUnit.SECONDS);
-        firstTime.set(true);
-        admin.topics().unload(topic);
         @Cleanup final var consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribeAsync()
                 .get(3, TimeUnit.SECONDS);
+        firstTime.set(true);
+        admin.topics().unload(topic);
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).createAsync()
+                .get(3, TimeUnit.SECONDS);
+        producer.sendAsync("msg").get(3, TimeUnit.SECONDS);
         final var msg = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(msg);
         assertEquals(msg.getValue(), "msg");
