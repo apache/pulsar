@@ -50,7 +50,6 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -549,7 +548,7 @@ public class Consumer {
                         .thenApply(unused -> 1L);
             } else {
                 List<Position> positionsAcked = Collections.singletonList(position);
-                subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
+                subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties, this);
                 future = CompletableFuture.completedFuture(1L);
             }
         } else {
@@ -562,87 +561,58 @@ public class Consumer {
 
         return future
                 .thenApply(v -> {
-                    this.messageAckRate.recordEvent(v);
-                    this.messageAckCounter.add(v);
+                    // The case that is typed individual ack without transaction will deal metrics after a callback
+                    // that after cursor deleting positions, so we may receive a 0 value here.
+
+                    ackMetricRecord(v);
                     return null;
                 });
     }
 
+    public void ackMetricRecord(long messageCountInRequest) {
+        if (messageCountInRequest > 0) {
+            this.messageAckRate.recordEvent(messageCountInRequest);
+            this.messageAckCounter.add(messageCountInRequest);
+        }
+    }
+
     //this method is for individual ack not carry the transaction
     private CompletableFuture<Long> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
-        List<Pair<Consumer, Position>> positionsAcked = new ArrayList<>();
-        long totalAckCount = 0;
+        List<Position> positionsAcked = new ArrayList<>();
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position;
-            ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize =
-                    getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
-            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
-            long ackedCount;
-            int batchSize = ackOwnerConsumerAndBatchSize.rightInt();
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets, ackOwnerConsumer);
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
                     if (Subscription.isIndividualAckMode(subType)) {
-                        ((PersistentSubscription) subscription)
-                                .syncBatchPositionBitSetForPendingAck(position);
+                        ((PersistentSubscription) subscription).syncBatchPositionBitSetForPendingAck(position);
                     }
                 }
-                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
             } else {
-                position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
-                if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-                    updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
-                }
+                position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
             }
-
-            positionsAcked.add(Pair.of(ackOwnerConsumer, position));
+            positionsAcked.add(position);
 
             checkAckValidationError(ack, position);
-
-            totalAckCount += ackedCount;
         }
-        subscription.acknowledgeMessage(positionsAcked.stream()
-                .map(Pair::getRight)
-                .collect(Collectors.toList()), AckType.Individual, properties);
-        CompletableFuture<Long> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(totalAckCount);
-        if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
-            completableFuture.whenComplete((v, e) -> positionsAcked.forEach(positionPair -> {
-                Consumer ackOwnerConsumer = positionPair.getLeft();
-                Position position = positionPair.getRight();
-                //check if the position can remove from the consumer pending acks.
-                // the bit set is empty in pending ack handle.
-                if (AckSetStateUtil.hasAckSet(position)) {
-                    if (((PersistentSubscription) subscription)
-                            .checkIsCanDeleteConsumerPendingAck(position)) {
-                        removePendingAcks(ackOwnerConsumer, position);
-                    }
-                }
-            }));
-        }
-        return completableFuture;
+        subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties, this);
+        return CompletableFuture.completedFuture(0L);
     }
 
 
     //this method is for individual ack carry the transaction
     private CompletableFuture<Long> individualAckWithTransaction(CommandAck ack) {
-        // Individual ack
-        List<Pair<Consumer, MutablePair<Position, Integer>>> positionsAcked = new ArrayList<>();
         if (!isTransactionEnabled()) {
             return FutureUtil.failedFuture(
                     new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
         }
-
-        LongAdder totalAckCount = new LongAdder();
+        List<MutablePair<Position, Integer>> positionsAcked = new ArrayList<>();
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
@@ -653,20 +623,13 @@ public class Consumer {
                         consumerId, position);
                 continue;
             }
-            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
-            // acked count at least one
-            long ackedCount;
             int batchSize;
             if (msgId.hasBatchSize()) {
-                batchSize = msgId.getBatchSize();
-                // ack batch messages set ackeCount = batchSize
-                ackedCount = msgId.getBatchSize();
-                positionsAcked.add(Pair.of(ackOwnerConsumer, new MutablePair<>(position, msgId.getBatchSize())));
+                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
             } else {
                 // ack no batch message set ackedCount = 1
                 batchSize = 0;
-                ackedCount = 1;
-                positionsAcked.add(Pair.of(ackOwnerConsumer, new MutablePair<>(position, (int) batchSize)));
+                positionsAcked.add(new MutablePair<>(position, batchSize));
             }
 
             if (msgId.getAckSetsCount() > 0) {
@@ -675,34 +638,13 @@ public class Consumer {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 AckSetStateUtil.getAckSetState(position).setAckSet(ackSets);
-                ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             }
 
-            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-
-            checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId);
-
             checkAckValidationError(ack, position);
-
-            totalAckCount.add(ackedCount);
         }
 
-        CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
-                ack.getTxnidLeastBits(), positionsAcked.stream().map(Pair::getRight).collect(Collectors.toList()));
-        if (Subscription.isIndividualAckMode(subType)) {
-            completableFuture.whenComplete((v, e) ->
-                    positionsAcked.forEach(positionPair -> {
-                        Consumer ackOwnerConsumer = positionPair.getLeft();
-                        MutablePair<Position, Integer> positionLongMutablePair = positionPair.getRight();
-                        if (AckSetStateUtil.hasAckSet(positionLongMutablePair.getLeft())) {
-                            if (((PersistentSubscription) subscription)
-                                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
-                                removePendingAcks(ackOwnerConsumer, positionLongMutablePair.left);
-                            }
-                        }
-                    }));
-        }
-        return completableFuture.thenApply(__ -> totalAckCount.sum());
+        return transactionIndividualAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked)
+            .thenApply(__ -> 0L);
     }
 
     private long getAckedCountForMsgIdNoAckSets(int batchSize, Position position, Consumer consumer) {
@@ -745,6 +687,7 @@ public class Consumer {
     }
 
     private long getUnAckedCountForBatchIndexLevelEnabled(Position position, int batchSize) {
+        // TODO compare with the cursor.
         long unAckedCount = batchSize;
         if (isAcknowledgmentAtBatchIndexLevelEnabled) {
             long[] cursorAckSet = getCursorAckSet(position);
@@ -1194,11 +1137,24 @@ public class Consumer {
         return subscription;
     }
 
-    private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
+    public int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
         if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+            if (log.isDebugEnabled()) {
+                if (ackedMessages > 0) {
+                    log.debug("[{}][{}]{}-{}-{} delivered out {} messages, un-ack-msg: {}",
+                            topicName, consumer.subscription.getName(),
+                            consumer.cnx(), consumer.consumerId(), consumer.consumerName(),
+                            ackedMessages, consumer.getUnackedMessages());
+                } else {
+                    log.debug("[{}][{}]{}-{}-{} acknowledged/redelivered {} messages, un-ack-msg: {}",
+                            topicName, consumer.subscription.getName(),
+                            consumer.cnx(), consumer.consumerId(), consumer.consumerName(),
+                            -ackedMessages, consumer.getUnackedMessages());
+                }
+            }
         }
         if (unackedMsgs < 0 && System.currentTimeMillis() - negativeUnackedMsgsTimestamp >= 10_000) {
             negativeUnackedMsgsTimestamp = System.currentTimeMillis();

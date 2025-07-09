@@ -246,7 +246,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             // and it won't clear the last message in cursor batch index ack set
                             consumer.acknowledgeAsync(messageIds[1], commitTwice).get();
                             assertEquals(batchDeletedIndexes.size(), 1);
-                            assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
+                            assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
 
                             // the messages has been produced were all acked, the memory in broker for the messages has been cleared.
                             commitTwice.commit().get();

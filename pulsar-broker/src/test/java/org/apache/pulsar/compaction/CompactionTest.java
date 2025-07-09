@@ -2136,7 +2136,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 Thread.sleep(500);
             }
         }).when(subscription).acknowledgeMessage(Mockito.any(), Mockito.eq(
-                CommandAck.AckType.Cumulative), Mockito.any());
+                CommandAck.AckType.Cumulative), Mockito.any(), any());
 
         // trigger compaction
         admin.topics().triggerCompaction(topicName);
