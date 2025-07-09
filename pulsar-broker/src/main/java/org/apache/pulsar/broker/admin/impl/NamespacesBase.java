@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,6 +61,8 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -74,6 +78,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -1119,6 +1124,118 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     // For ExtensibleLoadManager, this operation will be ignored.
                     pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
+                });
+    }
+
+    public CompletableFuture<Void> internalLookupNamespaceAsync(boolean loadTopicInBundle,
+                                                              boolean authoritative) {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> {
+                    log.info("[{}] Loading namespace {}", clientAppId(), namespaceName);
+                    if (namespaceName.isGlobal()) {
+                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
+                    } else {
+                        return validateClusterOwnershipAsync(namespaceName.getCluster())
+                                .thenCompose(ignore -> validateClusterForTenantAsync(namespaceName.getTenant(),
+                                        namespaceName.getCluster()));
+                    }
+                })
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(policies -> {
+                    final List<CompletableFuture<Void>> futures = new ArrayList<>();
+                    List<String> boundaries = policies.bundles.getBoundaries();
+                    for (int i = 0; i < boundaries.size() - 1; i++) {
+                        String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+                        try {
+                            futures.add(pulsar().getAdminClient().namespaces().lookupNamespaceBundleAsync(
+                                    namespaceName.toString(), bundle,
+                                    loadTopicInBundle, authoritative).thenApply(ignore -> null));
+                        } catch (PulsarServerException e) {
+                            log.error("[{}] Failed to load namespace {}", clientAppId(), namespaceName, e);
+                            throw new RestException(e);
+                        }
+                    }
+                    return FutureUtil.waitForAll(futures);
+                });
+    }
+
+    public CompletableFuture<LookupData> internalLookupNamespaceBundleAsync(String bundleRange,
+                                                                          boolean authoritative,
+                                                                          boolean loadTopicsInBundle,
+                                                                          String listenerName) {
+        if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
+            log.warn("No broker was found available for bundle {}", bundleRange);
+            return FutureUtil.failedFuture(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
+        }
+        return validateSuperUserAccessAsync()
+                .thenApply(__ -> pulsar().getNamespaceService().getNamespaceBundleFactory()
+                        .getBundle(namespaceName.toString(), bundleRange))
+                .thenCompose(bundle -> pulsar().getNamespaceService()
+                        .findBrokerServiceUrl(bundle, LookupOptions.builder()
+                                .advertisedListenerName(listenerName)
+                                .authoritative(authoritative)
+                                .loadTopicsInBundle(loadTopicsInBundle)
+                                .build()))
+                .thenCompose(optionalResult -> {
+                    if (optionalResult == null || optionalResult.isEmpty()) {
+                        log.warn("No broker was found available for bundle {}", bundleRange);
+                        throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
+                    }
+
+                    BiFunction<Boolean, LookupResult, LookupData> handle = (forceRedirect, result) -> {
+                        if (result.isRedirect() || forceRedirect) {
+                            boolean newAuthoritative = result.isAuthoritativeRedirect();
+                            String redirectUrl = isRequestHttps() ? result.getLookupData().getHttpUrlTls()
+                                    : result.getLookupData().getHttpUrl();
+                            URI replClusterUrl = null;
+                            try {
+                                replClusterUrl = new URI(redirectUrl);
+                            } catch (URISyntaxException e) {
+                                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                                        "Redirected cluster's service url is invalid:" + e.getMessage());
+                            }
+                            URI redirect =
+                                    UriBuilder.fromUri(uri.getRequestUri())
+                                            .host(replClusterUrl.getHost())
+                                            .port(replClusterUrl.getPort())
+                                            .replaceQueryParam("loadTopicsInBundle", loadTopicsInBundle)
+                                            .replaceQueryParam("authoritative", newAuthoritative).build();
+                            if (log.isDebugEnabled()) {
+                                log.debug("Redirect lookup for bundle {} to {}", bundleRange, redirect);
+                            }
+                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                        } else {
+                            // Found broker owning the bundle
+                            if (log.isDebugEnabled()) {
+                                log.debug("Lookup succeeded for bundle {} -- broker: {}", bundleRange,
+                                        result.getLookupData());
+                            }
+                            pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                            return result.getLookupData();
+                        }
+                    };
+                    LookupResult lookupResult = optionalResult.get();
+                    // We have found either a broker that owns the bundle, or a broker to
+                    // which we should redirect
+                    if (loadTopicsInBundle) {
+                        NamespaceBundle bundle = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                .getBundle(namespaceName.toString(), bundleRange);
+                        return pulsar().getNamespaceService().getOwnershipCache().checkOwnershipAsync(bundle)
+                                // if we are not the owner, we should redirect this request to the owner
+                                // to load the bundle.
+                                .thenApply(isOwned -> {
+                                    if (isOwned) {
+                                        pulsar().loadNamespaceTopics(bundle);
+                                    }
+                                    return handle.apply(!isOwned, lookupResult);
+                                });
+                    } else {
+                        return CompletableFuture.completedFuture(handle.apply(false, lookupResult));
+                    }
+                }).exceptionally(ex -> {
+                    pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                    throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
 
