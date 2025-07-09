@@ -1894,9 +1894,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public CompletableFuture<Void> checkDeduplicationStatus() {
         createFuture.exceptionallyAsync(e -> {
-            log.info("Cancelling message deduplication due to {}", e.getMessage());
             // cancelRecovery() might take snapshot, we need to close the managed ledger after the snapshot is taken
-            messageDeduplication.cancelRecovery().whenComplete((__, ___) -> close());
+            messageDeduplication.failRecovery().whenComplete((__, ___) -> close());
             return Optional.empty();
         }, orderedExecutor);
         return messageDeduplication.checkStatus();

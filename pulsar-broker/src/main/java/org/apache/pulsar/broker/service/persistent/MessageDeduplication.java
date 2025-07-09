@@ -281,8 +281,12 @@ public class MessageDeduplication {
                     log.info("[{}] Replaying {} entries for deduplication", topic.getName(),
                             cursor.getNumberOfEntries());
                     return replay(cursor).thenAccept(__ -> {
-                        status = Status.Enabled;
-                        log.info("[{}] Enabled deduplication", topic.getName());
+                        synchronized (this) { // synchronize with failRecovery()
+                            if (status != Status.Failed) {
+                                status = Status.Enabled;
+                                log.info("[{}] Enabled deduplication", topic.getName());
+                            }
+                        }
                     });
                 });
                 replayFuture.exceptionally(e -> {
@@ -725,14 +729,20 @@ public class MessageDeduplication {
         return snapshotCounter.get();
     }
 
-    public CompletableFuture<Void> cancelRecovery() {
+    public CompletableFuture<Void> failRecovery() {
         final boolean takeSnapshot;
         synchronized (this) {
             if (status == Status.Recovering) {
                 status = Status.Failed;
-                replayFuture.completeExceptionally(RECOVERY_FAILURE);
+                final var future = replayFuture;
+                if (future != null) {
+                    // Completing this future in a different thread so that callbacks will be called out of the
+                    // synchronized block.
+                    CompletableFuture.runAsync(() -> future.completeExceptionally(RECOVERY_FAILURE));
+                }
                 takeSnapshot = snapshotCounter.get() > 0;
             } else {
+                replayFuture = null;
                 takeSnapshot = false;
             }
         }
@@ -741,6 +751,7 @@ public class MessageDeduplication {
                     lastPosition);
             return takeSnapshot(lastPosition);
         } else {
+            log.info("[{}] Cancel the deduplication replay for failure", topic.getName());
             return CompletableFuture.completedFuture(null);
         }
     }
