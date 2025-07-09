@@ -56,8 +56,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MessageDeduplication {
 
-    private static final CompletableFuture<Void> RECOVERY_FAILURE = CompletableFuture.failedFuture(
-            new IllegalStateException("recovery is cancelled"));
+    public static IllegalStateException RECOVERY_FAILURE = new IllegalStateException("recovery is cancelled");
     private final PulsarService pulsar;
     private final PersistentTopic topic;
     private final ManagedLedger managedLedger;
@@ -65,6 +64,7 @@ public class MessageDeduplication {
     private ManagedCursor managedCursor;
     private CompletableFuture<Void> recoverFuture;
     private boolean recoverCancelled = false;
+    private Position lastPosition = null;
 
     private static final String IS_LAST_CHUNK = "isLastChunk";
 
@@ -123,7 +123,8 @@ public class MessageDeduplication {
     private final int snapshotInterval;
 
     // Counter of number of entries stored after last snapshot was taken
-    private int snapshotCounter;
+    @VisibleForTesting
+    int snapshotCounter;
 
     // The timestamp when the snapshot was taken by the scheduled task last time
     private volatile long lastSnapshotTimestamp = 0L;
@@ -161,7 +162,7 @@ public class MessageDeduplication {
         // Replay all the entries and apply all the sequence ids updates
         synchronized (recoverLock) {
             if (recoverCancelled) {
-                return RECOVERY_FAILURE;
+                return CompletableFuture.failedFuture(RECOVERY_FAILURE);
             }
             if (recoverFuture == null) {
                 recoverFuture = new CompletableFuture<>();
@@ -180,7 +181,8 @@ public class MessageDeduplication {
         final CompletableFuture<Void> future;
         synchronized (recoverLock) {
             if (recoverCancelled) {
-                log.info("Cancelled replaying cursor for {} (snapshotCounter: {})", topic.getName(), snapshotCounter);
+                log.info("Cancelled replaying cursor for {} (snapshotCounter: {}, lastPosition: {})", topic.getName(),
+                        snapshotCounter, lastPosition == null ? "(null)" : lastPosition.toString());
                 return;
             }
             if (recoverFuture == null) {
@@ -192,7 +194,6 @@ public class MessageDeduplication {
         managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                Position lastPosition = null;
                 for (Entry entry : entries) {
                     ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
                     MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
@@ -766,13 +767,22 @@ public class MessageDeduplication {
         return inactiveProducers;
     }
 
-    public void cancelRecovery() {
+    public CompletableFuture<Void> cancelRecovery() {
+        final Position lastPosition;
         synchronized (recoverLock) {
             recoverCancelled = true;
             if (recoverFuture != null) {
-                recoverFuture.completeExceptionally(new IllegalStateException(
-                        "MessageDeduplication recovery is interrupted"));
+                recoverFuture.completeExceptionally(RECOVERY_FAILURE);
             }
+            lastPosition = this.lastPosition;
+        }
+        if (lastPosition != null) {
+            // Take the snapshot regardless of the snapshot counter so that the recovery will take less time next time
+            log.info("[{}] Cancelled recovery and take snapshot for last position {}", topic.getName(), lastPosition);
+            return takeSnapshot(lastPosition);
+        } else {
+            log.info("[{}] Cancelled recovery before reading the 1st entry", topic.getName());
+            return CompletableFuture.completedFuture(null);
         }
     }
 

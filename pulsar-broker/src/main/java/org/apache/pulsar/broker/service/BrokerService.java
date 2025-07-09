@@ -132,6 +132,7 @@ import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherM
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactory;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic;
+import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
@@ -1892,6 +1893,9 @@ public class BrokerService implements Closeable {
                                             }
                                         })
                                         .exceptionally((ex) -> {
+                                            if (MessageDeduplication.RECOVERY_FAILURE.equals(ex.getCause())) {
+                                                return null;
+                                            }
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
                                             executor().submit(() -> {

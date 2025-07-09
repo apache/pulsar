@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.broker.service.persistent.PersistentTopic.DEDUPLICATION_CURSOR_NAME;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -27,19 +29,22 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
@@ -61,7 +66,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        this.conf.setBrokerDeduplicationEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -70,6 +74,18 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setBrokerDeduplicationEnabled(true);
+        BrokerTestInterceptor.INSTANCE.configure(conf);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    protected void resetInterceptors() {
+        BrokerTestInterceptor.INSTANCE.reset();
     }
 
     @Test(timeOut = 10000)
@@ -580,13 +596,22 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
         // Mock message deduplication recovery speed topicLoadTimeoutSeconds
         pulsar.getConfiguration().setTopicLoadTimeoutSeconds(1);
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" +
-                TopicName.get(topic).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
-        mockZooKeeper.delay(2 * 1000, (op, path) -> {
-            if (mlPath.equals(path)) {
-                return true;
+
+        final var readCount = new AtomicInteger(0);
+        BrokerTestInterceptor.INSTANCE.applyCursorSpyDecorator(cursor -> {
+            if (cursor.getManagedLedger().getName().contains(TopicName.get(topic).getLocalName())) {
+                doAnswer(invocation -> {
+                    if (readCount.getAndIncrement() == 1) {
+                        // The 1st replay will only be able to read first 100 entries
+                        final var callback = (AsyncCallbacks.ReadEntriesCallback) invocation.getArgument(1);
+                        CompletableFuture.delayedExecutor(1, TimeUnit.MINUTES).execute(() ->
+                                callback.readEntriesComplete(List.of(), null));
+                    } else {
+                        invocation.callRealMethod();
+                    }
+                    return null;
+                }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
             }
-            return false;
         });
 
         final var topics = pulsar.getBrokerService().getTopics();
@@ -601,23 +626,15 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             Assert.assertFalse(topics.containsKey(topic));
         });
 
-
         // Load topic again, setBrokerDeduplicationEntriesInterval to 10000,
         // make recoverSequenceIdsMap#takeSnapshot not trigger takeSnapshot.
         // But actually it should not replay again in recoverSequenceIdsMap,
         // since previous topic loading should finish the replay process.
         pulsar.getConfiguration().setBrokerDeduplicationEntriesInterval(10000);
         pulsar.getConfiguration().setTopicLoadTimeoutSeconds(60);
-        PersistentTopic persistentTopic2 =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
-        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) persistentTopic2.getManagedLedger();
-        MessageDeduplication deduplication2 = persistentTopic2.getMessageDeduplication();
-
-        Awaitility.await().untilAsserted(() -> {
-            int snapshotCounter3 = WhiteboxImpl.getInternalState(deduplication2, "snapshotCounter");
-            Assert.assertEquals(snapshotCounter3, 0);
-            Assert.assertEquals(ml2.getLedgersInfo().size(), 1);
-        });
+        PersistentTopic persistentTopic2 = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false)
+                .get(3, TimeUnit.SECONDS).orElseThrow();
+        assertEquals(persistentTopic2.messageDeduplication.snapshotCounter, 899);
 
 
         // cleanup.
