@@ -93,7 +93,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             ml.addEntry(new byte[]{i});
         }
         // Evict cached entries.
-        entryCache.evictEntries(ml.currentLedgerSize);
+        entryCache.clear();
         Assert.assertEquals(entryCache.getSize(), 0);
 
         CountDownLatch readCompleteSignal1 = new CountDownLatch(1);
