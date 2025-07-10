@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.util;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -68,6 +69,23 @@ public class ManagedLedgerAsyncUtils {
                 future.completeExceptionally(exception);
             }
         }, null, maxPosition);
+        return future;
+    }
+
+    public static CompletableFuture<Void> markDelete(ManagedCursor cursor, Position position,
+                                                     Map<String, Long> properties) {
+        final var future = new CompletableFuture<Void>();
+        cursor.asyncMarkDelete(position, properties, new AsyncCallbacks.MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                future.complete(null);
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, new Object());
         return future;
     }
 }

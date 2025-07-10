@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerAsyncUtils.markDelete;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerAsyncUtils.openCursor;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerAsyncUtils.readEntries;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
@@ -34,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -158,7 +158,8 @@ public class MessageDeduplication {
         }).thenCompose(__ -> {
             if (snapshotCounter.get() >= snapshotInterval) {
                 snapshotCounter.set(0);
-                return takeSnapshot(lastPosition);
+                // Ignore the possible failure when taking the snapshot
+                return takeSnapshot(lastPosition).exceptionally(e -> null);
             } else {
                 return CompletableFuture.completedFuture(null);
             }
@@ -281,7 +282,7 @@ public class MessageDeduplication {
                     log.info("[{}] Replaying {} entries for deduplication", topic.getName(),
                             cursor.getNumberOfEntries());
                     return replay(cursor).thenAccept(__ -> {
-                        synchronized (this) { // synchronize with failRecovery()
+                        synchronized (this) { // synchronize with cancelRecovery()
                             if (status != Status.Failed) {
                                 status = Status.Enabled;
                                 log.info("[{}] Enabled deduplication", topic.getName());
@@ -589,14 +590,12 @@ public class MessageDeduplication {
     }
 
     private CompletableFuture<Void> takeSnapshot(Position position) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            future.complete(null);
-            return future;
+            return CompletableFuture.completedFuture(null);
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -606,25 +605,24 @@ public class MessageDeduplication {
             }
         });
 
-        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
-            @Override
-            public void markDeleteComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
-                }
-                lastSnapshotTimestamp = System.currentTimeMillis();
-                snapshotTaking.set(false);
-                future.complete(null);
-            }
+        final var cursor = managedCursor;
+        if (cursor == null) {
+            log.error("[{}] Managed cursor is null when taking snapshot on {}", topic.getName(), position);
+            return CompletableFuture.completedFuture(null);
+        }
 
-            @Override
-            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}",
-                        topic.getName(), position, exception);
-                snapshotTaking.set(false);
-                future.completeExceptionally(exception);
+        final var future = markDelete(cursor, position, snapshot).thenAccept(__ -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
             }
-        }, null);
+            lastSnapshotTimestamp = System.currentTimeMillis();
+        });
+        future.whenComplete((__, e) -> {
+            snapshotTaking.set(false);
+            if (e != null) {
+                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position, e);
+            }
+        });
         return future;
     }
 
@@ -729,24 +727,19 @@ public class MessageDeduplication {
         return snapshotCounter.get();
     }
 
-    public CompletableFuture<Void> failRecovery() {
-        final boolean takeSnapshot;
-        synchronized (this) {
-            if (status == Status.Recovering) {
-                status = Status.Failed;
-                final var future = replayFuture;
-                if (future != null) {
-                    // Completing this future in a different thread so that callbacks will be called out of the
-                    // synchronized block.
-                    CompletableFuture.runAsync(() -> future.completeExceptionally(RECOVERY_FAILURE));
-                }
-                takeSnapshot = snapshotCounter.get() > 0;
-            } else {
-                replayFuture = null;
-                takeSnapshot = false;
-            }
+    public synchronized CompletableFuture<Void> cancelRecovery() {
+        if (status != Status.Recovering) {
+            return CompletableFuture.completedFuture(null);
         }
-        if (takeSnapshot) {
+        status = Status.Failed;
+        final var replayFuture = this.replayFuture;
+        if (replayFuture != null) {
+            // Fail the future of `checkStatus()` in a different thread to avoid executing the callback in the
+            // synchronized block.
+            CompletableFuture.runAsync(() -> replayFuture.completeExceptionally(RECOVERY_FAILURE),
+                    pulsar.getExecutor());
+        }
+        if (snapshotCounter.get() > 0) {
             log.info("[{}] Take snapshot at {} when the deduplication replay is cancelled", topic.getName(),
                     lastPosition);
             return takeSnapshot(lastPosition);
