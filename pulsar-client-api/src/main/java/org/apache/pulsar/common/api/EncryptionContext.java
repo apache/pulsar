@@ -39,6 +39,9 @@ public class EncryptionContext {
     private CompressionType compressionType;
     private int uncompressedMessageSize;
     private Optional<Integer> batchSize;
+    // Indicate if a message is encrypted or not
+    // The value will be true if the consumer cannot decrypt the message with the decryption configuration
+    private boolean isEncrypted;
 
     /**
      * Encryption key with metadata.
