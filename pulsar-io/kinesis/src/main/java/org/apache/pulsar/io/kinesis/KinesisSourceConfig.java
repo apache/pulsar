@@ -136,12 +136,12 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
 
     @FieldDoc(required = false,
             defaultValue = "kinesis.arrival.timestamp,kinesis.encryption.type,kinesis.partition.key,"
-                    + "kinesis.sequence.number,kinesis.shard.id,kinesis.millis.behind.latest",
+                    + "kinesis.sequence.number",
             help = "A comma-separated list of Kinesis metadata properties to include in the Pulsar message properties."
                     + " The supported properties are: kinesis.arrival.timestamp, kinesis.encryption.type, "
                     + "kinesis.partition.key, kinesis.sequence.number, kinesis.shard.id, kinesis.millis.behind.latest")
     private String kinesisRecordProperties = "kinesis.arrival.timestamp,kinesis.encryption.type,"
-            + "kinesis.partition.key,kinesis.sequence.number,kinesis.shard.id,kinesis.millis.behind.latest";
+            + "kinesis.partition.key,kinesis.sequence.number";
     private transient Set<String> propertiesToInclude;
 
     public static KinesisSourceConfig load(Map<String, Object> config, SourceContext sourceContext) {

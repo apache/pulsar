@@ -173,9 +173,11 @@ public class KinesisSourceConfigTests {
         KinesisSourceConfig config = KinesisSourceConfig.load(map, sourceContext);
 
         Set<String> properties = config.getPropertiesToInclude();
-        assertEquals(properties.size(), 6);
-        assertTrue(properties.contains("kinesis.shard.id"));
+        assertEquals(properties.size(), 4);
         assertTrue(properties.contains("kinesis.sequence.number"));
+        assertTrue(properties.contains("kinesis.arrival.timestamp"));
+        assertTrue(properties.contains("kinesis.encryption.type"));
+        assertTrue(properties.contains("kinesis.partition.key"));
     }
 
     @Test
