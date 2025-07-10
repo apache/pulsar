@@ -2109,12 +2109,29 @@ public interface Topics {
     void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException;
 
     /**
+     * Trigger offloading messages in topic to longterm storage.
+     *
+     * @param topic the topic to offload
+     * @param sizeThreshold maximum amount of data (bytes) that should be retained in bookkeeper
+     */
+    void triggerOffload(String topic, long sizeThreshold) throws PulsarAdminException;
+
+    /**
      * Trigger offloading messages in topic to longterm storage asynchronously.
      *
      * @param topic the topic to offload
      * @param messageId ID of maximum message which should be offloaded
      */
     CompletableFuture<Void> triggerOffloadAsync(String topic, MessageId messageId);
+
+
+    /**
+     * Trigger offloading messages in topic to longterm storage asynchronously.
+     *
+     * @param topic the topic to offload
+     * @param sizeThreshold maximum amount of data (bytes) that should be retained in bookkeeper
+     */
+    CompletableFuture<Void> triggerOffloadAsync(String topic, long sizeThreshold);
 
     /**
      * Check the status of an ongoing offloading operation for a topic.

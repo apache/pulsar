@@ -1996,7 +1996,7 @@ public class PulsarAdminToolTest {
         stats.ledgers.add(newLedger(2, 10, 3000));
         when(mockTopics.getInternalStats("persistent://myprop/clust/ns1/ds1", false)).thenReturn(stats);
         cmdTopics.run(split("offload persistent://myprop/clust/ns1/ds1 -s 1k"));
-        verify(mockTopics).triggerOffload("persistent://myprop/clust/ns1/ds1", new MessageIdImpl(2, 0, -1));
+        verify(mockTopics).triggerOffload("persistent://myprop/clust/ns1/ds1", 1024);
 
         when(mockTopics.offloadStatus("persistent://myprop/clust/ns1/ds1")).thenReturn(new OffloadProcessStatusImpl());
         cmdTopics.run(split("offload-status persistent://myprop/clust/ns1/ds1"));
