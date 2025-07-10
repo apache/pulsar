@@ -20,6 +20,7 @@ package org.apache.pulsar.io.kinesis;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -27,6 +28,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.io.core.SourceContext;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
@@ -157,5 +159,56 @@ public class KinesisSourceConfigTest {
         map.put("awsCredentialPluginParam",
                 "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         KinesisSourceConfig.load(map, Mockito.mock(SourceContext.class));
+    }
+
+    @Test
+    public final void propertiesDefaultTest() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("awsRegion", "us-west-1");
+        map.put("awsKinesisStreamName", "my-stream");
+        map.put("awsCredentialPluginParam", "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        KinesisSourceConfig config = KinesisSourceConfig.load(map, sourceContext);
+
+        Set<String> properties = config.getPropertiesToInclude();
+        assertEquals(properties.size(), 4);
+        assertTrue(properties.contains("kinesis.sequence.number"));
+        assertTrue(properties.contains("kinesis.arrival.timestamp"));
+        assertTrue(properties.contains("kinesis.encryption.type"));
+        assertTrue(properties.contains("kinesis.partition.key"));
+    }
+
+    @Test
+    public final void propertiesCustomTest() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("awsRegion", "us-west-1");
+        map.put("awsKinesisStreamName", "my-stream");
+        map.put("awsCredentialPluginParam", "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        // Set custom properties, note the extra whitespace to test trim()
+        map.put("kinesisRecordProperties", "kinesis.shard.id, kinesis.partition.key ");
+
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        KinesisSourceConfig config = KinesisSourceConfig.load(map, sourceContext);
+
+        Set<String> properties = config.getPropertiesToInclude();
+        assertEquals(properties.size(), 2);
+        assertTrue(properties.contains("kinesis.shard.id"));
+        assertTrue(properties.contains("kinesis.partition.key"));
+    }
+
+    @Test
+    public final void propertiesEmptyTest() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("awsRegion", "us-west-1");
+        map.put("awsKinesisStreamName", "my-stream");
+        map.put("awsCredentialPluginParam", "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        map.put("kinesisRecordProperties", "");
+
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        KinesisSourceConfig config = KinesisSourceConfig.load(map, sourceContext);
+
+        Set<String> properties = config.getPropertiesToInclude();
+        assertTrue(properties.isEmpty());
     }
 }
