@@ -20,12 +20,12 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -132,7 +132,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             }
         }
         this.allAddressList = addresses;
-        this.allAddressSet = new HashSet<>(addresses);
+        this.allAddressSet = ImmutableSet.copyOf(addresses);
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
