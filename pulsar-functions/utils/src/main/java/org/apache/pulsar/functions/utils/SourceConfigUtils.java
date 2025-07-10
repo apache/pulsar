@@ -28,7 +28,9 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -56,6 +58,8 @@ import org.apache.pulsar.io.core.Source;
 @Slf4j
 public class SourceConfigUtils {
 
+    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "ALL");
+
     @Getter
     @Setter
     @AllArgsConstructor
@@ -82,6 +86,9 @@ public class SourceConfigUtils {
         }
         if (sourceConfig.getLogTopic() != null) {
             functionDetailsBuilder.setLogTopic(sourceConfig.getLogTopic());
+        }
+        if (sourceConfig.getLogLevel() != null) {
+            functionDetailsBuilder.setLogLevel(sourceConfig.getLogLevel());
         }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
         if (sourceConfig.getParallelism() != null) {
@@ -241,6 +248,9 @@ public class SourceConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             sourceConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        if (!isEmpty(functionDetails.getLogLevel())) {
+            sourceConfig.setLogLevel(functionDetails.getLogLevel());
+        }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
             resources.setCpu(functionDetails.getResources().getCpu());
@@ -279,6 +289,12 @@ public class SourceConfigUtils {
             if (!TopicName.isValid(sourceConfig.getLogTopic())) {
                 throw new IllegalArgumentException(
                         String.format("LogTopic topic %s is invalid", sourceConfig.getLogTopic()));
+            }
+        }
+        if (!isEmpty(sourceConfig.getLogLevel())) {
+            if (!VALID_LOG_LEVELS.contains(sourceConfig.getLogLevel().toUpperCase())) {
+                throw new IllegalArgumentException(
+                        String.format("LogLevel %s is invalid", sourceConfig.getLogLevel()));
             }
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
@@ -409,6 +425,9 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (!StringUtils.isEmpty(newConfig.getLogLevel())) {
+            mergedConfig.setLogLevel(newConfig.getLogLevel());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
                 .equals(existingConfig.getProcessingGuarantees())) {

@@ -74,6 +74,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -236,6 +237,10 @@ public class KubernetesRuntime implements Runtime {
             case GO:
                 break;
         }
+        String logLevel = instanceConfig.getFunctionDetails().getLogLevel();
+        if (StringUtils.isBlank(logLevel)) {
+            logLevel = "info";
+        }
 
         this.authConfig = authConfig;
 
@@ -275,6 +280,7 @@ public class KubernetesRuntime implements Runtime {
                         grpcPort,
                         -1L,
                         logConfigFile,
+                        logLevel,
                         secretsProviderClassName,
                         secretsProviderConfig,
                         installUserCodeDependencies,

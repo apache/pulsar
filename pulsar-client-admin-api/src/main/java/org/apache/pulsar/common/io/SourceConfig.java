@@ -73,4 +73,5 @@ public class SourceConfig {
     // batchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED
     private String batchBuilder;
     private String logTopic;
+    private String logLevel;
 }

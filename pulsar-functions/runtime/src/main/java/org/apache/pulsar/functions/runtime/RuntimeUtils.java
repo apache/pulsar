@@ -78,6 +78,7 @@ public class RuntimeUtils {
                                           Integer grpcPort,
                                           Long expectedHealthCheckInterval,
                                           String logConfigFile,
+                                          String logLevel,
                                           String secretsProviderClassName,
                                           String secretsProviderConfig,
                                           Boolean installUserCodeDependencies,
@@ -92,7 +93,7 @@ public class RuntimeUtils {
         cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
                 originalCodeFileName, originalTransformFunctionFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
-                logConfigFile, secretsProviderClassName, secretsProviderConfig,
+                logConfigFile, logLevel, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
                 pythonExtraDependencyRepository, narExtractionDirectory,
                 functionInstanceClassPath, false, pulsarWebServiceUrl));
@@ -315,6 +316,7 @@ public class RuntimeUtils {
                                       Integer grpcPort,
                                       Long expectedHealthCheckInterval,
                                       String logConfigFile,
+                                      String logLevel,
                                       String secretsProviderClassName,
                                       String secretsProviderConfig,
                                       Boolean installUserCodeDependencies,
@@ -360,6 +362,7 @@ public class RuntimeUtils {
                 }
                 args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
             }
+            args.add("-Dpulsar.log.level=" + logLevel);
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
@@ -427,6 +430,8 @@ public class RuntimeUtils {
             // set logging config file
             args.add("--logging_config_file");
             args.add(logConfigFile);
+            args.add("--logging_level");
+            args.add(logLevel);
             // `installUserCodeDependencies` is only valid for python runtime
             if (installUserCodeDependencies != null && installUserCodeDependencies) {
                 args.add("--install_usercode_dependencies");

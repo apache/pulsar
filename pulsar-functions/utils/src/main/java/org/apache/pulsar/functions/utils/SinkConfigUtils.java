@@ -31,6 +31,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -62,6 +63,8 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 @Slf4j
 public class SinkConfigUtils {
 
+    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "ALL");
+
     @Getter
     @Setter
     @AllArgsConstructor
@@ -89,6 +92,9 @@ public class SinkConfigUtils {
         }
         if (sinkConfig.getLogTopic() != null) {
             functionDetailsBuilder.setLogTopic(sinkConfig.getLogTopic());
+        }
+        if (sinkConfig.getLogLevel() != null) {
+            functionDetailsBuilder.setLogLevel(sinkConfig.getLogLevel());
         }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
         if (sinkConfig.getParallelism() != null) {
@@ -335,6 +341,9 @@ public class SinkConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             sinkConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        if (!isEmpty(functionDetails.getLogLevel())) {
+            sinkConfig.setLogLevel(functionDetails.getLogLevel());
+        }
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
 
@@ -444,6 +453,13 @@ public class SinkConfigUtils {
             if (!TopicName.isValid(sinkConfig.getLogTopic())) {
                 throw new IllegalArgumentException(
                         String.format("LogTopic topic %s is invalid", sinkConfig.getLogTopic()));
+            }
+        }
+
+        if (!isEmpty(sinkConfig.getLogLevel())) {
+            if (!VALID_LOG_LEVELS.contains(sinkConfig.getLogLevel().toUpperCase())) {
+                throw new IllegalArgumentException(
+                        String.format("LogLevel %s is invalid", sinkConfig.getLogLevel()));
             }
         }
 
@@ -639,6 +655,9 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (!StringUtils.isEmpty(newConfig.getLogLevel())) {
+            mergedConfig.setLogLevel(newConfig.getLogLevel());
         }
 
         if (newConfig.getInputs() != null) {

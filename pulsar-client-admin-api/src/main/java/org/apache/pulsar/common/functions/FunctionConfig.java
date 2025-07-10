@@ -88,6 +88,7 @@ public class FunctionConfig {
 
     private String outputSerdeClassName;
     private String logTopic;
+    private String logLevel;
     private ProcessingGuarantees processingGuarantees;
     // Do we want function instances to process data in the same order as in the input topics
     // This essentially means that every partition of input topic is consumed by only one instance
