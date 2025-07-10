@@ -28,6 +28,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +44,8 @@ import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -50,10 +53,12 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.zookeeper.MockZooKeeper;
@@ -398,5 +403,48 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         admin.topics().unload(topic);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
                 assertFalse(managedLedgers.containsKey(mlKey)));
+    }
+
+    @Test
+    public void testDuplicatedTopics() throws Exception {
+        final var topicName = TopicName.get("test-duplicated-topics");
+        final var topic = topicName.toString();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().unload(topic);
+        // When load timeout happens, there might be a PersistentTopic initializing at the background. It will be closed
+        // after the initialization is done.
+        final var oldPersistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .loadOrCreatePersistentTopic(topic, true, null).get().orElseThrow();
+        final var persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .loadOrCreatePersistentTopic(topic, true, null).get().orElseThrow();
+        oldPersistentTopic.close();
+        final var future = new CompletableFuture<Position>();
+        final var metadata = new MessageMetadata();
+        metadata.setProducerName("producer");
+        metadata.setSequenceId(0);
+        metadata.setPublishTime(System.currentTimeMillis());
+        persistentTopic.publishMessage(Unpooled.wrappedBuffer(metadata.toByteArray()), new Topic.PublishContext() {
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                if (e == null) {
+                    future.complete(PositionFactory.create(ledgerId, entryId));
+                } else {
+                    future.completeExceptionally(e);
+                }
+            }
+
+            @Override
+            public String getProducerName() {
+                return "producer";
+            }
+
+            @Override
+            public long getSequenceId() {
+                return 0;
+            }
+        });
+        final var position = future.get(3, TimeUnit.SECONDS);
+        log.info("Sent to {}", position);
+        persistentTopic.close();
     }
 }

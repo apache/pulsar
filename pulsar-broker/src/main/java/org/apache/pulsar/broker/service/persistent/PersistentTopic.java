@@ -1794,7 +1794,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }, null));
 
-        disconnectClientsInCurrentCall.thenRun(closeLedgerAfterCloseClients).exceptionally(exception -> {
+        disconnectClientsInCurrentCall.thenRun(() -> {
+            if (brokerService.getTopics().get(topic) == createFuture) {
+                closeLedgerAfterCloseClients.run();
+            }
+        }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             unfenceTopicToResume();
             closeFuture.completeExceptionally(exception);
