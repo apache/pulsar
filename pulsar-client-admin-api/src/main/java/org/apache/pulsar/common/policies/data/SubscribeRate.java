@@ -19,13 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Objects;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 /**
  * Information about subscription rate.
  */
 @ToString
-public class SubscribeRate {
+public class SubscribeRate implements Cloneable {
 
     public int subscribeThrottlingRatePerConsumer = -1;
     public int ratePeriodInSecond = 30;
@@ -46,6 +47,12 @@ public class SubscribeRate {
         } else {
             return null;
         }
+    }
+
+    @SneakyThrows
+    @Override
+    protected SubscribeRate clone() {
+        return SubscribeRate.class.cast(super.clone());
     }
 
     @Override
