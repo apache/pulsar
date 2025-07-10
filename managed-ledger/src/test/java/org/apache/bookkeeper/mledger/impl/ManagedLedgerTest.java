@@ -3351,6 +3351,24 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @Test
+    public void testAddOpCountWithMessageAdd() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(0);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+
+        for (int i = 0; i < 10; i++) {
+            OpAddEntry op = OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean());
+            ledger.internalAsyncAddEntry(op);
+            long addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.get(ledger);
+            Assert.assertEquals(i + 1, addOpCount);
+        }
+    }
+
     /**
      * It verifies that managed-cursor can recover metadata-version if it fails to update due to version conflict. This
      * test verifies that version recovery happens if checkOwnership supplier is passed while creating managed-ledger.
