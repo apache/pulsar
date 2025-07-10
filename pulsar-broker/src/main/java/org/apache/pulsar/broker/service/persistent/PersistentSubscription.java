@@ -1315,7 +1315,9 @@ public class PersistentSubscription extends AbstractSubscription {
         SubType subType = getType();
         subStats.type = getTypeString();
         if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            Consumer activeConsumer = ((PersistentDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer();
+            PersistentDispatcherSingleActiveConsumer d = ((PersistentDispatcherSingleActiveConsumer) dispatcher);
+            subStats.unackedMessages = d.getUnackedMessages();
+            Consumer activeConsumer = d.getActiveConsumer();
             if (activeConsumer != null) {
                 subStats.activeConsumerName = activeConsumer.consumerName();
             }

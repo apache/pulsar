@@ -1085,18 +1085,14 @@ public class BatchMessageTest extends BrokerTestBase {
                 .getTopic(topic, false).get().get().getSubscription(subscriptionName);
 
         Awaitility.await().untilAsserted(() -> {
-            if (subType == SubscriptionType.Shared) {
-                if (enableBatch) {
-                    if (conf.isAcknowledgmentAtBatchIndexLevelEnabled()) {
-                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 1);
-                    } else {
-                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 3);
-                    }
+            if (enableBatch) {
+                if (conf.isAcknowledgmentAtBatchIndexLevelEnabled()) {
+                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 1);
                 } else {
-                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 3);
                 }
             } else {
-                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
+                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
             }
         });
     }
