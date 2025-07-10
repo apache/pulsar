@@ -24,31 +24,49 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.apache.pulsar.functions.api.Record;
 import software.amazon.awssdk.services.kinesis.model.EncryptionType;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 public class KinesisRecord implements Record<byte[]> {
-    public static final String ARRIVAL_TIMESTAMP = "";
-    public static final String ENCRYPTION_TYPE = "";
-    public static final String PARTITION_KEY = "";
-    public static final String SEQUENCE_NUMBER = "";
+    public static final String ARRIVAL_TIMESTAMP = "kinesis.arrival.timestamp";
+    public static final String ENCRYPTION_TYPE = "kinesis.encryption.type";
+    public static final String PARTITION_KEY = "kinesis.partition.key";
+    public static final String SEQUENCE_NUMBER = "kinesis.sequence.number";
+    public static final String SHARD_ID = "kinesis.shard.id";
+    public static final String MILLIS_BEHIND_LATEST = "kinesis.millis.behind.latest";
 
     private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<>();
-    public KinesisRecord(KinesisClientRecord record) {
+    public KinesisRecord(KinesisClientRecord record, String shardId, long millisBehindLatest,
+                         Set<String> propertiesToInclude) {
         this.key = Optional.of(record.partitionKey());
         // encryption type can (annoyingly) be null, so we default to NONE
         EncryptionType encType = EncryptionType.NONE;
         if (record.encryptionType() != null) {
             encType = record.encryptionType();
         }
-        setProperty(ARRIVAL_TIMESTAMP, record.approximateArrivalTimestamp().toString());
-        setProperty(ENCRYPTION_TYPE, encType.toString());
-        setProperty(PARTITION_KEY, record.partitionKey());
-        setProperty(SEQUENCE_NUMBER, record.sequenceNumber());
+        if (propertiesToInclude.contains(ARRIVAL_TIMESTAMP)) {
+            setProperty(ARRIVAL_TIMESTAMP, record.approximateArrivalTimestamp().toString());
+        }
+        if (propertiesToInclude.contains(ENCRYPTION_TYPE)) {
+            setProperty(ENCRYPTION_TYPE, encType.toString());
+        }
+        if (propertiesToInclude.contains(PARTITION_KEY)) {
+            setProperty(PARTITION_KEY, record.partitionKey());
+        }
+        if (propertiesToInclude.contains(SEQUENCE_NUMBER)) {
+            setProperty(SEQUENCE_NUMBER, record.sequenceNumber());
+        }
+        if (propertiesToInclude.contains(SHARD_ID)) {
+            setProperty(SHARD_ID, shardId);
+        }
+        if (propertiesToInclude.contains(MILLIS_BEHIND_LATEST)) {
+            setProperty(MILLIS_BEHIND_LATEST, String.valueOf(millisBehindLatest));
+        }
 
         if (encType == EncryptionType.NONE) {
             String s = null;

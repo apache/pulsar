@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.kinesis.exceptions.InvalidStateException;
@@ -43,11 +44,13 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
     private final LinkedBlockingQueue<KinesisRecord> queue;
     private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
+    private final Set<String> propertiesToInclude;
     public KinesisRecordProcessor(LinkedBlockingQueue<KinesisRecord> queue, KinesisSourceConfig config) {
         this.queue = queue;
         this.checkpointInterval = config.getCheckpointInterval();
         this.numRetries = config.getNumRetries();
         this.backoffTime = config.getBackoffTime();
+        this.propertiesToInclude = config.getPropertiesToInclude();
     }
 
     private void checkpoint(RecordProcessorCheckpointer checkpointer) {
@@ -82,16 +85,20 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
     @Override
     public void initialize(InitializationInput initializationInput) {
         kinesisShardId = initializationInput.shardId();
+        log.info("Initializing KinesisRecordProcessor for shard {}. Config: checkpointInterval={}ms, numRetries={}, "
+                        + "backoffTime={}ms, propertiesToInclude={}",
+                kinesisShardId, checkpointInterval, numRetries, backoffTime, propertiesToInclude);
     }
 
     @Override
     public void processRecords(ProcessRecordsInput processRecordsInput) {
 
         log.info("Processing " + processRecordsInput.records().size() + " records from " + kinesisShardId);
+        long millisBehindLatest = processRecordsInput.millisBehindLatest();
 
         for (KinesisClientRecord record : processRecordsInput.records()) {
             try {
-                queue.put(new KinesisRecord(record));
+                queue.put(new KinesisRecord(record, this.kinesisShardId, millisBehindLatest, propertiesToInclude));
             } catch (InterruptedException e) {
                 log.warn("unable to create KinesisRecord ", e);
             }
