@@ -22,8 +22,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.io.Serializable;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
@@ -130,6 +134,16 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
     )
     private boolean useEnhancedFanOut = true;
 
+    @FieldDoc(required = false,
+            defaultValue = "kinesis.arrival.timestamp,kinesis.encryption.type,kinesis.partition.key,"
+                    + "kinesis.sequence.number",
+            help = "A comma-separated list of Kinesis metadata properties to include in the Pulsar message properties."
+                    + " The supported properties are: kinesis.arrival.timestamp, kinesis.encryption.type, "
+                    + "kinesis.partition.key, kinesis.sequence.number, kinesis.shard.id, kinesis.millis.behind.latest")
+    private String kinesisRecordProperties = "kinesis.arrival.timestamp,kinesis.encryption.type,"
+            + "kinesis.partition.key,kinesis.sequence.number";
+    private transient Set<String> propertiesToInclude;
+
     public static KinesisSourceConfig load(Map<String, Object> config, SourceContext sourceContext) {
         KinesisSourceConfig kinesisSourceConfig = IOConfigUtils.loadWithSecrets(config,
                 KinesisSourceConfig.class, sourceContext);
@@ -142,6 +156,15 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
         if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
             checkArgument((kinesisSourceConfig.getStartAtTime() != null),
                     "When initialPositionInStream is AT_TIMESTAMP, startAtTime must be specified");
+        }
+        if (isNotBlank(kinesisSourceConfig.getKinesisRecordProperties())) {
+            Set<String> properties = Arrays.stream(kinesisSourceConfig.getKinesisRecordProperties().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
+            kinesisSourceConfig.setPropertiesToInclude(properties);
+        } else {
+            kinesisSourceConfig.setPropertiesToInclude(Collections.emptySet());
         }
         return kinesisSourceConfig;
     }
