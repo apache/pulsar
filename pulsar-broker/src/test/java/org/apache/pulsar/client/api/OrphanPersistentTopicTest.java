@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.Unpooled;
@@ -40,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +52,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
@@ -58,7 +61,6 @@ import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.zookeeper.MockZooKeeper;
@@ -411,40 +413,50 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         final var topic = topicName.toString();
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().unload(topic);
-        // When load timeout happens, there might be a PersistentTopic initializing at the background. It will be closed
-        // after the initialization is done.
-        final var oldPersistentTopic = (PersistentTopic) pulsar.getBrokerService()
+        // When load timeout happens, there might be an orphan PersistentTopic that will be closed after the
+        // initialization is done. Here we simulate the case by manually creating such an instance.
+        final var orphanPersistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .loadOrCreatePersistentTopic(topic, true, null).get().orElseThrow();
-        final var persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topic, true, null).get().orElseThrow();
-        oldPersistentTopic.close();
+        final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get()
+                .orElseThrow();
+        assertSame(pulsar.getBrokerService().getTopics().get(topic), persistentTopic.getCreateFuture());
+        orphanPersistentTopic.close();
+        final BiFunction<Integer, CompletableFuture<Position>, Topic.PublishContext> newCallback = (sequence, future) ->
+                new Topic.PublishContext() {
+                    @Override
+                    public void completed(Exception e, long ledgerId, long entryId) {
+                        if (e == null) {
+                            future.complete(PositionFactory.create(ledgerId, entryId));
+                        } else {
+                            future.completeExceptionally(e);
+                        }
+                    }
+
+                    @Override
+                    public String getProducerName() {
+                        return "producer";
+                    }
+
+                    @Override
+                    public long getSequenceId() {
+                        return sequence;
+                    }
+                };
+
         final var future = new CompletableFuture<Position>();
-        final var metadata = new MessageMetadata();
-        metadata.setProducerName("producer");
-        metadata.setSequenceId(0);
-        metadata.setPublishTime(System.currentTimeMillis());
-        persistentTopic.publishMessage(Unpooled.wrappedBuffer(metadata.toByteArray()), new Topic.PublishContext() {
-            @Override
-            public void completed(Exception e, long ledgerId, long entryId) {
-                if (e == null) {
-                    future.complete(PositionFactory.create(ledgerId, entryId));
-                } else {
-                    future.completeExceptionally(e);
-                }
-            }
-
-            @Override
-            public String getProducerName() {
-                return "producer";
-            }
-
-            @Override
-            public long getSequenceId() {
-                return 0;
-            }
-        });
+        persistentTopic.publishMessage(Unpooled.buffer(1), newCallback.apply(0, future));
         final var position = future.get(3, TimeUnit.SECONDS);
         log.info("Sent to {}", position);
-        persistentTopic.close();
+        admin.topics().delete(topic);
+
+        final var future2 = new CompletableFuture<Position>();
+        persistentTopic.publishMessage(Unpooled.buffer(1), newCallback.apply(1, future2));
+        try {
+            future2.get(3, TimeUnit.SECONDS);
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.TopicFencedException);
+        }
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
     }
 }
