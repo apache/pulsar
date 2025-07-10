@@ -45,6 +45,8 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
     private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
     private final Set<String> propertiesToInclude;
+    
+
     public KinesisRecordProcessor(LinkedBlockingQueue<KinesisRecord> queue, KinesisSourceConfig config) {
         this.queue = queue;
         this.checkpointInterval = config.getCheckpointInterval();
