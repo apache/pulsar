@@ -145,11 +145,13 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
 
         // test binary service url with disable quarantine
-        successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
+        successCount =
+                createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
         // no unavailable nodes should be removed since backoff is disabled
-        successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
+        successCount =
+                createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
 
