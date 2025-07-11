@@ -42,7 +42,15 @@ public class KinesisRecord implements Record<byte[]> {
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<>();
     public KinesisRecord(KinesisClientRecord record, String shardId, long millisBehindLatest,
-                         Set<String> propertiesToInclude) {
+                         Set<String> propertiesToInclude, String partitionKeyFieldName) {
+
+        this.partitionKeyFieldName = partitionKeyFieldName;
+        if (isNotBlank(this.partitionKeyFieldName)) {
+            this.key = extractKey(record.data().array(), new SerDe());
+        } else {
+            this.key = Optional.of(record.getPartitionKey());
+        }
+
         this.key = Optional.of(record.partitionKey());
         // encryption type can (annoyingly) be null, so we default to NONE
         EncryptionType encType = EncryptionType.NONE;
@@ -84,6 +92,20 @@ public class KinesisRecord implements Record<byte[]> {
             this.value = null;
         }
     }
+
+    private Optional<String> extractKey(byte[] value, SerDe serde) {
+        try {
+            JsonNode node = serde.deserialize(value);
+            if (node.has(partitionKeyFieldName)) {
+                return Optional.of(node.get(partitionKeyFieldName).asText());
+            }
+        } catch (IOException e) {
+            log.warn("Failed to extract key from value: {}", e.getMessage());
+            this.key = Optional.of(record.getPartitionKey());
+        }
+        return Optional.empty();
+    }
+
     @Override
     public Optional<String> getKey() {
         return key;

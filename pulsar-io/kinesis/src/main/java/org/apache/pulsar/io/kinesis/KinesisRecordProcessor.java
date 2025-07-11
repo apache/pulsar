@@ -45,7 +45,7 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
     private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
     private final Set<String> propertiesToInclude;
-    
+    private final String partitionKeyFieldName = "";
 
     public KinesisRecordProcessor(LinkedBlockingQueue<KinesisRecord> queue, KinesisSourceConfig config) {
         this.queue = queue;
@@ -53,6 +53,7 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
         this.numRetries = config.getNumRetries();
         this.backoffTime = config.getBackoffTime();
         this.propertiesToInclude = config.getPropertiesToInclude();
+        this.partitionKeyFieldName = config.getPartitionKeyFieldName();
     }
 
     private void checkpoint(RecordProcessorCheckpointer checkpointer) {
@@ -89,7 +90,7 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
         kinesisShardId = initializationInput.shardId();
         log.info("Initializing KinesisRecordProcessor for shard {}. Config: checkpointInterval={}ms, numRetries={}, "
                         + "backoffTime={}ms, propertiesToInclude={}",
-                kinesisShardId, checkpointInterval, numRetries, backoffTime, propertiesToInclude);
+                kinesisShardId, checkpointInterval, numRetries, backoffTime, propertiesToInclude, partitionKeyFieldName);
     }
 
     @Override
