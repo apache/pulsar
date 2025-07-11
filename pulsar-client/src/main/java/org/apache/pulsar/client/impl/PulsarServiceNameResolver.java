@@ -79,6 +79,9 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         } else {
             // if no available address, use the original address list
             list = allAddressList;
+            if (availableAddressList != null) {
+                log.warn("No available hosts found for service url: {}", serviceUrl);
+            }
         }
         checkState(
             list != null, "No service url is provided yet");
@@ -137,10 +140,10 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
         if (enableServiceUrlQuarantine) {
-            this.availableAddressList = new ArrayList<>(addresses);
-            hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
+            hostAvailabilityMap.keySet().retainAll(allAddressSet);
             allAddressSet.forEach(
                     address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
+            availableAddressList = new ArrayList<>(hostAvailabilityMap.keySet());
         }
     }
 
