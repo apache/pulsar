@@ -132,6 +132,7 @@ import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherM
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactory;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic;
+import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
@@ -1657,16 +1658,20 @@ public class BrokerService implements Closeable {
      * @return CompletableFuture<Topic>
      * @throws RuntimeException
      */
-    protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
+    @VisibleForTesting
+    public CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing, Map<String, String> properties) {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
 
-        topicFuture.exceptionally(t -> {
+        topicFuture.exceptionallyAsync(e -> {
             pulsarStats.recordTopicLoadFailed();
-            return null;
-        });
+            if (topics.remove(topic, topicFuture)) {
+                log.info("Removed topic {} for: {}", topic, e.getMessage());
+            }
+            return Optional.empty();
+        }, executor());
 
         checkTopicNsOwnership(topic)
                 .thenRun(() -> {
@@ -1781,7 +1786,6 @@ public class BrokerService implements Closeable {
         if (isTransactionInternalName(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
             log.warn(msg);
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new NotAllowedException(msg));
             return;
         }
@@ -1842,6 +1846,12 @@ public class BrokerService implements Closeable {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
+                                if (topicFuture.isCompletedExceptionally()) {
+                                    // Don't close the managed ledger because next time the topic is accessed, the
+                                    // managed ledger will be created again. The managed ledger will be removed if the
+                                    // ownership has been changed.
+                                    return;
+                                }
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
@@ -1870,20 +1880,15 @@ public class BrokerService implements Closeable {
                                                     log.error("{} future is already completed by another thread, "
                                                             + "which is not expected. Closing the current one", topic);
                                                 }
-                                                executor().submit(() -> {
-                                                    persistentTopic.close().whenComplete((ignore, ex) -> {
-                                                        topics.remove(topic, topicFuture);
-                                                        if (ex != null) {
-                                                            log.warn("[{}] Get an error when closing topic.",
-                                                                    topic, ex);
-                                                        }
-                                                    });
-                                                });
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
                                             }
                                         })
                                         .exceptionally((ex) -> {
+                                            if (MessageDeduplication.RECOVERY_FAILURE.equals(ex.getCause())) {
+                                                log.info("Deduplication recovery of {} is cancelled", topic);
+                                                return null;
+                                            }
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
                                             executor().submit(() -> {

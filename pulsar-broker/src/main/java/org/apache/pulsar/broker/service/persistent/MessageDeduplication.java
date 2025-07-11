@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerAsyncUtils.markDelete;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerAsyncUtils.openCursor;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerAsyncUtils.readEntries;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import com.google.common.annotations.VisibleForTesting;
@@ -30,10 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -56,10 +57,12 @@ import org.slf4j.LoggerFactory;
  */
 public class MessageDeduplication {
 
+    public static final IllegalStateException RECOVERY_FAILURE = new IllegalStateException("recovery is cancelled");
     private final PulsarService pulsar;
     private final PersistentTopic topic;
     private final ManagedLedger managedLedger;
     private ManagedCursor managedCursor;
+    private Position lastPosition = PositionFactory.EARLIEST;
 
     private static final String IS_LAST_CHUNK = "isLastChunk";
 
@@ -118,7 +121,7 @@ public class MessageDeduplication {
     private final int snapshotInterval;
 
     // Counter of number of entries stored after last snapshot was taken
-    private int snapshotCounter;
+    private final AtomicInteger snapshotCounter = new AtomicInteger(0);
 
     // The timestamp when the snapshot was taken by the scheduled task last time
     private volatile long lastSnapshotTimestamp = 0L;
@@ -133,6 +136,7 @@ public class MessageDeduplication {
 
 
     private final AtomicBoolean snapshotTaking = new AtomicBoolean(false);
+    private volatile CompletableFuture<Void> replayFuture = new CompletableFuture<>();
 
     public MessageDeduplication(PulsarService pulsar, PersistentTopic topic, ManagedLedger managedLedger) {
         this.pulsar = pulsar;
@@ -141,70 +145,50 @@ public class MessageDeduplication {
         this.status = Status.Initialized;
         this.snapshotInterval = pulsar.getConfiguration().getBrokerDeduplicationEntriesInterval();
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
-        this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
     }
 
-    private CompletableFuture<Void> recoverSequenceIdsMap() {
-        // Load the sequence ids from the snapshot in the cursor properties
-        managedCursor.getProperties().forEach((k, v) -> {
-            producerRemoved(k);
-            highestSequencedPushed.put(k, v);
-            highestSequencedPersisted.put(k, v);
-        });
-
-        // Replay all the entries and apply all the sequence ids updates
-        log.info("[{}] Replaying {} entries for deduplication", topic.getName(), managedCursor.getNumberOfEntries());
-        CompletableFuture<Position> future = new CompletableFuture<>();
-        replayCursor(future);
-        return future.thenCompose(lastPosition -> {
-            if (lastPosition != null && snapshotCounter >= snapshotInterval) {
-                snapshotCounter = 0;
-                return takeSnapshot(lastPosition);
+    private CompletableFuture<Void> replay(ManagedCursor cursor) {
+        return replayOnce(cursor).thenCompose(hasMoreEntries -> {
+            if (hasMoreEntries) {
+                return replay(cursor);
+            } else {
+                return CompletableFuture.completedFuture(null);
             }
-            return CompletableFuture.completedFuture(null);
+        }).thenCompose(__ -> {
+            if (snapshotCounter.get() >= snapshotInterval) {
+                snapshotCounter.set(0);
+                // Ignore the possible failure when taking the snapshot
+                return takeSnapshot(lastPosition).exceptionally(e -> null);
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
         });
     }
 
-    /**
-     * Read all the entries published from the cursor position until the most recent and update the highest sequence id
-     * from each producer.
-     *
-     * @param future future to trigger when the replay is complete
-     */
-    private void replayCursor(CompletableFuture<Position> future) {
-        managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                Position lastPosition = null;
-                for (Entry entry : entries) {
-                    ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
-                    MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
-
-                    String producerName = md.getProducerName();
-                    long sequenceId = Math.max(md.getHighestSequenceId(), md.getSequenceId());
-                    highestSequencedPushed.put(producerName, sequenceId);
-                    highestSequencedPersisted.put(producerName, sequenceId);
-                    producerRemoved(producerName);
-                    snapshotCounter++;
-                    lastPosition = entry.getPosition();
-                    entry.release();
+    private CompletableFuture<Boolean> replayOnce(ManagedCursor cursor) {
+        return readEntries(cursor, 100, PositionFactory.LATEST).thenApply(entries -> {
+            try {
+                synchronized (this) {
+                    if (status == Status.Failed) {
+                        return false;
+                    }
+                    for (final var entry : entries) {
+                        final var metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                        final var producerName = metadata.getProducerName();
+                        final var sequenceId = Math.max(metadata.getHighestSequenceId(), metadata.getSequenceId());
+                        highestSequencedPushed.put(producerName, sequenceId);
+                        highestSequencedPersisted.put(producerName, sequenceId);
+                        producerRemoved(producerName);
+                        lastPosition = entry.getPosition();
+                        snapshotCounter.getAndIncrement();
+                    }
                 }
-
-                if (managedCursor.hasMoreEntries()) {
-                    // Read next batch of entries
-                    pulsar.getExecutor().execute(() -> replayCursor(future));
-                } else {
-                    // Done replaying
-                    future.complete(lastPosition);
-                }
+            } finally {
+                entries.forEach(Entry::release);
             }
-
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(exception);
-            }
-        }, null, PositionFactory.LATEST);
+            return cursor.hasMoreEntries();
+        });
     }
 
     public Status getStatus() {
@@ -248,6 +232,7 @@ public class MessageDeduplication {
                 // Disabled deduping
                 CompletableFuture<Void> future = new CompletableFuture<>();
                 status = Status.Removing;
+                lastPosition = PositionFactory.EARLIEST;
                 managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME,
                         new DeleteCursorCallback() {
 
@@ -282,35 +267,36 @@ public class MessageDeduplication {
                 return future;
             } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
                 // Enable deduping
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new OpenCursorCallback() {
-
-                    @Override
-                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                        // We don't want to retain cache for this cursor
-                        cursor.setAlwaysInactive();
-                        managedCursor = cursor;
-                        recoverSequenceIdsMap().thenRun(() -> {
-                            status = Status.Enabled;
-                            future.complete(null);
-                            log.info("[{}] Enabled deduplication", topic.getName());
-                        }).exceptionally(ex -> {
-                            status = Status.Failed;
-                            log.warn("[{}] Failed to enable deduplication: {}", topic.getName(), ex.getMessage());
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
-                    }
-
-                    @Override
-                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("[{}] Failed to enable deduplication: {}", topic.getName(),
-                                exception.getMessage());
-                        future.completeExceptionally(exception);
-                    }
-
-                }, null);
-                return future;
+                lastPosition = PositionFactory.EARLIEST;
+                final var cursorFuture = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME);
+                replayFuture = cursorFuture.thenCompose(cursor -> {
+                    cursor.setAlwaysInactive();
+                    managedCursor = cursor;
+                    lastPosition = managedCursor.getReadPosition();
+                    // Load the sequence ids from the snapshot in the cursor properties
+                    cursor.getProperties().forEach((k, v) -> {
+                        producerRemoved(k);
+                        highestSequencedPushed.put(k, v);
+                        highestSequencedPersisted.put(k, v);
+                    });
+                    log.info("[{}] Replaying {} entries for deduplication", topic.getName(),
+                            cursor.getNumberOfEntries());
+                    return replay(cursor).thenAccept(__ -> {
+                        synchronized (this) { // synchronize with cancelRecovery()
+                            if (status != Status.Failed) {
+                                status = Status.Enabled;
+                                log.info("[{}] Enabled deduplication", topic.getName());
+                            }
+                        }
+                    });
+                });
+                replayFuture.exceptionally(e -> {
+                    status = Status.Failed;
+                    log.warn("[{}] Failed to enable deduplication: {}", topic.getName(), e.getMessage());
+                    return null;
+                });
+                status = Status.Recovering;
+                return replayFuture;
             } else {
                 // Nothing to do, we are in the correct state
                 return CompletableFuture.completedFuture(null);
@@ -581,8 +567,8 @@ public class MessageDeduplication {
     }
 
     private void increaseSnapshotCounterAndTakeSnapshotIfNeeded(Position position) {
-        if (++snapshotCounter >= snapshotInterval) {
-            snapshotCounter = 0;
+        if (snapshotCounter.incrementAndGet() >= snapshotInterval) {
+            snapshotCounter.set(0);
             takeSnapshot(position);
         } else {
             if (log.isDebugEnabled()) {
@@ -604,14 +590,12 @@ public class MessageDeduplication {
     }
 
     private CompletableFuture<Void> takeSnapshot(Position position) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            future.complete(null);
-            return future;
+            return CompletableFuture.completedFuture(null);
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -621,25 +605,24 @@ public class MessageDeduplication {
             }
         });
 
-        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
-            @Override
-            public void markDeleteComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
-                }
-                lastSnapshotTimestamp = System.currentTimeMillis();
-                snapshotTaking.set(false);
-                future.complete(null);
-            }
+        final var cursor = managedCursor;
+        if (cursor == null) {
+            log.error("[{}] Managed cursor is null when taking snapshot on {}", topic.getName(), position);
+            return CompletableFuture.completedFuture(null);
+        }
 
-            @Override
-            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}",
-                        topic.getName(), position, exception);
-                snapshotTaking.set(false);
-                future.completeExceptionally(exception);
+        final var future = markDelete(cursor, position, snapshot).thenAccept(__ -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
             }
-        }, null);
+            lastSnapshotTimestamp = System.currentTimeMillis();
+        });
+        future.whenComplete((__, e) -> {
+            snapshotTaking.set(false);
+            if (e != null) {
+                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position, e);
+            }
+        });
         return future;
     }
 
@@ -737,6 +720,33 @@ public class MessageDeduplication {
     @VisibleForTesting
     Map<String, Long> getInactiveProducers() {
         return inactiveProducers;
+    }
+
+    @VisibleForTesting
+    public int getSnapshotCounter() {
+        return snapshotCounter.get();
+    }
+
+    public synchronized CompletableFuture<Void> cancelRecovery() {
+        if (status != Status.Recovering) {
+            return CompletableFuture.completedFuture(null);
+        }
+        status = Status.Failed;
+        final var replayFuture = this.replayFuture;
+        if (replayFuture != null) {
+            // Fail the future of `checkStatus()` in a different thread to avoid executing the callback in the
+            // synchronized block.
+            CompletableFuture.runAsync(() -> replayFuture.completeExceptionally(RECOVERY_FAILURE),
+                    pulsar.getExecutor());
+        }
+        if (snapshotCounter.get() > 0) {
+            log.info("[{}] Take snapshot at {} when the deduplication replay is cancelled", topic.getName(),
+                    lastPosition);
+            return takeSnapshot(lastPosition);
+        } else {
+            log.info("[{}] Cancel the deduplication replay for failure", topic.getName());
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);

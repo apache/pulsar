@@ -1794,7 +1794,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }, null));
 
-        disconnectClientsInCurrentCall.thenRun(closeLedgerAfterCloseClients).exceptionally(exception -> {
+        disconnectClientsInCurrentCall.thenRun(() -> {
+            if (brokerService.getTopics().get(topic) == createFuture) {
+                closeLedgerAfterCloseClients.run();
+            }
+        }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             unfenceTopicToResume();
             closeFuture.completeExceptionally(exception);
@@ -1893,6 +1897,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public CompletableFuture<Void> checkDeduplicationStatus() {
+        createFuture.exceptionallyAsync(e -> {
+            // cancelRecovery() might take snapshot, we need to close the managed ledger after the snapshot is taken
+            messageDeduplication.cancelRecovery().whenComplete((__, ___) -> close());
+            return Optional.empty();
+        }, orderedExecutor);
         return messageDeduplication.checkStatus();
     }
 

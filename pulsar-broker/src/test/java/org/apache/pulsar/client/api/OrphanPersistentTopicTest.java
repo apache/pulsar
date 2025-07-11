@@ -20,10 +20,16 @@ package org.apache.pulsar.client.api;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.DEDUPLICATION_CURSOR_NAME;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
@@ -31,25 +37,38 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.jspecify.annotations.Nullable;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -61,6 +80,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        super.isTcpLookup = true;
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -71,27 +91,30 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setBrokerDeduplicationEnabled(true);
+        BrokerTestInterceptor.INSTANCE.configure(conf);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    protected void resetInterceptors() {
+        BrokerTestInterceptor.INSTANCE.reset();
+    }
+
     @Test
     public void testNoOrphanTopicAfterCreateTimeout() throws Exception {
         // Make the topic loading timeout faster.
         int topicLoadTimeoutSeconds = 2;
         long originalTopicLoadTimeoutSeconds = pulsar.getConfig().getTopicLoadTimeoutSeconds();
-        pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName)
-                .getPersistenceNamingEncoding();
 
         // Make topic load timeout 5 times.
-        AtomicInteger timeoutCounter = new AtomicInteger();
         for (int i = 0; i < 5; i++) {
-            mockZooKeeper.delay(topicLoadTimeoutSeconds * 2 * 1000, (op, path) -> {
-                if (mlPath.equals(path)) {
-                    log.info("Topic load timeout: " + timeoutCounter.incrementAndGet());
-                    return true;
-                }
-                return false;
-            });
+            delayManagedLedgerCreation(i, TopicName.get(tpName), null);
         }
 
         // Load topic.
@@ -126,20 +149,10 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         long originalTopicLoadTimeoutSeconds = pulsar.getConfig().getTopicLoadTimeoutSeconds();
         int topicLoadTimeoutSeconds = 1;
         pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
-        pulsar.getConfig().setBrokerDeduplicationEnabled(true);
         pulsar.getConfig().setTransactionCoordinatorEnabled(true);
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
 
-        // Mock message deduplication recovery speed topicLoadTimeoutSeconds
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/"
-                + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
-        mockZooKeeper.delay(topicLoadTimeoutSeconds * 1000, (op, path) -> {
-            if (mlPath.equals(path)) {
-                log.info("Topic load timeout: " + path);
-                return true;
-            }
-            return false;
-        });
+        delayManagedLedgerCreation(0, TopicName.get(tpName), DEDUPLICATION_CURSOR_NAME);
 
         // First load topic will trigger timeout
         // The first topic load will trigger a timeout. When the topic closes, it will call transactionBuffer.close.
@@ -178,7 +191,6 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         // set to back
         pulsar.setTransactionBufferProvider(originalTransactionBufferProvider);
         pulsar.getConfig().setTopicLoadTimeoutSeconds(originalTopicLoadTimeoutSeconds);
-        pulsar.getConfig().setBrokerDeduplicationEnabled(false);
         pulsar.getConfig().setTransactionCoordinatorEnabled(false);
     }
 
@@ -237,7 +249,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
     public void testCheckOwnerShipFails(boolean injectTimeout) throws Exception {
         if (injectTimeout) {
-            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
         }
         String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
@@ -252,7 +264,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             TopicName paramTp = (TopicName) invocation.getArguments()[0];
             if (paramTp.toString().equalsIgnoreCase(tpName) && failedTimes.incrementAndGet() <= 2) {
                 if (injectTimeout) {
-                    Thread.sleep(10 * 1000);
+                    Thread.sleep(conf.getTopicLoadTimeoutSeconds() * 1000 + 500);
                 }
                 log.info("Failed {} times", failedTimes.get());
                 return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
@@ -274,7 +286,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
     public void testTopicLoadAndDeleteAtTheSameTime(boolean injectTimeout) throws Exception {
         if (injectTimeout) {
-            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
         }
         String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
@@ -289,7 +301,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             TopicName paramTp = (TopicName) invocation.getArguments()[0];
             if (paramTp.toString().equalsIgnoreCase(tpName) && mockRaceConditionCounter.incrementAndGet() <= 1) {
                 if (injectTimeout) {
-                    Thread.sleep(10 * 1000);
+                    Thread.sleep(conf.getTopicLoadTimeoutSeconds() * 1000 + 500);
                 }
                 log.info("Race condition occurs {} times", mockRaceConditionCounter.get());
                 pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
@@ -305,13 +317,146 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         }
 
         // Verify: the consumer create successfully after allowing to create topic automatically.
-        Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            try (final var consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe()) {
+            } catch (PulsarClientException.TopicDoesNotExistException e) {
+                fail();
+            }
+        });
 
         // cleanup.
         if (injectTimeout) {
             pulsar.getConfig().setTopicLoadTimeoutSeconds(60);
         }
-        consumer.close();
         admin.topics().delete(tpName);
+    }
+
+    private void delayManagedLedgerCreation(int i, TopicName topicName, @Nullable String cursor) {
+        final var mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + topicName.getPersistenceNamingEncoding()
+                + (cursor == null ? "" : ("/" + cursor));
+        mockZooKeeper.delay(conf.getTopicLoadTimeoutSeconds() * 1000 + 500, (__, path) -> {
+            if (mlPath.equals(path)) {
+                log.info("Topic {} load timeout: {}", i, path);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    @Test
+    public void testDeduplicationReplayStuck() throws Exception {
+        final var topic = "test-deduplication-replay-stuck";
+        conf.setTopicLoadTimeoutSeconds(1);
+        try (final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
+            producer.send("msg");
+        }
+        final var firstTime = new AtomicBoolean(true);
+        BrokerTestInterceptor.INSTANCE.applyCursorSpyDecorator(cursor -> {
+            if (cursor.getManagedLedger().getName().contains(topic)) {
+                if (firstTime.compareAndSet(true, false)) {
+                    doAnswer(invocation -> {
+                        final var callback = (AsyncCallbacks.ReadEntriesCallback) invocation.getArgument(1);
+                        CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() ->
+                                callback.readEntriesComplete(List.of(), null));
+                        return null;
+                    }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+                } else {
+                    doCallRealMethod().when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+                }
+            }
+        });
+        admin.topics().unload(topic);
+        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribeAsync()
+                .get(3, TimeUnit.SECONDS);
+        firstTime.set(true);
+        admin.topics().unload(topic);
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).createAsync()
+                .get(3, TimeUnit.SECONDS);
+        producer.sendAsync("msg").get(3, TimeUnit.SECONDS);
+        final var msg = consumer.receive(3, TimeUnit.SECONDS);
+        assertNotNull(msg);
+        assertEquals(msg.getValue(), "msg");
+    }
+
+    @Test
+    public void testOrphanManagedLedgerRemovedAfterUnload() throws Exception {
+        final var topicName = TopicName.get("test-orphan-managed-ledger-removed-after-unload");
+        final var topic = topicName.toString();
+
+        conf.setTopicLoadTimeoutSeconds(1);
+        final var mlKey = topicName.getPersistenceNamingEncoding();
+        final var mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + mlKey;
+        mockZooKeeper.delay(conf.getTopicLoadTimeoutSeconds() * 1000 + 500, (op, path) ->
+                op == MockZooKeeper.Op.CREATE && mlPath.equals(path));
+
+        try {
+            pulsar.getBrokerService().getTopic(topic, true).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getMessage().contains("Failed to load topic within timeout"));
+        }
+
+        final var managedLedgers = pulsar.getManagedLedgerStorage().getDefaultStorageClass().getManagedLedgerFactory()
+                .getManagedLedgers();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+                assertTrue(managedLedgers.containsKey(mlKey)));
+
+        admin.topics().unload(topic);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+                assertFalse(managedLedgers.containsKey(mlKey)));
+    }
+
+    @Test
+    public void testDuplicatedTopics() throws Exception {
+        final var topicName = TopicName.get("test-duplicated-topics");
+        final var topic = topicName.toString();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().unload(topic);
+        // When load timeout happens, there might be an orphan PersistentTopic that will be closed after the
+        // initialization is done. Here we simulate the case by manually creating such an instance.
+        final var orphanPersistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .loadOrCreatePersistentTopic(topic, true, null).get().orElseThrow();
+        final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get()
+                .orElseThrow();
+        assertSame(pulsar.getBrokerService().getTopics().get(topic), persistentTopic.getCreateFuture());
+        orphanPersistentTopic.close();
+        final BiFunction<Integer, CompletableFuture<Position>, Topic.PublishContext> newCallback = (sequence, future) ->
+                new Topic.PublishContext() {
+                    @Override
+                    public void completed(Exception e, long ledgerId, long entryId) {
+                        if (e == null) {
+                            future.complete(PositionFactory.create(ledgerId, entryId));
+                        } else {
+                            future.completeExceptionally(e);
+                        }
+                    }
+
+                    @Override
+                    public String getProducerName() {
+                        return "producer";
+                    }
+
+                    @Override
+                    public long getSequenceId() {
+                        return sequence;
+                    }
+                };
+
+        final var future = new CompletableFuture<Position>();
+        persistentTopic.publishMessage(Unpooled.buffer(1), newCallback.apply(0, future));
+        final var position = future.get(3, TimeUnit.SECONDS);
+        log.info("Sent to {}", position);
+        admin.topics().delete(topic);
+
+        final var future2 = new CompletableFuture<Position>();
+        persistentTopic.publishMessage(Unpooled.buffer(1), newCallback.apply(1, future2));
+        try {
+            future2.get(3, TimeUnit.SECONDS);
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.TopicFencedException);
+        }
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
     }
 }
