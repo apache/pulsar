@@ -95,8 +95,10 @@ class ClientTestFixtures {
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         ConnectionPool connectionPoolMock = mock(ConnectionPool.class);
         when(clientMock.getCnxPool()).thenReturn(connectionPoolMock);
-        when(connectionPoolMock.getConnection(any(InetSocketAddress.class))).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
-        when(connectionPoolMock.getConnection(any(ServiceNameResolver.class))).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(connectionPoolMock.getConnection(any(InetSocketAddress.class))).thenReturn(
+                CompletableFuture.completedFuture(clientCnxMock));
+        when(connectionPoolMock.getConnection(any(ServiceNameResolver.class))).thenReturn(
+                CompletableFuture.completedFuture(clientCnxMock));
         when(connectionPoolMock.getConnection(any(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         return clientMock;
