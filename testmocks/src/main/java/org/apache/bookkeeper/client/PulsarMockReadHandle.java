@@ -70,7 +70,7 @@ class PulsarMockReadHandle implements ReadHandle {
                         ledgerEntries);
             }
             return FutureUtils.value(ledgerEntries);
-        });
+        }, bk.executor);
     }
 
     @Override
