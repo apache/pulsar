@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.NotificationType;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import java.util.function.BiConsumer;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TopicResourcesTest {
 
@@ -51,7 +51,8 @@ public class TopicResourcesTest {
     public void testListenerInvokedWhenTopicCreated() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
-        topicResources.handleNotification(new Notification(NotificationType.Created, "/managed-ledgers/tenant/namespace/persistent/topic"));
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic"));
         verify(listener).accept("persistent://tenant/namespace/topic", NotificationType.Created);
     }
 
@@ -59,7 +60,8 @@ public class TopicResourcesTest {
     public void testListenerInvokedWhenTopicV1Created() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/cluster/namespace"), listener);
-        topicResources.handleNotification(new Notification(NotificationType.Created, "/managed-ledgers/tenant/cluster/namespace/persistent/topic"));
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/cluster/namespace/persistent/topic"));
         verify(listener).accept("persistent://tenant/cluster/namespace/topic", NotificationType.Created);
     }
 
@@ -67,7 +69,8 @@ public class TopicResourcesTest {
     public void testListenerInvokedWhenTopicDeleted() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
-        topicResources.handleNotification(new Notification(NotificationType.Deleted, "/managed-ledgers/tenant/namespace/persistent/topic"));
+        topicResources.handleNotification(new Notification(NotificationType.Deleted,
+                "/managed-ledgers/tenant/namespace/persistent/topic"));
         verify(listener).accept("persistent://tenant/namespace/topic", NotificationType.Deleted);
     }
 
@@ -75,7 +78,8 @@ public class TopicResourcesTest {
     public void testListenerNotInvokedWhenSubscriptionCreated() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
-        topicResources.handleNotification(new Notification(NotificationType.Created, "/managed-ledgers/tenant/namespace/persistent/topic/subscription"));
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic/subscription"));
         verifyNoInteractions(listener);
     }
 
@@ -83,7 +87,8 @@ public class TopicResourcesTest {
     public void testListenerNotInvokedWhenTopicCreatedInOtherNamespace() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
-        topicResources.handleNotification(new Notification(NotificationType.Created, "/managed-ledgers/tenant/namespace2/persistent/topic"));
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace2/persistent/topic"));
         verifyNoInteractions(listener);
     }
 
@@ -91,7 +96,8 @@ public class TopicResourcesTest {
     public void testListenerNotInvokedWhenTopicModified() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
-        topicResources.handleNotification(new Notification(NotificationType.Modified, "/managed-ledgers/tenant/namespace/persistent/topic"));
+        topicResources.handleNotification(new Notification(NotificationType.Modified,
+                "/managed-ledgers/tenant/namespace/persistent/topic"));
         verifyNoInteractions(listener);
     }
 
@@ -99,10 +105,12 @@ public class TopicResourcesTest {
     public void testListenerNotInvokedAfterDeregistered() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
-        topicResources.handleNotification(new Notification(NotificationType.Created, "/managed-ledgers/tenant/namespace/persistent/topic"));
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic"));
         verify(listener).accept("persistent://tenant/namespace/topic", NotificationType.Created);
         topicResources.deregisterPersistentTopicListener(listener);
-        topicResources.handleNotification(new Notification(NotificationType.Created, "/managed-ledgers/tenant/namespace/persistent/topic2"));
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic2"));
         verifyNoMoreInteractions(listener);
     }
 

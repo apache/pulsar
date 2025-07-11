@@ -197,7 +197,8 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
 
         Collection<Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
         Collection<Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
-        Collection<Metric> batchExecuteTime = metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
+        Collection<Metric> batchExecuteTime =
+                metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
         Collection<Metric> opsPerBatch = metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
 
         String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";

@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.re2j.Pattern;
-import org.apache.pulsar.common.topics.TopicList;
-import org.apache.pulsar.metadata.api.NotificationType;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import com.google.re2j.Pattern;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.metadata.api.NotificationType;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TopicListWatcherTest {
 

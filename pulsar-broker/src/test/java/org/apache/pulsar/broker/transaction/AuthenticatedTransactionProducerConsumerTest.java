@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.transaction;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -37,7 +36,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -76,8 +74,8 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
 
     private static final String TOPIC = NAMESPACE1 + "/txn-auth";
 
-    private final String ADMIN_TOKEN;
-    private final String TOKEN_PUBLIC_KEY;
+    private final String adminToken;
+    private final String tokenPublicKey;
     private final KeyPair kp;
 
     AuthenticatedTransactionProducerConsumerTest() throws NoSuchAlgorithmException {
@@ -85,8 +83,8 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         kp = kpg.generateKeyPair();
 
         byte[] encodedPublicKey = kp.getPublic().getEncoded();
-        TOKEN_PUBLIC_KEY = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
-        ADMIN_TOKEN = generateToken(kp, "admin");
+        tokenPublicKey = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
+        adminToken = generateToken(kp, "admin");
     }
 
 
@@ -117,11 +115,11 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
 
         // Set provider domain name
         Properties properties = new Properties();
-        properties.setProperty("tokenPublicKey", TOKEN_PUBLIC_KEY);
+        properties.setProperty("tokenPublicKey", tokenPublicKey);
 
         conf.setProperties(properties);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        conf.setBrokerClientAuthenticationParameters("token:" + adminToken);
         setBrokerCount(1);
         internalSetup();
         setUpBase(1, 1, TOPIC, 1);
@@ -144,14 +142,14 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
     protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
         return clientBuilder
                 .enableTransaction(true)
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
+                .authentication(AuthenticationFactory.token(adminToken))
                 .build();
     }
 
     @Override
     protected PulsarAdmin createNewPulsarAdmin(PulsarAdminBuilder builder) throws PulsarClientException {
         return builder
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
+                .authentication(AuthenticationFactory.token(adminToken))
                 .build();
     }
 

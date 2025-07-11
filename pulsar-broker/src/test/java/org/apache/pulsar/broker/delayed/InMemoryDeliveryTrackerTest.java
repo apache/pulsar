@@ -108,8 +108,8 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                             true, 0)
             }};
-            case "testWithFixedDelays", "testWithMixedDelays","testWithNoDelays" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
+            case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays" -> new Object[][]{{
+                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
                             true, 100)
             }};
             default -> new Object[][]{{

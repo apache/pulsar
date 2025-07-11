@@ -254,7 +254,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void testWindowFunction(String type, String[] expectedResults) throws Exception {
-        int NUM_OF_MESSAGES = 100;
+        int numOfMessages = 100;
         int windowLengthCount = 10;
         int slidingIntervalCount = 5;
         String functionName = "test-" + type + "-window-fn-" + randomName(8);
@@ -333,7 +333,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(3, subStats.getMsgBacklog());
         assertEquals(3, subStats.getUnackedMessages());
 
-        for (int i = 3; i < NUM_OF_MESSAGES; i++) {
+        for (int i = 3; i < numOfMessages; i++) {
             producer.send(String.format("%d", i).getBytes());
         }
 
@@ -354,7 +354,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             i++;
         }
 
-        getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+        getFunctionStatus(functionName, numOfMessages, true);
 
         // in case last commit is not updated
         assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
@@ -695,7 +695,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean multipleInput,
                                            boolean withExtraDeps,
-                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && (runtime == Runtime.PYTHON || runtime == Runtime.GO)) {
             // python&go can only run on process mode
             return;
@@ -724,8 +725,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-        submitExclamationFunction(
-                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema, commandGeneratorConsumer);
+        submitExclamationFunction(runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema,
+                commandGeneratorConsumer);
 
         // get function info
         final String info = getFunctionInfoSuccess(functionName);
@@ -837,7 +838,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean withExtraDeps,
                                            Schema<?> schema,
-                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
         submitFunction(
                 runtime,
                 inputTopicName,
@@ -860,7 +862,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     boolean isPublishFunction,
                                     String functionClass,
                                     Schema<T> inputTopicSchema,
-                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
 
         String file = null;
         if (Runtime.JAVA == runtime) {
@@ -894,7 +897,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String functionFile,
                                     String functionClass,
                                     Schema<T> inputTopicSchema,
-                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass,
                 inputTopicSchema, null, null, null, null, null, null,
                 commandGeneratorConsumer);
@@ -913,7 +917,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     SubscriptionInitialPosition subscriptionInitialPosition,
                                     String inputTypeClassName,
                                     String outputTypeClassName,
-                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
 
         if (StringUtils.isNotEmpty(inputTopicName)) {
             ensureSubscriptionCreated(

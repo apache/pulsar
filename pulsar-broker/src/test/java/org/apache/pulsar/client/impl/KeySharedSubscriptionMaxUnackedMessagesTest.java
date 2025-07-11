@@ -189,8 +189,8 @@ public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsume
 
         String[] keys = new String[consumerCount];
         for (int i = 0; i < consumerCount; i++) {
-            keys[i] = subscriptionType == SubscriptionType.Key_Shared ?
-                    generateKeyForConsumer(getSelector(topic, subscriptionName),
+            keys[i] = subscriptionType == SubscriptionType.Key_Shared
+                    ? generateKeyForConsumer(getSelector(topic, subscriptionName),
                             consumerList.get(i).getConsumerName()) : "key-" + i;
         }
 

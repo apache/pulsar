@@ -59,8 +59,8 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
     }
 
     private void triggerDLQGenerate(String topic, String subscription) throws Exception {
-        String DLQ = getDLQName(topic, subscription);
-        String p0OfDLQ = TopicName.get(DLQ).getPartition(0).toString();
+        String dlq = getDLQName(topic, subscription);
+        String p0OfDLQ = TopicName.get(dlq).getPartition(0).toString();
         Consumer consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(subscription)
                 .ackTimeout(1000, TimeUnit.MILLISECONDS)
                 .subscriptionType(SubscriptionType.Shared)
@@ -84,7 +84,7 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
             }
             List<String> topicList = pulsar.getPulsarResources().getTopicResources()
                     .listPersistentTopicsAsync(TopicName.get(topic).getNamespaceObject()).join();
-            if (topicList.contains(DLQ) || topicList.contains(p0OfDLQ)) {
+            if (topicList.contains(dlq) || topicList.contains(p0OfDLQ)) {
                 return true;
             }
             int partitions = admin.topics().getPartitionedTopicMetadata(topic).partitions;
@@ -115,7 +115,7 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
     private static String getDLQName(String primaryTopic, String subscription) {
         String domain = TopicName.get(primaryTopic).getDomain().toString();
         return domain + "://" + TopicName.get(primaryTopic)
-                .toString().substring(( domain + "://").length())
+                .toString().substring((domain + "://").length())
                 + "-" + subscription + DLQ_GROUP_TOPIC_SUFFIX;
     }
 
@@ -129,7 +129,7 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
 
     @Test(dataProvider = "topicCreationTypes")
     public void testGenerateNonPartitionedDLQ(TopicType topicType) throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName( "persistent://public/default/tp");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
         switch (topicType) {
             case PARTITIONED: {
@@ -153,14 +153,14 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
         // Verify: non-partitioned DLQ exists.
         List<String> partitions = pulsar.getPulsarResources().getTopicResources()
                 .listPersistentTopicsAsync(TopicName.get(topic).getNamespaceObject()).join();
-        List<String> DLQCreated = new ArrayList<>();
+        List<String> dlqCreated = new ArrayList<>();
         for (String tp : partitions) {
             if (tp.endsWith("-DLQ")) {
-                DLQCreated.add(tp);
+                dlqCreated.add(tp);
             }
             assertFalse(tp.endsWith("-partition-0-DLQ"));
         }
-        assertTrue(!DLQCreated.isEmpty());
+        assertTrue(!dlqCreated.isEmpty());
 
         // cleanup.
         switch (topicType) {
@@ -172,7 +172,7 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
                 admin.topics().delete(topic, false);
             }
         }
-        for (String t : DLQCreated) {
+        for (String t : dlqCreated) {
             try {
                 admin.topics().delete(TopicName.get(t).getPartitionedTopicName(), false);
             } catch (Exception ex) {}
@@ -184,44 +184,45 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
 
     @Test
     public void testManuallyCreatePartitionedDLQ() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName( "persistent://public/default/tp");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
-        String DLQ = getDLQName(topic, subscription);
-        String p0OfDLQ = TopicName.get(DLQ).getPartition(0).toString();
-        String p1OfDLQ = TopicName.get(DLQ).getPartition(1).toString();
+        String dlq = getDLQName(topic, subscription);
+        String p0OfDLQ = TopicName.get(dlq).getPartition(0).toString();
+        String p1OfDLQ = TopicName.get(dlq).getPartition(1).toString();
         admin.topics().createNonPartitionedTopic(topic);
-        admin.topics().createPartitionedTopic(DLQ, 2);
+        admin.topics().createPartitionedTopic(dlq, 2);
 
         Awaitility.await().untilAsserted(() -> {
             // Verify: partitioned DLQ exists.
             List<String> partitionedTopics = pulsar.getPulsarResources().getNamespaceResources()
                     .getPartitionedTopicResources()
-                    .listPartitionedTopicsAsync(TopicName.get(topic).getNamespaceObject(), TopicDomain.persistent).join();
-            assertTrue(partitionedTopics.contains(DLQ));
+                    .listPartitionedTopicsAsync(TopicName.get(topic).getNamespaceObject(),
+                            TopicDomain.persistent).join();
+            assertTrue(partitionedTopics.contains(dlq));
             assertFalse(partitionedTopics.contains(p0OfDLQ));
             // Verify: DLQ partitions exists.
             List<String> partitions = pulsar.getPulsarResources().getTopicResources()
                     .listPersistentTopicsAsync(TopicName.get(topic).getNamespaceObject()).join();
-            assertFalse(partitions.contains(DLQ));
+            assertFalse(partitions.contains(dlq));
             assertTrue(partitions.contains(p0OfDLQ));
             assertTrue(partitions.contains(p1OfDLQ));
         });
 
         // cleanup.
         admin.topics().delete(topic, false);
-        admin.topics().deletePartitionedTopic(DLQ, false);
+        admin.topics().deletePartitionedTopic(dlq, false);
     }
 
     @Test
     public void testManuallyCreatePartitionedDLQ2() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName( "persistent://public/default/tp");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
         final String p0OfTopic = TopicName.get(topic).getPartition(0).toString();
-        String DLQ = getDLQName(p0OfTopic, subscription);
-        String p0OfDLQ = TopicName.get(DLQ).getPartition(0).toString();
+        String dlq = getDLQName(p0OfTopic, subscription);
+        String p0OfDLQ = TopicName.get(dlq).getPartition(0).toString();
         admin.topics().createPartitionedTopic(topic, 10);
         try {
-            admin.topics().createPartitionedTopic(DLQ, 2);
+            admin.topics().createPartitionedTopic(dlq, 2);
         } catch (Exception ex) {
             // Keep multiple versions compatible.
             if (ex.getMessage().contains("Partitioned Topic Name should not contain '-partition-'")){
@@ -235,17 +236,18 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
             // Verify: partitioned DLQ exists.
             List<String> partitionedTopics = pulsar.getPulsarResources().getNamespaceResources()
                     .getPartitionedTopicResources()
-                    .listPartitionedTopicsAsync(TopicName.get(topic).getNamespaceObject(), TopicDomain.persistent).join();
-            assertTrue(partitionedTopics.contains(DLQ));
+                    .listPartitionedTopicsAsync(TopicName.get(topic).getNamespaceObject(),
+                            TopicDomain.persistent).join();
+            assertTrue(partitionedTopics.contains(dlq));
             assertFalse(partitionedTopics.contains(p0OfDLQ));
             // Verify: DLQ partitions exists.
             List<String> partitions = pulsar.getPulsarResources().getTopicResources()
                     .listPersistentTopicsAsync(TopicName.get(topic).getNamespaceObject()).join();
-            assertFalse(partitions.contains(DLQ));
+            assertFalse(partitions.contains(dlq));
         });
 
         // cleanup.
         admin.topics().deletePartitionedTopic(topic, false);
-        admin.topics().deletePartitionedTopic(DLQ, false);
+        admin.topics().deletePartitionedTopic(dlq, false);
     }
 }

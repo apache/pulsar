@@ -22,29 +22,26 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
-import org.testng.annotations.Test;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
+import org.testng.annotations.Test;
 
 public class OpenLongPairRangeSetTest {
 
-    static final LongPairConsumer<LongPair> consumer = LongPair::new;
-    static final RangeBoundConsumer<LongPair> reverseConsumer = pair -> pair;
+    static final LongPairConsumer<LongPair> CONSUMER = LongPair::new;
+    static final RangeBoundConsumer<LongPair> REVERSE_CONSUMER = pair -> pair;
 
     @Test
     public void testIsEmpty() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         assertTrue(set.isEmpty());
         // lowerValueOpen and upperValue are both -1 so that an empty set will be added
         set.addOpenClosed(0, -1, 0, -1);
@@ -55,7 +52,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testAddForSameKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         // add 0 to 5
         set.add(Range.closed(new LongPair(0, 0), new LongPair(0, 5)));
         // add 8,9,10
@@ -76,7 +73,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testAddForDifferentKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         // [98,100],[(1,5),(1,5)],[(1,10,1,15)],[(1,20),(1,20)],[(2,0),(2,10)]
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
@@ -93,7 +90,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testAddCompareCompareWithGuava() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -132,14 +129,14 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testNPE() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         assertNull(set.span());
     }
 
     @Test
     public void testDeleteCompareWithGuava() {
 
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -193,7 +190,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testRemoveRangeInSameKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         set.addOpenClosed(0, 1, 0, 50);
         set.addOpenClosed(0, 97, 0, 99);
         set.addOpenClosed(0, 99, 1, 5);
@@ -202,7 +199,8 @@ public class OpenLongPairRangeSetTest {
         set.addOpenClosed(2, 24, 2, 28);
         set.addOpenClosed(3, 11, 3, 20);
         set.addOpenClosed(4, 11, 4, 20);
-        // range is [(0:1..0:50],(0:97..0:99],(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
+        // range is [(0:1..0:50],(0:97..0:99],(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],
+        // (4:11..4:20]]
         set.remove(Range.closed(new LongPair(0, 0), new LongPair(0, Integer.MAX_VALUE - 1)));
         // after remove is [(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
         int count = 0;
@@ -217,7 +215,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testSpanWithGuava() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
         set.add(Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
         gSet.add(Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
@@ -242,7 +240,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testFirstRange() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         assertNull(set.firstRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
@@ -260,7 +258,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testLastRange() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         assertNull(set.lastRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
@@ -282,7 +280,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testToString() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
         assertEquals(set.toString(), "[(0:97..0:99]]");
@@ -296,7 +294,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testDeleteForDifferentKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         set.addOpenClosed(0, 97, 0, 99);
         set.addOpenClosed(0, 99, 1, 5);
         set.addOpenClosed(1, 9, 1, 15);
@@ -327,7 +325,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testDeleteWithAtMost() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         set.add(Range.closed(new LongPair(1, 10), new LongPair(1, 15)));
@@ -353,7 +351,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testDeleteWithLeastMost() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         set.add(Range.closed(new LongPair(1, 10), new LongPair(1, 15)));
@@ -382,7 +380,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testRangeContaining() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
@@ -419,11 +417,11 @@ public class OpenLongPairRangeSetTest {
     }
 
     /**
-     * fix : #4895
+     * fix : #4895.
      */
     @Test
     public void testCacheFlagConflict() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         set.add(Range.openClosed(new LongPair(0, 1), new LongPair(0, 2)));
         set.add(Range.openClosed(new LongPair(0, 3), new LongPair(0, 4)));
         assertEquals(set.toString(), "[(0:1..0:2],(0:3..0:4]]");
@@ -466,9 +464,9 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testCardinality() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(CONSUMER);
         int v = set.cardinality(0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
-        assertEquals(v, 0 );
+        assertEquals(v, 0);
         set.addOpenClosed(1, 0, 1, 20);
         set.addOpenClosed(1, 30, 1, 90);
         set.addOpenClosed(2, 0, 3, 30);
@@ -487,10 +485,10 @@ public class OpenLongPairRangeSetTest {
     @Test
     public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
         OpenLongPairRangeSet<LongPair> set =
-                new OpenLongPairRangeSet<>(consumer);
+                new OpenLongPairRangeSet<>(CONSUMER);
 
         LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet =
-                new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
+                new LongPairRangeSet.DefaultRangeSet<>(CONSUMER, REVERSE_CONSUMER);
 
         set.addOpenClosed(1, 10, 1, 15);
         set.addOpenClosed(2, 25, 2, 28);
@@ -522,7 +520,7 @@ public class OpenLongPairRangeSetTest {
             defaultRangeSetResult.add(new LongPair(upperKey, upperValue));
             return true;
         });
-        
+
         set.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
             forEachRawRangeResult.add(new LongPair(lowerKey, lowerValue));
             forEachRawRangeResult.add(new LongPair(upperKey, upperValue));

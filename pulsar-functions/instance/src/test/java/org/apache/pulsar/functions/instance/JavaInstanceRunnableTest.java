@@ -202,7 +202,7 @@ public class JavaInstanceRunnableTest {
 
     @NonNull
     private JavaInstanceRunnable getJavaInstanceRunnable(boolean autoAck,
-                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
+               org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setAutoAck(autoAck)
                 .setProcessingGuarantees(processingGuarantees).build();

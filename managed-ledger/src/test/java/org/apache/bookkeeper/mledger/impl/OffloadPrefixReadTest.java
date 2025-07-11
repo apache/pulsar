@@ -305,7 +305,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
 
-        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl                                                                                                                                                                                                                                                     .create("S3", "", "", "",
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
@@ -397,7 +397,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public long getId() { return id; }
+        public long getId() {
+            return id;
+        }
 
         @Override
         public LedgerMetadata getLedgerMetadata() {
@@ -413,7 +415,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
             List<LedgerEntry> readEntries = new ArrayList();
             for (long eid = firstEntry; eid <= lastEntry; eid++) {
-                ByteBuf buf = entries.get((int)eid).retainedSlice();
+                ByteBuf buf = entries.get((int) eid).retainedSlice();
                 readEntries.add(LedgerEntryImpl.create(id, eid, buf.readableBytes(), buf));
             }
             return CompletableFuture.completedFuture(LedgerEntriesImpl.create(readEntries));
@@ -508,13 +510,19 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public boolean hasPassword() { return true; }
+        public boolean hasPassword() {
+            return true;
+        }
 
         @Override
-        public State getState() { return state; }
+        public State getState() {
+            return state;
+        }
 
         @Override
-        public int getMetadataFormatVersion() { return metadataFormatVersion; }
+        public int getMetadataFormatVersion() {
+            return metadataFormatVersion;
+        }
 
         @Override
         public long getCToken() {
@@ -522,34 +530,54 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public int getEnsembleSize() { return ensembleSize; }
+        public int getEnsembleSize() {
+            return ensembleSize;
+        }
 
         @Override
-        public int getWriteQuorumSize() { return writeQuorumSize; }
+        public int getWriteQuorumSize() {
+            return writeQuorumSize;
+        }
 
         @Override
-        public int getAckQuorumSize() { return ackQuorumSize; }
+        public int getAckQuorumSize() {
+            return ackQuorumSize;
+        }
 
         @Override
-        public long getLastEntryId() { return lastEntryId; }
+        public long getLastEntryId() {
+            return lastEntryId;
+        }
 
         @Override
-        public long getLength() { return length; }
+        public long getLength() {
+            return length;
+        }
 
         @Override
-        public DigestType getDigestType() { return digestType; }
+        public DigestType getDigestType() {
+            return digestType;
+        }
 
         @Override
-        public byte[] getPassword() { return password; }
+        public byte[] getPassword() {
+            return password;
+        }
 
         @Override
-        public long getCtime() { return ctime; }
+        public long getCtime() {
+            return ctime;
+        }
 
         @Override
-        public boolean isClosed() { return isClosed; }
+        public boolean isClosed() {
+            return isClosed;
+        }
 
         @Override
-        public Map<String, byte[]> getCustomMetadata() { return customMetadata; }
+        public Map<String, byte[]> getCustomMetadata() {
+            return customMetadata;
+        }
 
         @Override
         public List<BookieId> getEnsembleAt(long entryId) {

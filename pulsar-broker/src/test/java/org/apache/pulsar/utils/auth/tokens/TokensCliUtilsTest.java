@@ -20,7 +20,6 @@ package org.apache.pulsar.utils.auth.tokens;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.Jwt;
@@ -33,7 +32,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Date;
-
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;
@@ -95,7 +93,8 @@ public class TokensCliUtilsTest {
     }
 
     @Test(dataProvider = "desiredExpireTime")
-    public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime, int expireAsSec) throws Exception {
+    public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime,
+                                                                                int expireAsSec) throws Exception {
         PrintStream oldStream = System.out;
         try {
             //Arrange
@@ -123,7 +122,8 @@ public class TokensCliUtilsTest {
 
             //Assert
             //Checks if the token expires within +-5 sec.
-            assertTrue(( ! jwt.getExpiration().toInstant().isBefore( start ) ) && ( jwt.getExpiration().toInstant().isBefore( stop ) ));
+            assertTrue((!jwt.getExpiration().toInstant().isBefore(start))
+                    && (jwt.getExpiration().toInstant().isBefore(stop)));
 
         } catch (Exception e) {
             throw new RuntimeException(e);

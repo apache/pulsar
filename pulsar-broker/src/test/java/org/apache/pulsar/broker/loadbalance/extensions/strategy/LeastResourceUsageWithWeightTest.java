@@ -144,8 +144,8 @@ public class LeastResourceUsageWithWeightTest {
 
         Set<String> candidates = new HashSet<>();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,50, 100));
-        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx,100, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 50, 100));
+        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 100, 100));
         brokerLoadDataStore.pushAsync("3", null);
         brokerLoadDataStore.pushAsync("4", null);
         candidates.add("1");
@@ -155,7 +155,7 @@ public class LeastResourceUsageWithWeightTest {
         assertEquals(result, "1");
 
         strategy = new LeastResourceUsageWithWeight();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,100, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 100, 100));
         result = strategy.select(candidates, bundleData, ctx).get();
         assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
 

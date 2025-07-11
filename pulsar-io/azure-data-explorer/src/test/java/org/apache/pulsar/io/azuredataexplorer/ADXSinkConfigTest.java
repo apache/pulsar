@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.io.azuredataexplorer;
 
-import org.jspecify.annotations.NonNull;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.pulsar.io.core.SinkContext;
+import org.jspecify.annotations.NonNull;
 import org.mockito.Mockito;
-
-import static org.testng.Assert.*;
+import org.testng.annotations.Test;
 
 public class ADXSinkConfigTest {
     @Test

@@ -103,7 +103,7 @@ public class CommandGenerator {
         if (functionName != null) {
             commandBuilder.append(" --name " + functionName);
         }
-        if(runtime != Runtime.GO){
+        if (runtime != Runtime.GO){
             commandBuilder.append(" --className " + functionClassName);
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
@@ -209,7 +209,7 @@ public class CommandGenerator {
             commandBuilder.append(" --windowLengthDurationMs " + windowLengthDurationMs);
         }
         if (slidingIntervalCount != null)  {
-            commandBuilder.append( " --slidingIntervalCount " + slidingIntervalCount);
+            commandBuilder.append(" --slidingIntervalCount " + slidingIntervalCount);
         }
         if (slidingIntervalDurationMs != null)  {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);

@@ -25,9 +25,9 @@ import org.testng.annotations.Test;
 
 public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 
-	PulsarFunctionsPythonTest(FunctionRuntimeType functionRuntimeType) {
-		super(functionRuntimeType);
-	}
+    PulsarFunctionsPythonTest(FunctionRuntimeType functionRuntimeType) {
+        super(functionRuntimeType);
+    }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonFunctionLocalRun() throws Exception {

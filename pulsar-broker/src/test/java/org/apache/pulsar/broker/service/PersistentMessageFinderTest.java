@@ -151,7 +151,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     CompletableFuture<Void> findMessage(final Result result, final ManagedCursor c1, final long timestamp,
                                         int ledgerCloseTimestampMaxClockSkewMillis) {
-        PersistentMessageFinder messageFinder = new PersistentMessageFinder("topicname", c1, ledgerCloseTimestampMaxClockSkewMillis);
+        PersistentMessageFinder messageFinder =
+                new PersistentMessageFinder("topicname", c1, ledgerCloseTimestampMaxClockSkewMillis);
 
         final CompletableFuture<Void> future = new CompletableFuture<>();
         messageFinder.findMessages(timestamp, new AsyncCallbacks.FindEntryCallback() {
@@ -334,7 +335,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerConfig configNew = new ManagedLedgerConfig();
         ManagedLedger ledgerNew = factory.open(ledgerAndCursorNameForBrokerTimestampMessage, configNew);
-        ManagedCursorImpl cursorNew = (ManagedCursorImpl) ledgerNew.openCursor(ledgerAndCursorNameForBrokerTimestampMessage);
+        ManagedCursorImpl cursorNew =
+                (ManagedCursorImpl) ledgerNew.openCursor(ledgerAndCursorNameForBrokerTimestampMessage);
         // build message which has publish time first
         ByteBuf msg1 = createMessageByteBufWrittenToLedger("message1");
         ByteBuf msg2 = createMessageByteBufWrittenToLedger("message2");
@@ -697,33 +699,43 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         // Expire by position and verify mark delete position of cursor.
         issued = monitor.expireMessages(positions.get(15));
         Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(),
+                positions.get(15).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
 
         // Expire by position beyond last position and nothing should happen.
         issued = monitor.expireMessages(PositionFactory.create(100, 100));
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(),
+                positions.get(15).getEntryId()));
         assertFalse(issued);
 
         // Expire by position again and verify mark delete position of cursor didn't change.
         issued = monitor.expireMessages(positions.get(15));
-        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        Awaitility.await().untilAsserted(() -> verify(monitor,
+                times(1)).findEntryComplete(any(), any()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(),
+                positions.get(15).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
 
-        // Expire by position before current mark delete position and verify mark delete position of cursor didn't change.
+        // Expire by position before current mark delete position and
+        // verify mark delete position of cursor didn't change.
         issued = monitor.expireMessages(positions.get(10));
-        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        Awaitility.await().untilAsserted(() -> verify(monitor,
+                times(1)).findEntryComplete(any(), any()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(15).getLedgerId(),
+                positions.get(15).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
 
-        // Expire by position after current mark delete position and verify mark delete position of cursor move to new position.
+        // Expire by position after current mark delete position and
+        // verify mark delete position of cursor move to new position.
         issued = monitor.expireMessages(positions.get(16));
-        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(16).getLedgerId(), positions.get(16).getEntryId()));
+        Awaitility.await().untilAsserted(() -> verify(monitor,
+                times(1)).findEntryComplete(any(), any()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(positions.get(16).getLedgerId(),
+                positions.get(16).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
 
