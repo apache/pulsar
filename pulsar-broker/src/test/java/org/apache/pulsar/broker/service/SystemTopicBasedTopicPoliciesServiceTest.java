@@ -177,12 +177,18 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC6, policies6).get();
 
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC1);
-            TopicPolicies policiesGet2 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC2);
-            TopicPolicies policiesGet3 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC3);
-            TopicPolicies policiesGet4 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC4);
-            TopicPolicies policiesGet5 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC5);
-            TopicPolicies policiesGet6 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC6);
+            TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC1);
+            TopicPolicies policiesGet2 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC2);
+            TopicPolicies policiesGet3 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC3);
+            TopicPolicies policiesGet4 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC4);
+            TopicPolicies policiesGet5 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC5);
+            TopicPolicies policiesGet6 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC6);
 
             Assert.assertEquals(policiesGet1, policies1);
             Assert.assertEquals(policiesGet2, policies2);
@@ -196,9 +202,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertEquals(systemTopicBasedTopicPoliciesService.getPoliciesCacheSize(), 6);
 
         // Check reader cache is correct.
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE1)));
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE2)));
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
+                NamespaceName.get(NAMESPACE1)));
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
+                NamespaceName.get(NAMESPACE2)));
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
+                NamespaceName.get(NAMESPACE3)));
 
         policies1.setMaxProducerPerTopic(101);
         systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
@@ -215,20 +224,25 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // reader for NAMESPACE1 will back fill the reader cache
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC1);
-            TopicPolicies policiesGet2 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC2);
+            TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC1);
+            TopicPolicies policiesGet2 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
+                    TOPIC2);
             Assert.assertEquals(policies1, policiesGet1);
             Assert.assertEquals(policies2, policiesGet2);
         });
 
         // Check reader cache is correct.
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE2)));
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE1)));
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
+                NamespaceName.get(NAMESPACE2)));
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
+                NamespaceName.get(NAMESPACE1)));
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
+                NamespaceName.get(NAMESPACE3)));
 
         // Check get without cache
-        TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPoliciesBypassCache(systemTopicBasedTopicPoliciesService,
-                TOPIC1).orElseThrow();
+        TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPoliciesBypassCache(
+                systemTopicBasedTopicPoliciesService, TOPIC1).orElseThrow();
         Assert.assertEquals(policies1, policiesGet1);
     }
 
@@ -279,7 +293,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("system-topic",
                 new TenantInfoImpl(new HashSet<>(), Set.of("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
@@ -296,7 +311,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test
     public void testHandleNamespaceBeingDeleted() throws Exception {
-        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(NAMESPACE1),
                 old -> {
                     old.deleted = true;
@@ -313,7 +329,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         SystemTopicBasedTopicPoliciesService topicPoliciesService =
                 (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
-        ConcurrentHashMap<TopicName, TopicPolicies> spyPoliciesCache = spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
+        ConcurrentHashMap<TopicName, TopicPolicies> spyPoliciesCache =
+                spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
         FieldUtils.writeDeclaredField(topicPoliciesService, "policiesCache", spyPoliciesCache, true);
 
         Awaitility.await().untilAsserted(() -> Assertions.assertThat(
@@ -372,14 +389,14 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @Test
     public void testWriterCache() throws Exception {
         admin.namespaces().createNamespace(NAMESPACE4);
-        for (int i = 1; i <= 5; i ++) {
+        for (int i = 1; i <= 5; i++) {
             final String topicName = "persistent://" + NAMESPACE4 + "/testWriterCache" + i;
             admin.topics().createNonPartitionedTopic(topicName);
             pulsarClient.newProducer(Schema.STRING).topic(topicName).create().close();
         }
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newFixedThreadPool(5);
-        for (int i = 1; i <= 5; i ++) {
+        for (int i = 1; i <= 5; i++) {
             int finalI = i;
             executorService.execute(() -> {
                 final String topicName = "persistent://" + NAMESPACE4 + "/testWriterCache" + finalI;
@@ -390,9 +407,10 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 }
             });
         }
-        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         Assert.assertNotNull(service.getWriterCaches().synchronous().get(NamespaceName.get(NAMESPACE4)));
-        for (int i = 1; i <= 5; i ++) {
+        for (int i = 1; i <= 5; i++) {
             final String topicName = "persistent://" + NAMESPACE4 + "/testWriterCache" + i;
             admin.topics().delete(topicName);
         }
@@ -402,7 +420,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test
     public void testPrepareInitPoliciesCacheAsyncWhenNamespaceBeingDeleted() throws Exception {
-        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         admin.namespaces().createNamespace(NAMESPACE5);
 
         NamespaceName namespaceName = NamespaceName.get(NAMESPACE5);

@@ -18,24 +18,23 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import org.testng.annotations.Test;
-
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import org.testng.annotations.Test;
 
 public class DefaultRangeSetTest {
-    static final LongPairRangeSet.LongPairConsumer<LongPairRangeSet.LongPair> consumer =
+    static final LongPairRangeSet.LongPairConsumer<LongPairRangeSet.LongPair> CONSUMER =
             LongPairRangeSet.LongPair::new;
-    static final LongPairRangeSet.RangeBoundConsumer<LongPairRangeSet.LongPair> reverseConsumer =
+    static final LongPairRangeSet.RangeBoundConsumer<LongPairRangeSet.LongPair> RESERVE_CONSUMER =
             pair -> pair;
 
     @Test
     public void testBehavior() {
         LongPairRangeSet.DefaultRangeSet<LongPairRangeSet.LongPair> set =
-                new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
+                new LongPairRangeSet.DefaultRangeSet<>(CONSUMER, RESERVE_CONSUMER);
         OpenLongPairRangeSet<LongPairRangeSet.LongPair> rangeSet =
-                new OpenLongPairRangeSet<>(consumer);
+                new OpenLongPairRangeSet<>(CONSUMER);
 
         assertNull(set.firstRange());
         assertNull(set.lastRange());
@@ -58,8 +57,8 @@ public class DefaultRangeSetTest {
 
         rangeSet.addOpenClosed(9, 0, 10, 10);
         set.addOpenClosed(9, 0, 10, 10);
-        assertTrue(rangeSet.contains(10,1));
-        assertTrue(set.contains(10,1));
+        assertTrue(rangeSet.contains(10, 1));
+        assertTrue(set.contains(10, 1));
 
     }
 }

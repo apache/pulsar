@@ -200,11 +200,11 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         Awaitility.await().untilAsserted(() -> {
            assertTrue(pulsar2.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                    .partitionedTopicExists(TopicName.get(topic)));
-            List<CompletableFuture<StoredSchema>> schemaList11
-                    = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+            List<CompletableFuture<StoredSchema>> schemaList11 =
+                    pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList11.size(), 0);
-            List<CompletableFuture<StoredSchema>> schemaList21
-                    = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+            List<CompletableFuture<StoredSchema>> schemaList21 =
+                    pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList21.size(), 0);
             PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topic);
             assertEquals(valueGlobal, publishRateAddGlobal);
@@ -225,11 +225,11 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
             assertTrue(tps2.containsKey(topicP0));
             assertTrue(tps2.containsKey(topicP1));
             assertTrue(tps2.containsKey(topicChangeEvents));
-            List<CompletableFuture<StoredSchema>> schemaList12
-                    = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+            List<CompletableFuture<StoredSchema>> schemaList12 =
+                    pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList12.size(), 1);
-            List<CompletableFuture<StoredSchema>> schemaList22
-                    = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+            List<CompletableFuture<StoredSchema>> schemaList22 =
+                    pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList12.size(), 1);
         });
 
@@ -245,11 +245,11 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
                     .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
                     .get(5, TimeUnit.SECONDS).isExists());
             // Verify: schema will be removed in local cluster, and remote cluster will not.
-            List<CompletableFuture<StoredSchema>> schemaList13
-                    = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+            List<CompletableFuture<StoredSchema>> schemaList13 =
+                    pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList13.size(), 0);
-            List<CompletableFuture<StoredSchema>> schemaList23
-                    = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+            List<CompletableFuture<StoredSchema>> schemaList23 =
+                    pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList23.size(), 1);
             // Verify: the topic policies will be removed in local cluster, but remote cluster will not.
             Optional<TopicPolicies> globalPolicies2 = pulsar2.getTopicPoliciesService()

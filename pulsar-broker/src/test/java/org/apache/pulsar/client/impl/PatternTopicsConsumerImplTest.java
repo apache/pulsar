@@ -24,9 +24,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
-
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
@@ -244,7 +241,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, topics.size()).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
+                .forEach(topic -> log.debug("getTopics topic: {}", topic));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -259,7 +257,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -343,7 +341,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         testBinaryProtoToGetTopicsOfNamespaceNonPersistent();
     }
 
-	// verify consumer create success, and works well.
+    // verify consumer create success, and works well.
     @Test(timeOut = testTimeout)
     public void testBinaryProtoToGetTopicsOfNamespaceNonPersistent() throws Exception {
         String key = "BinaryProtoToGetTopics";
@@ -410,7 +408,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, topics.size()).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
+                .forEach(topic -> log.debug("getTopics topic: {}", topic));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 4; i++) {
@@ -425,7 +424,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -507,7 +506,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, topics.size()).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
+                .forEach(topic -> log.debug("getTopics topic: {}", topic));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 4; i++) {
@@ -612,7 +612,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -626,7 +626,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @DataProvider(name= "delayTypesOfWatchingTopics")
+    @DataProvider(name = "delayTypesOfWatchingTopics")
     public Object[][] delayTypesOfWatchingTopics(){
         return new Object[][]{
             {true},
@@ -717,7 +717,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         pulsarClient.close();
     }
 
-    @DataProvider(name= "topicDomain")
+    @DataProvider(name = "topicDomain")
     public Object[][] topicDomain(){
         return new Object[][]{
                 {"persistent"},
@@ -727,7 +727,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout, dataProvider = "topicDomain")
     public void testSubscribePatterBrokerDisable(String topicDomain) throws Exception {
-        if(topicDomain.equals("persistent")) {
+        if (topicDomain.equals("persistent")) {
             conf.setEnableBrokerSideSubscriptionPatternEvaluation(false);
         }
         final String key = "testSubscribePatterWithOutTopicDomain";
@@ -743,7 +743,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .topicsPattern(pattern)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
-                .subscriptionTopicsMode(topicDomain.equals("persistent") ? RegexSubscriptionMode.PersistentOnly 
+                .subscriptionTopicsMode(topicDomain.equals("persistent") ? RegexSubscriptionMode.PersistentOnly
                         : RegexSubscriptionMode.NonPersistentOnly)
                 .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
                 .receiverQueueSize(4)
@@ -778,7 +778,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         conf.setEnableBrokerSideSubscriptionPatternEvaluation(true);
     }
 
-    @DataProvider(name= "regexpConsumerArgs")
+    @DataProvider(name = "regexpConsumerArgs")
     public Object[][] regexpConsumerArgs(){
         return new Object[][]{
                 {true, true},
@@ -798,7 +798,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout, dataProvider = "regexpConsumerArgs")
-    public void testPreciseRegexpSubscribe(boolean partitioned, boolean createTopicAfterWatcherStarted) throws Exception {
+    public void testPreciseRegexpSubscribe(boolean partitioned, boolean createTopicAfterWatcherStarted)
+            throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscriptionName = "s1";
         final Pattern pattern = Pattern.compile(String.format("%s$", topicName));
@@ -844,7 +845,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
-    @DataProvider(name= "partitioned")
+    @DataProvider(name = "partitioned")
     public Object[][] partitioned(){
         return new Object[][]{
                 {true},
@@ -995,7 +996,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -1029,7 +1030,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -1110,7 +1111,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -1144,7 +1145,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);

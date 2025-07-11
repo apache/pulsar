@@ -37,8 +37,8 @@ import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.HealthChecker;
-import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
@@ -207,7 +207,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
-        for (int partition = 0; partition < PARTITIONS; partition ++) {
+        for (int partition = 0; partition < PARTITIONS; partition++) {
             pulsar.getBrokerService()
                     .getTopic(topicName.getPartition(partition).toString(), true).join();
         }
@@ -221,7 +221,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         admin.brokers().healthcheck(TopicVersion.V2);
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
                 pulsar.getConfig());
-        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
+        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName,
+                HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
 
         List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
         Assert.assertEquals(topics.size(), 1);
@@ -332,8 +333,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         conf.setMaxSameAddressProducersPerTopic(1);
         admin.namespaces().setMaxProducersPerTopic(ns, 1);
         admin.topicPolicies().setMaxProducers(topic, 1);
-        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 = systemTopicClientForNamespace.newWriterAsync();
-        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 =
+                systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 =
+                systemTopicClientForNamespace.newWriterAsync();
         CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
 
         FutureUtil.waitForAll(List.of(writer1, writer2, f1)).join();

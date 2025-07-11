@@ -201,8 +201,9 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                     // Ok
                     break;
                 }
-                if (ackedMessages.size() == numMessages)
+                if (ackedMessages.size() == numMessages) {
                     latch2.countDown();
+                }
             }
 
         });
@@ -462,7 +463,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < messageNumber; i++) {
             message = consumer.receive();
             // message consumer epoch is 1
-            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+            assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
         }
 
         // can't receive message again
@@ -475,7 +476,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < messageNumber; i++) {
             message = consumer.receive();
             // message consumer epoch is 2
-            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+            assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
         }
 
         // can't receive message again
@@ -522,7 +523,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
             Messages<String> messages = consumer.batchReceive();
             receiveNum += messages.size();
             for (Message<String> message : messages) {
-                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+                assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
             }
         }
 
@@ -537,7 +538,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
             Messages<String> messages = consumer.batchReceive();
             receiveNum += messages.size();
             for (Message<String> message : messages) {
-                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+                assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
             }
         }
 

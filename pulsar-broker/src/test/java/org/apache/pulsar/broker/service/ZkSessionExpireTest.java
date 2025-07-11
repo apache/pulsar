@@ -287,7 +287,8 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         ExtensibleLoadManagerImpl loadManager = WhiteboxImpl.getInternalState(loadManagerWrapper, "loadManager");
         ServiceUnitStateChannel serviceUnitStateChannel = loadManager.getServiceUnitStateChannel();
         ServiceUnitStateTableView tableview = WhiteboxImpl.getInternalState(serviceUnitStateChannel, "tableview");
-        MetadataStoreTableView<ServiceUnitStateData> tableviewInternal = WhiteboxImpl.getInternalState(tableview, "tableview");
+        MetadataStoreTableView<ServiceUnitStateData> tableviewInternal =
+                WhiteboxImpl.getInternalState(tableview, "tableview");
         ConcurrentMap<String, ServiceUnitStateData> data = WhiteboxImpl.getInternalState(tableviewInternal, "data");
         return data.entrySet().stream().filter(e -> {
             if (brokerUrl.equals(e.getValue().dstBroker()) && e.getValue().state().toString().equals("Owned")) {
