@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
-
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -29,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -43,14 +41,12 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -168,7 +164,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
         int i = 0;
         for (; i < 15; i++) {
             String content = "entry-" + i;
@@ -232,7 +228,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         offloader.getOffloadPolicies().setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.BOOKKEEPER_FIRST);
         config.setLedgerOffloader(offloader);
         ManagedLedgerImpl ml =
-                (ManagedLedgerImpl)factory.open("testGetReadLedgerHandleAfterTrimOffloadedLedgers", config);
+                (ManagedLedgerImpl) factory.open("testGetReadLedgerHandleAfterTrimOffloadedLedgers", config);
         ml.openCursor("c1");
 
         // Write entries.
@@ -397,7 +393,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
         int i = 0;
         for (; i < 15; i++) {
             String content = "entry-" + i;
@@ -444,7 +440,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
         ManagedCursor cursor = ledger.openCursor("sub1");
 
         for (int i = 0; i < 15; i++) {

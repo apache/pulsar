@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction.recover;
 
+import static org.mockito.Mockito.mock;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertTrue;
 import io.netty.util.HashedWheelTimer;
+import java.lang.reflect.Field;
+import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerImpl;
@@ -27,15 +34,6 @@ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.Set;
-
-import static org.mockito.Mockito.mock;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertTrue;
 
 public class TransactionRecoverTrackerTest {
 

@@ -83,8 +83,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         setUpBase(1, 1, null, 0);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
-                SEGMENT_SIZE * 3);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length()
+                + SEGMENT_SIZE * 3);
         admin.topics().createNonPartitionedTopic(PROCESSOR_TOPIC);
         assertTrue(getSnapshotAbortedTxnProcessor(PROCESSOR_TOPIC) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
     }
@@ -403,18 +403,19 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
      */
     @Test
     public void testSnapshotProcessorUpgrade() throws Exception {
-        String NAMESPACE2 = TENANT + "/ns2";
-        admin.namespaces().createNamespace(NAMESPACE2);
+        String nameSpace2 = TENANT + "/ns2";
+        admin.namespaces().createNamespace(nameSpace2);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
 
         // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
         // Abort these transactions and verify the data.
-        final String topicName = "persistent://" + NAMESPACE2 + "/testSnapshotProcessorUpgrade";
+        final String topicName = "persistent://" + nameSpace2 + "/testSnapshotProcessorUpgrade";
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("test-sub").subscribe();
 
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SingleSnapshotAbortedTxnProcessorImpl);
         // Send 10 messages without using transactions
@@ -444,8 +445,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Enable segmented snapshot
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
-                SEGMENT_SIZE * 3);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length()
+                + SEGMENT_SIZE * 3);
 
         // Unload the topic
         admin.topics().unload(topicName);
@@ -460,8 +461,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Verifies that the topic has exactly one segment.
         Awaitility.await().untilAsserted(() -> {
-            String segmentTopic = "persistent://" + NAMESPACE2 + "/" +
-                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
+            String segmentTopic = "persistent://" + nameSpace2 + "/"
+                    + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
             TopicStats topicStats = admin.topics().getStats(segmentTopic);
             assertEquals(1, topicStats.getMsgInCounter());
         });
@@ -502,8 +503,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         producer.close();
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
         // Check that the __transaction_buffer_snapshot topic is not created in the same namespace
-        String transactionBufferSnapshotTopic = "persistent://" + namespaceName + "/" +
-                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        String transactionBufferSnapshotTopic = "persistent://" + namespaceName + "/"
+                + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
         try {
             admin.topics().getStats(transactionBufferSnapshotTopic);
             fail("The __transaction_buffer_snapshot topic should not exist");

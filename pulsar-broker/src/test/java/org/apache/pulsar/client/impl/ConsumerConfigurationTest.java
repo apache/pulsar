@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.SubscriptionType;

@@ -95,8 +95,9 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         setBrokerCount(3);
         internalSetup();
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:"
+                + webServicePort).build());
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(namespace, 10);
@@ -143,7 +144,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(3));
         assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
-        for (int i = 0; true ; i++) {
+        for (int i = 0; true; i++) {
             topic1 = topic1 + i;
             admin.topics().createNonPartitionedTopic(topic1);
             String segmentTopicBroker = admin.lookups()

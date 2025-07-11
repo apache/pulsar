@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.testng.annotations.Test;
@@ -36,7 +35,8 @@ public class SinglePartitionMessageRouterImplTest {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
-        SinglePartitionMessageRouterImpl router = new SinglePartitionMessageRouterImpl(1234, HashingScheme.JavaStringHash);
+        SinglePartitionMessageRouterImpl router =
+                new SinglePartitionMessageRouterImpl(1234, HashingScheme.JavaStringHash);
         assertEquals(1234, router.choosePartition(msg, new TopicMetadataImpl(2468)));
     }
 
@@ -51,7 +51,8 @@ public class SinglePartitionMessageRouterImplTest {
         when(msg2.hasKey()).thenReturn(true);
         when(msg2.getKey()).thenReturn(key2);
 
-        SinglePartitionMessageRouterImpl router = new SinglePartitionMessageRouterImpl(1234, HashingScheme.JavaStringHash);
+        SinglePartitionMessageRouterImpl router =
+                new SinglePartitionMessageRouterImpl(1234, HashingScheme.JavaStringHash);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         assertEquals(key1.hashCode() % 100, router.choosePartition(msg1, metadata));

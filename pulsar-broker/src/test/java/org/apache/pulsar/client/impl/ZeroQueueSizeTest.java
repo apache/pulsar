@@ -74,7 +74,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void InvalidQueueSizeConfig() {
+    public void invalidQueueSizeConfig() {
         pulsarClient.newConsumer().receiverQueueSize(-1);
     }
 
@@ -157,7 +157,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).messageListener((cons, msg) -> {
                     assertEquals(((ConsumerImpl) cons).numMessagesInQueue(), 0);
-                    synchronized(messages) {
+                    synchronized (messages) {
                         messages.add(msg);
                     }
                     log.info("Consumer received: " + new String(msg.getData()));
@@ -386,7 +386,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
     @Test
-    public void testZeroQueueSizeMessageRedeliveryForAsyncReceive() throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testZeroQueueSizeMessageRedeliveryForAsyncReceive()
+            throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForAsyncReceive";
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
             .topic(topic)

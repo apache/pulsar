@@ -22,7 +22,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.Range;
 import java.lang.reflect.Method;
 import java.util.ArrayList;

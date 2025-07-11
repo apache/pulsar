@@ -37,7 +37,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Starts 3 brokers that are in 3 different clusters
+ * Starts 3 brokers that are in 3 different clusters.
  */
 @Test(groups = "broker")
 public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {

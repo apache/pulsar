@@ -55,7 +55,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
         configureTokenAuthentication();
         configureDefaultAuthorization();
         start();
-        this.superUserAdmin =PulsarAdmin.builder()
+        this.superUserAdmin = PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
                 .build();
@@ -316,7 +316,8 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
         superUserAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
 
         await().untilAsserted(() -> {
-            final Integer unackedMessagesOnConsumer = superUserAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            final Integer unackedMessagesOnConsumer = superUserAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnConsumer(topic);
             Assert.assertNull(unackedMessagesOnConsumer);
         });
 
@@ -324,12 +325,14 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
 
         tenantManagerAdmin.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, definedUnackedMessagesOnConsumer);
         await().untilAsserted(() -> {
-            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnConsumer(topic);
             Assert.assertEquals(unackedMessagesOnConsumer, definedUnackedMessagesOnConsumer);
         });
         tenantManagerAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
         await().untilAsserted(() -> {
-            final Integer unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            final Integer unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnConsumer(topic);
             Assert.assertNull(unackedMessagesOnConsumer);
         });
 
@@ -425,7 +428,8 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
 
         tenantManagerAdmin.topicPolicies().setMaxUnackedMessagesOnSubscription(topic, definedUnackedMessagesOnConsumer);
         await().untilAsserted(() -> {
-            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic);
+            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnSubscription(topic);
             Assert.assertEquals(unackedMessagesOnConsumer, definedUnackedMessagesOnConsumer);
         });
         tenantManagerAdmin.topicPolicies().removeMaxUnackedMessagesOnSubscription(topic);

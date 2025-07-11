@@ -199,7 +199,7 @@ public class UnloadManagerTest {
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
                 manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision,5, TimeUnit.SECONDS);
+                        "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
         manager.close();

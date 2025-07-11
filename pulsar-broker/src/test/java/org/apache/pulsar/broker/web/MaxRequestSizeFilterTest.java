@@ -100,6 +100,6 @@ public class MaxRequestSizeFilterTest {
         ServletResponse spyHttpServletResponse = Mockito.spy(ServletResponse.class);
         Mockito.doReturn(LEGAL_SIZE).when(spyHttpServletRequest).getContentLengthLong();
         maxRequestSizeFilter.doFilter(spyHttpServletRequest, spyHttpServletResponse, spyFilterChain);
-        Mockito.verify(spyFilterChain).doFilter(spyHttpServletRequest,spyHttpServletResponse);
+        Mockito.verify(spyFilterChain).doFilter(spyHttpServletRequest, spyHttpServletResponse);
     }
 }

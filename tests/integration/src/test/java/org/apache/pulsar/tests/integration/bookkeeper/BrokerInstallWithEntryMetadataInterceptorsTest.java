@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.bookkeeper;
 
+import static java.util.stream.Collectors.joining;
+import static org.testng.AssertJUnit.assertEquals;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -26,11 +29,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
-import static org.testng.AssertJUnit.assertEquals;
 
 /***
  * Test that verifies that regression in BookKeeper 4.16.0 is fixed.
@@ -50,7 +48,8 @@ public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarCluste
                 .filter(s -> !s.isEmpty())
                 .collect(joining("-"));
         brokerEnvs.put(PREFIX + "exposingBrokerEntryMetadataToClientEnabled", "true");
-        brokerEnvs.put(PREFIX + "brokerEntryMetadataInterceptors", "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        brokerEnvs.put(PREFIX + "brokerEntryMetadataInterceptors",
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .numBookies(2)
                 .numBrokers(1)

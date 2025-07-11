@@ -21,7 +21,6 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -161,11 +160,11 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         // Create 20 MB of data and try to read it out
         int dataSize = 500 * 1024;
         byte[] payload = new byte[dataSize];
-        int N = 40;
+        int num = 40;
 
         List<CompletableFuture<Stat>> putFutures = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             putFutures.add(store.put(key1 + "/" + i, payload, Optional.empty()));
         }
 
@@ -174,7 +173,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
         List<CompletableFuture<Optional<GetResult>>> getFutures = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             getFutures.add(store.get(key1 + "/" + i));
         }
 

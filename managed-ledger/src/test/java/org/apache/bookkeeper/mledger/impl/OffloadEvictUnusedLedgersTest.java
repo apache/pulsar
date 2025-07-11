@@ -50,7 +50,7 @@ public class OffloadEvictUnusedLedgersTest extends MockedBookKeeperTestCase {
         int inactiveOffloadedLedgerEvictionTimeMs = 10000;
         config.setInactiveOffloadedLedgerEvictionTimeMs(inactiveOffloadedLedgerEvictionTimeMs, TimeUnit.MILLISECONDS);
         config.setLedgerOffloader(offloader);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger_evict", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger_evict", config);
 
         // no evict when no offloaded ledgers
         assertTrue(ledger.internalEvictOffloadedLedgers().isEmpty());

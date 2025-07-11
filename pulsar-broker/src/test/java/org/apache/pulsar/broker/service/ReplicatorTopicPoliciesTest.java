@@ -36,8 +36,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -53,7 +53,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
- * Starts 3 brokers that are in 3 different clusters
+ * Starts 3 brokers that are in 3 different clusters.
  */
 @Test(groups = "broker")
 public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
@@ -221,8 +221,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> condition.apply(admin3));
     }
 
-    private interface ThrowingConsumer<I> {
-        void apply(I input) throws Throwable;
+    private interface ThrowingConsumer<T> {
+        void apply(T input) throws Throwable;
     }
 
 
@@ -715,9 +715,9 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies().getOffloadPolicies(persistentTopicName)));
         // global
-        try{
+        try {
             admin1.topicPolicies(true).setOffloadPolicies(persistentTopicName, offloadPolicies);
-        }catch (Exception exception){
+        } catch (Exception exception) {
             // driver not found exception.
             assertTrue(exception instanceof PulsarAdminException.ServerSideErrorException);
         }
@@ -769,8 +769,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
         init(namespace, topic);
 
-        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride
-                = AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build();
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride =
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build();
         // local
         admin1.topicPolicies().setAutoSubscriptionCreation(topic, autoSubscriptionCreationOverride);
         Awaitility.await().untilAsserted(() ->

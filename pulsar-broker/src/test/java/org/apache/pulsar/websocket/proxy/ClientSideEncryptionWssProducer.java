@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static org.testng.Assert.assertTrue;
 import static org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import static org.apache.pulsar.websocket.proxy.WssClientSideEncryptUtils.EncryptedPayloadAndParam;
+import static org.testng.Assert.assertTrue;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;

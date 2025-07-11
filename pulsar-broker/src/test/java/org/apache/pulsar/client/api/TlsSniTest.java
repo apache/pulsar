@@ -23,11 +23,9 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {

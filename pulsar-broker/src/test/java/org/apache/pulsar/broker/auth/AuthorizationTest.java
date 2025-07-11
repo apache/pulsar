@@ -242,7 +242,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
-        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
+        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user",
+                null, "role3-sub1"));
 
         admin.namespaces().deleteNamespace("p1/c1/ns1", true);
         admin.tenants().deleteTenant("p1");

@@ -20,10 +20,10 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class InstantSchemaTest {
 

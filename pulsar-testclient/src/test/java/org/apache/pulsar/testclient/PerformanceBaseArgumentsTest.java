@@ -159,7 +159,7 @@ public class PerformanceBaseArgumentsTest {
             args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
             try {
                 args.parse(new String[]{});
-            }catch (CommandLine.ParameterException e){
+            } catch (CommandLine.ParameterException e){
                 calledVar2.set(true);
             }
             Assert.assertTrue(calledVar2.get());
@@ -208,7 +208,7 @@ public class PerformanceBaseArgumentsTest {
             baseArgument.parseCLI();
             baseArgument.getCommander().execute(cliArgs);
 
-            // Assert 
+            // Assert
             assertEquals(baseArgument.memoryLimit, expectedMemoryLimit);
         }
     }
@@ -249,7 +249,7 @@ public class PerformanceBaseArgumentsTest {
             // Act
             baseArgument.parseCLI();
 
-            // Assert 
+            // Assert
             assertEquals(baseArgument.memoryLimit, 0L);
         }
     }

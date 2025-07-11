@@ -112,7 +112,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         // tests the case when service.getConfig().isGrantImplicitPermissionOnSubscription() is true because we
         // have not granted permission for this role on the subscription named "sub".
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, "sub"));
-        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null,"sub"));
+        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null, "sub"));
 
         // Grant permission to a different role for sub and expect failure
         admin.namespaces().grantPermissionOnSubscription("p1/c1/ns1", "sub", Set.of("no-ones-role"));

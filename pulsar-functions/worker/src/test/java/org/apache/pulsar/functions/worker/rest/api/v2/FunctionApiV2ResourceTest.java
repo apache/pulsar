@@ -107,9 +107,9 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
 
     protected void deregisterDefaultFunction() {
         resource.deregisterFunction(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 null);
     }
 
@@ -138,16 +138,16 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
 
     protected List<String> listDefaultFunctions() {
         return new Gson().fromJson(readEntity(resource.listFunctions(
-                tenant,
-                namespace, null
+                TENANT,
+                NAMESPACE, null
         ), String.class), List.class);
     }
 
     private Function.FunctionDetails getDefaultFunctionInfo() throws IOException {
         String json = (String) resource.getFunctionInfo(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 AuthenticationParameters.builder().build()
         ).getEntity();
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
@@ -155,10 +155,11 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
         return functionDetailsBuilder.build();
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp =
+            "Function test-function doesn't exist")
     public void testGetNotExistedFunction() throws IOException {
         try {
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
             getDefaultFunctionInfo();
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
@@ -169,29 +170,29 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
     @Test
     public void testGetFunctionSuccess() throws IOException {
         mockInstanceUtils();
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
         Function.SinkSpec sinkSpec = Function.SinkSpec.newBuilder()
-                .setTopic(outputTopic)
-                .setSerDeClassName(outputSerdeClassName).build();
+                .setTopic(OUTPUT_TOPIC)
+                .setSerDeClassName(OUTPUT_SERDE_CLASS_NAME).build();
         Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
-                .setClassName(className)
+                .setClassName(CLASS_NAME)
                 .setSink(sinkSpec)
-                .setName(function)
-                .setNamespace(namespace)
+                .setName(FUNCTION)
+                .setNamespace(NAMESPACE)
                 .setProcessingGuarantees(Function.ProcessingGuarantees.ATMOST_ONCE)
                 .setAutoAck(true)
-                .setTenant(tenant)
-                .setParallelism(parallelism)
+                .setTenant(TENANT)
+                .setParallelism(PARALLELISM)
                 .setSource(Function.SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
+                        .putAllTopicsToSerDeClassName(TOPICS_TO_SER_DE_CLASS_NAME)).build();
         Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
                 .setCreateTime(System.currentTimeMillis())
                 .setFunctionDetails(functionDetails)
                 .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
                 .setVersion(1234)
                 .build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+        when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
         Function.FunctionDetails actual = getDefaultFunctionInfo();
         assertEquals(

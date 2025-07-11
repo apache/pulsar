@@ -55,7 +55,8 @@ public class RescheduleReadHandlerTest {
         readOpCounterSupplier = mock(LongSupplier.class);
         hasEntriesInReplayQueue = mock(BooleanSupplier.class);
         rescheduleReadHandler = new RescheduleReadHandler(readIntervalMsSupplier, executor, cancelPendingRead,
-                () -> rescheduleReadImmediately.run(), hasPendingReadRequestThatMightWait, readOpCounterSupplier, hasEntriesInReplayQueue);
+                () -> rescheduleReadImmediately.run(), hasPendingReadRequestThatMightWait,
+                readOpCounterSupplier, hasEntriesInReplayQueue);
     }
 
     @Test

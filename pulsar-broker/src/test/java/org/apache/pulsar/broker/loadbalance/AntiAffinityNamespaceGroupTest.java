@@ -182,7 +182,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     /**
      *
-     * It verifies anti-affinity-namespace assignment with failure-domain
+     * It verifies anti-affinity-namespace assignment with failure-domain.
      *
      * <pre>
      * Domain     Brokers-count
@@ -285,7 +285,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     }
 
     /**
-     * It verifies anti-affinity-namespace assignment without failure-domain enabled
+     * It verifies anti-affinity-namespace assignment without failure-domain enabled.
      *
      * <pre>
      *  Anti-affinity-namespace assignment
@@ -493,7 +493,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     /**
      * It verifies that load-manager::shouldAntiAffinityNamespaceUnload checks that unloading should only happen if all
-     * brokers have same number of anti-affinity namespaces
+     * brokers have same number of anti-affinity namespaces.
      *
      * @throws Exception
      */

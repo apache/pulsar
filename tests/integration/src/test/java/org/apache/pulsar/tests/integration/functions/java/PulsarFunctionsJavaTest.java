@@ -122,7 +122,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testTumblingCountWindowTest() throws Exception {
-        String[] EXPECTED_RESULTS = {
+        String[] expectedResults = {
                 "0,1,2,3,4,5,6,7,8,9",
                 "10,11,12,13,14,15,16,17,18,19",
                 "20,21,22,23,24,25,26,27,28,29",
@@ -135,12 +135,12 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                 "90,91,92,93,94,95,96,97,98,99",
         };
 
-        testWindowFunction("tumbling", EXPECTED_RESULTS);
+        testWindowFunction("tumbling", expectedResults);
     }
 
     @Test(groups = {"java_function", "function"})
     public void testSlidingCountWindowTest() throws Exception {
-        String[] EXPECTED_RESULTS = {
+        String[] expectedResults = {
                 "0,1,2,3,4",
                 "0,1,2,3,4,5,6,7,8,9",
                 "5,6,7,8,9,10,11,12,13,14",
@@ -163,7 +163,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                 "90,91,92,93,94,95,96,97,98,99",
         };
 
-        testWindowFunction("sliding", EXPECTED_RESULTS);
+        testWindowFunction("sliding", expectedResults);
     }
 
     @Test(groups = {"java_function", "function"})

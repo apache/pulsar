@@ -49,9 +49,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
-    private final String BASE_PATH = "/additional/servlet";
-    private final String WITH_PULSAR_SERVICE_BASE_PATH = "/additional/servlet/with/pulsar/service";
-    private final String QUERY_PARAM = "param";
+    private static final String BASE_PATH = "/additional/servlet";
+    private static final String WITH_PULSAR_SERVICE_BASE_PATH = "/additional/servlet/with/pulsar/service";
+    private static final String QUERY_PARAM = "param";
 
     @Override
     @BeforeClass
@@ -110,7 +110,8 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         AdditionalServlets brokerAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
         map.put("broker-additional-servlet", new AdditionalServletWithClassLoader(brokerAdditionalServlet, null));
-        map.put("broker-additional-servlet-with-pulsar-service", new AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
+        map.put("broker-additional-servlet-with-pulsar-service", new
+                AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
         Mockito.when(brokerAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
@@ -124,9 +125,9 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue);
         Assert.assertEquals(response, paramValue);
 
-        String WithPulsarServiceParamValue = PulsarService.class.getName();
+        String withPulsarServiceParamValue = PulsarService.class.getName();
         String withPulsarServiceResponse = httpGet("http://localhost:" + httpPort + WITH_PULSAR_SERVICE_BASE_PATH);
-        Assert.assertEquals(WithPulsarServiceParamValue, withPulsarServiceResponse);
+        Assert.assertEquals(withPulsarServiceParamValue, withPulsarServiceResponse);
     }
 
 

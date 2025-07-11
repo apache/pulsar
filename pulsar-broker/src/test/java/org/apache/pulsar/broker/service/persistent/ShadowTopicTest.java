@@ -96,7 +96,7 @@ public class ShadowTopicTest extends BrokerTestBase {
         //1. test shadow topic setting in topic creation.
         admin.topics().createPartitionedTopic(sourceTopic, 2);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
-        pulsarClient.newProducer().topic(shadowTopic).create().close();//trigger loading partitions.
+        pulsarClient.newProducer().topic(shadowTopic).create().close(); //trigger loading partitions.
 
         PersistentTopic brokerShadowTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(shadowTopicPartition).get().get();
@@ -152,7 +152,7 @@ public class ShadowTopicTest extends BrokerTestBase {
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(shadowTopic).create();
-        Assert.expectThrows(PulsarClientException.NotAllowedException.class, ()-> producer.send(new byte[]{1,2,3}));
+        Assert.expectThrows(PulsarClientException.NotAllowedException.class, () -> producer.send(new byte[]{1, 2, 3}));
     }
 
     private void awaitUntilShadowReplicatorReady(String sourceTopic, String shadowTopic) {

@@ -57,7 +57,8 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test(dataProvider = "topicDomainProvider")
     public void testExactlyOnceWithProducerNameSpecified(TopicDomain domain) throws PulsarClientException {
         Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default", "testExactlyOnceWithProducerNameSpecified").toString())
+                .topic(TopicName.get(domain.value(), "public", "default",
+                        "testExactlyOnceWithProducerNameSpecified").toString())
                 .producerName("p-name-1")
                 .create();
 
@@ -82,9 +83,11 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "topicDomainProvider")
-    public void testGeneratedNameProducerReconnect(TopicDomain domain) throws PulsarClientException, InterruptedException {
+    public void testGeneratedNameProducerReconnect(TopicDomain domain)
+            throws PulsarClientException, InterruptedException {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default", "testGeneratedNameProducerReconnect").toString())
+                .topic(TopicName.get(domain.value(), "public", "default",
+                        "testGeneratedNameProducerReconnect").toString())
                 .create();
         Assert.assertTrue(producer.isConnected());
         //simulate create producer timeout.

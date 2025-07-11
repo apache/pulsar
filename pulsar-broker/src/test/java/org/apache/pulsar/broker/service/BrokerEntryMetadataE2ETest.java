@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -104,7 +103,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         int receives = 0;
         for (int i = 0; i < messages; i++) {
             Message<byte[]> received = consumer.receive();
-            ++ receives;
+            ++receives;
             Assert.assertEquals(i, Integer.valueOf(new String(received.getValue())).intValue());
         }
 
@@ -115,7 +114,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testPeekMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
@@ -148,7 +147,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testGetMessageById() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
@@ -181,7 +180,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testExamineMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
@@ -213,7 +212,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testBatchMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final int msgNum = 2;
 
         @Cleanup

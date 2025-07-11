@@ -353,9 +353,9 @@ public class BetweenTestClassesListenerAdapterTest {
 
         @Override
         public String toString() {
-            return "FactoryMethodCase{" +
-                    "id=" + id +
-                    '}';
+            return "FactoryMethodCase{"
+                    + "id=" + id
+                    + '}';
         }
     }
 
@@ -387,9 +387,9 @@ public class BetweenTestClassesListenerAdapterTest {
 
         @Override
         public String toString() {
-            return "FactoryMethodCaseWithoutAfterClass{" +
-                    "id=" + id +
-                    '}';
+            return "FactoryMethodCaseWithoutAfterClass{"
+                    + "id=" + id
+                    + '}';
         }
     }
 }

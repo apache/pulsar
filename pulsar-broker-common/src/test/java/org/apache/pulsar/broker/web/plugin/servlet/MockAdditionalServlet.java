@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 public class MockAdditionalServlet implements AdditionalServlet {

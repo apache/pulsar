@@ -212,8 +212,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             org.apache.pulsar.client.api.schema.proto.Test.TestMessage receivedMessage = msg.getValue();
             log.debug("Received message: [{}]", receivedMessage);
-            org.apache.pulsar.client.api.schema.proto.Test.TestMessage expectedMessage
-                    = org.apache.pulsar.client.api.schema.proto.Test.TestMessage.newBuilder()
+            org.apache.pulsar.client.api.schema.proto.Test.TestMessage expectedMessage =
+                    org.apache.pulsar.client.api.schema.proto.Test.TestMessage.newBuilder()
                     .setStringField("my-message-" + i).build();
 
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
@@ -235,8 +235,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     public void testProtobufConsumerWithWrongPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> schema
-                = ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
+        ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> schema =
+                ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
 
         pulsar.getSchemaRegistryService()
                 .putSchemaIfAbsent("my-property/my-ns/my-topic1",
@@ -313,15 +313,15 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     public void testAvroConsumerWithWrongRestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        byte[] randomSchemaBytes = ("{\n" +
-            "     \"type\": \"record\",\n" +
-            "     \"namespace\": \"com.example\",\n" +
-            "     \"name\": \"FullName\",\n" +
-            "     \"fields\": [\n" +
-            "       { \"name\": \"first\", \"type\": \"string\" },\n" +
-            "       { \"name\": \"last\", \"type\": \"string\" }\n" +
-            "     ]\n" +
-            "} ").getBytes();
+        byte[] randomSchemaBytes = ("{\n"
+            + "     \"type\": \"record\",\n"
+            + "     \"namespace\": \"com.example\",\n"
+            + "     \"name\": \"FullName\",\n"
+            + "     \"fields\": [\n"
+            + "       { \"name\": \"first\", \"type\": \"string\" },\n"
+            + "       { \"name\": \"last\", \"type\": \"string\" }\n"
+            + "     ]\n"
+            + "} ").getBytes();
 
         pulsar.getSchemaRegistryService()
             .putSchemaIfAbsent("my-property/my-ns/my-topic1",

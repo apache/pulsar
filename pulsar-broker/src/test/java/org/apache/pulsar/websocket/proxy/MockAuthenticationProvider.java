@@ -19,9 +19,7 @@
 package org.apache.pulsar.websocket.proxy;
 
 import java.io.IOException;
-
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;

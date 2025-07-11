@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.web;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import java.util.Arrays;
 import org.testng.annotations.Test;
 

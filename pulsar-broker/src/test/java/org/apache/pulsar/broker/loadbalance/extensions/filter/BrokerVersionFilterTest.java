@@ -22,7 +22,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -43,7 +42,8 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
     @Test
     public void testFilterEmptyBrokerList() throws BrokerFilterException, ExecutionException, InterruptedException {
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filterAsync(new HashMap<>(), null, getContext()).get();
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filterAsync(new HashMap<>(),
+                null, getContext()).get();
         assertTrue(result.isEmpty());
     }
 

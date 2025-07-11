@@ -188,7 +188,8 @@ public class BookKeeperClientFactoryImplTest {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setMetadataStoreUrl("zk:localhost:2181");
-        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getExplictLacInterval(),
                 0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
         assertEquals(

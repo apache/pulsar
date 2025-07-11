@@ -19,10 +19,10 @@
 package org.apache.pulsar.common.protocol;
 
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.mockito.Mockito.spy;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -34,7 +34,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.BaseCommand;

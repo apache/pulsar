@@ -35,8 +35,10 @@ import org.testng.annotations.Test;
 public class RawMessageImplTest {
 
     private static final String HARD_CODE_KEY = "__pfn_input_topic__";
-    private static final String KEY_VALUE_FIRST= "persistent://first-tenant-value/first-namespace-value/first-topic-value";
-    private static final String KEY_VALUE_SECOND = "persistent://second-tenant-value/second-namespace-value/second-topic-value";
+    private static final String KEY_VALUE_FIRST =
+            "persistent://first-tenant-value/first-namespace-value/first-topic-value";
+    private static final String KEY_VALUE_SECOND =
+            "persistent://second-tenant-value/second-namespace-value/second-topic-value";
     private static final String HARD_CODE_KEY_ID = "__pfn_input_msg_id__";
     private static final String HARD_CODE_KEY_ID_VALUE  = "__pfn_input_msg_id_value__";
 

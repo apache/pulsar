@@ -106,13 +106,13 @@ public class TopBundleLoadDataReporterTest {
     }
 
     public void testZeroUpdatedAt() {
-        doReturn(0l).when(pulsarStats).getUpdatedAt();
+        doReturn(0L).when(pulsarStats).getUpdatedAt();
         var target = new TopBundleLoadDataReporter(pulsar, "", store);
         assertNull(target.generateLoadData());
     }
 
     public void testGenerateLoadData() throws IllegalAccessException {
-        doReturn(1l).when(pulsarStats).getUpdatedAt();
+        doReturn(1L).when(pulsarStats).getUpdatedAt();
         config.setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(2);
         var target = new TopBundleLoadDataReporter(pulsar, "", store);
         var expected = new TopKBundles(pulsar);
@@ -120,20 +120,20 @@ public class TopBundleLoadDataReporterTest {
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
         config.setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(1);
-        FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
+        FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0L, true);
         expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 1);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
         config.setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(0);
-        FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
+        FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0L, true);
 
         expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 0);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
         doReturn(new HashMap()).when(brokerService).getBundleStats();
-        FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
+        FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0L, true);
         expected = new TopKBundles(pulsar);
         assertEquals(target.generateLoadData(), expected.getLoadData());
     }
@@ -151,7 +151,7 @@ public class TopBundleLoadDataReporterTest {
     public void testReport(){
         pulsar.getConfiguration().setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(1);
         var target = new TopBundleLoadDataReporter(pulsar, broker, store);
-        doReturn(1l).when(pulsarStats).getUpdatedAt();
+        doReturn(1L).when(pulsarStats).getUpdatedAt();
         var expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 1);
         target.reportAsync(false);

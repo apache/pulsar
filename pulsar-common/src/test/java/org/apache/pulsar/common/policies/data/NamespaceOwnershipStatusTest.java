@@ -19,15 +19,11 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
-import java.util.Map;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.core.type.TypeReference;
-
-import org.apache.pulsar.common.policies.data.BrokerAssignment;
-import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 

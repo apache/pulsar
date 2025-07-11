@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff;
-import org.testng.annotations.Test;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link MultiplierRedeliveryBackoff}.

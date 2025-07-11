@@ -126,14 +126,18 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     public Object[][] topicAndSubscription() {
         return new Object[][]{
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, true},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true, true},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub2", true, true},
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, true},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false, true},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub4", false, true},
 
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, false},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true, false},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub2", true, false},
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, false},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false, false},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub4", false, false},
         };
     }
 
@@ -339,7 +343,8 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(stats.getFilterAcceptedMsgCount(), acceptCount);
             if (persistent) {
                 Assert.assertEquals(stats.getFilterRejectedMsgCount(), rejectedCount);
-                // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
+                // Only works on the test, if there are some markers,
+                // the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
                 Assert.assertEquals(stats.getFilterProcessedMsgCount(),
                         stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
                                 + stats.getFilterRescheduledMsgCount(),

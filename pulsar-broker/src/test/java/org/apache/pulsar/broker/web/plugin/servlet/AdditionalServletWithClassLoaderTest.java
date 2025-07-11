@@ -53,11 +53,11 @@ public class AdditionalServletWithClassLoaderTest {
         wrapper.loadConfig(conf);
         verify(servlet, times(1)).loadConfig(same(conf));
         // test getServlet
-        assertEquals(wrapper.getServlet(),servlet);
+        assertEquals(wrapper.getServlet(), servlet);
         // test getServletHolder
         ServletHolder servletHolder = new ServletHolder();
         when(servlet.getServletHolder()).thenReturn(servletHolder);
-        assertEquals(wrapper.getServletHolder(),servletHolder);
+        assertEquals(wrapper.getServletHolder(), servletHolder);
         verify(servlet, times(1)).getServletHolder();
     }
 

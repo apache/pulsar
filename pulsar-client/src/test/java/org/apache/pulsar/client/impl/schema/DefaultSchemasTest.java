@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static org.testng.Assert.assertEquals;
-
 import java.nio.charset.StandardCharsets;
-
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;

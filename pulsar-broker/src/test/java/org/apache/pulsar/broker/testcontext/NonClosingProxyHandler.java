@@ -47,7 +47,7 @@ public class NonClosingProxyHandler implements InvocationHandler {
 
     /**
      * Returns true if the given instance is a proxy instance created by
-     * {@link #createNonClosingProxy(AutoCloseable, Class)}
+     * {@link #createNonClosingProxy(AutoCloseable, Class)}.
      * @param instance proxy instance
      * @return true if the given instance is a proxy instance
      */
@@ -61,7 +61,7 @@ public class NonClosingProxyHandler implements InvocationHandler {
      * @param instance proxy instance
      * @return delegate instance
      */
-    public static <T extends I, I extends AutoCloseable> I getDelegate(T instance) {
+    public static <T extends K, K extends AutoCloseable> K getDelegate(T instance) {
         if (isNonClosingProxy(instance)) {
             return (T) ((NonClosingProxyHandler) Proxy.getInvocationHandler(instance)).getDelegate();
         } else {
@@ -71,7 +71,7 @@ public class NonClosingProxyHandler implements InvocationHandler {
 
     /**
      * Calls close on the delegate instance of a proxy that was created by
-     * {@link #createNonClosingProxy(AutoCloseable, Class)}
+     * {@link #createNonClosingProxy(AutoCloseable, Class)}.
      * @param instance instance to close
      * @throws Exception if an error occurs
      */

@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.io.elasticsearch.testcontainers;
 
+import java.io.IOException;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 import lombok.extern.slf4j.Slf4j;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
-
-import java.io.IOException;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
 
 @Slf4j
 // Toxiproxy container, which will be used as a TCP proxy

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
@@ -30,10 +33,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTest {
 
@@ -61,7 +60,7 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
         assertTrue(admin.tenants().getTenants().contains(topicName.getTenant()));
         assertTrue(admin.namespaces().getNamespaces(topicName.getTenant()).contains(topicName.getNamespace()));
     }
-    
+
     @Test
     public void testPublish() throws Exception {
         ResourceUsage recvdUsage = new ResourceUsage();
@@ -116,7 +115,8 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
     }
 
     private void prepareData() throws PulsarServerException, PulsarAdminException, PulsarClientException {
-        this.conf.setResourceUsageTransportClassName("org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
+        this.conf.setResourceUsageTransportClassName(
+                "org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         tManager = new ResourceUsageTopicTransportManager(pulsar);

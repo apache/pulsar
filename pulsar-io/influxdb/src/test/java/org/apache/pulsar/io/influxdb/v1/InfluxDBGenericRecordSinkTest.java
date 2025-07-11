@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.io.influxdb.v1;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import com.google.common.collect.Maps;
+import java.util.Map;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -32,9 +39,6 @@ import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.influxdb.v1.InfluxDBAbstractSink;
-import org.apache.pulsar.io.influxdb.v1.InfluxDBBuilder;
-import org.apache.pulsar.io.influxdb.v1.InfluxDBGenericRecordSink;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.BatchPoints;
 import org.mockito.Mock;
@@ -43,17 +47,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Map;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 /**
- * InfluxDB Sink test
+ * InfluxDB Sink test.
  */
 @Slf4j
 public class InfluxDBGenericRecordSinkTest {
@@ -61,7 +56,7 @@ public class InfluxDBGenericRecordSinkTest {
     private Message<GenericRecord> message;
 
     /**
-     * A Simple class to test InfluxDB class
+     * A Simple class to test InfluxDB class.
      */
     @Data
     public static class Cpu {

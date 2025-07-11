@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.utils.Actions;
-import org.testng.annotations.Test;
-
-import java.util.function.Supplier;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -30,6 +25,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import java.util.function.Supplier;
+import org.testng.annotations.Test;
 
 public class ActionsTest {
 

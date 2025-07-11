@@ -226,7 +226,8 @@ public class MessageRedeliveryControllerTest {
         if (allowOutOfOrderDelivery) {
             // The entries are sorted by ledger ID but not by entry ID
             Position[] actual1 = controller.getMessagesToReplayNow(3, item -> true).toArray(new Position[3]);
-            Position[] expected1 = { PositionFactory.create(1, 1), PositionFactory.create(1, 2), PositionFactory.create(1, 3) };
+            Position[] expected1 = { PositionFactory.create(1, 1),
+                    PositionFactory.create(1, 2), PositionFactory.create(1, 3) };
             assertEqualsNoOrder(actual1, expected1);
         } else {
             // The entries are completely sorted

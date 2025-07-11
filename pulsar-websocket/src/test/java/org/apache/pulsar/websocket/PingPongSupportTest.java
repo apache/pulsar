@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.websocket;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -41,9 +44,6 @@ import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.api.WebSocketPingPongListener;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertTrue;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
@@ -53,7 +53,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Test to ensure {@link AbstractWebSocketHandler} has ping/pong support
+ * Test to ensure {@link AbstractWebSocketHandler} has ping/pong support.
  */
 public class PingPongSupportTest {
 
@@ -123,7 +123,8 @@ public class PingPongSupportTest {
 
     public static class GenericWebSocketHandler extends AbstractWebSocketHandler {
 
-        public GenericWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public GenericWebSocketHandler(WebSocketService service, HttpServletRequest request,
+                                       ServletUpgradeResponse response) {
             super(service, request, response);
         }
 

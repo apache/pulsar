@@ -82,8 +82,10 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         bufferedWriterConfigForWrite.setBatchedWriteMaxRecords(3);
         bufferedWriterConfigForWrite.setBatchEnabled(writeWithBatch);
         TransactionCoordinatorID transactionCoordinatorID = TransactionCoordinatorID.get(0);
-        MLTransactionLogImpl mlTransactionLogForWrite = new MLTransactionLogImpl(TransactionCoordinatorID.get(0), factory,
-                new ManagedLedgerConfig(), bufferedWriterConfigForWrite, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        MLTransactionLogImpl mlTransactionLogForWrite =
+                new MLTransactionLogImpl(TransactionCoordinatorID.get(0), factory,
+                new ManagedLedgerConfig(), bufferedWriterConfigForWrite, transactionTimer,
+                        DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForWrite.initialize().get(3, TimeUnit.SECONDS);
         Map<Integer, List<CompletableFuture<Position>>> expectedMapping = new HashMap<>();
         /**
@@ -165,7 +167,8 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
         MLTransactionSequenceIdGenerator sequenceIdGenerator = mock(MLTransactionSequenceIdGenerator.class);
         TransactionRecoverTracker recoverTracker = mock(TransactionRecoverTracker.class);
-        MLTransactionMetadataStore transactionMetadataStoreForRecover = new MLTransactionMetadataStore(transactionCoordinatorID,
+        MLTransactionMetadataStore transactionMetadataStoreForRecover =
+                new MLTransactionMetadataStore(transactionCoordinatorID,
                 mlTransactionLogForRecover, timeoutTracker, sequenceIdGenerator, Integer.MAX_VALUE);
         transactionMetadataStoreForRecover.init(recoverTracker).get(2000, TimeUnit.SECONDS);
         Assert.assertEquals(transactionMetadataStoreForRecover.txnMetaMap.size(), expectedMapping.size());
@@ -173,9 +176,10 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         while (txnIdSet.hasNext()){
             int txnId = txnIdSet.next();
             List<CompletableFuture<Position>> expectedPositions = expectedMapping.get(txnId);
-            List<Position> actualPositions = transactionMetadataStoreForRecover.txnMetaMap.get(Long.valueOf(txnId)).getRight();
+            List<Position> actualPositions =
+                    transactionMetadataStoreForRecover.txnMetaMap.get(Long.valueOf(txnId)).getRight();
             Assert.assertEquals(actualPositions.size(), expectedPositions.size());
-            for (int i = 0; i< expectedPositions.size(); i++){
+            for (int i = 0; i < expectedPositions.size(); i++){
                 Position expectedPosition = expectedPositions.get(i).get(1, TimeUnit.SECONDS);
                 Position actualPosition = actualPositions.get(i);
                 Assert.assertEquals(actualPosition, expectedPosition);
@@ -227,8 +231,8 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
                         .flatMap(l -> l.stream()).collect(Collectors.toList()))
                 .get(2, TimeUnit.SECONDS);
         // rewind the cursor
-        ManagedCursorImpl managedCursorForRecover =
-                (ManagedCursorImpl)transactionMetadataStoreForRecover.getManagedLedger().getCursors().iterator().next();
+        ManagedCursorImpl managedCursorForRecover = (ManagedCursorImpl) transactionMetadataStoreForRecover
+                .getManagedLedger().getCursors().iterator().next();
         /** Rewind the cursor for next-step. **/
         managedCursorForRecover.rewind();
         /**
@@ -240,11 +244,12 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
                 factory, new ManagedLedgerConfig(), bufferedWriterConfigForRecover, transactionTimer,
                 DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForDelete.initialize().get(3, TimeUnit.SECONDS);
-        MLTransactionMetadataStore transactionMetadataStoreForDelete = new MLTransactionMetadataStore(transactionCoordinatorID,
+        MLTransactionMetadataStore transactionMetadataStoreForDelete =
+                new MLTransactionMetadataStore(transactionCoordinatorID,
                 mlTransactionLogForDelete, timeoutTracker, sequenceIdGenerator, Integer.MAX_VALUE);
         transactionMetadataStoreForDelete.init(recoverTracker).get(2000, TimeUnit.SECONDS);
         ManagedCursorImpl managedCursor =
-                (ManagedCursorImpl)mlTransactionLogForDelete.getManagedLedger().getCursors().iterator().next();
+                (ManagedCursorImpl) mlTransactionLogForDelete.getManagedLedger().getCursors().iterator().next();
         // Calculate expected deleted positions.
         List<Position> expectedDeletedPositions = new ArrayList<>();
         for (int i = 1; i <= 20; i++){
@@ -253,8 +258,8 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
                             .map(f -> f.join())
                             .collect(Collectors.toList()));
         }
-        expectedDeletedPositions = expectedDeletedPositions.stream().sorted((o1,o2) -> {
-            if (o1 instanceof TxnBatchedPositionImpl){
+        expectedDeletedPositions = expectedDeletedPositions.stream().sorted((o1, o2) -> {
+            if (o1 instanceof TxnBatchedPositionImpl) {
                 TxnBatchedPositionImpl t1 = (TxnBatchedPositionImpl) o1;
                 TxnBatchedPositionImpl t2 = (TxnBatchedPositionImpl) o2;
                 return ComparisonChain.start()
@@ -262,7 +267,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
                         .compare(o1.getEntryId(), o2.getEntryId())
                         .compare(t1.getBatchIndex(), t2.getBatchIndex())
                         .result();
-            }else {
+            } else {
                 return ComparisonChain.start()
                         .compare(o1.getLedgerId(), o2.getLedgerId())
                         .compare(o1.getEntryId(), o2.getEntryId())
@@ -275,7 +280,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
             Pair<Position, LinkedHashMap<Position, BitSetRecyclable>> pair =
                     calculateBatchIndexes(
                             expectedDeletedPositions.stream()
-                                    .map(p -> (TxnBatchedPositionImpl)p)
+                                    .map(p -> (TxnBatchedPositionImpl) p)
                                     .collect(Collectors.toList())
                     );
             markDeletedPosition = pair.getLeft();
@@ -283,12 +288,12 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         } else {
             markDeletedPosition = calculateMarkDeletedPosition(expectedDeletedPositions);
         }
-        final Position markDeletedPosition_final = markDeletedPosition;
+        final Position markDeletedPositionFinal = markDeletedPosition;
         // Assert mark deleted position correct.
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> {
             Position actualMarkDeletedPosition = managedCursor.getMarkDeletedPosition();
-            return markDeletedPosition_final.getLedgerId() == actualMarkDeletedPosition.getLedgerId() &&
-                    markDeletedPosition_final.getEntryId() == actualMarkDeletedPosition.getEntryId();
+            return markDeletedPositionFinal.getLedgerId() == actualMarkDeletedPosition.getLedgerId()
+                    && markDeletedPositionFinal.getEntryId() == actualMarkDeletedPosition.getEntryId();
         });
         // Assert batchIndexes correct.
         if (batchIndexes != null){

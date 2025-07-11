@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies.impl;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
-
 import org.apache.pulsar.common.policies.data.OldPolicies;
 import org.testng.annotations.Test;
 

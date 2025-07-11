@@ -20,6 +20,10 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -27,11 +31,6 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.file.FileStreamSinkTask;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.testng.collections.Maps;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
 /**
  * A FileStreamSinkTask for testing that writes data other than just a value, i.e.:

@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 public class InstanceUtilsTest {
 
     /**
-     * Test the calculateSubjectType function for sources
+     * Test the calculateSubjectType function for sources.
      */
     @Test
     public void testCalculateSubjectTypeForSource() {
@@ -42,7 +42,7 @@ public class InstanceUtilsTest {
     }
 
     /**
-     * Test the calculateSubjectType function for function
+     * Test the calculateSubjectType function for function.
      */
     @Test
     public void testCalculateSubjectTypeForFunction() {
@@ -60,7 +60,7 @@ public class InstanceUtilsTest {
     }
 
     /**
-     * Test the calculateSubjectType function for Sink
+     * Test the calculateSubjectType function for Sink.
      */
     @Test
     public void testCalculateSubjectTypeForSink() {

@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import org.testng.annotations.Test;
 
 public class TripleLongPriorityQueueTest {
@@ -32,23 +31,23 @@ public class TripleLongPriorityQueueTest {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
 
-        final int N = 1000;
+        final int num = 1000;
 
-        for (int i = N; i > 0; i--) {
+        for (int i = num; i > 0; i--) {
             pq.add(i, i * 2L, i * 3L);
         }
 
-        assertEquals(pq.size(), N);
+        assertEquals(pq.size(), num);
         assertFalse(pq.isEmpty());
 
-        for (int i = 1; i <= N; i++) {
+        for (int i = 1; i <= num; i++) {
             assertEquals(pq.peekN1(), i);
             assertEquals(pq.peekN2(), i * 2);
             assertEquals(pq.peekN3(), i * 3);
 
             pq.pop();
 
-            assertEquals(pq.size(), N - i);
+            assertEquals(pq.size(), num - i);
         }
 
         pq.close();
@@ -59,23 +58,23 @@ public class TripleLongPriorityQueueTest {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
 
-        final int N = 3_000_000;
+        final int num = 3_000_000;
 
-        for (int i = N; i > 0; i--) {
+        for (int i = num; i > 0; i--) {
             pq.add(i, i * 2L, i * 3L);
         }
 
-        assertEquals(pq.size(), N);
+        assertEquals(pq.size(), num);
         assertFalse(pq.isEmpty());
 
-        for (int i = 1; i <= N; i++) {
+        for (int i = 1; i <= num; i++) {
             assertEquals(pq.peekN1(), i);
             assertEquals(pq.peekN2(), i * 2);
             assertEquals(pq.peekN3(), i * 3);
 
             pq.pop();
 
-            assertEquals(pq.size(), N - i);
+            assertEquals(pq.size(), num - i);
         }
 
         pq.clear();
@@ -182,14 +181,14 @@ public class TripleLongPriorityQueueTest {
         for (int i = 0; i < initialCapacity / 2 + 2; i++) {
              pq.pop();
         }
-        int capacity = scaleCapacity - (int)((scaleCapacity ) * 0.5f * 0.9f);
+        int capacity = scaleCapacity - (int) ((scaleCapacity) * 0.5f * 0.9f);
         assertTrue(pq.bytesCapacity() < scaleCapacity * tupleSize);
         // Scale out to capacity * 2
         triggerScaleOut(initialCapacity, pq);
         scaleCapacity = capacity * 2;
         // Trigger shrinking
         pq.clear();
-        capacity = scaleCapacity - (int)(scaleCapacity * 0.5f * 0.9f);
+        capacity = scaleCapacity - (int) (scaleCapacity * 0.5f * 0.9f);
     }
 
     private void triggerScaleOut(int initialCapacity, TripleLongPriorityQueue pq) {

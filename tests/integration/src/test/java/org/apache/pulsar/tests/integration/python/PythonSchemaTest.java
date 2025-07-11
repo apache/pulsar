@@ -19,11 +19,9 @@
 package org.apache.pulsar.tests.integration.python;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.Data;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -34,7 +32,7 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 
 /**
- * Test pulsar Python/Java schema interoperability
+ * Test pulsar Python/Java schema interoperability.
  */
 public class PythonSchemaTest extends PulsarTestSuite {
 
@@ -51,7 +49,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
     }
 
     /**
-     * Publish from Java and consume from Python
+     * Publish from Java and consume from Python.
      */
     @Test(dataProvider = "ServiceUrls")
     public void testJavaPublishPythonConsume(Supplier<String> serviceUrl) throws Exception {
@@ -90,7 +88,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
     }
 
     /**
-     * Publish from Java and consume from Python
+     * Publish from Java and consume from Python.
      */
     @Test(dataProvider = "ServiceUrls")
     public void testPythonPublishJavaConsume(Supplier<String> serviceUrl) throws Exception {

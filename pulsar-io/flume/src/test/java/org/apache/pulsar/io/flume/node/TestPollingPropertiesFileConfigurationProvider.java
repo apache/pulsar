@@ -89,7 +89,7 @@ public class TestPollingPropertiesFileConfigurationProvider {
 
         MaterializedConfiguration materializedConfiguration = events.remove(0);
 
-        Assert.assertEquals(materializedConfiguration.getSourceRunners().size(),1);
+        Assert.assertEquals(materializedConfiguration.getSourceRunners().size(), 1);
         Assert.assertEquals(materializedConfiguration.getSinkRunners().size(), 1);
         Assert.assertEquals(materializedConfiguration.getChannels().size(), 1);
 

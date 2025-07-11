@@ -24,7 +24,6 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -119,7 +118,7 @@ public class MessageTTLTest extends BrokerTestBase {
             CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
             log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
             assertEquals(statsAfterExpire.markDeletePosition, PositionFactory.create(lastMessageId.getLedgerId(),
-                    lastMessageId.getEntryId() ).toString());
+                    lastMessageId.getEntryId()).toString());
         });
     }
 

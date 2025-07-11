@@ -225,13 +225,13 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .enableBatching(true)
                 .create();
 
-        final int N = 20;
-        for (int i = 0; i < N; i++) {
+        final int num = 20;
+        for (int i = 0; i < num; i++) {
             String value = "test-" + i;
             producer.sendAsync(value);
         }
         producer.flush();
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer.receive();
             if (i % 2 == 0) {
                 consumer.acknowledgeAsync(msg);
@@ -266,12 +266,12 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .enableBatching(true)
                 .create();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             String value = "test-" + i;
             producer2.sendAsync(value);
         }
         producer2.flush();
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer2.receive();
             if (i % 2 == 0) {
                 consumer.acknowledgeAsync(msg);
@@ -542,7 +542,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             ledgerId = msgId.getLedgerId();
             entryId = msgId.getEntryId();
         }
-        getCursor(topicName, subName).delete(AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId, bitSetRecyclable.toLongArray()));
+        getCursor(topicName, subName).delete(AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId,
+                bitSetRecyclable.toLongArray()));
         // step 4: send messages to consumer2.
         receiveMessageSignal2.complete(null);
         // Verify: Consumer2 will get all the 100 messages, and "unAckMessages" is 100.
@@ -613,8 +614,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             long totalBytes = (long) invocation.getArguments()[4];
             long totalChunkedMessages = (long) invocation.getArguments()[5];
             RedeliveryTracker redeliveryTracker = (RedeliveryTracker) invocation.getArguments()[6];
-            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                    totalChunkedMessages, redeliveryTracker)).join();
+            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks,
+                    totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker)).join();
         }).when(spyServiceConsumer)
                 .sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
         doAnswer(invocation -> {
@@ -626,8 +627,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             long totalChunkedMessages = (long) invocation.getArguments()[5];
             RedeliveryTracker redeliveryTracker = (RedeliveryTracker) invocation.getArguments()[6];
             long epoch = (long) invocation.getArguments()[7];
-            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                    totalChunkedMessages, redeliveryTracker, epoch)).join();
+            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks,
+                    totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker, epoch)).join();
         }).when(spyServiceConsumer)
                 .sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any(), anyLong());
 
@@ -661,7 +662,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         final int receiverQueueSize = 1000;
         final int ackedMessagesCountInTheFistStep = 2;
         admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics(). createSubscription(topicName, subName, MessageId.earliest);
+        admin.topics().createSubscription(topicName, subName, MessageId.earliest);
         ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .receiverQueueSize(receiverQueueSize)
@@ -678,7 +679,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .create();
         CompletableFuture<MessageId>  lastSent = null;
         for (int i = 1;  i <=  100;  i++) {
-            lastSent = producer. sendAsync(i + "");
+            lastSent = producer.sendAsync(i + "");
         }
         producer.flush();
         lastSent.join();
@@ -686,7 +687,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         // Ack 2 messages, and trigger a redelivery.
         Consumer<String>  consumer1 = consumerBuilder.subscribe();
         for (int i = 0;  i <  ackedMessagesCountInTheFistStep;  i++) {
-            Message msg = consumer1. receive(2, TimeUnit.SECONDS);
+            Message msg = consumer1.receive(2, TimeUnit.SECONDS);
             assertNotNull(msg);
             consumer1.acknowledge(msg);
         }
@@ -727,7 +728,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
 
     private org.apache.pulsar.broker.service.Consumer getTheUniqueServiceConsumer(String topic, String sub) {
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService(). getTopic(topic, false).join().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
         AbstractPersistentDispatcherMultipleConsumers dispatcher =
                 (AbstractPersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
         return dispatcher.getConsumers().iterator().next();

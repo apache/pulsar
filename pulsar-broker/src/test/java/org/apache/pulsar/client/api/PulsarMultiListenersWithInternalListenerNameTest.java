@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -30,9 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -54,9 +55,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
 
 @Test(groups = "broker-api")
 public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPulsarServiceBaseTest {
@@ -120,7 +118,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     }
     @Test
     public void testFindBrokerWithListenerName() throws Exception {
-        admin.clusters().createCluster("localhost", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("localhost", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton("localhost"))
                 .build();
@@ -161,7 +160,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
     @Test
     public void testHttpLookupRedirect() throws Exception {
-        admin.clusters().createCluster("localhost", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("localhost", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton("localhost"))
                 .build();

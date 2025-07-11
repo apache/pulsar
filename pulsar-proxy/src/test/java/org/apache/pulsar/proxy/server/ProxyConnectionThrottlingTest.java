@@ -44,8 +44,8 @@ import org.testng.annotations.Test;
 @Slf4j
 public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
-    private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 4;
+    private static final int NUM_CONCURRENT_LOOKUP = 3;
+    private static final int NUM_CONCURRENT_INBOUND_CONNECTION = 4;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private Authentication proxyClientAuthentication;
@@ -115,8 +115,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
             Producer<byte[]> producer3 = client3.newProducer(Schema.BYTES)
                     .topic("persistent://sample/test/local/producer-topic-1").create();
             producer3.send("Message 1".getBytes());
-            Assert.fail("Should have failed since max num of connections is 2 and the first" +
-                    " producer used them all up - one for discovery and other for producing.");
+            Assert.fail("Should have failed since max num of connections is 2 and the first"
+                    + " producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
@@ -126,7 +126,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         Set<String> keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
-            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
+            Assert.assertEquals((int) ConnectionController.DefaultConnectionController
                     .getConnections().get(key).toInteger(), 4);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 4.0d);
@@ -139,7 +139,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
-            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
+            Assert.assertEquals((int) ConnectionController.DefaultConnectionController
                     .getConnections().get(key).toInteger(), 2);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);

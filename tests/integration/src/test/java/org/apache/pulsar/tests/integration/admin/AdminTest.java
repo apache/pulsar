@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.admin;
 
 import static org.testng.Assert.assertNotNull;
-
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;

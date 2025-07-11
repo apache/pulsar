@@ -27,7 +27,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
 import java.util.concurrent.BlockingQueue;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -43,8 +42,8 @@ public class TestFileGenerator extends Thread {
     private final FileAttribute<?>[] attrs;
     private final Path tempDir;
     private boolean keepRunning = true;
-    
-    public TestFileGenerator(BlockingQueue<File> producedFiles, int numFiles, long delay, int numLines, 
+
+    public TestFileGenerator(BlockingQueue<File> producedFiles, int numFiles, long delay, int numLines,
             String dir, String prefix, String suffix, FileAttribute<?>... attrs) throws IOException {
         this.numFiles = numFiles;
         this.delay = delay;
@@ -55,10 +54,10 @@ public class TestFileGenerator extends Thread {
         this.attrs = attrs;
         tempDir = Files.createDirectories(Paths.get(dir), attrs);
     }
-    
+
     public void run() {
         int counter = 0;
-        while  ( keepRunning && (counter++ < numFiles)) {
+        while  (keepRunning && (counter++ < numFiles)) {
             createFile();
             try {
                 sleep(delay);
@@ -67,25 +66,24 @@ public class TestFileGenerator extends Thread {
             }
         }
     }
-    
+
     public void halt() {
         keepRunning = false;
     }
-    
-    private final void createFile() {
+
+    private void createFile() {
         try {
             Path path = Files.createTempFile(tempDir, prefix, suffix, attrs);
-            try(OutputStream out = Files.newOutputStream(path, StandardOpenOption.APPEND)) {
+            try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.APPEND)) {
               for (int idx = 0; idx < numLines; idx++) {
                  IOUtils.write(RandomStringUtils.random(50, true, false) + "\n", out, "UTF-8");
               }
             }
-            
+
             producedFiles.put(path.toFile());
-            
+
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
-
 }

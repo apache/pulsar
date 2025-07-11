@@ -18,11 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.offload;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.testng.Assert.assertSame;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.testng.Assert.assertSame;
 
 public class OffloadersCacheTest {
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -29,7 +30,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.Sets;
 import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
@@ -362,7 +362,8 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.None);
         CompletableFuture<Void> completableFuture = null;
         try {
-            completableFuture = pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(),
+            completableFuture = pulsar.getTransactionMetadataStoreService().endTransaction(txnID,
+                    TxnAction.COMMIT.getValue(),
                     false);
             completableFuture.get(5, TimeUnit.SECONDS);
             fail();
@@ -395,7 +396,8 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         });
     }
 
-    private void checkTransactionMetadataStoreReady(MLTransactionMetadataStore transactionMetadataStore) throws NoSuchMethodException {
+    private void checkTransactionMetadataStoreReady(MLTransactionMetadataStore transactionMetadataStore)
+            throws NoSuchMethodException {
         Method method = TransactionMetadataStoreState.class.getDeclaredMethod("checkIfReady");
         method.setAccessible(true);
         Awaitility.await()

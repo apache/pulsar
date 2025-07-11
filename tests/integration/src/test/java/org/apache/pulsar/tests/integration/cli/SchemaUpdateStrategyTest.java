@@ -20,12 +20,12 @@ package org.apache.pulsar.tests.integration.cli;
 
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -38,15 +38,10 @@ import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 /**
  * Test setting the schema update strategy via the CLI.
@@ -293,7 +288,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             for (int i = 0; i < 50; i++) {
                 try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class))
                         .topic(topicName).create()) {
-                    p.send(new V4Data("test2", 1, (short)100));
+                    p.send(new V4Data("test2", 1, (short) 100));
                     success = true;
                     break;
                 } catch (Throwable t) {
@@ -305,7 +300,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         }
     }
 
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V1Data {
         String foo;
         int bar;
@@ -325,7 +320,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     }
 
     // backward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V2Data {
         String foo;
 
@@ -342,7 +337,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     }
 
     // forward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V3Data {
         String foo;
         int bar;
@@ -365,7 +360,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     }
 
     // fully compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V4Data {
         String foo;
         int bar;

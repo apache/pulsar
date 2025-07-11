@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.io.redis;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 import redis.embedded.RedisExecProvider;
 import redis.embedded.RedisServer;
 import redis.embedded.util.Architecture;
 import redis.embedded.util.OS;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 @Slf4j
 public final class EmbeddedRedisUtils {

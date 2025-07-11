@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.lookup.http.v2;
 
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.lookup.v2.TopicLookup;
 import org.apache.pulsar.broker.web.PulsarWebResourceTest;
@@ -25,9 +28,6 @@ import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.testng.annotations.Test;
-import java.util.concurrent.CompletableFuture;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
 
 /**
  * TopicLookup V2 API unit tests.

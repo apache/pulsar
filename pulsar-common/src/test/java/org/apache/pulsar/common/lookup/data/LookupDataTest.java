@@ -20,11 +20,8 @@ package org.apache.pulsar.common.lookup.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
-import java.util.Map;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.util.Map;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;

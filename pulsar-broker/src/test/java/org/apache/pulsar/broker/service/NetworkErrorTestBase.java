@@ -55,11 +55,11 @@ import org.awaitility.reflect.WhiteboxImpl;
 @Slf4j
 public abstract class NetworkErrorTestBase extends TestRetrySupport {
 
-    protected final static String CA_CERT_FILE_PATH =
+    protected static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    protected final static String BROKER_CERT_FILE_PATH =
+    protected static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    protected final static String BROKER_KEY_FILE_PATH =
+    protected static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
@@ -82,7 +82,7 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
     protected PulsarClient client1;
     protected PulsarClient client2;
 
-    private final static AtomicReference<String> preferBroker = new AtomicReference<>();
+    private static final AtomicReference<String> preferBroker = new AtomicReference<>();
 
     protected void startZKAndBK() throws Exception {
         // Start ZK & BK.

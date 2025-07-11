@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.testng.annotations.Test;
 
 public class AutoTopicCreationOverrideTest {
 

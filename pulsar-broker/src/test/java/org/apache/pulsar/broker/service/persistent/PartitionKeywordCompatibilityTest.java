@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-
 import static org.testng.Assert.fail;
+import java.util.List;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -33,7 +33,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.List;
 
 @Test
 public class PartitionKeywordCompatibilityTest extends BrokerTestBase {

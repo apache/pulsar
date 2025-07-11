@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
+import static org.testng.Assert.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -25,12 +29,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test for {@link BrokerMaxTopicCountFilter}.

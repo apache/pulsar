@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MockBrokerService;
 import org.apache.pulsar.client.api.Producer;
@@ -29,11 +32,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker-impl")
 public class ProducerEmptySchemaCacheTest {

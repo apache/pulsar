@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.tutorial;
 
 import java.io.IOException;
-
-import org.apache.pulsar.client.api.PulsarClient;
-
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClient;
 
 @Slf4j
 public class SampleConsumerListener {

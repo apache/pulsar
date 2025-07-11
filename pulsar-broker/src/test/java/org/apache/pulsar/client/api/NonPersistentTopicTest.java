@@ -130,7 +130,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             // Then error when subscribe to a partition of a non-persistent topic that does not exist
             assertThrows(PulsarClientException.NotFoundException.class,
-                    () -> pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe());
+                    () -> pulsarClient.newConsumer().topic(topicPartitionName)
+                            .subscriptionName("sub-issue-9173").subscribe());
 
             // Then error when produce to a partition of a non-persistent topic that does not exist
             try {
@@ -158,12 +159,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             admin.topics().createPartitionedTopic(topic, 3);
 
             // When subscribe, then a sub-consumer is created for each partition which means the partitions are created
-            final MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
+            final MultiTopicsConsumerImpl<byte[]> consumer =
+                    (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
                     .topic(topic).subscriptionName("sub-issue-9173").subscribe();
             assertEquals(consumer.getConsumers().size(), 3);
 
             // When produce, a sub-producer is created for each partition which means the partitions are created
-            PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic).create();
+            PartitionedProducerImpl<byte[]> producer =
+                    (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic).create();
             assertEquals(producer.getProducers().size(), 3);
 
             consumer.close();
@@ -311,7 +314,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that broker doesn't dispatch messages if consumer runs out of permits filled out with messages
+     * It verifies that broker doesn't dispatch messages if consumer runs out of permits filled out with messages.
      */
     @Test(dataProvider = "subscriptionType")
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
@@ -354,7 +357,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * Verifies that broker should failed to publish message if producer publishes messages more than rate limit
+     * Verifies that broker should failed to publish message if producer publishes messages more than rate limit.
      */
     @Test
     public void testProducerRateLimit() throws Exception {
@@ -426,7 +429,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies message delivery with multiple consumers on shared and failover subscriptions
+     * verifies message delivery with multiple consumers on shared and failover subscriptions.
      *
      * @throws Exception
      */
@@ -507,7 +510,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies that broker is capturing topic stats correctly
+     * verifies that broker is capturing topic stats correctly.
      */
     @Test
     public void testTopicStats() throws Exception {
@@ -562,7 +565,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies that non-persistent topic replicates using replicator
+     * verifies that non-persistent topic replicates using replicator.
      */
     @Test
     public void testReplicator() throws Exception {
@@ -758,7 +761,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies: broker should reject non-persistent topic loading if broker is not enable for non-persistent topic
+     * verifies: broker should reject non-persistent topic loading if broker is not enable for non-persistent topic.
      *
      * @throws Exception
      */
@@ -789,7 +792,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies that broker started with onlyNonPersistent mode doesn't own persistent-topic
+     * verifies that broker started with onlyNonPersistent mode doesn't own persistent-topic.
      *
      * @param loadManagerName
      * @throws Exception
@@ -840,7 +843,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * Verifies msg-drop stats
+     * Verifies msg-drop stats.
      *
      * @throws Exception
      */

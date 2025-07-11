@@ -256,7 +256,8 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
     }
 
     @Test(dataProvider = "authFunction")
-    public void testSchemaAndTransactionAuthorization(ThrowingBiConsumer<PulsarAdmin> adminConsumer, OperationAuthType topicOpType)
+    public void testSchemaAndTransactionAuthorization(ThrowingBiConsumer<PulsarAdmin> adminConsumer,
+                                                      OperationAuthType topicOpType)
             throws Exception {
         final String subject =  UUID.randomUUID().toString();
         final String token = Jwts.builder()

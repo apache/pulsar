@@ -108,19 +108,19 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
         AtomicBoolean execFlag = new AtomicBoolean(false);
         if (operation instanceof TopicOperation) {
             allowTopicOperationAsyncHandler = invocationOnMock -> {
-                String role_ = invocationOnMock.getArgument(2);
-                if (role.equals(role_)) {
-                    TopicOperation operation_ = invocationOnMock.getArgument(1);
-                    Assert.assertEquals(operation_, operation);
+                String role1 = invocationOnMock.getArgument(2);
+                if (role.equals(role1)) {
+                    TopicOperation operation1 = invocationOnMock.getArgument(1);
+                    Assert.assertEquals(operation1, operation);
                 }
                 execFlag.set(true);
             };
         } else if (operation instanceof NamespaceOperation) {
             allowNamespaceOperationAsyncHandler = invocationOnMock -> {
-                String role_ = invocationOnMock.getArgument(2);
-                if (role.equals(role_)) {
-                    TopicOperation operation_ = invocationOnMock.getArgument(1);
-                    Assert.assertEquals(operation_, operation);
+                String role1 = invocationOnMock.getArgument(2);
+                if (role.equals(role1)) {
+                    TopicOperation operation1 = invocationOnMock.getArgument(1);
+                    Assert.assertEquals(operation1, operation);
                 }
                 execFlag.set(true);
             };

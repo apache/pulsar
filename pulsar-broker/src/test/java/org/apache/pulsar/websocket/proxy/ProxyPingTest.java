@@ -88,8 +88,8 @@ public class ProxyPingTest extends ProducerConsumerBase {
 
     @Test
     public void testPing() throws Exception {
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
-                "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
 
         URI produceUri = URI.create(producerUri);
         WebSocketClient produceClient = new WebSocketClient();

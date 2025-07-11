@@ -20,19 +20,17 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -397,7 +395,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         when(ml1.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 1L));
         when(ml1.getOptionalLedgerInfo(lh.getId())).thenReturn(Optional.of(mock(
                 MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
-        entryCache.asyncReadEntry(lh, PositionFactory.create(1L,1L), new AsyncCallbacks.ReadEntryCallback() {
+        entryCache.asyncReadEntry(lh, PositionFactory.create(1L, 1L), new AsyncCallbacks.ReadEntryCallback() {
             public void readEntryComplete(Entry entry, Object ctx) {
                 Assert.assertNotEquals(entry, null);
                 entry.release();

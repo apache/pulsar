@@ -19,12 +19,9 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.Lists;
-
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;

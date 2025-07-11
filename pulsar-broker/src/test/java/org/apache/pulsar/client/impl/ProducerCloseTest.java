@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.service.Topic;
@@ -35,12 +40,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-impl")
 public class ProducerCloseTest extends ProducerConsumerBase {
@@ -60,7 +59,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
 
     /**
      * Param1: Producer enableBatch or not
-     * Param2: Send in async way or not
+     * Param2: Send in async way or not.
      */
     @DataProvider(name = "produceConf")
     public Object[][] produceConf() {
@@ -74,7 +73,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
 
     /**
      * Param1: Producer enableBatch or not
-     * Param2: Send in async way or not
+     * Param2: Send in async way or not.
      */
     @DataProvider(name = "brokenPipeline")
     public Object[][] brokenPipeline() {
@@ -129,7 +128,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         producer.closeAsync();
         final CommandSuccess commandSuccess = new CommandSuccess();
         PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-        commandSuccess.setRequestId(clientImpl.newRequestId() -1);
+        commandSuccess.setRequestId(clientImpl.newRequestId() - 1);
         producer.getClientCnx().handleSuccess(commandSuccess);
         Thread.sleep(3000);
         Assert.assertEquals(completableFuture.isDone(), true);

@@ -106,8 +106,8 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().createNamespace("max-unacked-messages/default-on-consumers");
         String namespace = "max-unacked-messages/default-on-consumers";
         assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace));
-        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2*50000);
-        assertEquals(2*50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2 * 50000);
+        assertEquals(2 * 50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
     }
 
     @Test
@@ -115,9 +115,10 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().createNamespace("max-unacked-messages/default-on-subscription");
         String namespace = "max-unacked-messages/default-on-subscription";
         assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
-        admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2*200000);
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2 * 200000);
         Awaitility.await().untilAsserted(()
-                -> assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace).intValue()));
+                -> assertEquals(2 * 200000, admin.namespaces()
+                .getMaxUnackedMessagesPerSubscription(namespace).intValue()));
 
         admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
         Awaitility.await().untilAsserted(()
@@ -156,7 +157,8 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("sub").topic(topic).receiverQueueSize(1).subscribe();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(topic).get().get();
         org.apache.pulsar.broker.service.Consumer serverConsumer =
                 persistentTopic.getSubscription("sub").getConsumers().get(0);
         assertEquals(serverConsumer.getMaxUnackedMessages(), topicLevelPolicy);
@@ -196,7 +198,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
 
     private List<Message> consumeMsg(Consumer<?> consumer, int msgNum) throws Exception {
         List<Message> list = new ArrayList<>();
-        for (int i = 0; i <msgNum; i++) {
+        for (int i = 0; i < msgNum; i++) {
             Message message = consumer.receive(1500, TimeUnit.MILLISECONDS);
             if (message == null) {
                 break;

@@ -20,17 +20,14 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker-api")
 public class ProxyProtocolTest extends TlsProducerConsumerBase {

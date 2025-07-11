@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.common.stats;
 
+import static org.testng.Assert.assertEquals;
 import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.prometheus.client.Collector;
 import java.util.List;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
 
 public class CacheMetricsCollectorTest {
 

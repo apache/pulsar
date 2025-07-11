@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import com.google.common.collect.Multimap;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.LoadData;
-import org.apache.pulsar.policies.data.loadbalancer.*;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.Multimap;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class UniformLoadShedderTest {
@@ -79,7 +82,7 @@ public class UniformLoadShedderTest {
         loadData.getBrokerData().put(broker2Name, new BrokerData(broker2));
 
         Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(),2);
+        assertEquals(bundlesToUnload.size(), 2);
     }
 
     @Test
@@ -142,14 +145,14 @@ public class UniformLoadShedderTest {
                 60000, // broker1
                 70000, // broker2
                 10000, // broker3
-                20000};// broker4
+                20000}; // broker4
 
         double[] brokerMsgThroughputs = new double[]{
                 50 * 1024 * 1024, // broker0
                 60 * 1024 * 1024, // broker1
                 70 * 1024 * 1024, // broker2
                 80 * 1024 * 1024, // broker3
-                10 * 1024 * 1024};// broker4
+                10 * 1024 * 1024}; // broker4
 
 
         for (int brokerId = 0; brokerId < numBrokers; brokerId++) {

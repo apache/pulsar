@@ -29,21 +29,25 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.api.client.util.Lists;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
@@ -145,13 +149,14 @@ public class PartitionedProducerImplTest {
     public void testPartialPartitionWithKey() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
         final Hash hash = Murmur3Hash32.getInstance();
-        final List<Integer> expectedHashList = Lists.newArrayList();
-        final List<Integer> actualHashList = Lists.newArrayList();
+        final List<Integer> expectedHashList = new ArrayList<>();
+        final List<Integer> actualHashList = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
             final String key = String.valueOf(i);
             final Message<byte[]> msg = MessageImpl
-                    .create(new MessageMetadata().setPartitionKey(key), ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                    .create(new MessageMetadata().setPartitionKey(key),
+                            ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
             final TopicMetadata metadata = new TopicMetadataImpl(10);
             expectedHashList.add(signSafeMod(hash.makeHash(key), 10));
             actualHashList.add(router.choosePartition(msg, metadata));
@@ -267,8 +272,8 @@ public class PartitionedProducerImplTest {
 
         String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
         ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
-        ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName, producerConfDataNonPartitioned,
-                null, 0, null, null, Optional.empty());
+        ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName,
+                producerConfDataNonPartitioned, null, 0, null, null, Optional.empty());
         assertEquals(producerImpl.getNumOfPartitions(), 0);
     }
 
@@ -301,7 +306,7 @@ public class PartitionedProducerImplTest {
         partitionedProducerImpl = new PartitionedProducerImpl(
                 clientImpl, topicName, producerConfData, 1, null, null, null);
         assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
-        
+
         // Test set maxPendingMessage=10 and MaxPendingMessagesAcrossPartitions=10 with 2 partitions
         producerConfData.setMaxPendingMessages(10);
         producerConfData.setMaxPendingMessagesAcrossPartitions(10);

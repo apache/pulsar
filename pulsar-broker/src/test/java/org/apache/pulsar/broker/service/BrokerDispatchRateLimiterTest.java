@@ -82,7 +82,7 @@ public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), 1024L));
 
-        final String topic= "persistent://" + newTopicName();
+        final String topic = "persistent://" + newTopicName();
         final String subName = "my-sub";
 
         @Cleanup

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -29,9 +31,6 @@ import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @Test(groups = "broker-impl")
 public class ControlledClusterFailoverTest {

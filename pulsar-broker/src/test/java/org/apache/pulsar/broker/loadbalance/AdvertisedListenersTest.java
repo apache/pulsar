@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.net.URI;
 import java.util.Optional;
 import lombok.Cleanup;
@@ -73,9 +72,9 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
         conf.setAdvertisedAddress(advertisedAddress);
         conf.setAdvertisedListeners(
-                "public:pulsar://localhost:" + pulsarPort +
-                        ",public_http:http://localhost:" + httpPort +
-                        ",public_https:https://localhost:" + httpsPort);
+                "public:pulsar://localhost:" + pulsarPort
+                        + ",public_http:http://localhost:" + httpPort
+                        + ",public_https:https://localhost:" + httpsPort);
         conf.setBrokerServicePort(Optional.of(pulsarPort));
         conf.setWebServicePort(Optional.of(httpPort));
     }
@@ -95,7 +94,8 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         CloseableHttpResponse response = httpClient.execute(request);
 
         HttpEntity entity = response.getEntity();
-        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity), LookupData.class);
+        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity),
+                LookupData.class);
         System.err.println("Lookup data: " + ld);
 
         assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");

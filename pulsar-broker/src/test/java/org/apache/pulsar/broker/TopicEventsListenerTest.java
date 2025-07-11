@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
-
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -44,13 +45,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 @Slf4j
 public class TopicEventsListenerTest extends BrokerTestBase {
 
-    final static Queue<String> events = new ConcurrentLinkedQueue<>();
+    final Queue<String> events = new ConcurrentLinkedQueue<>();
     volatile String topicNameToWatch;
     String namespace;
 
@@ -262,7 +260,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         );
     }
 
-    private void createTopicAndVerifyEvents(String topicDomain, String topicTypePartitioned, String topicName) throws Exception {
+    private void createTopicAndVerifyEvents(String topicDomain, String topicTypePartitioned, String topicName)
+            throws Exception {
         final String[] expectedEvents;
         if (topicDomain.equalsIgnoreCase("persistent") || topicTypePartitioned.equals("partitioned")) {
             if (topicTypePartitioned.equals("partitioned")) {

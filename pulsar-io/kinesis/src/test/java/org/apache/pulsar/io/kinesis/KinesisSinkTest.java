@@ -56,20 +56,20 @@ import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 public class KinesisSinkTest {
 
     public static final String STREAM_NAME = "my-stream-1";
-    public static LocalStackContainer LOCALSTACK_CONTAINER =
+    public static final LocalStackContainer LOCAL_STACK_CONTAINER =
             new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.0.3"))
                     .withServices(LocalStackContainer.Service.KINESIS, LocalStackContainer.Service.STS)
                     .withEnv("KINESIS_PROVIDER", "kinesalite");
 
     @BeforeClass(alwaysRun = true)
     public void beforeClass() throws Exception {
-        LOCALSTACK_CONTAINER.start();
+        LOCAL_STACK_CONTAINER.start();
         createClient().createStream(CreateStreamRequest.builder().streamName(STREAM_NAME).shardCount(1).build()).get();
     }
 
     @AfterClass(alwaysRun = true)
     public void afterClass() throws Exception {
-        LOCALSTACK_CONTAINER.stop();
+        LOCAL_STACK_CONTAINER.stop();
     }
 
     @Test
@@ -82,7 +82,7 @@ public class KinesisSinkTest {
 
             @Override
             public Optional<String> getKey() {
-                return Optional.of( "key-" + sequenceCounter.incrementAndGet());
+                return Optional.of("key-" + sequenceCounter.incrementAndGet());
             }
 
             @Override
@@ -123,11 +123,12 @@ public class KinesisSinkTest {
     }
 
     private Map<String, Object> createConfig() {
-        final URI kinesisEndpointOverride = LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS);
+        final URI kinesisEndpointOverride =
+                LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS);
         Map<String, Object> map = new HashMap<>();
         map.put("awsEndpoint", kinesisEndpointOverride.getHost());
         map.put("awsEndpointPort", kinesisEndpointOverride.getPort());
-        final URI stsEndpointOverride = LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.STS);
+        final URI stsEndpointOverride = LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.STS);
         map.put("awsStsEndpoint", stsEndpointOverride.getHost());
         map.put("awsStsPort", stsEndpointOverride.getPort());
         map.put("skipCertificateValidation", true);
@@ -148,7 +149,7 @@ public class KinesisSinkTest {
                     }
                 })
                 .region(Region.US_EAST_1)
-                .endpointOverride(LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS))
+                .endpointOverride(LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS))
                 .build();
         return client;
     }

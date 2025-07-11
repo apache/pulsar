@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.io.batchdatagenerator;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.io.batchdiscovery.CronTriggerer;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Useful for testing within IDE.

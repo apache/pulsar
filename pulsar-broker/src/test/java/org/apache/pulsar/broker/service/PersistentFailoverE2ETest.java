@@ -313,7 +313,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         int numPartitions = 4;
 
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop/use/ns-abc/testSimpleConsumerEventsWithPartition");
+        final String topicName = BrokerTestUtil.newUniqueName(
+                "persistent://prop/use/ns-abc/testSimpleConsumerEventsWithPartition");
         final TopicName destName = TopicName.get(topicName);
         final String subName = "sub1";
         final int numMsgs = 100;
@@ -329,24 +330,30 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         ActiveInactiveListenerEvent listener1 = new ActiveInactiveListenerEvent();
         ActiveInactiveListenerEvent listener2 = new ActiveInactiveListenerEvent();
 
-        Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("1").consumerEventListener(listener1)
+        Consumer<byte[]> consumer1 = consumerBuilder.clone()
+                .consumerName("1").consumerEventListener(listener1)
                 .receiverQueueSize(1)
                 .subscribe();
-        Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("2").consumerEventListener(listener2)
+        Consumer<byte[]> consumer2 = consumerBuilder.clone()
+                .consumerName("2").consumerEventListener(listener2)
                 .receiverQueueSize(1)
                 .subscribe();
 
         PersistentTopic topicRef;
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(0).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(destName.getPartition(0).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp0 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(1).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService().
+                getTopicReference(destName.getPartition(1).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp1 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(2).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(destName.getPartition(2).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp2 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(3).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(destName.getPartition(3).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp3 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
 

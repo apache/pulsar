@@ -18,12 +18,9 @@
  */
 package org.apache.pulsar.common.stats;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertNotEquals;
-
+import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class JvmDefaultGCMetricsLoggerTest {

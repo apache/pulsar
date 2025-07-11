@@ -18,27 +18,25 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableSet;
-import lombok.Cleanup;
-import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -66,7 +64,7 @@ public class ConfigurationDataUtilsTest {
         config.put("dnsLookupBindAddress", "0.0.0.0");
         config.put("dnsLookupBindPort", 0);
         List<InetSocketAddress> dnsServerAddresses = Arrays.asList(new InetSocketAddress[] {
-                new InetSocketAddress("1.1.1.1", 53), new InetSocketAddress("2.2.2.2",100)
+                new InetSocketAddress("1.1.1.1", 53), new InetSocketAddress("2.2.2.2", 100)
         });
         config.put("dnsServerAddresses", dnsServerAddresses);
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
@@ -97,7 +95,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-producer", confData.getProducerName());
         assertFalse(confData.isBatchingEnabled());
         assertEquals(1234, confData.getBatchingMaxMessages());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
@@ -114,7 +112,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-subscription", confData.getSubscriptionName());
         assertEquals(100, confData.getPriorityLevel());
         assertEquals("unknown-consumer", confData.getConsumerName());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
@@ -223,7 +221,8 @@ public class ConfigurationDataUtilsTest {
 
         @Cleanup
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
-        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
+        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(),
+                new InetSocketAddress("localhost", 11080));
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyPassword(), "test123");
 
