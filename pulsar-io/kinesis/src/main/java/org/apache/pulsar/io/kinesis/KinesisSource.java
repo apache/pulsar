@@ -30,11 +30,13 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.arns.Arn;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 import software.amazon.kinesis.retrieval.RetrievalConfig;
 import software.amazon.kinesis.retrieval.polling.PollingConfig;
+import java.util.Optional;
 
 /**
  * @see ConfigsBuilder
@@ -74,13 +76,30 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
 
         KinesisAsyncClient kClient = kinesisSourceConfig.buildKinesisAsyncClient(credentialsProvider);
         recordProcessorFactory = new KinesisRecordProcessorFactory(queue, kinesisSourceConfig);
-        configsBuilder = new ConfigsBuilder(kinesisSourceConfig.getAwsKinesisStreamName(),
-                                            kinesisSourceConfig.getApplicationName(),
-                                            kClient,
-                                            kinesisSourceConfig.buildDynamoAsyncClient(credentialsProvider),
-                                            kinesisSourceConfig.buildCloudwatchAsyncClient(credentialsProvider),
-                                            workerId,
-                                            recordProcessorFactory);
+
+        configsBuilder = kinesisSourceConfig.getStreamArn()
+            .map(arn -> {
+                log.info("Using stream ARN: {}", arn);
+                return new ConfigsBuilder(
+                        arn,
+                        kinesisSourceConfig.getApplicationName(),
+                        kClient,
+                        kinesisSourceConfig.buildDynamoAsyncClient(credentialsProvider),
+                        kinesisSourceConfig.buildCloudwatchAsyncClient(credentialsProvider),
+                        workerId,
+                        recordProcessorFactory);
+            })
+            .orElseGet(() -> {
+                log.info("Using stream name: {}", kinesisSourceConfig.getAwsKinesisStreamName());
+                return new ConfigsBuilder(
+                        kinesisSourceConfig.getAwsKinesisStreamName(),
+                        kinesisSourceConfig.getApplicationName(),
+                        kClient,
+                        kinesisSourceConfig.buildDynamoAsyncClient(credentialsProvider),
+                        kinesisSourceConfig.buildCloudwatchAsyncClient(credentialsProvider),
+                        workerId,
+                        recordProcessorFactory);
+            });
 
         RetrievalConfig retrievalConfig = configsBuilder.retrievalConfig();
         if (!kinesisSourceConfig.isUseEnhancedFanOut()) {

@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -34,6 +35,7 @@ import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
+import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClientBuilder;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
@@ -144,6 +146,23 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
             + "kinesis.partition.key,kinesis.sequence.number";
     private transient Set<String> propertiesToInclude;
 
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "The arn for the Kinesis stream to consume from. "
+                + "If not specified, the connector will use the stream name as the arn."
+    )
+    private String streamArnName = "";
+    private transient Optional<Arn> streamArn = Optional.empty();
+
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "The field containing the partition key to use for key based partitioning. "
+                + "If not specified, the connector will use the partition key from the Kinesis record."
+    )
+    private String partitionKeyFieldName = "";
+
     public static KinesisSourceConfig load(Map<String, Object> config, SourceContext sourceContext) {
         KinesisSourceConfig kinesisSourceConfig = IOConfigUtils.loadWithSecrets(config,
                 KinesisSourceConfig.class, sourceContext);
@@ -157,6 +176,11 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
             checkArgument((kinesisSourceConfig.getStartAtTime() != null),
                     "When initialPositionInStream is AT_TIMESTAMP, startAtTime must be specified");
         }
+        if (isNotBlank(kinesisSourceConfig.getStreamArnName())) {
+            kinesisSourceConfig.setStreamArn(
+                    Arn.tryFromString(kinesisSourceConfig.getStreamArnName()));
+        }
+
         if (isNotBlank(kinesisSourceConfig.getKinesisRecordProperties())) {
             Set<String> properties = Arrays.stream(kinesisSourceConfig.getKinesisRecordProperties().split(","))
                     .map(String::trim)
