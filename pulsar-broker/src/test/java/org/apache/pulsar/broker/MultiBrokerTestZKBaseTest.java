@@ -29,7 +29,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Multiple brokers with a real test Zookeeper server (instead of the mock server).
+ * Multiple brokers with a real test Zookeeper server (instead of the mock server)
  */
 @Slf4j
 public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {

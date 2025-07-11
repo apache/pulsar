@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -29,6 +26,10 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class SupportVersioningKeyValueSchemaTest {
 
@@ -95,7 +96,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl) keyValueSchema).decode(
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl)keyValueSchema).decode(
                 fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
@@ -156,7 +157,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl) keyValueSchema).decode(
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl)keyValueSchema).decode(
                 fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(

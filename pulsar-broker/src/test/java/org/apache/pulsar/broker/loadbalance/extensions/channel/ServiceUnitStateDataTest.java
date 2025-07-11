@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;

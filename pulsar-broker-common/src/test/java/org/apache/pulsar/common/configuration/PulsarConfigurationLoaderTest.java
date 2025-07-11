@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -33,6 +34,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Optional;
 import java.util.Properties;
+
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.Test;
@@ -50,7 +52,7 @@ public class PulsarConfigurationLoaderTest {
 
         // This unused field is intentionally included to test the ignoreNonExistentMember feature of
         // PulsarConfigurationLoader.convertFrom()
-        private static final String A_FIELD_THAT_IS_NOT_DECLARED_IN_ServiceConfiguration = "x";
+        private String A_FIELD_THAT_IS_NOT_DECLARED_IN_ServiceConfiguration = "x";
 
         @Override
         public Properties getProperties() {

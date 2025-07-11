@@ -138,8 +138,7 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
         CompactedTopicImpl compactedTopic = service.getCompactedTopic();
 
-        Long compactedLedger =
-                admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).properties.get(
+        Long compactedLedger = admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).properties.get(
                 COMPACTED_TOPIC_LEDGER_PROPERTY);
         String markDeletePosition =
                 admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition;

@@ -67,11 +67,9 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
         try (PulsarAdmin admin = PulsarAdmin.builder()
              .authentication(new MockAuthentication("pass.pass"))
              .serviceHttpUrl(brokerUrl.toString()).build()) {
-            admin.clusters().createCluster("test", ClusterData.builder()
-                    .serviceUrl(pulsar.getWebServiceAddress()).build());
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
             admin.tenants().createTenant("public",
-                                         new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                                                 Sets.newHashSet("test")));
+                                         new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
             admin.namespaces().createNamespace("public/default");
             admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
         }

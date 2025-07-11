@@ -25,7 +25,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
 
 /**
- * Test pulsar produce/consume semantics.
+ * Test pulsar produce/consume semantics
  */
 @Slf4j
 public class OxiaSmokeTest extends PulsarTestSuite {

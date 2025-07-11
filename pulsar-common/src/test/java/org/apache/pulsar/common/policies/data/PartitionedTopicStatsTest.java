@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
+
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;

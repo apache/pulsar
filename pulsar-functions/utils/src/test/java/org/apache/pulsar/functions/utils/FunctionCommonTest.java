@@ -50,8 +50,7 @@ import org.testng.annotations.Test;
 public class FunctionCommonTest {
     @Test
     public void testDownloadFile() throws Exception {
-        final String jarHttpUrl =
-                "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
+        final String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         final File file = Files.newTemporaryFile();
         file.deleteOnExit();
         assertThat(file.length()).isZero();
@@ -160,8 +159,7 @@ public class FunctionCommonTest {
             {
                 new WindowFunction<String, Record<Integer>>() {
                     @Override
-                    public Record<Integer> process(Collection<Record<String>> input, WindowContext context)
-                            throws Exception {
+                    public Record<Integer> process(Collection<Record<String>> input, WindowContext context) throws Exception {
                         return null;
                     }
                 }, true
@@ -169,8 +167,7 @@ public class FunctionCommonTest {
             {
                 new WindowFunction<String, CompletableFuture<Integer>>() {
                     @Override
-                    public CompletableFuture<Integer> process(Collection<Record<String>> input, WindowContext context)
-                            throws Exception {
+                    public CompletableFuture<Integer> process(Collection<Record<String>> input, WindowContext context) throws Exception {
                         return null;
                     }
                 }, true

@@ -115,8 +115,8 @@ public class SubscriptionConsumerCompatibilityTest {
     }
 
     @Test(dataProvider = "incompatibleKeySharedPolicies")
-    public void testIncompatibleKeySharedPoliciesNotAllowedInNonPersistentSub(KeySharedMeta consumer1Ksm,
-                      KeySharedMeta consumer2Ksm, String expectedErrorMessage) throws Exception {
+    public void testIncompatibleKeySharedPoliciesNotAllowedInNonPersistentSub(KeySharedMeta consumer1Ksm, KeySharedMeta consumer2Ksm,
+                                                                              String expectedErrorMessage) throws Exception {
         NonPersistentTopic topic = new NonPersistentTopic(successTopicName, pulsarTestContext.getBrokerService());
         NonPersistentSubscription sub = new NonPersistentSubscription(topic, subName, Map.of());
 
@@ -140,8 +140,8 @@ public class SubscriptionConsumerCompatibilityTest {
     }
 
     @Test(dataProvider = "incompatibleKeySharedPolicies")
-    public void testIncompatibleKeySharedPoliciesNotAllowedInPersistentSub(KeySharedMeta consumer1Ksm,
-                                KeySharedMeta consumer2Ksm, String expectedErrorMessage) throws Exception {
+    public void testIncompatibleKeySharedPoliciesNotAllowedInPersistentSub(KeySharedMeta consumer1Ksm, KeySharedMeta consumer2Ksm,
+                                                            String expectedErrorMessage) throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentSubscription sub = new PersistentSubscription(topic, subName, cursorMock, false);
 

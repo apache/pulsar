@@ -19,11 +19,15 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
+
 import com.google.common.collect.Sets;
+
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+
 import lombok.Cleanup;
+
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -117,12 +121,10 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
-        try (ProxyService proxyService =
-                     new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication)) {
+        try (ProxyService proxyService = new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication)) {
             proxyService.start();
             try (PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), clientAuthParams)) {
                 proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();

@@ -78,25 +78,24 @@ public class DistributedIdGeneratorTest {
      */
     @Test
     public void concurrent() throws Exception {
-        int threads = 10;
-        int iterations = 100;
+        int Threads = 10;
+        int Iterations = 100;
 
-        CyclicBarrier barrier = new CyclicBarrier(threads);
-        CountDownLatch counter = new CountDownLatch(threads);
+        CyclicBarrier barrier = new CyclicBarrier(Threads);
+        CountDownLatch counter = new CountDownLatch(Threads);
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         List<String> results = Collections.synchronizedList(new ArrayList<>());
 
-        for (int i = 0; i < threads; i++) {
+        for (int i = 0; i < Threads; i++) {
             executor.execute(() -> {
                 try {
-                    DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService,
-                            "/my/test/concurrent", "prefix");
+                    DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService, "/my/test/concurrent", "prefix");
 
                     barrier.await();
 
-                    for (int j = 0; j < iterations; j++) {
+                    for (int j = 0; j < Iterations; j++) {
                         results.add(gen.getNextId());
                     }
 
@@ -110,7 +109,7 @@ public class DistributedIdGeneratorTest {
 
         counter.await();
 
-        assertEquals(results.size(), threads * iterations);
+        assertEquals(results.size(), Threads * Iterations);
 
         // Check the list contains no duplicates
         Set<String> set = Sets.newHashSet(results);

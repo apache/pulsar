@@ -49,11 +49,11 @@ import org.awaitility.reflect.WhiteboxImpl;
 public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetrySupport {
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
-    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
             .getPath();
-    private static final String brokerCertPath =
+    final static String brokerCertPath =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    private static final String brokerKeyPath =
+    final static String brokerKeyPath =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
     protected int numberOfBookies = 3;
     protected final String clusterName = "r1";

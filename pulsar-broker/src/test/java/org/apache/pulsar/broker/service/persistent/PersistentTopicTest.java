@@ -180,8 +180,8 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         PersistentDispatcherMultipleConsumers sharedDispatcher = (PersistentDispatcherMultipleConsumers) sharedSub
                 .getDispatcher();
-        PersistentDispatcherSingleActiveConsumer failOverDispatcher =
-                (PersistentDispatcherSingleActiveConsumer) failOverSub.getDispatcher();
+        PersistentDispatcherSingleActiveConsumer failOverDispatcher = (PersistentDispatcherSingleActiveConsumer) failOverSub
+                .getDispatcher();
 
         // build backlog
         consumer1.close();
@@ -220,8 +220,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertNotNull(msg);
 
         org.apache.pulsar.broker.service.Consumer sharedConsumer = sharedDispatcher.getConsumers().get(0);
-        Field blockField = org.apache.pulsar.broker.service.Consumer.class
-                .getDeclaredField("blockedConsumerOnUnackedMsgs");
+        Field blockField = org.apache.pulsar.broker.service.Consumer.class.getDeclaredField("blockedConsumerOnUnackedMsgs");
         blockField.setAccessible(true);
         blockField.set(sharedConsumer, true);
         producer.newMessage().value("test").eventTime(5).send();
@@ -423,8 +422,7 @@ public class PersistentTopicTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topicAndMetricsLevel")
-    public void testDelayedDeliveryTrackerMemoryUsageMetric(String topic, boolean exposeTopicLevelMetrics)
-            throws Exception {
+    public void testDelayedDeliveryTrackerMemoryUsageMetric(String topic, boolean exposeTopicLevelMetrics) throws Exception {
         PulsarClient client = pulsar.getClient();
         String namespace = TopicName.get(topic).getNamespace();
         admin.namespaces().createNamespace(namespace);
@@ -486,8 +484,8 @@ public class PersistentTopicTest extends BrokerTestBase {
         }
         if (exposeTopicLevelMetrics) {
             for (Metric metric : subMetrics) {
-                if (metric.tags.get("topic").equals(topic)
-                        && subName.equals(metric.tags.get("subscription"))) {
+                if (metric.tags.get("topic").equals(topic) &&
+                        subName.equals(metric.tags.get("subscription"))) {
                     Assert.assertTrue(metric.value > 0);
                     subscriptionLevelNum++;
                 }
@@ -702,8 +700,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         conf.setForceDeleteNamespaceAllowed(true);
         pulsarClient.newProducer().topic(topic).create().close();
         RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
-        PersistentTopic persistentTopic = spy((PersistentTopic) pulsar.getBrokerService()
-                .getTopicIfExists(topic).get().get());
+        PersistentTopic persistentTopic = spy((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get());
         TopicPoliciesService policiesService = spy(pulsar.getTopicPoliciesService());
         doReturn(policiesService).when(pulsar).getTopicPoliciesService();
         TopicPolicies policies = new TopicPolicies();
@@ -714,17 +711,14 @@ public class PersistentTopicTest extends BrokerTestBase {
         verify(persistentTopic, times(1)).checkPersistencePolicies();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
-            assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(),
-                    TimeUnit.MINUTES.toMillis(1));
+            assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
         });
         // throw exception
-        doReturn(CompletableFuture.failedFuture(new RuntimeException()))
-                .when(persistentTopic).checkPersistencePolicies();
+        doReturn(CompletableFuture.failedFuture(new RuntimeException())).when(persistentTopic).checkPersistencePolicies();
         policies.setRetentionPolicies(new RetentionPolicies(2, 2));
         persistentTopic.onUpdate(policies);
         assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
-        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(),
-                TimeUnit.MINUTES.toMillis(1));
+        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
     }
 
     @Test
@@ -786,8 +780,8 @@ public class PersistentTopicTest extends BrokerTestBase {
         final Optional<Topic> topic = pulsar.getBrokerService().getTopic(topicName, false).join();
         assertNotNull(topic.get());
         PersistentTopic persistentTopic = (PersistentTopic) topic.get();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        final ManagedCursor spyCursor = spy(ledger.newNonDurableCursor(PositionFactory.LATEST, "sub-2"));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)persistentTopic.getManagedLedger();
+        final ManagedCursor spyCursor= spy(ledger.newNonDurableCursor(PositionFactory.LATEST, "sub-2"));
         doAnswer((invocation) -> {
             Thread.sleep(5_000);
             invocation.callRealMethod();
@@ -828,9 +822,8 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub-1").subscribe().close();
         @Cleanup
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false).topic(topicName).create();
-        for (int i = 0; i < 100; i++) {
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topicName).create();
+        for (int i = 0; i < 100; i ++) {
             producer.sendAsync("test-" + i);
         }
         @Cleanup
@@ -840,7 +833,7 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("sub-2").subscribe();
         int count = 0;
-        while (true) {
+        while(true) {
             final Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
             if (msg != null) {
                 consumer.acknowledge(msg);
@@ -851,10 +844,10 @@ public class PersistentTopicTest extends BrokerTestBase {
         }
         Assert.assertEquals(count, 100);
         Thread.sleep(3_000);
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 100; i ++) {
             producer.sendAsync("test-" + i);
         }
-        while (true) {
+        while(true) {
             final Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 consumer.acknowledge(msg);

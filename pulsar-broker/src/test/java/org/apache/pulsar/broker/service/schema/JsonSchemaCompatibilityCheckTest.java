@@ -22,10 +22,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+
 import lombok.Data;
+
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -49,13 +52,11 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     public void testJsonSchemaBackwardsCompatibility() throws JsonProcessingException {
 
         SchemaData from = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
-        SchemaData to = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.builder()
-                .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
+        SchemaData to = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.builder().withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
         JsonSchemaCompatibilityCheck jsonSchemaCompatibilityCheck = new JsonSchemaCompatibilityCheck();
         Assert.assertTrue(jsonSchemaCompatibilityCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
 
-        from = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.<Foo>builder()
-                .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
+        from = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
         to = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
         Assert.assertTrue(jsonSchemaCompatibilityCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
     }
@@ -112,8 +113,7 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
             return of(pojo, Collections.emptyMap());
         }
 
-        public static <T> OldJSONSchema<T> of(Class<T> pojo, Map<String, String> properties)
-                throws JsonProcessingException {
+        public static <T> OldJSONSchema<T> of(Class<T> pojo, Map<String, String> properties) throws JsonProcessingException {
             ObjectMapper mapper = new ObjectMapper();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
             JsonSchema schema = schemaGen.generateSchema(pojo);

@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
-import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.tests.integration.containers.CassandraContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
 
 /**
  * A tester for testing cassandra sink.
@@ -51,8 +53,7 @@ public class CassandraSinkTester extends SinkTester<CassandraContainer> {
     private static final String ROOTS = "cassandra";
     private static final String KEY = "key";
     private static final String COLUMN = "col";
-    private static final String ARCHIVE = "/pulsar/connectors/pulsar-io-cassandra-"
-            + PulsarVersion.getVersion() + ".nar";
+    private static final String ARCHIVE = "/pulsar/connectors/pulsar-io-cassandra-" + PulsarVersion.getVersion() + ".nar";
 
     private final String keySpace;
     private final String tableName;

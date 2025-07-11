@@ -369,8 +369,7 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-            "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }

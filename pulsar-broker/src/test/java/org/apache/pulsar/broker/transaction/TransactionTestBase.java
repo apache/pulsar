@@ -78,8 +78,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         if (admin != null) {
             admin.close();
         }
-        admin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
-                        .serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()))
+        admin = spy(
+                createNewPulsarAdmin(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()))
         );
 
         if (pulsarClient != null) {
@@ -100,12 +100,12 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         return builder.build();
     }
 
-    protected void setUpBase(int numBroker, int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
+    protected void setUpBase(int numBroker,int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
         setBrokerCount(numBroker);
         internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
         admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:"
                 + webServicePort).build());
 
@@ -200,7 +200,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 pulsarClient = null;
             }
             if (pulsarTestContexts.size() > 0) {
-                for (int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
+                for(int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
                     pulsarTestContexts.get(i).close();
                 }
                 pulsarTestContexts.clear();
@@ -215,7 +215,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     }
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
@@ -223,7 +223,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     }
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
             throws Exception {

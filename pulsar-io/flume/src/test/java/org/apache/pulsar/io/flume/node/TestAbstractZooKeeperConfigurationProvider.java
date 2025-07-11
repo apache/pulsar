@@ -55,8 +55,7 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         // start the instance without the admin server!
-        InstanceSpec serverSpec = new InstanceSpec(null, -1, -1, -1, true, -1,
-                -1, -1, Collections.singletonMap("zookeeper.admin.enableServer", "false"));
+        InstanceSpec serverSpec = new InstanceSpec(null, -1, -1, -1, true, -1, -1, -1, Collections.singletonMap("zookeeper.admin.enableServer", "false"));
         zkServer = new TestingServer(serverSpec, true);
         client = CuratorFrameworkFactory
                 .newClient("localhost:" + zkServer.getPort(),

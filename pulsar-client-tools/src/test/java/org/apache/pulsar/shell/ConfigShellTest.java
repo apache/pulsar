@@ -100,8 +100,8 @@ public class ConfigShellTest {
     public void test() throws Exception {
         final Path newClientConf = Files.createTempFile("client", ".conf");
 
-        final byte[] content = ("webServiceUrl=http://localhost:8081/\n"
-                + "brokerServiceUrl=pulsar://localhost:6651/\n").getBytes(StandardCharsets.UTF_8);
+        final byte[] content = ("webServiceUrl=http://localhost:8081/\n" +
+                "brokerServiceUrl=pulsar://localhost:6651/\n").getBytes(StandardCharsets.UTF_8);
         Files.write(newClientConf, content);
         assertTrue(runCommand(new String[]{"create", "myclient",
                 "--file", newClientConf.toFile().getAbsolutePath()}));
@@ -137,8 +137,8 @@ public class ConfigShellTest {
         verify(pulsarShell, times(2)).reload(any());
 
         assertTrue(runCommand(new String[]{"view", "myclient-copied"}));
-        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl"
-                + "=pulsar://localhost:6651/\n\n");
+        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
+                "=pulsar://localhost:6651/\n\n");
         cleanOutput();
     }
 
@@ -146,8 +146,8 @@ public class ConfigShellTest {
     public void testSetGetProperty() throws Exception {
         final Path newClientConf = Files.createTempFile("client", ".conf");
 
-        final byte[] content = ("webServiceUrl=http://localhost:8081/\n"
-                + "brokerServiceUrl=pulsar://localhost:6651/\n").getBytes(StandardCharsets.UTF_8);
+        final byte[] content = ("webServiceUrl=http://localhost:8081/\n" +
+                "brokerServiceUrl=pulsar://localhost:6651/\n").getBytes(StandardCharsets.UTF_8);
         Files.write(newClientConf, content);
         assertTrue(runCommand(new String[]{"create", "myclient",
                 "--file", newClientConf.toFile().getAbsolutePath()}));
@@ -172,8 +172,8 @@ public class ConfigShellTest {
         cleanOutput();
 
         assertTrue(runCommand(new String[]{"view", "myclient"}));
-        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl"
-                + "=pulsar://localhost:6651/\nnewConf=myValue\n\n");
+        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
+                "=pulsar://localhost:6651/\nnewConf=myValue\n\n");
         cleanOutput();
 
         assertTrue(runCommand(new String[]{"set-property", "-p", "newConf",
@@ -187,8 +187,8 @@ public class ConfigShellTest {
 
 
         assertTrue(runCommand(new String[]{"view", "myclient"}));
-        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl"
-                + "=pulsar://localhost:6651/\nnewConf=myValue2\n\n");
+        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
+                "=pulsar://localhost:6651/\nnewConf=myValue2\n\n");
         cleanOutput();
 
         assertTrue(runCommand(new String[]{"set-property", "-p", "newConf",
@@ -196,8 +196,8 @@ public class ConfigShellTest {
         verify(pulsarShell, times(4)).reload(any());
         cleanOutput();
         assertTrue(runCommand(new String[]{"view", "myclient"}));
-        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl"
-                + "=pulsar://localhost:6651/\nnewConf=\n\n");
+        assertEquals(output, "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
+                "=pulsar://localhost:6651/\nnewConf=\n\n");
         cleanOutput();
 
         assertTrue(runCommand(new String[]{"get-property", "-p", "newConf", "myclient"}));

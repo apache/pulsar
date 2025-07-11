@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -136,8 +137,7 @@ public class TestCmdPackages {
             "--path", "/path/to/package"});
         assertTrue(result);
         verify(packages, times(1)).upload(
-            eq(PackageMetadata.builder().description("tests")
-                    .contact("test@apache.org").properties(properties).build()),
+            eq(PackageMetadata.builder().description("tests").contact("test@apache.org").properties(properties).build()),
             eq(packageName),
             eq("/path/to/package"));
     }

@@ -112,7 +112,7 @@ public abstract class OwnerShipForCurrentServerTestBase {
                 pulsarClient = null;
             }
             if (pulsarTestContexts.size() > 0) {
-                for (int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
+                for(int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
                     pulsarTestContexts.get(i).close();
                 }
                 pulsarTestContexts.clear();

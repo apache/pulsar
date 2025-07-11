@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
-import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,7 +29,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.crypto.SecretKey;
+
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -57,13 +57,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import javax.crypto.SecretKey;
+
 // TLS authentication and authorization based on KeyStore type config.
 @Slf4j
 @Test(groups = "broker-impl")
 public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsumerBase {
-    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private static final String CLIENT_USER_TOKEN =
-            AuthTokenUtils.createToken(SECRET_KEY, "clientuser", Optional.empty());
+    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private final String CLIENTUSER_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "clientuser", Optional.empty());
 
     private final String clusterName = "use";
 
@@ -189,7 +190,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
 
     /**
      * verifies that messages whose size is larger than 2^14 bytes (max size of single TLS chunk) can be
-     * produced/consumed.
+     * produced/consumed
      *
      * @throws Exception
      */
@@ -197,8 +198,8 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
     public void testTlsLargeSizeMessage() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size -- {}", messageSize);
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsLargeSizeMessage"
                            + System.currentTimeMillis();
 
@@ -211,7 +212,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .create();
         for (int i = 0; i < 10; i++) {
-            byte[] message = new byte[messageSize];
+            byte[] message = new byte[MESSAGE_SIZE];
             Arrays.fill(message, (byte) i);
             producer.send(message);
         }
@@ -219,7 +220,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
-            byte[] expected = new byte[messageSize];
+            byte[] expected = new byte[MESSAGE_SIZE];
             Arrays.fill(expected, (byte) i);
             Assert.assertEquals(expected, msg.getData());
         }
@@ -233,8 +234,8 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size -- {}", messageSize);
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverBinaryProtocol"
                            + System.currentTimeMillis();
 
@@ -266,8 +267,8 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size -- {}", messageSize);
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverHTTPProtocol"
                            + System.currentTimeMillis();
 
@@ -295,7 +296,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
 
     private final Authentication tlsAuth =
             new AuthenticationKeyStoreTls(KEYSTORE_TYPE, CLIENT_KEYSTORE_FILE_PATH, CLIENT_KEYSTORE_PW);
-    private final Authentication tokenAuth = new AuthenticationToken(CLIENT_USER_TOKEN);
+    private final Authentication tokenAuth = new AuthenticationToken(CLIENTUSER_TOKEN);
 
     @DataProvider
     public Object[][] keyStoreTlsTransportWithAuth() {

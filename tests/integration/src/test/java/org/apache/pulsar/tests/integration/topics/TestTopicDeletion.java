@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.topics;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.fail;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -35,14 +29,22 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
 
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.fail;
+
 /**
  * Test cases for compaction.
  */
 @Slf4j
 public class TestTopicDeletion extends PulsarTestSuite {
 
-    private final boolean unload = false;
-    private final int numBrokers = 2;
+    final private boolean unload = false;
+    final private int numBrokers = 2;
 
     public void setupCluster() throws Exception {
         brokerEnvs.put("managedLedgerMaxEntriesPerLedger", "10");
@@ -59,7 +61,7 @@ public class TestTopicDeletion extends PulsarTestSuite {
         return specBuilder;
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
     public void testPartitionedTopicForceDeletion(Supplier<String> serviceUrl) throws Exception {
 
         log.info("Creating tenant and namespace");
@@ -92,7 +94,7 @@ public class TestTopicDeletion extends PulsarTestSuite {
                     .subscribe();
 
             log.info("Producing messages");
-            try (Producer<byte[]> producer = client.newProducer()
+            try(Producer<byte[]> producer = client.newProducer()
                 .topic(topic)
                 .create()
             ) {
@@ -156,12 +158,12 @@ public class TestTopicDeletion extends PulsarTestSuite {
         return result;
     }
 
-    private ContainerExecResult createNamespace(final String ns) throws Exception {
+    private ContainerExecResult createNamespace(final String Ns) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
                 "namespaces",
                 "create",
                 "--clusters",
-                pulsarCluster.getClusterName(), ns);
+                pulsarCluster.getClusterName(), Ns);
         assertEquals(0, result.getExitCode());
         return result;
     }

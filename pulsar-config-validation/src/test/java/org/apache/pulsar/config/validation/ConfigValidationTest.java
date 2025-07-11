@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.config.validation;
 
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
+import org.testng.annotations.Test;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 public class ConfigValidationTest {
 
@@ -48,7 +50,7 @@ public class ConfigValidationTest {
         @Override
         public void validateField(String name, Object o) {
             if (o instanceof String) {
-                String value = (String) o;
+                String value = (String)o;
                 if (!value.startsWith("ABCDE")) {
                     throw new IllegalArgumentException(String.format("Field %s does not start with ABCDE", name));
                 }

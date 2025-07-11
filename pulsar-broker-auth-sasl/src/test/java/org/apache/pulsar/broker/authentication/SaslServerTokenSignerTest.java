@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.authentication;
 
 import javax.naming.AuthenticationException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -31,7 +32,8 @@ public class SaslServerTokenSignerTest {
         try {
             new SaslRoleTokenSigner(null);
             Assert.fail();
-        } catch (IllegalArgumentException ex) {
+        }
+        catch (IllegalArgumentException ex) {
         }
     }
 

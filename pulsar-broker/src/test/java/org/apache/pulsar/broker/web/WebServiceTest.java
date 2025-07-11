@@ -93,18 +93,18 @@ public class WebServiceTest {
 
     private PulsarTestContext pulsarTestContext;
     private PulsarService pulsar;
-    private String brokerLookUpUrl;
-    private String brokerLookUpUrlTls;
+    private String BROKER_LOOKUP_URL;
+    private String BROKER_LOOKUP_URL_TLS;
 
-    private static final String CA_CERT_FILE_PATH =
+    private final static String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    private static final String BROKER_CERT_FILE_PATH =
+    private final static String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private static final String BROKER_KEY_FILE_PATH =
+    private final static String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private static final String CLIENT_CERT_FILE_PATH =
+    private final static String CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private static final String CLIENT_KEY_FILE_PATH =
+    private final static String CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
 
 
@@ -366,8 +366,7 @@ public class WebServiceTest {
 
         // Create local cluster
         String localCluster = "test";
-        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster,
-                ClusterDataImpl.builder().build());
+        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster, ClusterDataImpl.builder().build());
         TenantInfo info2 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
@@ -486,9 +485,9 @@ public class WebServiceTest {
                 SSLContext sslCtx = SSLContext.getInstance("TLS");
                 sslCtx.init(keyManagers, trustManagers, new SecureRandom());
                 HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
-                response = new URL(brokerLookUpUrlTls).openStream();
+                response = new URL(BROKER_LOOKUP_URL_TLS).openStream();
             } else {
-                response = new URL(brokerLookUpUrl).openStream();
+                response = new URL(BROKER_LOOKUP_URL).openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
             log.info("Response: {}", resp);
@@ -545,13 +544,13 @@ public class WebServiceTest {
 
         pulsar = pulsarTestContext.getPulsarService();
 
-        String brokerUrlBase = "http://localhost:" + pulsar.getListenPortHTTP().get();
-        String brokerUrlBaseTls = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
-        String serviceUrl = brokerUrlBase;
+        String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
+        String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
+        String serviceUrl = BROKER_URL_BASE;
 
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder();
         if (enableTls && enableAuth) {
-            serviceUrl = brokerUrlBaseTls;
+            serviceUrl = BROKER_URL_BASE_TLS;
 
             Map<String, String> authParams = new HashMap<>();
             authParams.put("tlsCertFile", CLIENT_CERT_FILE_PATH);
@@ -560,9 +559,9 @@ public class WebServiceTest {
             adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
         }
 
-        brokerLookUpUrl = brokerUrlBase
+        BROKER_LOOKUP_URL = BROKER_URL_BASE
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-        brokerLookUpUrlTls = brokerUrlBaseTls
+        BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
         @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();

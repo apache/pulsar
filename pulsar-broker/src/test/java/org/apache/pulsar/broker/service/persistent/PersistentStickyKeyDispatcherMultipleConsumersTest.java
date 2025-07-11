@@ -166,8 +166,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         })).when(ledgerMock).getPreviousPosition(any(Position.class));
         doAnswer((invocationOnMock -> {
             final Position position = invocationOnMock.getArgument(0);
-            return PositionFactory.create(position.getLedgerId(),
-                    position.getEntryId() < 0 ? 0 : position.getEntryId() + 1);
+            return PositionFactory.create(position.getLedgerId(), position.getEntryId() < 0 ? 0 : position.getEntryId() + 1);
         })).when(ledgerMock).getNextValidPosition(any(Position.class));
         doAnswer((invocationOnMock -> {
             final Range<Position> range = invocationOnMock.getArgument(0);
@@ -281,8 +280,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
 
         List<Entry> entries = new ArrayList<>();
-        ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId",
-                "testSourceCluster");
+        ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
         entries.add(EntryImpl.create(1, 1, markerMessage));
         markerMessage.release();
         entries.add(createEntry(1, 2, "message1", 1));
@@ -325,8 +323,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     @Test(timeOut = 10000)
     public void testSendMessage() {
         KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
-        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher =
-                new PersistentStickyKeyDispatcherMultipleConsumers(
+        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
                 topicMock, cursorMock, subscriptionMock, configMock, keySharedMeta);
         try {
             keySharedMeta.addHashRange()
@@ -386,8 +383,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         redeliverEntries.add(allEntries.get(0));
 
         try {
-            Field totalAvailablePermitsField =
-                    PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
+            Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
             totalAvailablePermitsField.setAccessible(true);
             totalAvailablePermitsField.set(persistentDispatcher, 1000);
         } catch (Exception e) {
@@ -592,13 +588,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(dataProvider = "testBackoffDelayWhenNoMessagesDispatched")
-    public void testBackoffDelayWhenNoMessagesDispatched(boolean dispatchMessagesInSubscriptionThread,
-            boolean isKeyShared) throws Exception {
+    public void testBackoffDelayWhenNoMessagesDispatched(boolean dispatchMessagesInSubscriptionThread, boolean isKeyShared)
+            throws Exception {
         persistentDispatcher.close();
 
         List<Long> retryDelays = new CopyOnWriteArrayList<>();
-        doReturn(dispatchMessagesInSubscriptionThread).when(configMock)
-                .isDispatcherDispatchMessagesInSubscriptionThread();
+        doReturn(dispatchMessagesInSubscriptionThread).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
 
         PersistentDispatcherMultipleConsumers dispatcher;
         if (isKeyShared) {
@@ -633,8 +628,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
         // test the second retry delay
         entries = List.of(createEntry(1, 1, "message1", 1));
-        dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 2);
                     double delay = retryDelays.get(1);
@@ -644,8 +638,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // verify the max retry delay
         for (int i = 0; i < 100; i++) {
             entries = List.of(createEntry(1, 1, "message1", 1));
-            dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         }
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 102);
@@ -656,8 +649,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // unblock to check that the retry delay is reset
         consumerMockAvailablePermits.set(1000);
         entries = List.of(createEntry(1, 2, "message2", 1, "key2"));
-        dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         // wait that the possibly async handling has completed
         Awaitility.await().untilAsserted(() -> assertFalse(dispatcher.isSendInProgress()));
 
@@ -673,14 +665,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(dataProvider = "testBackoffDelayWhenNoMessagesDispatched")
-    public void testBackoffDelayWhenRetryDelayDisabled(boolean dispatchMessagesInSubscriptionThread,
-                                                       boolean isKeyShared) throws Exception {
+    public void testBackoffDelayWhenRetryDelayDisabled(boolean dispatchMessagesInSubscriptionThread, boolean isKeyShared)
+            throws Exception {
         persistentDispatcher.close();
 
         // it should be possible to disable the retry delay
         // by setting retryBackoffInitialTimeInMs and retryBackoffMaxTimeInMs to 0
-        retryBackoffInitialTimeInMs = 0;
-        retryBackoffMaxTimeInMs = 0;
+        retryBackoffInitialTimeInMs=0;
+        retryBackoffMaxTimeInMs=0;
 
         List<Long> retryDelays = new CopyOnWriteArrayList<>();
         doReturn(dispatchMessagesInSubscriptionThread).when(configMock)
@@ -711,8 +703,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         // call "readEntriesComplete" directly to test the retry behavior
         List<Entry> entries = List.of(createEntry(1, 1, "message1", 1));
-        dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 1);
                     assertEquals(retryDelays.get(0), 0, "Initial retry delay should be 0ms");
@@ -720,8 +711,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
         // test the second retry delay
         entries = List.of(createEntry(1, 1, "message1", 1));
-        dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 2);
                     double delay = retryDelays.get(1);
@@ -731,8 +721,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // verify the max retry delay
         for (int i = 0; i < 100; i++) {
             entries = List.of(createEntry(1, 1, "message1", 1));
-            dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         }
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 102);
@@ -743,16 +732,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // unblock to check that the retry delay is reset
         consumerMockAvailablePermits.set(1000);
         entries = List.of(createEntry(1, 2, "message2", 1, "key2"));
-        dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         // wait that the possibly async handling has completed
         Awaitility.await().untilAsserted(() -> assertFalse(dispatcher.isSendInProgress()));
 
         // now block again to check the next retry delay so verify it was reset
         consumerMockAvailablePermits.set(0);
         entries = List.of(createEntry(1, 3, "message3", 1, "key3"));
-        dispatcher.readEntriesComplete(new ArrayList<>(entries),
-                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 103);
                     assertEquals(retryDelays.get(0), 0, "Resetted retry delay should be 0ms");
@@ -851,8 +838,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
         ByteBuf payload = Unpooled.copiedBuffer(message.getBytes(UTF_8));
-        ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
-                messageMetadata, payload);
+        ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
         payload.release();
         return byteBuf;
     }

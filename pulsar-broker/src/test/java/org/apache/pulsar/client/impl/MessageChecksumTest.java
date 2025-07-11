@@ -24,6 +24,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
 import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -238,8 +239,7 @@ public class MessageChecksumTest extends BrokerTestBase {
         // WHEN
         // protocol message is created with checksum
         ByteBufPair cmd = Commands.newSend(1, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
-        OpSendMsg op = OpSendMsg.create(LatencyHistogram.NOOP,
-                (MessageImpl<byte[]>) msgBuilder.getMessage(), cmd, 1, null);
+        OpSendMsg op = OpSendMsg.create(LatencyHistogram.NOOP, (MessageImpl<byte[]>) msgBuilder.getMessage(), cmd, 1, null);
 
         // THEN
         // the checksum validation passes

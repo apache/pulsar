@@ -222,8 +222,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticationProviders(providers);
 
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 

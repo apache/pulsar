@@ -19,15 +19,16 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import static org.testng.Assert.assertEquals;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.testng.annotations.Test;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+
 
 /**
  * Unit test for {@link BrokerLoadManagerClassFilter}.

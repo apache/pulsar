@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
@@ -45,30 +46,30 @@ public class PositionTest {
 
     @Test
     public void comparisons() {
-        Position pos11 = PositionFactory.create(1, 1);
-        Position pos25 = PositionFactory.create(2, 5);
-        Position pos100 = PositionFactory.create(10, 0);
-        Position pos101 = PositionFactory.create(10, 1);
+        Position pos1_1 = PositionFactory.create(1, 1);
+        Position pos2_5 = PositionFactory.create(2, 5);
+        Position pos10_0 = PositionFactory.create(10, 0);
+        Position pos10_1 = PositionFactory.create(10, 1);
 
-        assertEquals(0, pos11.compareTo(pos11));
-        assertEquals(-1, pos11.compareTo(pos25));
-        assertEquals(-1, pos11.compareTo(pos100));
-        assertEquals(-1, pos11.compareTo(pos101));
+        assertEquals(0, pos1_1.compareTo(pos1_1));
+        assertEquals(-1, pos1_1.compareTo(pos2_5));
+        assertEquals(-1, pos1_1.compareTo(pos10_0));
+        assertEquals(-1, pos1_1.compareTo(pos10_1));
 
-        assertEquals(+1, pos25.compareTo(pos11));
-        assertEquals(0, pos25.compareTo(pos25));
-        assertEquals(-1, pos25.compareTo(pos100));
-        assertEquals(-1, pos25.compareTo(pos101));
+        assertEquals(+1, pos2_5.compareTo(pos1_1));
+        assertEquals(0, pos2_5.compareTo(pos2_5));
+        assertEquals(-1, pos2_5.compareTo(pos10_0));
+        assertEquals(-1, pos2_5.compareTo(pos10_1));
 
-        assertEquals(+1, pos100.compareTo(pos11));
-        assertEquals(+1, pos100.compareTo(pos25));
-        assertEquals(0, pos100.compareTo(pos100));
-        assertEquals(-1, pos100.compareTo(pos101));
+        assertEquals(+1, pos10_0.compareTo(pos1_1));
+        assertEquals(+1, pos10_0.compareTo(pos2_5));
+        assertEquals(0, pos10_0.compareTo(pos10_0));
+        assertEquals(-1, pos10_0.compareTo(pos10_1));
 
-        assertEquals(+1, pos101.compareTo(pos11));
-        assertEquals(+1, pos101.compareTo(pos25));
-        assertEquals(+1, pos101.compareTo(pos100));
-        assertEquals(0, pos101.compareTo(pos101));
+        assertEquals(+1, pos10_1.compareTo(pos1_1));
+        assertEquals(+1, pos10_1.compareTo(pos2_5));
+        assertEquals(+1, pos10_1.compareTo(pos10_0));
+        assertEquals(0, pos10_1.compareTo(pos10_1));
     }
 
     @Test

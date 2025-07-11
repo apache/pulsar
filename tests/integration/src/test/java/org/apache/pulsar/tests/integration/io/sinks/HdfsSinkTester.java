@@ -19,44 +19,45 @@
 package org.apache.pulsar.tests.integration.io.sinks;
 
 import java.util.Map;
+
 import org.apache.pulsar.tests.integration.containers.HdfsContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 public class HdfsSinkTester extends SinkTester<HdfsContainer> {
+	
+	private static final String NAME = "HDFS";
+	
+	public HdfsSinkTester() {
+		super(NAME, SinkType.HDFS);
+		
+		// TODO How do I get the core-site.xml, and hdfs-site.xml files from the container?
+		sinkConfig.put("hdfsConfigResources", "");
+		sinkConfig.put("directory", "/testing/test");
+	}
 
-    private static final String NAME = "HDFS";
+	@Override
+	protected HdfsContainer createSinkService(PulsarCluster cluster) {
+		return new HdfsContainer(cluster.getClusterName());
+	}
 
-    public HdfsSinkTester() {
-        super(NAME, SinkType.HDFS);
+	@Override
+	public void prepareSink() throws Exception {
+		// Create the test directory
+		serviceContainer.execInContainer("/hadoop/bin/hdfs","dfs", "-mkdir", "/tmp/testing");
+		serviceContainer.execInContainer("/hadoop/bin/hdfs", "-chown", "tester:testing", "/tmp/testing");
+		
+		// Execute all future commands as the "tester" user
+		serviceContainer.execInContainer("export HADOOP_USER_NAME=tester");
+	}
 
-        // TODO How do I get the core-site.xml, and hdfs-site.xml files from the container?
-        sinkConfig.put("hdfsConfigResources", "");
-        sinkConfig.put("directory", "/testing/test");
-    }
+	@Override
+	public void validateSinkResult(Map<String, String> kvs) {
+		// TODO Auto-generated method stub
 
-    @Override
-    protected HdfsContainer createSinkService(PulsarCluster cluster) {
-        return new HdfsContainer(cluster.getClusterName());
-    }
+	}
 
-    @Override
-    public void prepareSink() throws Exception {
-        // Create the test directory
-        serviceContainer.execInContainer("/hadoop/bin/hdfs", "dfs", "-mkdir", "/tmp/testing");
-        serviceContainer.execInContainer("/hadoop/bin/hdfs", "-chown", "tester:testing", "/tmp/testing");
+	@Override
+	public void close() throws Exception {
 
-        // Execute all future commands as the "tester" user
-        serviceContainer.execInContainer("export HADOOP_USER_NAME=tester");
-    }
-
-    @Override
-    public void validateSinkResult(Map<String, String> kvs) {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void close() throws Exception {
-
-    }
+	}
 }

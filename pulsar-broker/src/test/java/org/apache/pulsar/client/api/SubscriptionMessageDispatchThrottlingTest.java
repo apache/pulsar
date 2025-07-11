@@ -45,7 +45,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDi
     private static final Logger log = LoggerFactory.getLogger(SubscriptionMessageDispatchThrottlingTest.class);
 
     /**
-     * verify: consumer should not receive all messages due to message-rate throttling.
+     * verify: consumer should not receive all messages due to message-rate throttling
      *
      * @param subscription
      * @throws Exception
@@ -537,8 +537,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDi
      * @throws Exception
      */
     @Test(dataProvider = "subscriptions", timeOut = 30000)
-    public void testBrokerBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription)
-            throws Exception {
+    public void testBrokerBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final String namespace1 = "my-property/throttling_ns1";
@@ -611,7 +610,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDi
     }
 
     /**
-     * verify message-rate on multiple consumers with shared-subscription.
+     * verify message-rate on multiple consumers with shared-subscription
      *
      * @throws Exception
      */

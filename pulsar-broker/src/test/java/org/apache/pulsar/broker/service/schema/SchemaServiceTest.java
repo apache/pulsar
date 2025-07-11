@@ -81,20 +81,20 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     private static final String userId = "user";
 
     private static final String schemaJson1 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
-                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData1 = getSchemaData(schemaJson1);
 
     private static final String schemaJson2 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
-                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},"
-                    + "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                    "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
     private static final SchemaData schemaData2 = getSchemaData(schemaJson2);
 
     private static final String schemaJson3 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
-                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},"
-                    + "{\"name\":\"field2\",\"type\":\"string\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                    "{\"name\":\"field2\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData3 = getSchemaData(schemaJson3);
 
     private SchemaRegistryServiceImpl schemaRegistryService;
@@ -102,8 +102,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        conf.setSchemaRegistryStorageClassName(
-                "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
+        conf.setSchemaRegistryStorageClassName("org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
         super.internalSetup();
         BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
         storage.start();
@@ -344,8 +343,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             SchemaAndMetadata schemaAndMetadata2 = list1.get(i);
             assertEquals(hashFunction.hashBytes(schemaAndMetadata1.schema.getData()).asBytes(),
                     hashFunction.hashBytes(schemaAndMetadata2.schema.getData()).asBytes());
-            assertEquals(((LongSchemaVersion) schemaAndMetadata1.version).getVersion()
-                    , ((LongSchemaVersion) schemaAndMetadata2.version).getVersion());
+            assertEquals(((LongSchemaVersion)schemaAndMetadata1.version).getVersion()
+                    , ((LongSchemaVersion)schemaAndMetadata2.version).getVersion());
             assertEquals(schemaAndMetadata1.id, schemaAndMetadata2.id);
         }
     }
@@ -384,14 +383,12 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                                     point -> point
                                             .hasAttributes(Attributes.of(
                                                     OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
-                                                    SchemaRegistryStats.COMPATIBILITY_CHECK_RESPONSE_KEY,
-                                                    "compatible"))
+                                                    SchemaRegistryStats.COMPATIBILITY_CHECK_RESPONSE_KEY, "compatible"))
                                             .hasValue(2),
                                     point -> point
                                             .hasAttributes(Attributes.of(
                                                     OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
-                                                    SchemaRegistryStats.COMPATIBILITY_CHECK_RESPONSE_KEY,
-                                                    "incompatible"))
+                                                    SchemaRegistryStats.COMPATIBILITY_CHECK_RESPONSE_KEY, "incompatible"))
                                             .hasValue(2))));
     }
 
@@ -475,8 +472,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(admin.schemas().testCompatibility(topicName, schemaInfo).isCompatibility());
         admin.schemas().createSchema(topicName, schemaInfo);
 
-        final IsCompatibilityResponse isCompatibilityResponse = admin.schemas()
-                .testCompatibility(topicName, schemaInfo);
+        final IsCompatibilityResponse isCompatibilityResponse = admin.schemas().testCompatibility(topicName, schemaInfo);
         Assert.assertTrue(isCompatibilityResponse.isCompatibility());
 
         final SchemaInfoWithVersion schemaInfoWithVersion = admin.schemas().getSchemaInfoWithVersion(topicName);

@@ -101,8 +101,7 @@ public class TableViewBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testTableViewBuilderImplWhenAutoUpdatePartitionsIntervalIsSmallerThanOneSecond()
-            throws PulsarClientException {
+    public void testTableViewBuilderImplWhenAutoUpdatePartitionsIntervalIsSmallerThanOneSecond() throws PulsarClientException {
         tableViewBuilderImpl.topic(TOPIC_NAME).autoUpdatePartitionsInterval(100, TimeUnit.MILLISECONDS).create();
     }
 

@@ -143,12 +143,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * <pre>
      * 1. after disabling broker fron loadbalancer
-     * 2. unload namespace-bundle "my-ns1" which disconnects client (producer/consumer)
-     *    connected on that namespacebundle
+     * 2. unload namespace-bundle "my-ns1" which disconnects client (producer/consumer) connected on that namespacebundle
      * 3. but doesn't close the connection for namesapce-bundle "my-ns2" and clients are still connected
      * 4. verifies unloaded "my-ns1" should not connected again with the broker as broker is disabled
-     * 5. unload "my-ns2" which closes the connection as broker doesn't have any more client
-     *    connected on that connection
+     * 5. unload "my-ns2" which closes the connection as broker doesn't have any more client connected on that connection
      * 6. all namespace-bundles are in "connecting" state and waiting for available broker
      * </pre>
      *
@@ -581,7 +579,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that client closes the connection on internalServerError which is "ServiceNotReady" from Broker-side.
+     * It verifies that client closes the connection on internalServerError which is "ServiceNotReady" from Broker-side
      *
      * @throws Exception
      */
@@ -778,10 +776,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         TestMessageObject object = new TestMessageObject();
         SchemaReader<TestMessageObject> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<TestMessageObject> writer = Mockito.mock(SchemaWriter.class);
-        Mockito.when(reader.read(Mockito.any(InputStream.class),
-                Mockito.any(byte[].class))).thenReturn(object);
-        Mockito.when(writer.write(Mockito.any(TestMessageObject.class)))
-                .thenReturn("fake data".getBytes(StandardCharsets.UTF_8));
+        Mockito.when(reader.read(Mockito.any(InputStream.class), Mockito.any(byte[].class))).thenReturn(object);
+        Mockito.when(writer.write(Mockito.any(TestMessageObject.class))).thenReturn("fake data".getBytes(StandardCharsets.UTF_8));
         SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
                 .withPojo(TestMessageObject.class)
                 .withSchemaReader(reader)
@@ -825,8 +821,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         try (PulsarClient client = PulsarClient.builder()
                 .serviceUrl(lookupUrl.toString())
                 .build(); Producer<TestMessageObject> producer = client.newProducer(schema).topic(topicName).create();
-             Consumer<TestMessageObject> consumer = client.newConsumer(schema).topic(topicName)
-                     .subscriptionName("my-subscriber-name").subscribe()) {
+             Consumer<TestMessageObject> consumer = client.newConsumer(schema).topic(topicName).subscriptionName("my-subscriber-name").subscribe()) {
 
             assertNotNull(producer);
             assertNotNull(consumer);
@@ -869,8 +864,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 .subscriptionName("my-sub").poolMessages(true).subscribe();
 
         @Cleanup
-        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic)
-                .enableBatching(isBatchingEnabled).create();
+        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
 
         final int numMessages = 100;
         for (int i = 0; i < numMessages; i++) {
@@ -969,8 +963,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 .startMessageId(MessageId.latest).create();
 
         @Cleanup
-        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic)
-                .enableBatching(isBatchingEnabled).create();
+        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
 
         final int numMessages = 100;
         for (int i = 0; i < numMessages; i++) {

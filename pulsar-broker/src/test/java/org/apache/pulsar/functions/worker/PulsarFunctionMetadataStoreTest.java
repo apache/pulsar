@@ -24,7 +24,7 @@ import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProvid
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar sink on function.
+ * Test Pulsar sink on function
  */
 @Slf4j
 @Test

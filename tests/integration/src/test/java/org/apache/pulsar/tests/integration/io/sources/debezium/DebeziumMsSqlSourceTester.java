@@ -81,12 +81,12 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
         ContainerExecResult res = runSqlCmd("SELECT is_cdc_enabled FROM sys.databases WHERE database_id = DB_ID();");
         // " 1" to differentiate from "(1 rows affected)"
         Assert.assertTrue(res.getStdout().contains(" 1"));
-        runSqlCmd("CREATE TABLE customers ("
-                + "id INT NOT NULL  IDENTITY  PRIMARY KEY, "
-                + "first_name VARCHAR(255) NOT NULL, "
-                + "last_name VARCHAR(255) NOT NULL, "
-                + "email VARCHAR(255) NOT NULL"
-                + ");");
+        runSqlCmd("CREATE TABLE customers (" +
+                "id INT NOT NULL  IDENTITY  PRIMARY KEY, " +
+                "first_name VARCHAR(255) NOT NULL, " +
+                "last_name VARCHAR(255) NOT NULL, " +
+                "email VARCHAR(255) NOT NULL" +
+                ");");
         runSqlCmd("EXEC sys.sp_cdc_enable_table @source_schema = 'dbo', @source_name = 'customers',"
                 + " @role_name = NULL, @supports_net_changes = 0, @capture_instance = 'dbo_customers_v2';");
         runSqlCmd("EXEC sys.sp_cdc_start_job;");

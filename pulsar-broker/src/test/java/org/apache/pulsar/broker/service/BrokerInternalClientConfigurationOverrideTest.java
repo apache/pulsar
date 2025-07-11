@@ -19,9 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-import java.util.Optional;
-import java.util.Properties;
-import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
@@ -35,6 +32,9 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import lombok.Cleanup;
+import java.util.Optional;
+import java.util.Properties;
 
 public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBase {
 
@@ -118,7 +118,7 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
 
     @Test
     public void testOldNamespacePolicy() throws Exception {
-
+        
         String ns = "prop/oldNsWithDefaultNonNullValues";
         String topic = "persistent://" + ns + "/t1";
         Policies policies = new Policies();
@@ -130,7 +130,7 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
         policies.max_unacked_messages_per_consumer = -1;
         policies.max_unacked_messages_per_subscription = -1;
         admin.namespaces().createNamespace(ns, policies);
-
+        
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic).create();
@@ -149,5 +149,7 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
                 conf.getMaxMessageSize());
         assertEquals(topicRef.topicPolicies.getMaxUnackedMessagesOnConsumer().get(),
                 conf.getMaxUnackedMessagesPerConsumer());
+        
+        
     }
 }

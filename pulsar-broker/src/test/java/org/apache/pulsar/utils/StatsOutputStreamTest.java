@@ -19,9 +19,12 @@
 package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
 import java.nio.charset.StandardCharsets;
+
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -163,9 +166,9 @@ public class StatsOutputStreamTest {
                 .writeItem("sample")
                 .endList()
                 .endObject();
-
+        
         // Assert
-        assertEquals(buffer.toString(java.nio.charset.StandardCharsets.UTF_8),
+        assertEquals(buffer.toString(java.nio.charset.StandardCharsets.UTF_8), 
                 "{\"name\":\"test\",\"items\":[true,123,\"sample\"]}");
     }
 

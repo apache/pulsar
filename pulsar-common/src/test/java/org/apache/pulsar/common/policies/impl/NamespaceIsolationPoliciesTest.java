@@ -44,11 +44,8 @@ import org.testng.annotations.Test;
 
 public class NamespaceIsolationPoliciesTest {
 
-    private final String defaultJson = "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],"
-            + "\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],"
-            + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
-            + "\"auto_failover_policy\":{\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"},"
-            + "\"policy_type\":\"min_available\"}}}";
+    private final String defaultJson =
+            "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"},\"policy_type\":\"min_available\"}}}";
 
     @Test
     public void testJsonSerialization() throws Exception {
@@ -134,11 +131,7 @@ public class NamespaceIsolationPoliciesTest {
     public void testSetPolicy() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         // set a new policy
-        String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],"
-                + "\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],"
-                + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
-                + "\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,"
-                + "\"usage_threshold\":80}}}";
+        String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,\"usage_threshold\":80}}}";
         String newPolicyName = "policy2";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         NamespaceIsolationDataImpl nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),

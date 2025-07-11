@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.io.sinks;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+
 import lombok.Cleanup;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Producer;

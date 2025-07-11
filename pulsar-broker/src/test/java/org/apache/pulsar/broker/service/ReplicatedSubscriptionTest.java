@@ -80,7 +80,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Tests replicated subscriptions (PIP-33).
+ * Tests replicated subscriptions (PIP-33)
  */
 @Test(groups = "broker")
 public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
@@ -99,7 +99,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
-     * Tests replicated subscriptions across two regions.
+     * Tests replicated subscriptions across two regions
      */
     @Test
     public void testReplicatedSubscriptionAcrossTwoRegions() throws Exception {
@@ -173,12 +173,12 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         }
 
         // assert that all messages have been received
-        assertEquals(new ArrayList<>(sentMessages), new ArrayList<>(receivedMessages), "Sent and received "
-                + "messages don't match.");
+        assertEquals(new ArrayList<>(sentMessages), new ArrayList<>(receivedMessages), "Sent and received " +
+                "messages don't match.");
 
         var metrics1 = metricReader1.collectAllMetrics();
         assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
-                Attributes.empty(), value -> assertThat(value).isPositive());
+                Attributes.empty(),value -> assertThat(value).isPositive());
         assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
                 Attributes.empty(), value -> assertThat(value).isPositive());
         assertThat(metrics1)
@@ -352,7 +352,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
-     * If there's no traffic, the snapshot creation should stop and then resume when traffic comes back.
+     * If there's no traffic, the snapshot creation should stop and then resume when traffic comes back
      */
     @Test
     public void testReplicationSnapshotStopWhenNoTraffic() throws Exception {
@@ -756,8 +756,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
      * @throws Exception
      */
     private void waitTBRecoverComplete(PulsarService pulsarService, String topicName) throws Exception {
-        TopicTransactionBufferState buffer =
-                (TopicTransactionBufferState) ((PersistentTopic) pulsarService.getBrokerService()
+        TopicTransactionBufferState buffer = (TopicTransactionBufferState) ((PersistentTopic) pulsarService.getBrokerService()
                 .getTopic(topicName, false).get().get()).getTransactionBuffer();
         Field stateField = TopicTransactionBufferState.class.getDeclaredField("state");
         stateField.setAccessible(true);
@@ -765,7 +764,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
-     * Tests replicated subscriptions when replicator producer is closed.
+     * Tests replicated subscriptions when replicator producer is closed
      */
     @Test
     public void testReplicatedSubscriptionWhenReplicatorProducerIsClosed() throws Exception {
@@ -805,8 +804,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
             // waiting to replicate topic/subscription to r1->r2
             Awaitility.await().until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
-            final PersistentTopic topic2 =
-                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
             Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
             Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
         }
@@ -814,9 +812,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         // unsubscribe replicated subscription in r2
         admin1.topics().unload(topicName);
         admin2.topics().deleteSubscription(topicName, subscriptionName);
-
-        final PersistentTopic topic2 =
-                (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+        final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
 
         // close replicator producer in r2
         GeoPersistentReplicator replicator2 = (GeoPersistentReplicator) topic2.getReplicators().get("r1");
@@ -1018,13 +1014,13 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         int defaultSubscriptionsSnapshotTimeout = config1.getReplicatedSubscriptionsSnapshotTimeoutSeconds();
         config1.setReplicatedSubscriptionsSnapshotTimeoutSeconds(2);
         config1.setReplicatedSubscriptionsSnapshotFrequencyMillis(100);
-
+        
         // cluster4 disabled ReplicatedSubscriptions
         admin1.tenants().createTenant("pulsar-r4",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
-
+        
         String subscriptionName = "cluster-subscription";
         boolean replicateSubscriptionState = true;
 
@@ -1065,15 +1061,14 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         ReplicatedSubscriptionsController r1Controller =
                 topic1.getReplicatedSubscriptionController().get();
         assertEquals(r1Controller.pendingSnapshots().size(), 1);
-
+        
         // Assert cluster4 just receive 1 snapshot request msg
         int numSnapshotRequest = 0;
         List<Message<byte[]>> r4Messages = admin4.topics()
                 .peekMessages(topicName, subscriptionName, 100, true, TransactionIsolationLevel.READ_UNCOMMITTED);
         for (Message<byte[]> r4Message : r4Messages) {
             MessageMetadata msgMetadata = ((MessageImpl<byte[]>) r4Message).getMessageBuilder();
-            if (msgMetadata.hasMarkerType() && msgMetadata.getMarkerType()
-                   == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE) {
+            if (msgMetadata.hasMarkerType() && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE) {
                 numSnapshotRequest++;
             }
         }
@@ -1086,8 +1081,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 .peekMessages(topicName, subscriptionName, 100, true, TransactionIsolationLevel.READ_UNCOMMITTED);
         for (Message<byte[]> r4Message : r4Messages) {
             MessageMetadata msgMetadata = ((MessageImpl<byte[]>) r4Message).getMessageBuilder();
-            if (msgMetadata.hasMarkerType() && msgMetadata.getMarkerType()
-                    == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE) {
+            if (msgMetadata.hasMarkerType() && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE) {
                 numSnapshotRequest++;
             }
         }

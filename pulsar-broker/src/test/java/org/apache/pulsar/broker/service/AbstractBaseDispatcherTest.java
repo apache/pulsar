@@ -118,8 +118,7 @@ public class AbstractBaseDispatcherTest {
 
         ManagedCursor cursor = mock(ManagedCursor.class);
 
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo,
-                null, cursor, false, null);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
         assertEquals(size, 0);
         verify(subscriptionDispatchRateLimiter).consumeDispatchQuota(1, expectedBytePermits);
     }

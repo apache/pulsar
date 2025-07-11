@@ -23,8 +23,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import java.util.Set;
-import java.util.UUID;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -41,6 +39,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import java.util.Set;
+import java.util.UUID;
 
 @Test(groups = "broker-admin")
 public class TenantEndpointsAuthorizationTest extends MockedPulsarStandalone {
@@ -78,8 +78,7 @@ public class TenantEndpointsAuthorizationTest extends MockedPulsarStandalone {
     @AfterMethod(alwaysRun = true)
     public void after() throws IllegalAccessException {
         if (orignalAuthorizationService != null) {
-            FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
-                    orignalAuthorizationService, true);
+            FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService", orignalAuthorizationService, true);
         }
     }
 
@@ -105,8 +104,7 @@ public class TenantEndpointsAuthorizationTest extends MockedPulsarStandalone {
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin
-                .tenants().getTenants());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.tenants().getTenants());
     }
 
 
@@ -121,8 +119,7 @@ public class TenantEndpointsAuthorizationTest extends MockedPulsarStandalone {
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin
-                .tenants().getTenantInfo(tenantName));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.tenants().getTenantInfo(tenantName));
     }
 
     @Test
@@ -158,7 +155,6 @@ public class TenantEndpointsAuthorizationTest extends MockedPulsarStandalone {
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin
-                .tenants().deleteTenant(tenantName));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.tenants().deleteTenant(tenantName));
     }
 }

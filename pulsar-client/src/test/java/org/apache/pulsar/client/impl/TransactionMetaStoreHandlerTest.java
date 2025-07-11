@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import io.netty.channel.Channel;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;

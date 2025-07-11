@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SampleCryptoProducer {

@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.awaitility.Awaitility;
@@ -32,6 +28,10 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 
 @Test
 public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
@@ -377,8 +377,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                                                                  boolean batchProduce,
                                                                  int receiverQueueSize,
                                                                  boolean isEnableAckReceipt) throws Exception {
-        final String topic = "persistent://my-property/my-ns/batch-receive-and-redelivery-non-partition-"
-                + UUID.randomUUID();
+        final String topic = "persistent://my-property/my-ns/batch-receive-and-redelivery-non-partition-" + UUID.randomUUID();
         testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
@@ -410,8 +409,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 .subscribe();
 
         sendMessagesAsyncAndWait(producer, messagesToSend);
-        receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(consumer, batchReceivePolicy,
-                messagesToSend / muxNumMessages);
+        receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(consumer, batchReceivePolicy, messagesToSend / muxNumMessages);
     }
 
     @Test
@@ -431,7 +429,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 .subscribe();
 
         sendMessagesAsyncAndWait(producer, messagesToSend);
-        CountDownLatch latch = new CountDownLatch(messagesToSend + 1);
+        CountDownLatch latch = new CountDownLatch(messagesToSend+1);
         receiveAsync(consumer, messagesToSend, latch);
         latch.await();
     }
@@ -457,28 +455,26 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                         .timeout(5, TimeUnit.SECONDS)
                         .build())
                 .subscribe();
-        Assert.assertFalse(((ConsumerBase<?>) consumer).hasBatchReceiveTimeout());
+        Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout());
         final int messagesToSend = 500;
         sendMessagesAsyncAndWait(producer, messagesToSend);
         for (int i = 0; i < 100; i++) {
             Assert.assertNotNull(consumer.receive());
         }
-        Assert.assertFalse(((ConsumerBase<?>) consumer).hasBatchReceiveTimeout());
+        Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout());
         for (int i = 0; i < 400; i++) {
             Messages<String> batchReceived = consumer.batchReceive();
             Assert.assertEquals(batchReceived.size(), 1);
         }
-        Awaitility.await().untilAsserted(() -> Assert.assertFalse(
-                ((ConsumerBase<?>) consumer).hasBatchReceiveTimeout()));
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout()));
         Assert.assertEquals(consumer.batchReceive().size(), 0);
-        Awaitility.await().untilAsserted(() -> Assert.assertFalse(
-                ((ConsumerBase<?>) consumer).hasBatchReceiveTimeout()));
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout()));
     }
 
 
     private void receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(Consumer<String> consumer,
-                                                       BatchReceivePolicy batchReceivePolicy,
-                                                       int numOfExpectedBatches) throws PulsarClientException {
+                                                                            BatchReceivePolicy batchReceivePolicy,
+                                                                            int numOfExpectedBatches) throws PulsarClientException {
         Messages<String> messages;
         for (int i = 0; i < numOfExpectedBatches; i++) {
             messages = consumer.batchReceive();

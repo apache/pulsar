@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,10 +84,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         proxyClientAuthentication.start();
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
-                proxyClientAuthentication));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
-                .when(proxyService).createLocalMetadataStore();
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 
@@ -98,8 +97,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         proxyWebServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null,
-                proxyClientAuthentication);
+        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null, proxyClientAuthentication);
         proxyWebServer.start();
     }
 
@@ -165,7 +163,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Validate proxy topic stats api.
+     * Validate proxy topic stats api
      *
      * @throws Exception
      */
@@ -217,7 +215,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Change proxy log level dynamically.
+     * Change proxy log level dynamically
      *
      * @throws Exception
      */

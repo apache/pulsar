@@ -18,10 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.upgrade;
 
-import static java.util.stream.Collectors.joining;
-import static org.testng.Assert.assertEquals;
 import com.github.dockerjava.api.model.Bind;
-import java.util.stream.Stream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -38,6 +35,9 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testng.annotations.Test;
+import java.util.stream.Stream;
+import static java.util.stream.Collectors.joining;
+import static org.testng.Assert.assertEquals;
 
 /**
  * Test upgrading/downgrading Pulsar cluster from major releases.
@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
 
-    @Test(timeOut = 600_000)
+    @Test(timeOut=600_000)
     public void upgradeTest() throws Exception {
         testUpgradeDowngrade(PulsarContainer.LAST_RELEASE_IMAGE_NAME, PulsarContainer.UPGRADE_TEST_IMAGE_NAME);
     }
@@ -137,8 +137,7 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
         }
     }
 
-    private void publishAndConsume(String topicName, String serviceUrl, int numProduce, int numConsume)
-            throws Exception {
+    private void publishAndConsume(String topicName, String serviceUrl, int numProduce, int numConsume) throws Exception {
         log.info("publishAndConsume: topic name: {}", topicName);
 
         @Cleanup

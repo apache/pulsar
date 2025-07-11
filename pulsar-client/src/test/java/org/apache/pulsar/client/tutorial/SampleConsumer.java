@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.tutorial;
 
 import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -47,7 +48,7 @@ public class SampleConsumer {
         } catch (Exception e) {
             consumer.reconsumeLater(msg, 10, TimeUnit.SECONDS);
         }
-
+       
         pulsarClient.close();
     }
 }

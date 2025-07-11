@@ -25,29 +25,29 @@ import java.util.Map;
 import java.util.Objects;
 
 public class OldPolicies {
-    public final AuthPolicies authPolicies;
-    public List<String> replicationClusters;
-    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap;
+    public final AuthPolicies auth_policies;
+    public List<String> replication_clusters;
+    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map;
     public PersistencePolicies persistence;
-    public Map<String, Integer> latencyStatsSampleRate;
+    public Map<String, Integer> latency_stats_sample_rate;
 
     public OldPolicies() {
-        authPolicies = AuthPolicies.builder().build();
-        replicationClusters = new ArrayList<>();
-        backlogQuotaMap = new HashMap<>();
+        auth_policies = AuthPolicies.builder().build();
+        replication_clusters = new ArrayList<>();
+        backlog_quota_map = new HashMap<>();
         persistence = null;
-        latencyStatsSampleRate = new HashMap<>();
+        latency_stats_sample_rate = new HashMap<>();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof OldPolicies) {
             OldPolicies other = (OldPolicies) obj;
-            return Objects.equals(authPolicies, other.authPolicies)
-                    && Objects.equals(replicationClusters, other.replicationClusters)
-                    && Objects.equals(backlogQuotaMap, other.backlogQuotaMap)
+            return Objects.equals(auth_policies, other.auth_policies)
+                    && Objects.equals(replication_clusters, other.replication_clusters)
+                    && Objects.equals(backlog_quota_map, other.backlog_quota_map)
                     && Objects.equals(persistence, other.persistence)
-                    && Objects.equals(latencyStatsSampleRate, other.latencyStatsSampleRate);
+                    && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate);
         }
 
         return false;

@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import static org.testng.Assert.fail;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link Exceptions}.
@@ -238,7 +239,7 @@ public class WindowConfigUtilsTest {
                 windowConfig.setTimestampExtractorClassName("SomeClass");
                 WindowConfigUtils.validate(windowConfig);
 
-                if (arg0 != null && (Long) arg0 < 0) {
+                if(arg0 != null && (Long) arg0 < 0) {
                     fail(String.format("Window lag cannot be less than zero -- lagTime: %s", arg0));
                 }
             } catch (IllegalArgumentException e) {

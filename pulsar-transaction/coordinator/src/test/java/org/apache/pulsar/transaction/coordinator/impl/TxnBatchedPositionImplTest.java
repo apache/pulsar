@@ -48,7 +48,7 @@ public class TxnBatchedPositionImplTest {
     @Test(dataProvider = "batchSizeAndBatchIndexArgsArray")
     public void testSetAckSetByIndex(int batchSize, int batchIndex){
         // test 1/64
-        TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(1, 1, batchSize, batchIndex);
+        TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(1,1, batchSize, batchIndex);
         txnBatchedPosition.setAckSetByIndex();
         long[] ls = txnBatchedPosition.getAckSet();
         BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(ls);
@@ -66,10 +66,10 @@ public class TxnBatchedPositionImplTest {
     public Object[][] testHashcodeAndEqualsData(){
         Random random = new Random();
         return new Object[][]{
-                {1, 2, 10, 5},
-                {123, 1523, 64, 0},
-                {random.nextInt(65535), random.nextInt(65535), 230, 120},
-                {random.nextInt(65535), random.nextInt(65535), 256, 255}
+                {1,2, 10, 5},
+                {123,1523, 64, 0},
+                {random.nextInt(65535),random.nextInt(65535), 230, 120},
+                {random.nextInt(65535),random.nextInt(65535), 256, 255}
         };
     }
 

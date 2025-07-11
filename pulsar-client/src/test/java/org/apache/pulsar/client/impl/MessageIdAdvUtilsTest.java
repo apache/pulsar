@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 public class MessageIdAdvUtilsTest {
 
     /**
-     * Call <code>acknowledge</code> concurrently with batch message, and verify that only return true once.
+     * Call <code>acknowledge</code> concurrently with batch message, and verify that only return true once
      *
      * @see MessageIdAdvUtils#acknowledge(MessageIdAdv, boolean)
      * @see MessageIdAdv#getAckSet()

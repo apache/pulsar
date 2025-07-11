@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
-import static java.util.stream.Collectors.joining;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.DataProvider;
+
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {

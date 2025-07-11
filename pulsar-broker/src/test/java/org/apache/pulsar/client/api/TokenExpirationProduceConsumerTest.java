@@ -25,7 +25,6 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Calendar;
@@ -35,6 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -54,8 +54,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 @Slf4j
 public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase {
-    private final String tenant = "my-tenant";
-    private final NamespaceName namespaceName = NamespaceName.get("my-tenant", "my-ns");
+    private final String tenant ="my-tenant";
+    private final NamespaceName namespaceName = NamespaceName.get("my-tenant","my-ns");
 
     @BeforeMethod
     @Override
@@ -122,7 +122,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
                 .enableTls(true)
                 .allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(true)
-                .authentication(AuthenticationToken.class.getName(), "token:" + token)
+                .authentication(AuthenticationToken.class.getName(),"token:" +token)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         return clientBuilder.build();
     }
@@ -131,7 +131,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         PulsarAdminBuilder clientBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .allowTlsInsecureConnection(false)
-                .authentication(AuthenticationToken.class.getName(), "token:" + token)
+                .authentication(AuthenticationToken.class.getName(),"token:" +token)
                 .enableTlsHostnameVerification(true);
         return clientBuilder.build();
     }

@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Authentication;
 import org.mockito.Mockito;

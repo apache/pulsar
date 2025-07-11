@@ -157,7 +157,7 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
     @Test
     public void testTopicDispatchThrottledMetrics() throws Exception {
 
-        final String topic = "persistent://" + newTopicName();
+        final String topic= "persistent://" + newTopicName();
         final String subName = "my-sub";
 
         // Create topic and set topic level dispatch rate

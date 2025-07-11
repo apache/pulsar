@@ -362,8 +362,8 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
         CompletableFuture<Void> f2 =
                 CompletableFuture.runAsync(() -> tv.put(k, v).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
-                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")
@@ -380,8 +380,8 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
         CompletableFuture<Void> f2 =
                 CompletableFuture.runAsync(() -> tv.delete(k).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
-                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")
@@ -414,12 +414,10 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
         String prefix = newKey();
         String k = "my";
         @Cleanup
-        MetadataStore store1 = MetadataStoreFactoryImpl.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStore store1 = MetadataStoreFactoryImpl.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         MetadataStoreTableViewImpl<Integer> tv1 = createTestTableView(store1, prefix, urlSupplier);
         @Cleanup
-        MetadataStore store2 = MetadataStoreFactoryImpl.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStore store2 = MetadataStoreFactoryImpl.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         MetadataStoreTableViewImpl<Integer> tv2 = createTestTableView(store2, prefix, urlSupplier);
 
 
@@ -476,8 +474,7 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
         assertTrue(tailExpected.isEmpty());
 
         @Cleanup
-        MetadataStore store2 = MetadataStoreFactoryImpl.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStore store2 = MetadataStoreFactoryImpl.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         MetadataStoreTableViewImpl<Integer> tv = createTestTableView(store2, prefix, urlSupplier);
 
         var existingExpected = new HashSet<>(Set.of(Pair.of(k1, 0), Pair.of(k2, 1), Pair.of(k3, 2), Pair.of(k4, 3)));

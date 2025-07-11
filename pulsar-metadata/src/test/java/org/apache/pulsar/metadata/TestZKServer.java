@@ -90,8 +90,7 @@ public class TestZKServer implements AutoCloseable {
 
     @SneakyThrows
     private static ContainerManager getContainerManager(ZooKeeperServerMain zooKeeperServerMain) {
-        ContainerManager containerManager = readField(ZooKeeperServerMain.class,
-                "containerManager", zooKeeperServerMain);
+        ContainerManager containerManager = readField(ZooKeeperServerMain.class, "containerManager", zooKeeperServerMain);
         return containerManager;
     }
 

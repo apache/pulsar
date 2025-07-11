@@ -81,7 +81,7 @@ public class TopicAuthZTest extends AuthZTest {
         configureTokenAuthentication();
         configureDefaultAuthorization();
         start();
-        this.superUserAdmin = PulsarAdmin.builder()
+        this.superUserAdmin =PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
                 .build();
@@ -103,18 +103,18 @@ public class TopicAuthZTest extends AuthZTest {
 
     private AtomicBoolean setAuthorizationPolicyOperationChecker(String role, Object policyName, Object operation) {
         AtomicBoolean execFlag = new AtomicBoolean(false);
-        if (operation instanceof PolicyOperation) {
+        if (operation instanceof PolicyOperation ) {
 
             doReturn(true)
             .when(authorizationService).isValidOriginalPrincipal(Mockito.any(), Mockito.any(), Mockito.any());
 
             Mockito.doAnswer(invocationOnMock -> {
-                String role1 = invocationOnMock.getArgument(4);
-                if (role.equals(role1)) {
-                    PolicyName policyName1 = invocationOnMock.getArgument(1);
-                    PolicyOperation operation1 = invocationOnMock.getArgument(2);
-                    Assert.assertEquals(operation1, operation);
-                    Assert.assertEquals(policyName1, policyName);
+                String role_ = invocationOnMock.getArgument(4);
+                if (role.equals(role_)) {
+                    PolicyName policyName_ = invocationOnMock.getArgument(1);
+                    PolicyOperation operation_ = invocationOnMock.getArgument(2);
+                    Assert.assertEquals(operation_, operation);
+                    Assert.assertEquals(policyName_, policyName);
                 }
                 execFlag.set(true);
                 return invocationOnMock.callRealMethod();
@@ -307,23 +307,19 @@ public class TopicAuthZTest extends AuthZTest {
         superUserAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest);
 
         // test tenant manager
-        tenantManagerAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(),
-                MessageId.earliest);
+        tenantManagerAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest);
 
         // test nobody
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topics().createSubscription(topic, "test-sub"
-                        + suffix.incrementAndGet(), MessageId.earliest));
+                () -> subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest));
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
             if (action == AuthAction.consume) {
-                subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(),
-                        MessageId.earliest);
+                subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest);
             } else {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                        () -> subAdmin.topics().createSubscription(topic, "test-sub"
-                                + suffix.incrementAndGet(), MessageId.earliest));
+                        () -> subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
@@ -333,14 +329,12 @@ public class TopicAuthZTest extends AuthZTest {
         // test superuser
         superUserAdmin.topics().updateSubscriptionProperties(topic, "test-sub" , properties);
         superUserAdmin.topics().getSubscriptionProperties(topic, "test-sub");
-        superUserAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0)
-                .getLocalName(), "test-sub", Optional.empty());
+        superUserAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty());
 
         // test tenant manager
         tenantManagerAdmin.topics().updateSubscriptionProperties(topic, "test-sub" , properties);
         tenantManagerAdmin.topics().getSubscriptionProperties(topic, "test-sub");
-        tenantManagerAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0)
-                .getLocalName(), "test-sub", Optional.empty());
+        tenantManagerAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty());
 
         // test nobody
         AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.CONSUME);
@@ -355,8 +349,7 @@ public class TopicAuthZTest extends AuthZTest {
 
         execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.CONSUME);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic)
-                        .getPartition(0).getLocalName(), "test-sub", Optional.empty()));
+                () -> subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty()));
         Assert.assertTrue(execFlag.get());
 
         for (AuthAction action : AuthAction.values()) {
@@ -364,8 +357,7 @@ public class TopicAuthZTest extends AuthZTest {
             if (action == AuthAction.consume) {
                 subAdmin.topics().updateSubscriptionProperties(topic, "test-sub", properties);
                 subAdmin.topics().getSubscriptionProperties(topic, "test-sub");
-                subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0)
-                        .getLocalName(), "test-sub", Optional.empty());
+                subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty());
             } else {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                         () -> subAdmin.topics().updateSubscriptionProperties(topic, "test-sub", properties));
@@ -374,8 +366,7 @@ public class TopicAuthZTest extends AuthZTest {
                         () -> subAdmin.topics().getSubscriptionProperties(topic, "test-sub"));
 
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                        () -> subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0)
-                                .getLocalName(), "test-sub", Optional.empty()));
+                        () -> subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty()));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
@@ -776,7 +767,7 @@ public class TopicAuthZTest extends AuthZTest {
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
             if (AuthAction.consume == action) {
-                subAdmin.topics().skipAllMessages(topic, subName);
+                subAdmin.topics().skipAllMessages(topic,subName);
             } else {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                         () -> subAdmin.topics().skipAllMessages(topic, subName));
@@ -975,8 +966,7 @@ public class TopicAuthZTest extends AuthZTest {
                 subAdmin.topics().getMessagesById(topic, messageId.getLedgerId(), messageId.getEntryId());
             } else {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                        () -> subAdmin.topics().getMessagesById(topic, messageId.getLedgerId(),
-                                messageId.getEntryId()));
+                        () -> subAdmin.topics().getMessagesById(topic, messageId.getLedgerId(), messageId.getEntryId()));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
@@ -1233,8 +1223,7 @@ public class TopicAuthZTest extends AuthZTest {
         // test tenant manager
         tenantManagerAdmin.topicPolicies().getEntryFiltersPerTopic(topic, true);
 
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.ENTRY_FILTERS, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ENTRY_FILTERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getEntryFiltersPerTopic(topic, false));
         Assert.assertTrue(execFlag.get());
@@ -1263,8 +1252,7 @@ public class TopicAuthZTest extends AuthZTest {
                 .authentication(new AuthenticationToken(token))
                 .build();
         //
-        final EntryFilterProvider oldEntryFilterProvider = getPulsarService()
-                .getBrokerService().getEntryFilterProvider();
+        final EntryFilterProvider oldEntryFilterProvider = getPulsarService().getBrokerService().getEntryFilterProvider();
         @Cleanup
         final MockEntryFilterProvider testEntryFilterProvider =
                 new MockEntryFilterProvider(getServiceConfiguration());
@@ -1283,8 +1271,7 @@ public class TopicAuthZTest extends AuthZTest {
         // test tenant manager
         tenantManagerAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter);
 
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter));
         Assert.assertTrue(execFlag.get());
@@ -1314,8 +1301,7 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        final EntryFilterProvider oldEntryFilterProvider = getPulsarService()
-                .getBrokerService().getEntryFilterProvider();
+        final EntryFilterProvider oldEntryFilterProvider = getPulsarService().getBrokerService().getEntryFilterProvider();
         @Cleanup
         final MockEntryFilterProvider testEntryFilterProvider =
                 new MockEntryFilterProvider(getServiceConfiguration());
@@ -1375,16 +1361,14 @@ public class TopicAuthZTest extends AuthZTest {
         tenantManagerAdmin.topics().removeShadowTopics(topic);
 
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topics().setShadowTopics(topic,
-                        Lists.newArrayList(shadowTopic)));
+                () -> subAdmin.topics().setShadowTopics(topic, Lists.newArrayList(shadowTopic)));
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().getShadowTopics(topic));
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
             Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                    () -> subAdmin.topics().setShadowTopics(topic,
-                            Lists.newArrayList(shadowTopic)));
+                    () -> subAdmin.topics().setShadowTopics(topic, Lists.newArrayList(shadowTopic)));
             Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                     () -> subAdmin.topics().getShadowTopics(topic));
             superUserAdmin.topics().revokePermissions(topic, subject);
@@ -1406,8 +1390,7 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(subject,
-                NamespaceOperation.GET_TOPICS);
+        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(subject, NamespaceOperation.GET_TOPICS);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().getList("public/default"));
         Assert.assertTrue(execFlag.get());
@@ -1436,21 +1419,18 @@ public class TopicAuthZTest extends AuthZTest {
                 .build();
         //
         superUserAdmin.topics().getPermissions(topic);
-        superUserAdmin.topics().grantPermission(topic, subject,
-                Sets.newHashSet(AuthAction.functions));
+        superUserAdmin.topics().grantPermission(topic, subject, Sets.newHashSet(AuthAction.functions));
         superUserAdmin.topics().revokePermissions(topic, subject);
 
         // test tenant manager
         tenantManagerAdmin.topics().getPermissions(topic);
-        tenantManagerAdmin.topics().grantPermission(topic, subject,
-                Sets.newHashSet(AuthAction.functions));
+        tenantManagerAdmin.topics().grantPermission(topic, subject, Sets.newHashSet(AuthAction.functions));
         tenantManagerAdmin.topics().revokePermissions(topic, subject);
 
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().getPermissions(topic));
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topics().grantPermission(topic, subject,
-                        Sets.newHashSet(AuthAction.functions)));
+                () -> subAdmin.topics().grantPermission(topic, subject, Sets.newHashSet(AuthAction.functions)));
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().revokePermissions(topic, subject));
 
@@ -1471,21 +1451,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.OFFLOAD, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getOffloadPolicies(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setOffloadPolicies(topic,
-                        OffloadPolicies.builder().build()));
+                () -> subAdmin.topicPolicies().setOffloadPolicies(topic, OffloadPolicies.builder().build()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeOffloadPolicies(topic));
         Assert.assertTrue(execFlag.get());
@@ -1507,20 +1483,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_UNACKED, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED,
-                PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, 2));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED,
-                PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic));
         Assert.assertTrue(execFlag.get());
@@ -1542,20 +1515,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getDeduplicationSnapshotInterval(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setDeduplicationSnapshotInterval(topic, 2));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeDeduplicationSnapshotInterval(topic));
         Assert.assertTrue(execFlag.get());
@@ -1577,21 +1547,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getInactiveTopicPolicies(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setInactiveTopicPolicies(topic,
-                        new InactiveTopicPolicies()));
+                () -> subAdmin.topicPolicies().setInactiveTopicPolicies(topic, new InactiveTopicPolicies()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeInactiveTopicPolicies(topic));
         Assert.assertTrue(execFlag.get());
@@ -1613,20 +1579,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_UNACKED, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setMaxUnackedMessagesOnSubscription(topic, 2));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeMaxUnackedMessagesOnSubscription(topic));
         Assert.assertTrue(execFlag.get());
@@ -1648,21 +1611,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getDelayedDeliveryPolicy(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setDelayedDeliveryPolicy(topic,
-                        DelayedDeliveryPolicies.builder().build()));
+                () -> subAdmin.topicPolicies().setDelayedDeliveryPolicy(topic, DelayedDeliveryPolicies.builder().build()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeDelayedDeliveryPolicy(topic));
         Assert.assertTrue(execFlag.get());
@@ -1684,21 +1643,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getAutoSubscriptionCreation(topic, false));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setAutoSubscriptionCreation(topic,
-                        AutoSubscriptionCreationOverride.builder().build()));
+                () -> subAdmin.topicPolicies().setAutoSubscriptionCreation(topic, AutoSubscriptionCreationOverride.builder().build()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeAutoSubscriptionCreation(topic));
         Assert.assertTrue(execFlag.get());
@@ -1720,20 +1675,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getSubscribeRate(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE,
-                PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setSubscribeRate(topic, new SubscribeRate()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeSubscribeRate(topic));
         Assert.assertTrue(execFlag.get());
@@ -1755,21 +1707,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getSubscriptionTypesEnabled(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setSubscriptionTypesEnabled(topic,
-                        new HashSet<>()));
+                () -> subAdmin.topicPolicies().setSubscriptionTypesEnabled(topic, new HashSet<>()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeSubscriptionTypesEnabled(topic));
         Assert.assertTrue(execFlag.get());
@@ -1791,20 +1739,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getPublishRate(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setPublishRate(topic, new PublishRate()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removePublishRate(topic));
         Assert.assertTrue(execFlag.get());
@@ -1826,21 +1771,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getMaxConsumersPerSubscription(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setMaxConsumersPerSubscription(topic,
-                        2));
+                () -> subAdmin.topicPolicies().setMaxConsumersPerSubscription(topic, 2));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeMaxConsumersPerSubscription(topic));
         Assert.assertTrue(execFlag.get());
@@ -1862,20 +1803,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.COMPACTION, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.COMPACTION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getCompactionThreshold(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.COMPACTION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.COMPACTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setCompactionThreshold(topic, 20000));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.COMPACTION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.COMPACTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeCompactionThreshold(topic));
         Assert.assertTrue(execFlag.get());
@@ -1897,21 +1835,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getDispatchRate(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setDispatchRate(topic,
-                        DispatchRate.builder().build()));
+                () -> subAdmin.topicPolicies().setDispatchRate(topic, DispatchRate.builder().build()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeDispatchRate(topic));
         Assert.assertTrue(execFlag.get());
@@ -1933,20 +1867,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getMaxConsumers(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setMaxConsumers(topic, 2));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeMaxConsumers(topic));
         Assert.assertTrue(execFlag.get());
@@ -1968,20 +1899,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getMaxProducers(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setMaxProducers(topic, 2));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeMaxProducers(topic));
         Assert.assertTrue(execFlag.get());
@@ -2003,21 +1931,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.REPLICATION_RATE, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION_RATE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getReplicatorDispatchRate(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setReplicatorDispatchRate(topic,
-                        DispatchRate.builder().build()));
+                () -> subAdmin.topicPolicies().setReplicatorDispatchRate(topic, DispatchRate.builder().build()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeReplicatorDispatchRate(topic));
         Assert.assertTrue(execFlag.get());
@@ -2039,21 +1963,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.PERSISTENCE, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.PERSISTENCE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getPersistence(topic));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setPersistence(topic,
-                        new PersistencePolicies()));
+                () -> subAdmin.topicPolicies().setPersistence(topic, new PersistencePolicies()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removePersistence(topic));
         Assert.assertTrue(execFlag.get());
@@ -2075,20 +1995,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RETENTION, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RETENTION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getRetention(topic, false));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RETENTION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RETENTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setRetention(topic, new RetentionPolicies()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.RETENTION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RETENTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeRetention(topic));
         Assert.assertTrue(execFlag.get());
@@ -2110,20 +2027,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DEDUPLICATION, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getDeduplicationStatus(topic, false));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setDeduplicationStatus(topic, false));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeDeduplicationStatus(topic));
         Assert.assertTrue(execFlag.get());
@@ -2145,20 +2059,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.TTL, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.TTL, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getMessageTTL(topic, false));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.TTL, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.TTL, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setMessageTTL(topic, 2));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.TTL, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.TTL, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeMessageTTL(topic));
         Assert.assertTrue(execFlag.get());
@@ -2180,21 +2091,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.BACKLOG, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.BACKLOG, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getBacklogQuotaMap(topic, false));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.BACKLOG, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.BACKLOG, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.topicPolicies().setBacklogQuota(topic,
-                        BacklogQuota.builder().build()));
+                () -> subAdmin.topicPolicies().setBacklogQuota(topic, BacklogQuota.builder().build()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.BACKLOG, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.BACKLOG, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().removeBacklogQuota(topic));
         Assert.assertTrue(execFlag.get());
@@ -2216,20 +2123,17 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.REPLICATION, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().getReplicationClusters(topic, false));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.REPLICATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().setReplicationClusters(topic, new ArrayList<>()));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject,
-                PolicyName.REPLICATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().removeReplicationClusters(topic));
         Assert.assertTrue(execFlag.get());

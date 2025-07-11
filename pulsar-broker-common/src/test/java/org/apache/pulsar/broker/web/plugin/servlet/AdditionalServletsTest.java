@@ -20,14 +20,14 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.Properties;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Properties;
 
 public class AdditionalServletsTest {
 
@@ -72,7 +72,7 @@ public class AdditionalServletsTest {
         as.setDefinition(new AdditionalServletDefinition());
         as.getDefinition().setName("as" + index);
         as.getDefinition().setAdditionalServletClass("com.example.AS" + index);
-        as.getDefinition().setDescription("Additional Servlet " + index);
+        as.getDefinition().setDescription("Additional Servlet " +index);
         return as;
     }
 }

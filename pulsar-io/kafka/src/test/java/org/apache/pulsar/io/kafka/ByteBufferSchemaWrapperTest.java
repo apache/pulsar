@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.io.kafka;
 
+import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.Test;
+
+import java.nio.ByteBuffer;
+
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
-import java.nio.ByteBuffer;
-import lombok.extern.slf4j.Slf4j;
-import org.testng.annotations.Test;
 
 @Slf4j
 public class ByteBufferSchemaWrapperTest {
@@ -46,7 +48,7 @@ public class ByteBufferSchemaWrapperTest {
         assertEquals(2, wrapped.remaining());
         byte[] result = ByteBufferSchemaWrapper.getBytes(wrapped);
         assertNotSame(result, originalArray);
-        assertArrayEquals(result, new byte[] {2, 3});
+        assertArrayEquals(result, new byte[] {2,3});
     }
 
     @Test
@@ -60,7 +62,7 @@ public class ByteBufferSchemaWrapperTest {
         assertEquals(2, wrapped.remaining());
         byte[] result = ByteBufferSchemaWrapper.getBytes(wrapped);
         assertNotSame(result, originalArray);
-        assertArrayEquals(result, new byte[] {2, 3});
+        assertArrayEquals(result, new byte[] {2,3});
     }
 
     @Test
@@ -71,7 +73,7 @@ public class ByteBufferSchemaWrapperTest {
         assertEquals(2, wrapped.remaining());
         byte[] result = ByteBufferSchemaWrapper.getBytes(wrapped);
         assertNotSame(result, originalArray);
-        assertArrayEquals(result, new byte[] {1, 2});
+        assertArrayEquals(result, new byte[] {1,2});
     }
 
 }

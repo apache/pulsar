@@ -230,8 +230,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithBatching(KeySharedImplementationType impl, String topicType, boolean enableBatch)
-            throws Exception {
+    public void testSendAndReceiveWithBatching(KeySharedImplementationType impl, String topicType, boolean enableBatch) throws Exception {
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -291,7 +290,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         @Cleanup
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
-                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE - 1)));
+                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
         StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
@@ -419,7 +418,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         @Cleanup
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
-                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE - 1)));
+                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
         StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
@@ -499,7 +498,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         @Cleanup
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
-                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE - 1)));
+                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
         StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
@@ -580,8 +579,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testMakingProgressWithSlowerConsumer(KeySharedImplementationType impl, boolean enableBatch)
-            throws Exception {
+    public void testMakingProgressWithSlowerConsumer(KeySharedImplementationType impl, boolean enableBatch) throws Exception {
         String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
         String slowKey = "slowKey";
 
@@ -631,12 +629,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .value(-1)
                     .send();
 
-            int num = 1000;
+            int N = 1000;
 
             int nonSlowMessages = 0;
 
             // Then send all the other keys
-            for (int i = 0; i < num; i++) {
+            for (int i = 0; i < N; i++) {
                 String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
                 if (selector.select(selector.makeStickyKeyHash(key.getBytes())) != slowConsumer) {
                     // count messages that are not going to the slow consumer
@@ -836,10 +834,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         final String topic = "persistent://public/default/testHashRangeConflict-" + UUID.randomUUID().toString();
         final String sub = "test";
 
-        Consumer<String> consumer1 = createFixedHashRangesConsumer(topic, sub, Range.of(0, 99), Range.of(400, 65535));
+        Consumer<String> consumer1 = createFixedHashRangesConsumer(topic, sub, Range.of(0,99), Range.of(400, 65535));
         Assert.assertTrue(consumer1.isConnected());
 
-        Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100, 399));
+        Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100,399));
         Assert.assertTrue(consumer2.isConnected());
 
         StickyKeyDispatcher dispatcher = getDispatcher(topic, sub);
@@ -852,7 +850,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
 
         try {
-            createFixedHashRangesConsumer(topic, sub, Range.of(1, 1));
+            createFixedHashRangesConsumer(topic, sub, Range.of(1,1));
             Assert.fail("Should failed with conflict range.");
         } catch (PulsarClientException.ConsumerAssignException ignore) {
         }
@@ -868,21 +866,21 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
 
         try {
-            createFixedHashRangesConsumer(topic, sub, Range.of(50, 100));
+            createFixedHashRangesConsumer(topic, sub, Range.of(50,100));
             Assert.fail("Should failed with conflict range.");
         } catch (PulsarClientException.ConsumerAssignException ignore) {
         }
 
         try {
-            createFixedHashRangesConsumer(topic, sub, Range.of(399, 500));
+            createFixedHashRangesConsumer(topic, sub, Range.of(399,500));
             Assert.fail("Should failed with conflict range.");
         } catch (PulsarClientException.ConsumerAssignException ignore) {
         }
 
-        Consumer<String> consumer3 = createFixedHashRangesConsumer(topic, sub, Range.of(400, 600));
+        Consumer<String> consumer3 = createFixedHashRangesConsumer(topic, sub, Range.of(400,600));
         Assert.assertTrue(consumer3.isConnected());
 
-        Consumer<String> consumer4 = createFixedHashRangesConsumer(topic, sub, Range.of(50, 99));
+        Consumer<String> consumer4 = createFixedHashRangesConsumer(topic, sub, Range.of(50,99));
         Assert.assertTrue(consumer4.isConnected());
 
         Assert.assertEquals(dispatcher.getConsumers().size(), 3);
@@ -1066,8 +1064,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "partitioned")
-    public void testOrderingWithConsumerListener(KeySharedImplementationType impl, boolean partitioned)
-            throws Exception {
+    public void testOrderingWithConsumerListener(KeySharedImplementationType impl, boolean partitioned) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         if (partitioned) {
             admin.topics().createPartitionedTopic(topic, 3);
@@ -1190,8 +1187,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "topicDomain")
-    public void testSelectorChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl, String topicDomain)
-            throws PulsarClientException,
+    public void testSelectorChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl, String topicDomain) throws PulsarClientException,
             ExecutionException, InterruptedException {
         final String topicName = TopicName.get(topicDomain, "public", "default",
                 "testSelectorChangedAfterAllConsumerDisconnected" + UUID.randomUUID()).toString();
@@ -1237,8 +1233,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testAllowOutOfOrderDeliveryChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl)
-            throws Exception {
+    public void testAllowOutOfOrderDeliveryChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl) throws Exception {
         final String topicName = "persistent://public/default/change-allow-ooo-delivery-" + UUID.randomUUID();
         final String subName = "my-sub";
 
@@ -1374,8 +1369,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         return null;
     }
 
-    private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges)
-            throws PulsarClientException {
+    private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {
         return pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Key_Shared)
@@ -1449,10 +1443,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     /**
-     * Check that every consumer receives a fair number of messages and that same key is delivered to only 1 consumer.
+     * Check that every consumer receives a fair number of messages and that same key is delivered to only 1 consumer
      */
-    private void receiveAndCheckDistribution(List<Consumer<?>> consumers, int expectedTotalMessage)
-            throws PulsarClientException {
+    private void receiveAndCheckDistribution(List<Consumer<?>> consumers, int expectedTotalMessage) throws PulsarClientException {
         // Add a key so that we know this key was already assigned to one consumer
         Map<String, Consumer<?>> keyToConsumer = new ConcurrentHashMap<>();
         Map<Consumer<?>, AtomicInteger> messagesPerConsumer = new ConcurrentHashMap<>();
@@ -1480,11 +1473,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         BrokerTestUtil.receiveMessagesInThreads(messageHandler, Duration.ofMillis(250),
                 consumers.stream().map(Consumer.class::cast));
 
-        final double percentError = 0.40; // 40 %
+        final double PERCENT_ERROR = 0.40; // 40 %
         double expectedMessagesPerConsumer = totalMessages.get() / (double) consumers.size();
         Assert.assertEquals(expectedTotalMessage, totalMessages.get());
         for (AtomicInteger count : messagesPerConsumer.values()) {
-            Assert.assertEquals(count.get(), expectedMessagesPerConsumer, expectedMessagesPerConsumer * percentError);
+            Assert.assertEquals(count.get(), expectedMessagesPerConsumer, expectedMessagesPerConsumer * PERCENT_ERROR);
         }
     }
 
@@ -1546,7 +1539,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Set<String> allKeys = new HashSet<>();
         consumerKeys.forEach((k, v) -> v.stream().filter(Objects::nonNull).forEach(key -> {
             assertTrue(allKeys.add(key),
-                "Key " + key + " is distributed to multiple consumers.");
+                "Key " + key + " is distributed to multiple consumers." );
         }));
     }
 
@@ -1556,32 +1549,32 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         @Override
         public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-            String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
-            if (Files.isReadable(Paths.get(certFilePath))) {
+            String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                 try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
                     return keyInfo;
                 } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + certFilePath);
+                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
                 }
             } else {
-                Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
+                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
             }
             return null;
         }
 
         @Override
         public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-            String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
-            if (Files.isReadable(Paths.get(certFilePath))) {
+            String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                 try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
                     return keyInfo;
                 } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + certFilePath);
+                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
                 }
             } else {
-                Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
+                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
             }
             return null;
         }
@@ -1644,12 +1637,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe();
 
         Future producerFuture = pulsar.getExecutor().submit(() -> {
-            try {
+            try
+            {
                 try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                         .topic(topic)
                         .enableBatching(false)
                         .create()) {
-                    for (int i = 0; i < numMessages; i++) {
+                    for (int i = 0; i < numMessages; i++)
+                    {
                         String key = "test" + i;
                         sentMessages.add(key);
                         producer.newMessage()
@@ -1661,8 +1656,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 }
             } catch (Throwable t) {
                 log.error("error", t);
-            }
-        });
+            }});
 
         // wait for some messages to be received by both of the consumers
         count1.await(5, TimeUnit.SECONDS);
@@ -1915,8 +1909,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      *   - at last, all messages will be received.
      */
     @Test(timeOut = 180 * 1000, dataProvider = "allowKeySharedOutOfOrder") // the test will be finished in 60s.
-    public void testRecentJoinedPosWillNotStuckOtherConsumer(KeySharedImplementationType impl,
-                                                             boolean allowKeySharedOutOfOrder) throws Exception {
+    public void testRecentJoinedPosWillNotStuckOtherConsumer(KeySharedImplementationType impl, boolean allowKeySharedOutOfOrder) throws Exception {
         final int messagesSentPerTime = 100;
         final Set<Integer> totalReceivedMessages = new TreeSet<>();
         final String topic = newUniqueName("persistent://public/default/tp");
@@ -2505,7 +2498,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Thread.sleep(2 * pauseTime);
 
         // produce messages with c2 keys
-        List<String> keysForC2List = new ArrayList<>(keysForC2);
+        List<String> keysForC2List=new ArrayList<>(keysForC2);
         for (int i = 1000; i < 1100; i++) {
             String key = keysForC2List.get(random.nextInt(keysForC2List.size()));
             //log.info("Producing message with key: {} value: {}", key, i);

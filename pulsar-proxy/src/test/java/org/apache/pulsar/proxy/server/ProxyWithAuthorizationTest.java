@@ -67,32 +67,23 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
     private static final String CLUSTER_NAME = "proxy-authorization";
 
-    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private static final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
+    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
 
     // The Proxy, Client, and SuperUser Client certs are signed by this CA
-    private static final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     // Proxy and Broker use valid certs that have no Subject Alternative Name to test hostname verification correctly
     // fails a connection to an invalid host.
-    private static final String TLS_NO_SUBJECT_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-cert.pem";
-    private static final String TLS_NO_SUBJECT_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-key.pem";
-    private static final String TLS_PROXY_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
-    private static final String TLS_PROXY_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
-    private static final String TLS_CLIENT_TRUST_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem";
-    private static final String TLS_CLIENT_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem";
-    private static final String TLS_CLIENT_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem";
-    private static final String TLS_SUPERUSER_CLIENT_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/client-key.pem";
-    private static final String TLS_SUPERUSER_CLIENT_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/client-cert.pem";
+    private final String TLS_NO_SUBJECT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-cert.pem";
+    private final String TLS_NO_SUBJECT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-key.pem";
+    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
+    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
+    private final String TLS_CLIENT_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem";
+    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem";
+    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem";
+    private final String TLS_SUPERUSER_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+    private final String TLS_SUPERUSER_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
 
     private ProxyService proxyService;
     private WebServer webServer;
@@ -110,60 +101,60 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     @DataProvider(name = "protocolsCiphersProvider")
     public Object[][] protocolsCiphersProviderCodecProvider() {
         // Test using defaults
-        Set<String> ciphers1 = new TreeSet<>();
-        Set<String> protocols1 = new TreeSet<>();
+        Set<String> ciphers_1 = new TreeSet<>();
+        Set<String> protocols_1 = new TreeSet<>();
 
         // Test explicitly specifying protocols defaults
-        Set<String> ciphers2 = new TreeSet<>();
-        Set<String> protocols2 = new TreeSet<>();
-        protocols2.add("TLSv1.3");
-        protocols2.add("TLSv1.2");
+        Set<String> ciphers_2 = new TreeSet<>();
+        Set<String> protocols_2 = new TreeSet<>();
+        protocols_2.add("TLSv1.3");
+        protocols_2.add("TLSv1.2");
 
         // Test for invalid ciphers
-        Set<String> ciphers3 = new TreeSet<>();
-        Set<String> protocols3 = new TreeSet<>();
-        ciphers3.add("INVALID_PROTOCOL");
+        Set<String> ciphers_3 = new TreeSet<>();
+        Set<String> protocols_3 = new TreeSet<>();
+        ciphers_3.add("INVALID_PROTOCOL");
 
         // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
-        Set<String> ciphers4 = new TreeSet<>();
-        Set<String> protocols4 = new TreeSet<>();
-        ciphers4.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        protocols4.add("TLSv1.1");
+        Set<String> ciphers_4 = new TreeSet<>();
+        Set<String> protocols_4 = new TreeSet<>();
+        ciphers_4.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols_4.add("TLSv1.1");
 
         // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
-        Set<String> ciphers5 = new TreeSet<>();
-        Set<String> protocols5 = new TreeSet<>();
-        ciphers5.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        protocols5.add("TLSv1");
+        Set<String> ciphers_5 = new TreeSet<>();
+        Set<String> protocols_5 = new TreeSet<>();
+        ciphers_5.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols_5.add("TLSv1");
 
         // Correct Config
-        Set<String> ciphers6 = new TreeSet<>();
-        Set<String> protocols6 = new TreeSet<>();
-        ciphers6.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        protocols6.add("TLSv1.2");
+        Set<String> ciphers_6 = new TreeSet<>();
+        Set<String> protocols_6 = new TreeSet<>();
+        ciphers_6.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols_6.add("TLSv1.2");
 
         // In correct config - JDK 8 doesn't support TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-        Set<String> ciphers7 = new TreeSet<>();
-        Set<String> protocols7 = new TreeSet<>();
-        protocols7.add("TLSv1.2");
-        ciphers7.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        Set<String> ciphers_7 = new TreeSet<>();
+        Set<String> protocols_7 = new TreeSet<>();
+        protocols_7.add("TLSv1.2");
+        ciphers_7.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         // Correct config - Atlease one of the Cipher Suite is supported
-        Set<String> ciphers8 = new TreeSet<>();
-        Set<String> protocols8 = new TreeSet<>();
-        protocols8.add("TLSv1.2");
-        ciphers8.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        ciphers8.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        Set<String> ciphers_8 = new TreeSet<>();
+        Set<String> protocols_8 = new TreeSet<>();
+        protocols_8.add("TLSv1.2");
+        ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         return new Object[][] {
-            { ciphers1, protocols1, Boolean.FALSE },
-            { ciphers2, protocols2, Boolean.FALSE },
-            { ciphers3, protocols3, Boolean.TRUE },
-            { ciphers4, protocols4, Boolean.TRUE },
-            { ciphers5, protocols5, Boolean.TRUE },
-            { ciphers6, protocols6, Boolean.FALSE },
-            { ciphers7, protocols7, Boolean.FALSE },
-            { ciphers8, protocols8, Boolean.FALSE }
+            { ciphers_1, protocols_1, Boolean.FALSE },
+            { ciphers_2, protocols_2, Boolean.FALSE },
+            { ciphers_3, protocols_3, Boolean.TRUE },
+            { ciphers_4, protocols_4, Boolean.TRUE },
+            { ciphers_5, protocols_5, Boolean.TRUE },
+            { ciphers_6, protocols_6, Boolean.FALSE },
+            { ciphers_7, protocols_7, Boolean.FALSE },
+            { ciphers_8, protocols_8, Boolean.FALSE }
         };
     }
 
@@ -193,8 +184,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_SUPERUSER_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:"
-                        + TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
+                "tlsCertFile:" + TLS_SUPERUSER_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
         conf.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderTls.class.getName(),
                 AuthenticationProviderToken.class.getName()));
@@ -478,14 +468,14 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsCiphers(tlsCiphers);
 
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
         @Cleanup
-        ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig,
+                                                        new AuthenticationService(
+                                                                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
         proxyService.setGracefulShutdown(false);
         try {
             proxyService.start();
@@ -504,8 +494,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         }, 3, 1000);
         try {
             @Cleanup
-            PulsarClient proxyClient = createPulsarClient("pulsar://localhost:"
-                    + proxyService.getListenPortTls().get(), PulsarClient.builder());
+            PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + proxyService.getListenPortTls().get(), PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-tenant/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();

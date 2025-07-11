@@ -74,8 +74,8 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
-import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
@@ -99,8 +99,8 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -231,7 +231,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // The topic in cluster2 has a replicator created producer(schema Auto_Produce), but does not have any schema。
         // Verify: the consumer of this cluster2 can create successfully.
         Consumer<String> consumer2 = client2.newConsumer(Schema.STRING).topic(topicName).subscriptionName("s1")
-                .subscribe();
+                .subscribe();;
         // Wait for replicator started.
         waitReplicatorStarted(topicName);
         // cleanup.

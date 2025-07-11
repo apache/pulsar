@@ -65,8 +65,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     }
 
     @Test
-    public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException,
-            InterruptedException {
+    public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {
         try {
             transactionCoordinatorClient.start();
             Assert.fail("should failed here because the transaction metas store already started!");
@@ -88,8 +87,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     @Test
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
-        transactionCoordinatorClient.addPublishPartitionToTxn(txnID,
-                List.of("persistent://public/default/testCommitAndAbort"));
+        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, List.of("persistent://public/default/testCommitAndAbort"));
         transactionCoordinatorClient.commit(txnID);
         try {
             transactionCoordinatorClient.abort(txnID);
@@ -127,7 +125,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
 
         try {
             transactionCoordinatorClient.start();
-        } catch (TransactionCoordinatorClientException e) {
+        }catch (TransactionCoordinatorClientException e) {
             Assert.fail("Shouldn't have exception at here", e);
         }
 

@@ -289,7 +289,7 @@ public class ServerCnxTest {
     }
 
     /**
-     * Ensure that old clients may still connect to new servers.
+     * Ensure that old clients may still connect to new servers
      *
      * @throws Exception
      */
@@ -352,8 +352,7 @@ public class ServerCnxTest {
     }
 
     @Test(dataProvider = "clientVersions")
-    public void testStoreClientVersionWhenNotBlank(String clientVersion, boolean expectSetToClientVersion)
-            throws Exception {
+    public void testStoreClientVersionWhenNotBlank(String clientVersion, boolean expectSetToClientVersion) throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
         assertEquals(serverCnx.getState(), State.Start);
@@ -759,7 +758,7 @@ public class ServerCnxTest {
         assertTrue(channel.isActive());
         assertEquals(serverCnx.getState(), State.Start);
 
-        ByteBuf clientCommand = Commands.newConnect(authMethodName, authData, 1, null,
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, authData, 1,null,
                 null, originalPrincipal, null, null);
         channel.writeInbound(clientCommand);
 
@@ -949,8 +948,7 @@ public class ServerCnxTest {
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, proxyRole, serverCnx.getAuthData());
         verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName,
-                        TopicOperation.LOOKUP, clientRole, serverCnx.getOriginalAuthData());
+                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, serverCnx.getOriginalAuthData());
 
         // producer
         ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
@@ -960,8 +958,7 @@ public class ServerCnxTest {
         assertEquals(((CommandError) producerResponse).getError(), ServerError.AuthorizationError);
         assertEquals(((CommandError) producerResponse).getRequestId(), 2);
         verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole,
-                        serverCnx.getOriginalAuthData());
+                .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, serverCnx.getOriginalAuthData());
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, proxyRole, serverCnx.getAuthData());
 
@@ -1898,7 +1895,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand1);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
-        ByteBuf closeProducer = Commands.newCloseProducer(1, 2);
+        ByteBuf closeProducer = Commands.newCloseProducer(1,2);
         channel.writeInbound(closeProducer);
         assertTrue(getResponse() instanceof CommandSuccess);
 
@@ -2843,7 +2840,7 @@ public class ServerCnxTest {
     }
 
     protected void resetChannel() throws Exception {
-        int maxMessageSize = 5 * 1024 * 1024;
+        int MaxMessageSize = 5 * 1024 * 1024;
         if (channel != null && channel.isActive()) {
             serverCnx.close();
             channel.close().get();
@@ -2851,7 +2848,7 @@ public class ServerCnxTest {
         serverCnx = new ServerCnx(pulsar);
         serverCnx.setAuthRole("");
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(
-                maxMessageSize,
+                MaxMessageSize,
                 0,
                 4,
                 0,

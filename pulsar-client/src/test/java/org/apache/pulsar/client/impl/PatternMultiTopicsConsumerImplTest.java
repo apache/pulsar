@@ -25,13 +25,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
 import com.google.re2j.Pattern;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-import org.apache.pulsar.common.lookup.GetTopicsResult;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 public class PatternMultiTopicsConsumerImplTest {
 

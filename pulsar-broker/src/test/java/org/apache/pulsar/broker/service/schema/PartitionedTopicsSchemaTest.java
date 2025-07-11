@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.service.schema;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BkEnsemblesTestBase;
 import org.apache.pulsar.client.api.Consumer;
@@ -38,7 +40,7 @@ import org.testng.annotations.Test;
 public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
 
     /**
-     * Test that sequence id from a producer is correct when there are send errors.
+     * Test that sequence id from a producer is correct when there are send errors
      */
     @Test
     public void partitionedTopicWithSchema() throws Exception {
@@ -48,7 +50,7 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
 
         admin.topics().createPartitionedTopic(topicName, 16);
 
-        int num = 10;
+        int N = 10;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
@@ -67,7 +69,7 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
         Producer<String> producer = producerFuture.get();
         Consumer<String> consumer = consumerFuture.get();
 
-        for (int i = 0; i < num; i++) {
+        for (int i = 0; i < N; i++) {
             producer.send("Hello-" + i);
         }
 
@@ -93,14 +95,14 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
 
         Set<String> messages = new TreeSet<>();
 
-        for (int i = 0; i < num; i++) {
+        for (int i = 0; i < N; i++) {
             Message<String> msg = consumer.receive();
             messages.add(msg.getValue());
             consumer.acknowledge(msg);
         }
 
-        assertEquals(messages.size(), num);
-        for (int i = 0; i < num; i++) {
+        assertEquals(messages.size(), N);
+        for (int i = 0; i < N; i++) {
             assertTrue(messages.contains("Hello-" + i));
         }
     }

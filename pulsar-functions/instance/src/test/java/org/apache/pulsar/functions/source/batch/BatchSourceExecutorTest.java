@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.source.batch;
 
+
 import static org.awaitility.Awaitility.await;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
@@ -46,7 +47,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link org.apache.pulsar.functions.source.batch.BatchSourceExecutor}.
+ * Unit tests for {@link org.apache.pulsar.functions.source.batch.BatchSourceExecutor}
  */
 public class BatchSourceExecutorTest {
 
@@ -166,7 +167,7 @@ public class BatchSourceExecutorTest {
 
       this.trigger = trigger;
       thread = new Thread(() -> {
-        while (true) {
+        while(true) {
           try {
             trigger.accept(triggerQueue.take());
           } catch (InterruptedException e) {

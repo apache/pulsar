@@ -79,12 +79,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(cluster, ClusterData.builder()
-                .serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
         admin.namespaces().createNamespace("schematest/test", Set.of("test"));
-        admin.namespaces().createNamespace("schematest/" + cluster + "/test", Set.of("test"));
+        admin.namespaces().createNamespace("schematest/"+cluster+"/test", Set.of("test"));
         admin.namespaces().createNamespace(schemaCompatibilityNamespace, Set.of("test"));
     }
 
@@ -177,13 +176,13 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfo readSi = admin.schemas().getSchemaInfo(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        ((SchemaInfoImpl) readSi).setTimestamp(0);
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         readSi = admin.schemas().getSchemaInfo(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        ((SchemaInfoImpl) readSi).setTimestamp(0);
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
     }
@@ -192,15 +191,14 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     public void testPostSchemaCompatibilityStrategy(ApiVersion version) throws PulsarAdminException {
         String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
                 "test");
-        String topicName = "persistent://" + namespace + "/testStrategyChange";
+        String topicName = "persistent://"+namespace + "/testStrategyChange";
         SchemaInfo fooSchemaInfo = Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false)
                 .withPojo(Foo.class).build())
                 .getSchemaInfo();
 
         admin.schemas().createSchema(topicName, fooSchemaInfo);
-        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
-                SchemaAutoUpdateCompatibilityStrategy.Backward);
+        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, SchemaAutoUpdateCompatibilityStrategy.Backward);
         SchemaInfo foo1SchemaInfo = Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false)
                 .withPojo(Foo1.class).build())
@@ -233,14 +231,14 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfoWithVersion readSi = admin.schemas().getSchemaInfoWithVersion(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        ((SchemaInfoImpl) readSi.getSchemaInfo()).setTimestamp(0);
+        ((SchemaInfoImpl)readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);
         assertEquals(readSi.getVersion(), 0);
 
         readSi = admin.schemas().getSchemaInfoWithVersion(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        ((SchemaInfoImpl) readSi.getSchemaInfo()).setTimestamp(0);
+        ((SchemaInfoImpl)readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);
         assertEquals(readSi.getVersion(), 0);
 
@@ -250,7 +248,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     public void createKeyValueSchema(ApiVersion version) throws Exception {
         String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
                 "test");
-        String topicName = "persistent://" + namespace + "/test-key-value-schema";
+        String topicName = "persistent://"+namespace + "/test-key-value-schema";
         Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
         admin.schemas().createSchema(topicName, keyValueSchema.getSchemaInfo());
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
@@ -259,7 +257,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         assertNotEquals(keyValueSchema.getSchemaInfo().getTimestamp(), timestamp);
         assertNotEquals(0, timestamp);
 
-        ((SchemaInfoImpl) keyValueSchema.getSchemaInfo()).setTimestamp(schemaInfo.getTimestamp());
+        ((SchemaInfoImpl)keyValueSchema.getSchemaInfo()).setTimestamp(schemaInfo.getTimestamp());
         assertEquals(keyValueSchema.getSchemaInfo(), schemaInfo);
 
         admin.schemas().createSchema(topicName, keyValueSchema.getSchemaInfo());
@@ -272,7 +270,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     public void testInvalidSchemaDataException(ApiVersion version) {
         String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
                 "test");
-        String topicName = "persistent://" + namespace + "/test-invalid-schema-data-exception";
+        String topicName = "persistent://"+ namespace + "/test-invalid-schema-data-exception";
         SchemaInfo schemaInfo = SchemaInfo.builder()
                 .schema(new byte[0])
                 .type(SchemaType.AVRO)
@@ -488,19 +486,15 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             IsCompatibilityResponse isCompatibilityResponse =
                     admin.schemas().testCompatibility(topicName, postSchemaPayload);
             assertTrue(isCompatibilityResponse.isCompatibility());
-            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(),
-                    SchemaCompatibilityStrategy.FULL.name());
+            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL.name());
 
             // set schema compatibility strategy is FULL_TRANSITIVE to cover checkCompatibilityWithAll
-            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace,
-                    SchemaCompatibilityStrategy.FULL_TRANSITIVE);
+            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace, SchemaCompatibilityStrategy.FULL_TRANSITIVE);
             isCompatibilityResponse = admin.schemas().testCompatibility(topicName, postSchemaPayload);
             assertTrue(isCompatibilityResponse.isCompatibility());
-            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(),
-                    SchemaCompatibilityStrategy.FULL_TRANSITIVE.name());
+            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL_TRANSITIVE.name());
             // set back to FULL
-            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace,
-                    SchemaCompatibilityStrategy.FULL);
+            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace, SchemaCompatibilityStrategy.FULL);
         }
     }
 }

@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.validator;
 
-import static org.testng.AssertJUnit.assertEquals;
 import java.net.InetAddress;
-import java.util.Optional;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.testng.annotations.Test;
+
+import java.util.Optional;
+
+import static org.testng.AssertJUnit.assertEquals;
 
 /**
  * testcase for MultipleListenerValidator.
@@ -93,8 +95,7 @@ public class MultipleListenerValidatorTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testListenerDuplicate_3() {
         ServiceConfiguration config = new ServiceConfiguration();
-        config.setAdvertisedListeners(" internal:pulsar+ssl://127.0.0.1:6661,"
-                + " internal:pulsar+ssl://192.168.1.11:6661");
+        config.setAdvertisedListeners(" internal:pulsar+ssl://127.0.0.1:6661," + " internal:pulsar+ssl://192.168.1.11:6661");
         config.setInternalListenerName("internal");
         MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
     }

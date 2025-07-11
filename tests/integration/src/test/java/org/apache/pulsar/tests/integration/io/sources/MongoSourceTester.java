@@ -104,11 +104,11 @@ public class MongoSourceTester extends SourceTester<MongoDBContainer> {
         Container.ExecResult execResult = this.mongoContainer.execInContainer(
                 "/usr/bin/mongo",
                 "--eval",
-                "db.products.insert"
-                        + "({"
-                        + "name: \"test-mongo\","
-                        + "description: \"test message\""
-                        + "})"
+                "db.products.insert" +
+                        "({" +
+                        "name: \"test-mongo\"," +
+                        "description: \"test message\"" +
+                        "})"
         );
         log.info("Successfully insert a message: {}", execResult.getStdout());
     }
@@ -118,10 +118,10 @@ public class MongoSourceTester extends SourceTester<MongoDBContainer> {
         Container.ExecResult execResult = mongoContainer.execInContainer(
                 "/usr/bin/mongo",
                 "--eval",
-                "db.products.deleteOne"
-                        + "({"
-                        + "name: \"test-mongo\""
-                        + "})"
+                "db.products.deleteOne" +
+                        "({" +
+                        "name: \"test-mongo\"" +
+                        "})"
         );
         log.info("Successfully delete a message: {}", execResult.getStdout());
     }
@@ -131,12 +131,12 @@ public class MongoSourceTester extends SourceTester<MongoDBContainer> {
         Container.ExecResult execResult = mongoContainer.execInContainer(
                 "/usr/bin/mongo",
                 "--eval",
-                "db.products.update"
-                        + "("
-                        + "{name: \"test-mongo-source\"}"
-                        + ","
-                        + "{$set:{name:\"test-mongo-update\", description: \"updated message\"}}"
-                        + ")"
+                "db.products.update" +
+                        "(" +
+                        "{name: \"test-mongo-source\"}" +
+                        "," +
+                        "{$set:{name:\"test-mongo-update\", description: \"updated message\"}}" +
+                        ")"
         );
         log.info("Successfully update a message: {}", execResult.getStdout());
     }

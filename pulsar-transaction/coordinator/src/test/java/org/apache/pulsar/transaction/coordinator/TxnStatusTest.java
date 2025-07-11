@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
-import java.util.Set;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.util.Set;
+
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test {@link TxnStatus}.

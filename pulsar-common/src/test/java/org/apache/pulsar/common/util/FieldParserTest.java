@@ -21,10 +21,12 @@ package org.apache.pulsar.common.util;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import java.util.Optional;
 import java.util.Set;
 import org.testng.annotations.Test;
@@ -77,7 +79,7 @@ public class FieldParserTest {
         assertEquals(config.longStringMap.get(1L), "value1");
         assertEquals(config.longStringMap.get(2L), "value2");
 
-        assertEquals((long) config.longList.get(2), 8);
+        assertEquals((long)config.longList.get(2), 8);
         assertEquals(config.stringList.get(1), "bb");
 
         assertTrue(config.longSet.contains(3L));

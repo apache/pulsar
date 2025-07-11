@@ -42,18 +42,18 @@ public class RuntimeUtilsTest {
     public void testSplitRuntimeArgs() {
         String str1 = "-Xms314572800";
         String[] result = RuntimeUtils.splitRuntimeArgs(str1);
-        Assert.assertEquals(result.length, 1);
+        Assert.assertEquals(result.length,1);
         Assert.assertEquals(result[0], str1);
 
         String str2 = "-Xms314572800 -Dbar=foo";
         result = RuntimeUtils.splitRuntimeArgs(str2);
-        Assert.assertEquals(result.length, 2);
+        Assert.assertEquals(result.length,2);
         Assert.assertEquals(result[0], "-Xms314572800");
         Assert.assertEquals(result[1], "-Dbar=foo");
 
         String str3 = "-Xms314572800 -Dbar=foo -Dfoo=\"bar foo\"";
         result = RuntimeUtils.splitRuntimeArgs(str3);
-        Assert.assertEquals(result.length, 3);
+        Assert.assertEquals(result.length,3);
         Assert.assertEquals(result[0], "-Xms314572800");
         Assert.assertEquals(result[1], "-Dbar=foo");
         Assert.assertEquals(result[2], "-Dfoo=\"bar foo\"");
@@ -123,9 +123,7 @@ public class RuntimeUtilsTest {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setExposePulsarAdminClientEnabled(true);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config",
-                "pulsar://localhost:6650", "bk://localhost:4181",
-                "http://localhost:8080", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config", "pulsar://localhost:6650", "bk://localhost:4181",  "http://localhost:8080", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -171,8 +169,7 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
         Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
-        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"),
-                "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "org.apache.pulsar.client.impl.auth.AuthenticationToken");
         Assert.assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "file:///secret/token.jwt");
         Assert.assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "/secret/ca.cert.pem");
         Assert.assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), true);

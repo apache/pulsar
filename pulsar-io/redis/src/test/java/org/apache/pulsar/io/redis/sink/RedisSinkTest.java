@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
@@ -32,8 +28,13 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
 /**
- * redis Sink test.
+ * redis Sink test
  */
 @Slf4j
 public class RedisSinkTest {
@@ -52,7 +53,7 @@ public class RedisSinkTest {
     }
 
     @Test
-    public void testOpenAndWriteSink() throws Exception {
+    public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("redisHosts", "localhost:6379");
         configs.put("redisPassword", "");

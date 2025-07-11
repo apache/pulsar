@@ -216,8 +216,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     while (rootCause instanceof ExecutionException) {
                         rootCause = rootCause.getCause();
                     }
-                    if (rootCause
-                            instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                    if (rootCause instanceof
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
                         rejects++;
                     } else {
                         throw e;
@@ -249,8 +249,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     while (rootCause instanceof ExecutionException) {
                         rootCause = rootCause.getCause();
                     }
-                    if (rootCause
-                            instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                    if (rootCause instanceof
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
                         rejects++;
                     } else {
                         throw e;

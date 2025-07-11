@@ -149,8 +149,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                     SubscriptionOption option = inv.getArgument(0);
                     if (option.isDurable()) {
                         return CompletableFuture.failedFuture(
-                                new IllegalArgumentException("isDurable cannot be true when subscribe "
-                                        + "on non-persistent topic"));
+                                new IllegalArgumentException("isDurable cannot be true when subscribe " +
+                                        "on non-persistent topic"));
                     }
                     return inv.callRealMethod();
                 }).when(mockTopic).subscribe(Mockito.any());

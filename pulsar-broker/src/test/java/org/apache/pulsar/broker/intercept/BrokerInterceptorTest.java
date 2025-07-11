@@ -93,8 +93,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         HashMap<String, BrokerInterceptorWithClassLoader> brokerInterceptorWithClassLoaderHashMap = new HashMap<>();
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
-        BrokerInterceptorWithClassLoader counterBrokerInterceptor =
-                new BrokerInterceptorWithClassLoader(new CounterBrokerInterceptor(), narClassLoader);
+        BrokerInterceptorWithClassLoader counterBrokerInterceptor
+                = new BrokerInterceptorWithClassLoader(new CounterBrokerInterceptor(), narClassLoader);
         brokerInterceptorWithClassLoaderHashMap.put(CounterBrokerInterceptor.NAME, counterBrokerInterceptor);
         BrokerInterceptors brokerInterceptors = new BrokerInterceptors(brokerInterceptorWithClassLoaderHashMap);
         pulsarTestContextBuilder.brokerInterceptor(brokerInterceptors);

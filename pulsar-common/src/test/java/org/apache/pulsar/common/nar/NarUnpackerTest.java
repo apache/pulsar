@@ -122,8 +122,7 @@ public class NarUnpackerTest {
     void shouldReExtractWhenUnpackedDirectoryIsMissing() throws IOException {
         AtomicInteger extractCounter = new AtomicInteger();
 
-        File narWorkingDirectory = NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory,
-                extractCounter::incrementAndGet);
+        File narWorkingDirectory = NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
         FileUtils.deleteFile(narWorkingDirectory, true);
         NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar;
 
+import org.apache.pulsar.PulsarVersion;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

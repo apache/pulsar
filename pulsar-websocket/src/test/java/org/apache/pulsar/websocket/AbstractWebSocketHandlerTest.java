@@ -25,7 +25,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +39,7 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.Cleanup;
+import com.google.common.base.Splitter;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -103,8 +103,7 @@ public class AbstractWebSocketHandlerTest {
 
         httpServletRequest = mock(HttpServletRequest.class);
 
-        when(httpServletRequest.getRequestURI()).thenReturn(producerV1
-                + URLEncoder.encode(producerV1Topic, StandardCharsets.UTF_8.name()));
+        when(httpServletRequest.getRequestURI()).thenReturn(producerV1 + URLEncoder.encode(producerV1Topic, StandardCharsets.UTF_8.name()));
         WebSocketHandlerImpl webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         TopicName topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + producerV1Topic);
@@ -217,8 +216,7 @@ public class AbstractWebSocketHandlerTest {
 
     static class WebSocketHandlerImpl extends AbstractWebSocketHandler {
 
-        public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request,
-                                    ServletUpgradeResponse response) {
+        public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -266,8 +264,7 @@ public class AbstractWebSocketHandlerTest {
 
     class MockedProducerHandler extends ProducerHandler {
 
-        public MockedProducerHandler(WebSocketService service, HttpServletRequest request,
-                                     ServletUpgradeResponse response) {
+        public MockedProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -344,8 +341,7 @@ public class AbstractWebSocketHandlerTest {
 
     class MockedConsumerHandler extends ConsumerHandler {
 
-        public MockedConsumerHandler(WebSocketService service, HttpServletRequest request,
-                                     ServletUpgradeResponse response) {
+        public MockedConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -440,8 +436,7 @@ public class AbstractWebSocketHandlerTest {
         when(httpServletRequest.getParameterMap()).thenReturn(queryParams);
 
         MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
-        AbstractWebSocketHandler webSocketHandler =
-                new WebSocketHandlerImpl(webSocketService, httpServletRequest, response);
+        AbstractWebSocketHandler webSocketHandler = new WebSocketHandlerImpl(webSocketService, httpServletRequest, response);
 
         Session session = mock(Session.class);
         RemoteEndpoint remoteEndpoint = mock(RemoteEndpoint.class);

@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 import org.apache.pulsar.common.functions.BatchingConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.annotations.Test;

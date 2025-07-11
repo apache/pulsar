@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.common.net;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
+
 import java.net.URI;
 import org.testng.annotations.Test;
 
@@ -149,8 +148,7 @@ public class ServiceURITest {
 
     @Test
     public void testMultiIpv6Uri() {
-        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1]:6650,[fec0:0:0:ffff::2]:6650;"
-                + "[fec0:0:0:ffff::3]:6650/path/to/namespace";
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1]:6650,[fec0:0:0:ffff::2]:6650;[fec0:0:0:ffff::3]:6650/path/to/namespace";
         assertServiceUri(
                 serviceUri,
                 "pulsar",
@@ -162,8 +160,7 @@ public class ServiceURITest {
 
     @Test
     public void testMultiIpv6UriWithoutPulsarPort() {
-        String serviceUri =
-                "pulsar://pulsaruser@[fec0:0:0:ffff::1],[fec0:0:0:ffff::2];[fec0:0:0:ffff::3]/path/to/namespace";
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1],[fec0:0:0:ffff::2];[fec0:0:0:ffff::3]/path/to/namespace";
         assertServiceUri(
                 serviceUri,
                 "pulsar",

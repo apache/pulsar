@@ -142,12 +142,12 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     private void innerTestProduce(String createTopicName, boolean isPersistent, boolean isPartition,
                                   String token, int status) throws Exception {
         String topicPrefix = null;
-        if (isPersistent) {
+        if (isPersistent == true) {
             topicPrefix = "persistent";
         } else {
             topicPrefix = "non-persistent";
         }
-        if (isPartition) {
+        if (isPartition == true) {
             admin.topics().createPartitionedTopic(topicPrefix + "://" + testTenant + "/"
                     + testNamespace + "/" + createTopicName, 5);
         } else {
@@ -160,14 +160,14 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
                 writeValueAsString(schema.getSchemaInfo()));
         producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        String message = "["
-                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
-                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        String message = "[" +
+                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
+                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
         producerMessages.setMessages(createMessages(message));
 
         WebTarget root = buildWebClient();
         String requestPath = null;
-        if (isPartition) {
+        if (isPartition == true) {
             requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/"
                     + createTopicName + "/partitions/2";
         } else {

@@ -19,9 +19,11 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Optional;
+
 import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -52,10 +54,10 @@ public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         File tempFile = File.createTempFile("oauth2", ".tmp");
         tempFile.deleteOnExit();
         FileWriter writer = new FileWriter(tempFile);
-        writer.write("{\n"
-            + "  \"client_id\":\"my-user\",\n"
-            + "  \"client_secret\":\"" + clientSecret + "\"\n"
-            + "}");
+        writer.write("{\n" +
+            "  \"client_id\":\"my-user\",\n" +
+            "  \"client_secret\":\"" + clientSecret + "\"\n" +
+            "}");
         writer.flush();
         writer.close();
 
@@ -69,12 +71,11 @@ public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
-        proxyConfig.setBrokerClientAuthenticationPlugin(
-                "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2");
-        proxyConfig.setBrokerClientAuthenticationParameters("{\"grant_type\":\"client_credentials\","
-            + " \"issuerUrl\":\"" + server.getIssuer() + "\","
-            + " \"audience\": \"an-audience\","
-            + " \"privateKey\":\"file://" + tempFile.getAbsolutePath() + "\"}");
+        proxyConfig.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2");
+        proxyConfig.setBrokerClientAuthenticationParameters("{\"grant_type\":\"client_credentials\"," +
+            " \"issuerUrl\":\"" + server.getIssuer() + "\"," +
+            " \"audience\": \"an-audience\"," +
+            " \"privateKey\":\"file://" + tempFile.getAbsolutePath() + "\"}");
         proxyConfig.setClusterName(configClusterName);
 
         proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),

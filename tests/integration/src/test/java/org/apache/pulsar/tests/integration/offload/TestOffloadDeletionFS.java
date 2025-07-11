@@ -18,17 +18,18 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testng.annotations.Test;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.tests.integration.docker.ContainerExecException;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.testng.annotations.Test;
 
 @Slf4j
 public class TestOffloadDeletionFS extends TestBaseOffload {
@@ -67,8 +68,7 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testDeleteOffloadedPartitionedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl)
-            throws Exception {
+    public void testDeleteOffloadedPartitionedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         super.testDeleteOffloadedTopic(serviceUrl.get(), adminUrl.get(), false, 3);
     }
 

@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpServer;
 import java.io.File;
@@ -33,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.awaitility.Awaitility;
 
 /**
- * Simple http server for serving files in Pulsar Function test cases.
+ * Simple http server for serving files in Pulsar Function test cases
  */
 @Slf4j
 public class FileServer implements AutoCloseable {

@@ -34,9 +34,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ClientTlsTest extends PulsarTestSuite {
-    private static final String tlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
-    private static final String tlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
-    private static final String tlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
+    private final static String tlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
+    private final static String tlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
+    private final static String tlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
 
     private static String loadCertificateAuthorityFile(String name) {
         return Resources.getResource("certificate-authority/" + name).getPath();

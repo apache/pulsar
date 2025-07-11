@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Collections;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Collections;
 
 public class EnsemblePlacementPolicyConfigTest {
 

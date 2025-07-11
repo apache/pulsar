@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.utils;
 
-import java.util.concurrent.CompletableFuture;
 import lombok.Setter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
+
+import java.util.concurrent.CompletableFuture;
 
 public class TransactionBufferTestImpl extends TopicTransactionBuffer {
     @Setter

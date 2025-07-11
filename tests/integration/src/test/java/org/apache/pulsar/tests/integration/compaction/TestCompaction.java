@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.compaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -34,8 +35,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
@@ -45,7 +46,7 @@ import org.testng.collections.Maps;
 @Slf4j
 public class TestCompaction extends PulsarTestSuite {
 
-    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
     public void testPublishCompactAndConsumeCLI(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-cli-" + randomName(4);
@@ -59,7 +60,7 @@ public class TestCompaction extends PulsarTestSuite {
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try (Producer<String> producer = client.newProducer(Schema.STRING)
+            try(Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
@@ -99,7 +100,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
     public void testPublishCompactAndConsumeRest(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-rest-" + randomName(4);
@@ -116,7 +117,7 @@ public class TestCompaction extends PulsarTestSuite {
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
                     .value("content0")
@@ -152,7 +153,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
     public void testPublishCompactAndConsumePartitionedTopics(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-partitioned-topic-" + randomName(4);
@@ -176,7 +177,7 @@ public class TestCompaction extends PulsarTestSuite {
             client.newConsumer().topic(topic + "-partition-0").subscriptionName(subscriptionName).subscribe().close();
             client.newConsumer().topic(topic + "-partition-1").subscriptionName(subscriptionName).subscribe().close();
 
-            try (Producer<byte[]> producer = client.newProducer()
+            try(Producer<byte[]> producer = client.newProducer()
                 .topic(topic)
                 .messageRouter(new MessageRouter() {
                     @Override
@@ -301,7 +302,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
     public void testPublishWithAutoCompaction(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-auto-" + randomName(4);
@@ -318,7 +319,7 @@ public class TestCompaction extends PulsarTestSuite {
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
                     .value("content0")
@@ -331,7 +332,7 @@ public class TestCompaction extends PulsarTestSuite {
 
             waitAndVerifyCompacted(client, topic, "sub1", "key0", "content1");
 
-            try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
                     .value("content2")
@@ -351,12 +352,12 @@ public class TestCompaction extends PulsarTestSuite {
         return result;
     }
 
-    private ContainerExecResult createNamespace(final String ns) throws Exception {
+    private ContainerExecResult createNamespace(final String Ns) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
                 "namespaces",
                 "create",
                 "--clusters",
-                pulsarCluster.getClusterName(), ns);
+                pulsarCluster.getClusterName(), Ns);
         assertEquals(0, result.getExitCode());
         return result;
     }

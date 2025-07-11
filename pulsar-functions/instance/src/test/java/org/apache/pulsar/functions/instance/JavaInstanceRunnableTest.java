@@ -24,7 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -36,6 +38,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -222,7 +225,7 @@ public class JavaInstanceRunnableTest {
 
     @NonNull
     private JavaInstanceRunnable getJavaInstanceRunnable(boolean autoAck,
-               org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
+                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setAutoAck(autoAck)
                 .setProcessingGuarantees(processingGuarantees).build();

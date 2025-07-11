@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -41,7 +42,7 @@ import org.testng.annotations.Test;
 public class DLInputStreamTest {
 
     /**
-     * Test Case: reader hits eos (end of stream).
+     * Test Case: reader hits eos (end of stream)
      */
     @Test
     public void testReadEos() throws Exception {
@@ -59,7 +60,7 @@ public class DLInputStreamTest {
     }
 
     /**
-     * Test Case: close the input stream.
+     * Test Case: close the input stream
      */
     @Test
     public void testClose() throws Exception {

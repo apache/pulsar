@@ -49,7 +49,7 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                    AuthenticationDataSource authenticationData, String subscription) {
+                                                      AuthenticationDataSource authenticationData, String subscription) {
         return shouldPass(role);
     }
 

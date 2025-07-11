@@ -23,6 +23,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.fail;
+
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.ws.rs.client.WebTarget;
@@ -33,7 +34,7 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests.
+ * Unit tests
  */
 public class SinksImplTest {
 
@@ -116,8 +117,7 @@ public class SinksImplTest {
         }
 
         try {
-            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(),
-                    sinkConfig.getName(), 0).get();
+            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);

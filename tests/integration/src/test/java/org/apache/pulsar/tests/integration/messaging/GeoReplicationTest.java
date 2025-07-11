@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -37,6 +32,11 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Geo replication test.
@@ -56,7 +56,7 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
             Map<String, String> brokerEnvs = new HashMap<>();
             brokerEnvs.put("systemTopicEnabled", "false");
             brokerEnvs.put("topicLevelPoliciesEnabled", "false");
-            for (PulsarClusterSpec.PulsarClusterSpecBuilder builder : specBuilder) {
+            for(PulsarClusterSpec.PulsarClusterSpecBuilder builder : specBuilder) {
                 builder.brokerEnvs(brokerEnvs);
             }
         }

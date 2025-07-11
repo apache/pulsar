@@ -19,12 +19,15 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
+
 import com.google.common.collect.Sets;
+
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -125,8 +128,9 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        proxyService = Mockito.spy(new ProxyService(proxyConfig,
+                                                    new AuthenticationService(
+                                                            PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
 
         proxyService.start();
     }
@@ -168,8 +172,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(authTls, proxyService.getServiceUrlTls());
 
-        admin.clusters().createCluster("without-service-discovery", ClusterData.builder()
-                .serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("without-service-discovery", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
                 Sets.newHashSet("without-service-discovery")));
@@ -206,8 +209,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
 
     protected final PulsarClient createPulsarClient(Authentication auth, String lookupUrl) throws Exception {
         closeAdmin();
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth).build());
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString()).tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .authentication(auth).build());
         return PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
                 .enableTls(true).build();

@@ -72,8 +72,7 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
     public void testPersistentOrEphemeralPut(String provider, Supplier<String> urlSupplier) throws Exception {
         final String key1 = newKey();
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         store.put(key1, "value-1".getBytes(), Optional.empty(), EnumSet.noneOf(CreateOption.class)).join();
         var value = store.get(key1).join().get();
         assertEquals(value.getValue(), "value-1".getBytes());

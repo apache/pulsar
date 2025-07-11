@@ -118,9 +118,9 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
     }
 
     private CompletableFuture<Long> startConsumeAndComputeMaxConsumeDelay(String topic, String subscriptionName,
-                                                                         Duration consumeSleepTime,
-                                                                         boolean enableMessageListenerExecutorIsolation,
-                                                                         ExecutorService executorService)
+                                                                          Duration consumeSleepTime,
+                                                                          boolean enableMessageListenerExecutorIsolation,
+                                                                          ExecutorService executorService)
             throws Exception {
         int numMessages = 2;
         final CountDownLatch latch = new CountDownLatch(numMessages);

@@ -66,7 +66,7 @@ public class PulsarCluster {
     public static final String CURL = "/usr/bin/curl";
 
     /**
-     * Pulsar Cluster Spec.
+     * Pulsar Cluster Spec
      *
      * @param spec pulsar cluster spec.
      * @return the built pulsar cluster

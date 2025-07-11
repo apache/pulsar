@@ -131,7 +131,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         String namespace = "schema-validation-enforced/enable-no-schema";
         String topicName = "persistent://schema-validation-enforced/enable-no-schema/test";
         assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace));
-        admin.namespaces().setSchemaValidationEnforced(namespace, true);
+        admin.namespaces().setSchemaValidationEnforced(namespace,true);
         try {
             admin.schemas().getSchemaInfo(topicName);
             fail();
@@ -149,7 +149,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         String namespace = "schema-validation-enforced/enable-has-schema-mismatch";
         String topicName = "persistent://schema-validation-enforced/enable-has-schema-mismatch/test";
         assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace));
-        admin.namespaces().setSchemaValidationEnforced(namespace, true);
+        admin.namespaces().setSchemaValidationEnforced(namespace,true);
         assertTrue(admin.namespaces().getSchemaValidationEnforced(namespace));
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().getStats(topicName);
@@ -190,7 +190,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         } catch (PulsarAdminException.NotFoundException e) {
             assertEquals(e.getMessage(), "Schema not found");
         }
-        admin.namespaces().setSchemaValidationEnforced(namespace, true);
+        admin.namespaces().setSchemaValidationEnforced(namespace,true);
         Map<String, String> properties = new HashMap<>();
         SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)

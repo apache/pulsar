@@ -389,11 +389,10 @@ public class AcknowledgementsGroupingTrackerTest {
     @Test
     public void testDoIndividualBatchAckAsync() throws Exception{
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
-        AcknowledgmentsGroupingTracker tracker =
-                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
         MessageId messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
         BitSet bitSet = new BitSet(20);
-        for (int i = 0; i < 20; i++) {
+        for(int i = 0; i < 20; i ++) {
             bitSet.set(i, true);
         }
         MessageId messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, bitSet);
@@ -402,12 +401,10 @@ public class AcknowledgementsGroupingTrackerTest {
         doIndividualBatchAckAsync.setAccessible(true);
         doIndividualBatchAckAsync.invoke(tracker, messageId1);
         doIndividualBatchAckAsync.invoke(tracker, messageId2);
-        Field pendingIndividualBatchIndexAcks =
-                PersistentAcknowledgmentsGroupingTracker.class.getDeclaredField("pendingIndividualBatchIndexAcks");
+        Field pendingIndividualBatchIndexAcks = PersistentAcknowledgmentsGroupingTracker.class.getDeclaredField("pendingIndividualBatchIndexAcks");
         pendingIndividualBatchIndexAcks.setAccessible(true);
         ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable> batchIndexAcks =
-                (ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable>) pendingIndividualBatchIndexAcks
-                        .get(tracker);
+                (ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable>) pendingIndividualBatchIndexAcks.get(tracker);
         MessageIdImpl position1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl position2 = new MessageIdImpl(3, 2, 0);
         assertTrue(batchIndexAcks.containsKey(position1));

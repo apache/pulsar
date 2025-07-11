@@ -42,7 +42,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     protected PulsarClient pulsarClient;
-    protected static final int BROKER_COUNT = 5;
+    protected static int BROKER_COUNT = 5;
     protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
 

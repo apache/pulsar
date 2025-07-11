@@ -235,12 +235,12 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             future.get();
         }
         Message<byte[]> msg = null;
-        CompletableFuture<Message<byte[]>> futureMsg = null;
+        CompletableFuture<Message<byte[]>> future_msg = null;
         Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < numMessages; i++) {
-            futureMsg = consumer.receiveAsync();
+            future_msg = consumer.receiveAsync();
             Thread.sleep(10);
-            msg = futureMsg.get();
+            msg = future_msg.get();
             String receivedMessage = new String(msg.getData());
             log.info("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
@@ -298,7 +298,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         }
         Thread.sleep(5000);
         log.info("Waiting for message listener to ack all messages");
-        assertTrue(latch.await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+        assertTrue(latch.await(numMessages, TimeUnit.SECONDS),"Timed out waiting for message listener acks");
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, true);
@@ -315,8 +315,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
         if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true)
-                    .batchingMaxPublishDelay(2L * batchMessageDelayMs, TimeUnit.MILLISECONDS)
+            producerBuilder.enableBatching(true).batchingMaxPublishDelay(2L * batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         }
 
@@ -549,19 +548,17 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         pulsar.getBrokerService().updateRates();
 
         Awaitility.await().ignoreExceptions().timeout(10, TimeUnit.SECONDS)
-                .until(() -> pulsar.getBrokerService().getTopicStats().get(topicName)
-                        .getSubscriptions().get(subName).getTotalMsgExpired() > 0);
+                .until(() -> pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getTotalMsgExpired() > 0);
 
         Awaitility.await().ignoreExceptions().timeout(10, TimeUnit.SECONDS).until(() -> {
             pulsar.getBrokerService().updateRates();
-            return pulsar.getBrokerService().getTopicStats().get(topicName)
-                    .getSubscriptions().get(subName).getMsgRateExpired() < 0.001;
+            return pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getMsgRateExpired() < 0.001;
         });
 
-        assertEquals(pulsar.getBrokerService().getTopicStats().get(topicName)
-                        .getSubscriptions().get(subName).getMsgRateExpired(), 0.0, 0.001);
-        assertEquals(pulsar.getBrokerService().getTopicStats().get(topicName)
-                        .getSubscriptions().get(subName).getTotalMsgExpired(), numMessages);
+        assertEquals(pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getMsgRateExpired(),
+                0.0, 0.001);
+        assertEquals(pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getTotalMsgExpired(),
+                numMessages);
 
         log.info("-- Exiting {} test --", methodName);
     }

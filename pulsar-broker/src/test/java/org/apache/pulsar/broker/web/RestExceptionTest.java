@@ -41,8 +41,7 @@ public class RestExceptionTest {
 
     @Test
     public void testWebApplicationException() {
-        WebApplicationException wae = new WebApplicationException("test web application exception",
-                Status.TEMPORARY_REDIRECT);
+        WebApplicationException wae = new WebApplicationException("test web application exception", Status.TEMPORARY_REDIRECT);
         RestException testException = new RestException(wae);
 
         assertEquals(Status.TEMPORARY_REDIRECT.getStatusCode(), testException.getResponse().getStatus());
@@ -55,7 +54,7 @@ public class RestExceptionTest {
         RestException testException = new RestException(otherException);
 
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), testException.getResponse().getStatus());
-        ErrorData errorData = (ErrorData) testException.getResponse().getEntity();
+        ErrorData errorData = (ErrorData)testException.getResponse().getEntity();
         assertEquals(RestException.getExceptionData(otherException), errorData.reason);
     }
 

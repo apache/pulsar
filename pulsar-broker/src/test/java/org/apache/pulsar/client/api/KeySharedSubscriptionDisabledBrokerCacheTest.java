@@ -305,7 +305,7 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         Thread.sleep(2 * pauseTime);
 
         // produce messages with c2 keys so that possible race conditions would be more likely to happen
-        List<String> keysForC2List = new ArrayList<>(keysForC2);
+        List<String> keysForC2List=new ArrayList<>(keysForC2);
         for (int i = 1000; i < 1100; i++) {
             String key = keysForC2List.get(random.nextInt(keysForC2List.size()));
             log.info("Producing message with key: {} value: {}", key, i);

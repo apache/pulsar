@@ -94,10 +94,10 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
-                .when(proxyService).createLocalMetadataStore();
+        proxyService = Mockito.spy(new ProxyService(proxyConfig,
+                                                    new AuthenticationService(
+                                                            PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 

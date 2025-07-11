@@ -59,7 +59,7 @@ public class ProcessHandlerFilterTest {
         Mockito.doReturn(spyInterceptor).when(mockPulsarService).getBrokerInterceptor();
         Mockito.doReturn(config).when(mockPulsarService).getConfig();
         // request has MULTIPART_FORM_DATA content-type
-        config.setBrokerInterceptors(Sets.newHashSet("Interceptor1", "Interceptor2"));
+        config.setBrokerInterceptors(Sets.newHashSet("Interceptor1","Interceptor2"));
         HttpServletRequest mockHttpServletRequest2 = Mockito.mock(HttpServletRequest.class);
         Mockito.doReturn(MediaType.MULTIPART_FORM_DATA).when(mockHttpServletRequest2).getContentType();
         ProcessHandlerFilter processHandlerFilter2 = new ProcessHandlerFilter(mockPulsarService.getBrokerInterceptor());

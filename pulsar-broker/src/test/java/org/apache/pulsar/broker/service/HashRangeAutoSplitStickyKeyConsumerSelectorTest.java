@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.pulsar.client.api.Range;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.client.api.Range;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @Test(groups = "broker")
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {

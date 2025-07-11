@@ -20,7 +20,9 @@ package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+
 import java.util.concurrent.TimeUnit;
+
 import org.testng.annotations.Test;
 
 public class RelativeTimeUtilTest {

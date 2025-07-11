@@ -143,8 +143,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                         new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
                 return CompletableFuture.completedFuture(new LookupTopicResult(brokerAddress, brokerAddress, false));
             });
-            final String topicPoliciesServiceInitException =
-                    "Topic creation encountered an exception by initialize topic policies service";
+            final String topicPoliciesServiceInitException
+                    = "Topic creation encountered an exception by initialize topic policies service";
 
             // Creating a producer and creating a Consumer may trigger automatic topic
             // creation, let's try to create a Producer and a Consumer

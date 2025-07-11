@@ -120,8 +120,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         return DockerUtils.runCommandAsUser(userId, client, dockerId, commands);
     }
 
-    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands)
-            throws Exception {
+    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands) throws Exception {
         DockerClient client = this.getDockerClient();
         String dockerId = this.getContainerId();
         return DockerUtils.runCommandAsyncAsUser(userId, client, dockerId, commands);

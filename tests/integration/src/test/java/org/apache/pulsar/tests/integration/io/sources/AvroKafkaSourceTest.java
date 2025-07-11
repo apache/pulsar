@@ -181,7 +181,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     private String getZooKeeperAddressInDockerNetwork() {
-        return kafkaContainerName + ":2181";
+        return kafkaContainerName +":2181";
     }
 
     private void testSource()  throws Exception {
@@ -275,8 +275,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         }
 
         Assert.assertEquals(recordsNumber, beans.size());
-        log.info("Stop {} server container. topic: {} has {} records.", kafkaContainerName, consumer.getTopic(),
-                recordsNumber);
+        log.info("Stop {} server container. topic: {} has {} records.", kafkaContainerName, consumer.getTopic(), recordsNumber);
     }
 
     protected void getSourceInfoSuccess(String tenant,
@@ -378,27 +377,26 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         // we are writing the serialized values to the stdin of kafka-avro-console-producer
         // the only way to do it with TestContainers is actually to create a bash script
         // and execute it
-        String bashFileTemplate = "echo '" + payload + "' "
-                + "| /usr/bin/kafka-avro-console-producer "
-                + "--broker-list " + getBootstrapServersOnDockerNetwork() + " "
-                + "--property 'value.schema=" + schemaDef + "' "
-                + "--property schema.registry.url=" + getRegistryAddressInDockerNetwork() + " "
-                + "--topic " + kafkaTopicName;
+        String bashFileTemplate = "echo '"+payload+"' " +
+                "| /usr/bin/kafka-avro-console-producer " +
+                "--broker-list " + getBootstrapServersOnDockerNetwork() + " " +
+                "--property 'value.schema=" + schemaDef + "' " +
+                "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
+                "--topic "+kafkaTopicName;
         String file = "/home/appuser/produceRecords.sh";
 
         schemaRegistryContainer.copyFileToContainer(Transferable
                         .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
 
         ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
-        log.info("cat results: " + cat.getStdout());
-        log.info("cat stderr: " + cat.getStderr());
+        log.info("cat results: "+cat.getStdout());
+        log.info("cat stderr: "+cat.getStderr());
 
         ExecResult execResult = schemaRegistryContainer.execInContainer("/bin/bash", file);
 
-        log.info("script results: " + execResult.getStdout());
-        log.info("script stderr: " + execResult.getStderr());
-        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"),
-                execResult.getStdout() + " " + execResult.getStderr());
+        log.info("script results: "+execResult.getStdout());
+        log.info("script stderr: "+execResult.getStderr());
+        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
         // filter out the SLF4J warnings
         String stderrFiltered = execResult.getStderr()
                 .replaceAll("(?m)^SLF4J: .*?[\\r\\n]+", "")
@@ -509,7 +507,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     private String getRegistryAddressInDockerNetwork() {
-        return "http://" + schemaRegistryContainerName + ":8081";
+        return "http://"+schemaRegistryContainerName + ":8081";
     }
 
 }

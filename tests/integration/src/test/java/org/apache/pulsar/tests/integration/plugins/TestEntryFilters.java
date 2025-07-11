@@ -19,8 +19,6 @@
 package org.apache.pulsar.tests.integration.plugins;
 
 import static org.testng.Assert.assertNotNull;
-import java.util.Collections;
-import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -32,6 +30,8 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
 import org.testng.annotations.Test;
+import java.util.Collections;
+import java.util.function.Supplier;
 
 public class TestEntryFilters extends TopicMessagingBase {
 
@@ -76,7 +76,7 @@ public class TestEntryFilters extends TopicMessagingBase {
             receiveMessagesCheckOrderAndDuplicate(Collections.singletonList(consumer), messagesToSend / 2);
 
         }
-        try (Consumer<String> consumer = createConsumer(client, topicName, null)) {
+        try(Consumer<String> consumer = createConsumer(client, topicName, null)) {
             receiveMessagesCheckOrderAndDuplicate(Collections.singletonList(consumer), messagesToSend);
 
         }

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static org.testng.Assert.assertEquals;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -30,6 +28,10 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Request;
 import org.testng.annotations.Test;
 
+import java.util.Optional;
+
+import static org.testng.Assert.assertEquals;
+
 @Slf4j
 public class TopicSchemaTest {
 
@@ -37,19 +39,19 @@ public class TopicSchemaTest {
     public void testGetSchema() {
         TopicSchema topicSchema = new TopicSchema(null, Thread.currentThread().getContextClassLoader());
 
-        String topic = "public/default/test";
-        Schema<?> schema = topicSchema.getSchema(topic + "1", DummyClass.class, Optional.of(SchemaType.JSON));
+        String TOPIC = "public/default/test";
+        Schema<?> schema = topicSchema.getSchema(TOPIC + "1", DummyClass.class, Optional.of(SchemaType.JSON));
         assertEquals(schema.getClass(), JSONSchema.class);
 
-        schema = topicSchema.getSchema(topic + "2", DummyClass.class, Optional.of(SchemaType.AVRO));
+        schema = topicSchema.getSchema(TOPIC + "2", DummyClass.class, Optional.of(SchemaType.AVRO));
         assertEquals(schema.getClass(), AvroSchema.class);
 
         // use an arbitrary protobuf class for testing purpose
-        schema = topicSchema.getSchema(topic + "3", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF));
+        schema = topicSchema.getSchema(TOPIC + "3", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF));
         assertEquals(schema.getClass(), ProtobufSchema.class);
 
         schema = topicSchema
-                .getSchema(topic + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
+                .getSchema(TOPIC + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
         assertEquals(schema.getClass(), ProtobufNativeSchema.class);
     }
 

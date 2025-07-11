@@ -82,7 +82,7 @@ public class ProducerBuilderFactoryTest {
         pulsarClient = null;
         MockUtil.resetMock(producerBuilder);
         producerBuilder = null;
-        TestCryptoKeyReader.lastInstance = null;
+        TestCryptoKeyReader.LAST_INSTANCE = null;
     }
 
     @Test
@@ -168,7 +168,7 @@ public class ProducerBuilderFactoryTest {
         verify(producerBuilder).batcherBuilder(BatcherBuilder.KEY_BASED);
         verify(producerBuilder).maxPendingMessages(5000);
         verify(producerBuilder).maxPendingMessagesAcrossPartitions(50000);
-        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.lastInstance;
+        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.LAST_INSTANCE;
         assertNotNull(lastInstance);
         assertEquals(lastInstance.configs, cryptoConfig.getCryptoKeyReaderConfig());
         verify(producerBuilder).cryptoKeyReader(lastInstance);
@@ -204,7 +204,7 @@ public class ProducerBuilderFactoryTest {
         verify(producerBuilder).batcherBuilder(BatcherBuilder.KEY_BASED);
         verify(producerBuilder).maxPendingMessages(5000);
         verify(producerBuilder).maxPendingMessagesAcrossPartitions(50000);
-        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.lastInstance;
+        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.LAST_INSTANCE;
         assertNotNull(lastInstance);
         assertEquals(lastInstance.configs, cryptoConfig.getCryptoKeyReaderConfig());
         verify(producerBuilder).cryptoKeyReader(lastInstance);
@@ -216,13 +216,13 @@ public class ProducerBuilderFactoryTest {
     }
 
     public static class TestCryptoKeyReader implements CryptoKeyReader {
-        static TestCryptoKeyReader lastInstance;
+        static TestCryptoKeyReader LAST_INSTANCE;
         Map<String, Object> configs;
 
         public TestCryptoKeyReader(Map<String, Object> configs) {
             this.configs = configs;
-            assert lastInstance == null;
-            lastInstance = this;
+            assert LAST_INSTANCE == null;
+            LAST_INSTANCE = this;
         }
 
         @Override

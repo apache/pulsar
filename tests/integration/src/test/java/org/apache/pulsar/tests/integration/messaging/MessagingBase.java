@@ -21,8 +21,16 @@ package org.apache.pulsar.tests.integration.messaging;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
+
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.testng.annotations.BeforeMethod;
+
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,12 +39,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.annotations.BeforeMethod;
 
 @Slf4j
 public abstract class MessagingBase extends PulsarTestSuite {
@@ -153,7 +155,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         Set<String> allKeys = Sets.newHashSet();
         consumerKeys.forEach((k, v) -> v.stream().filter(Objects::nonNull).forEach(key -> {
             assertTrue(allKeys.add(key),
-                    "Key " + key + " is distributed to multiple consumers");
+                    "Key " + key + " is distributed to multiple consumers" );
         }));
         assertEquals(messagesReceived.size(), messagesToReceive);
     }

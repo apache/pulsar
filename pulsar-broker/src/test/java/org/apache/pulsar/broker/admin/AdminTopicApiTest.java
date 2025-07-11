@@ -181,10 +181,10 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         return new Object[]{
                 // v1 topic
                 TopicDomain.persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
+                TopicDomain.non_persistent+ "://my-property/test/my-ns/" + UUID.randomUUID(),
                 //v2 topic
-                TopicDomain.persistent + "://my-property/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent + "://my-property/my-ns/" + UUID.randomUUID(),
+                TopicDomain.persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
+                TopicDomain.non_persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
         };
     }
 

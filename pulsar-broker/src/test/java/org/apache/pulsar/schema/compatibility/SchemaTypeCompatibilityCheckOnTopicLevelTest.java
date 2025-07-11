@@ -289,8 +289,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
                 .topic(topicName).create();
 
         // Set SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE on topic level.
-        admin.topicPolicies().setSchemaCompatibilityStrategy(topicName,
-                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        admin.topicPolicies().setSchemaCompatibilityStrategy(topicName,SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
         Awaitility.await().untilAsserted(
                 () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));

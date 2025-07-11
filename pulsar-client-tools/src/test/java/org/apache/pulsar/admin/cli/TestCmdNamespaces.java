@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import java.io.IOException;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+import java.io.IOException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class TestCmdNamespaces {
 

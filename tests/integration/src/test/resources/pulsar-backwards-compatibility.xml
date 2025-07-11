@@ -22,14 +22,14 @@
 <suite name="Pulsar Messaging Backwards Compatibility Tests" verbose="2" annotations="JDK">
     <test name="messaging-backwards-compatibility-suite" preserve-order="true">
         <classes>
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest22" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest23" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest24" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest25" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest22" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest23" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest24" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest25" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_2" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_3" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_4" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_5" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_2" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_3" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_4" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_5" />
         </classes>
     </test>
 </suite>

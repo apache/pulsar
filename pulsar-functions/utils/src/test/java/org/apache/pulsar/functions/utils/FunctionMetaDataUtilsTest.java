@@ -84,8 +84,7 @@ public class FunctionMetaDataUtilsTest {
                 Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
         Function.FunctionMetaData updatedMetaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(3)).setVersion(version).build();
-        Function.FunctionMetaData newMetaData =
-                FunctionMetaDataUtils.incrMetadataVersion(existingMetaData, updatedMetaData);
+        Function.FunctionMetaData newMetaData = FunctionMetaDataUtils.incrMetadataVersion(existingMetaData, updatedMetaData);
         Assert.assertEquals(newMetaData.getVersion(), version + 1);
         Assert.assertEquals(newMetaData.getFunctionDetails().getParallelism(), 3);
 

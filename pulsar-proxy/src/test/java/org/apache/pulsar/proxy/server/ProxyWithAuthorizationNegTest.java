@@ -19,13 +19,16 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
+
 import com.google.common.collect.Sets;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -57,28 +60,17 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationNegTest.class);
     private static final String CLUSTER_NAME = "proxy-authorization-neg";
 
-    private static final String TLS_PROXY_TRUST_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cacert.pem";
-    private static final String TLS_PROXY_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
-    private static final String TLS_PROXY_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
-    private static final String TLS_BROKER_TRUST_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cacert.pem";
-    private static final String TLS_BROKER_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cert.pem";
-    private static final String TLS_BROKER_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-key.pem";
-    private static final String TLS_CLIENT_TRUST_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem";
-    private static final String TLS_CLIENT_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem";
-    private static final String TLS_CLIENT_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem";
-    private static final String TLS_SUPERUSER_CLIENT_KEY_FILE_PATH =
-            "./src/test/resources/authentication/tls/client-key.pem";
-    private static final String TLS_SUPERUSER_CLIENT_CERT_FILE_PATH =
-            "./src/test/resources/authentication/tls/client-cert.pem";
+    private final String TLS_PROXY_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cacert.pem";
+    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
+    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
+    private final String TLS_BROKER_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cacert.pem";
+    private final String TLS_BROKER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cert.pem";
+    private final String TLS_BROKER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-key.pem";
+    private final String TLS_CLIENT_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem";
+    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem";
+    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem";
+    private final String TLS_SUPERUSER_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+    private final String TLS_SUPERUSER_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -187,21 +179,17 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
         @Cleanup
-        PulsarClient proxyClient =
-                createPulsarClient("pulsar+ssl://localhost:" + proxyService.getListenPortTls().get());
+        PulsarClient proxyClient = createPulsarClient("pulsar+ssl://localhost:" + proxyService.getListenPortTls().get());
 
         String namespaceName = "my-property/proxy-authorization-neg/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization-neg",
-                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("proxy-authorization-neg", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                        Sets.newHashSet("proxy-authorization-neg")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization-neg")));
         admin.namespaces().createNamespace(namespaceName);
 
-        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
-                Sets.newHashSet(AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
 
@@ -212,8 +200,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
                     .subscriptionName("my-subscriber-name").subscribe();
         } catch (Exception ex) {
             // expected
-            admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
-                    Sets.newHashSet(AuthAction.consume));
+            admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.consume));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
             consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1")

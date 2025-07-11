@@ -24,10 +24,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import io.oxia.client.ClientConfig;
-import io.oxia.client.api.AsyncOxiaClient;
-import io.oxia.client.session.SessionFactory;
-import io.oxia.client.session.SessionManager;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -45,6 +41,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+
+import io.oxia.client.ClientConfig;
+import io.oxia.client.api.AsyncOxiaClient;
+import io.oxia.client.session.SessionFactory;
+import io.oxia.client.session.SessionManager;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -636,8 +637,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         CompletableFuture<Void> f2 =
                 CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
-                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")
@@ -653,8 +654,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         CompletableFuture<Void> f2 =
                 CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
-                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")

@@ -103,7 +103,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         return new AbstractHandler() {
             @Override
             public void handle(String target, Request baseRequest,
-                               HttpServletRequest request, HttpServletResponse response)
+                               HttpServletRequest request,HttpServletResponse response)
                     throws IOException, ServletException {
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -201,8 +201,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -235,8 +234,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -271,8 +269,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -295,8 +292,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -327,8 +323,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -358,8 +353,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -388,8 +382,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -434,8 +427,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
@@ -471,8 +463,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         @Cleanup
-        final Authentication proxyClientAuthentication =
-                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 

@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.redis.RedisAbstractConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+
 /**
- * RedisSinkConfig test.
+ * RedisSinkConfig test
  */
 public class RedisSinkConfigTest {
 
@@ -153,8 +155,8 @@ public class RedisSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-            "No enum constant org.apache.pulsar.io.redis.RedisAbstractConfig.ClientMode.NOTSUPPORT")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+        expectedExceptionsMessageRegExp = "No enum constant org.apache.pulsar.io.redis.RedisAbstractConfig.ClientMode.NOTSUPPORT")
     public final void invalidClientModeTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");

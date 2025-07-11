@@ -104,12 +104,11 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
     @Test
     public void testAddBrokerEntryMetadata() throws Exception {
-        final int mockBatchSize = 2;
+        final int MOCK_BATCH_SIZE = 2;
         int numberOfEntries = 10;
         final String ledgerAndCursorName = "topicEntryMetadataSequenceId";
 
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),
-                null);
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),null);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
@@ -118,18 +117,18 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
 
-        for (int i = 0; i < numberOfEntries; i++) {
-            ledger.addEntry(("message" + i).getBytes(), mockBatchSize);
+        for ( int i = 0 ; i < numberOfEntries; i ++) {
+            ledger.addEntry(("message" + i).getBytes(), MOCK_BATCH_SIZE);
         }
 
         assertEquals(19, ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex());
         List<Entry> entryList = cursor.readEntries(numberOfEntries);
-        for (int i = 0; i < numberOfEntries; i++) {
+        for (int i = 0 ; i < numberOfEntries; i ++) {
             Entry entry = entryList.get(i);
             BrokerEntryMetadata metadata =
                     Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
             assertNotNull(metadata);
-            assertEquals(metadata.getIndex(), (i + 1) * mockBatchSize - 1);
+            assertEquals(metadata.getIndex(), (i + 1) * MOCK_BATCH_SIZE - 1);
             entry.release();
         }
 
@@ -143,7 +142,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
         Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
         processors.add(new TestPayloadProcessor());
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(), processors);
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(),processors);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
@@ -202,27 +201,25 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
     public static long calculatePreciseSize(ManagedLedgerImpl ledger){
         return ledger.getLedgersInfo().values().stream()
-                .map(info -> info.getSize()).reduce((l1, l2) -> l1 + l2).orElse(0L) + ledger.getCurrentLedgerSize();
+                .map(info -> info.getSize()).reduce((l1,l2) -> l1 + l2).orElse(0L) + ledger.getCurrentLedgerSize();
     }
 
     @Test(timeOut = 20000)
     public void testRecoveryIndex() throws Exception {
-        final int mockBatchSize = 2;
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),
-                null);
+        final int MOCK_BATCH_SIZE = 2;
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),null);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setManagedLedgerInterceptor(interceptor);
         ManagedLedger ledger = factory.open("my_recovery_index_test_ledger", config);
 
-        ledger.addEntry("dummy-entry-1".getBytes(StandardCharsets.UTF_8), mockBatchSize);
+        ledger.addEntry("dummy-entry-1".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE);
 
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        ledger.addEntry("dummy-entry-2".getBytes(StandardCharsets.UTF_8), mockBatchSize);
+        ledger.addEntry("dummy-entry-2".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE);
 
-        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(),
-                mockBatchSize * 2 - 1);
+        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), MOCK_BATCH_SIZE * 2 - 1);
 
         ledger.close();
 
@@ -236,8 +233,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         cursor = ledger.openCursor("c1");
 
         assertEquals(ledger.getNumberOfEntries(), 2);
-        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(),
-                mockBatchSize * 2 - 1);
+        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), MOCK_BATCH_SIZE * 2 - 1);
 
 
         List<Entry> entries = cursor.readEntries(100);
@@ -250,11 +246,10 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
     @Test
     public void testFindPositionByIndex() throws Exception {
-        final int mockBatchSize = 2;
+        final int MOCK_BATCH_SIZE = 2;
         final int maxEntriesPerLedger = 5;
-        int maxSequenceIdPerLedger = mockBatchSize * maxEntriesPerLedger;
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),
-                null);
+        int maxSequenceIdPerLedger = MOCK_BATCH_SIZE * maxEntriesPerLedger;
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),null);
 
 
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
@@ -266,33 +261,29 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
         long firstLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            firstLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8),
-                    mockBatchSize).getLedgerId();
+            firstLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE).getLedgerId();
         }
 
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 9);
 
 
         Position position = null;
-        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex();
-             index++) {
+        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
             position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
-            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / mockBatchSize);
+            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
         // roll over ledger
         long secondLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            secondLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8),
-                    mockBatchSize).getLedgerId();
+            secondLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE).getLedgerId();
         }
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 19);
         assertNotEquals(firstLedgerId, secondLedgerId);
 
-        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex();
-             index++) {
+        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
             position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
-            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / mockBatchSize);
+            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
         // reopen ledger
@@ -304,16 +295,14 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
         long thirdLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            thirdLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8),
-                    mockBatchSize).getLedgerId();
+            thirdLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE).getLedgerId();
         }
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 29);
         assertNotEquals(secondLedgerId, thirdLedgerId);
 
-        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex();
-             index++) {
+        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
             position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
-            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / mockBatchSize);
+            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
         cursor.close();
         ledger.close();
@@ -321,7 +310,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
     @Test
     public void testAddEntryFailed() throws Exception {
-        final int mockBatchSize = 2;
+        final int MOCK_BATCH_SIZE = 2;
         final String ledgerAndCursorName = "testAddEntryFailed";
 
         ManagedLedgerInterceptor interceptor =
@@ -341,7 +330,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
         CountDownLatch countDownLatch = new CountDownLatch(1);
         try {
-            ledger.asyncAddEntry(buffer, mockBatchSize, new AsyncCallbacks.AddEntryCallback() {
+            ledger.asyncAddEntry(buffer, MOCK_BATCH_SIZE, new AsyncCallbacks.AddEntryCallback() {
                 @Override
                 public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     countDownLatch.countDown();
@@ -364,7 +353,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
     @Test
     public void testBeforeAddEntryWithException() throws Exception {
-        final int mockBatchSize = 2;
+        final int MOCK_BATCH_SIZE = 2;
         final String ledgerAndCursorName = "testBeforeAddEntryWithException";
 
         ManagedLedgerInterceptor interceptor =
@@ -378,7 +367,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
         CountDownLatch countDownLatch = new CountDownLatch(1);
         try {
-            ledger.asyncAddEntry(buffer, mockBatchSize, new AsyncCallbacks.AddEntryCallback() {
+            ledger.asyncAddEntry(buffer, MOCK_BATCH_SIZE, new AsyncCallbacks.AddEntryCallback() {
                 @Override
                 public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     countDownLatch.countDown();
@@ -438,8 +427,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         @Override
         public boolean test(@Nullable Entry entry) {
             try {
-                BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(
-                        entry.getDataBuffer());
+                BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
                 return brokerEntryMetadata.getIndex() < indexToSearch;
             } catch (Exception e) {
                 log.error("Error deserialize message for message position find", e);

@@ -79,8 +79,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName)
-                .getPersistenceNamingEncoding();
+        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName).getPersistenceNamingEncoding();
 
         // Make topic load timeout 5 times.
         AtomicInteger timeoutCounter = new AtomicInteger();
@@ -131,8 +130,8 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
 
         // Mock message deduplication recovery speed topicLoadTimeoutSeconds
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/"
-                + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
+        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" +
+                TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
         mockZooKeeper.delay(topicLoadTimeoutSeconds * 1000, (op, path) -> {
             if (mlPath.equals(path)) {
                 log.info("Topic load timeout: " + path);

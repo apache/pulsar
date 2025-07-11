@@ -268,8 +268,8 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testNegativeClientMemory() throws Exception {
-        final String topicName = "persistent://public/default/testMemory-"
-                + UUID.randomUUID().toString();
+        final String topicName = "persistent://public/default/testMemory-" +
+                UUID.randomUUID().toString();
         final String subName = "my-sub";
 
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -315,7 +315,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         });
 
 
-        MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
+        MemoryLimitController controller = ((PulsarClientImpl)pulsarClient).getMemoryLimitController();
         Assert.assertEquals(controller.currentUsage(), 0);
         Assert.assertEquals(controller.currentUsagePercent(), 0);
     }

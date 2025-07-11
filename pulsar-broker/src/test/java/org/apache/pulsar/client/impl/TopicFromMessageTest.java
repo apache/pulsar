@@ -117,8 +117,7 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
             String topicNameX = consumer.receive().getTopicName();
             String topicNameY = consumer.receive().getTopicName();
             Object[] actualTopicNames = new Object[]{topicNameX, topicNameY};
-            Object[] expectedTopicNames =
-                    new Object[]{"persistent://public/default/topic1", "persistent://public/default/topic2"};
+            Object[] expectedTopicNames = new Object[]{"persistent://public/default/topic1", "persistent://public/default/topic2"};
             Assert.assertEqualsNoOrder(actualTopicNames, expectedTopicNames);
         }
     }

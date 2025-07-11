@@ -231,7 +231,7 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
@@ -293,16 +293,16 @@ public class BrokerBookieIsolationTest {
 
     private LedgerManager getLedgerManager(BookieImpl bookie1) throws IllegalAccessException {
         DbLedgerStorage ledgerStorage =
-                (DbLedgerStorage) FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
+                (DbLedgerStorage)FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
         SingleDirectoryDbLedgerStorage singleDirectoryDbLedgerStorage =
-                ((List<SingleDirectoryDbLedgerStorage>) FieldUtils
+                ((List<SingleDirectoryDbLedgerStorage>)FieldUtils
                         .readDeclaredField(ledgerStorage, "ledgerStorageList", true)).get(0);
         GarbageCollectorThread gcThread =
-                (GarbageCollectorThread) FieldUtils.readDeclaredField(singleDirectoryDbLedgerStorage, "gcThread", true);
+                (GarbageCollectorThread)FieldUtils.readDeclaredField(singleDirectoryDbLedgerStorage, "gcThread", true);
         ScanAndCompareGarbageCollector garbageCollector =
-                (ScanAndCompareGarbageCollector) FieldUtils.readDeclaredField(gcThread, "garbageCollector", true);
+                (ScanAndCompareGarbageCollector)FieldUtils.readDeclaredField(gcThread, "garbageCollector", true);
         LedgerManager ledgerManager =
-                (LedgerManager) FieldUtils.readDeclaredField(garbageCollector, "ledgerManager", true);
+                (LedgerManager)FieldUtils.readDeclaredField(garbageCollector, "ledgerManager", true);
         return ledgerManager;
     }
 
@@ -374,8 +374,7 @@ public class BrokerBookieIsolationTest {
                 .subscribe();
         consumer.close();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName)
-                .sendTimeout(5, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 20; i++) {
@@ -398,13 +397,13 @@ public class BrokerBookieIsolationTest {
         Awaitility.await().untilAsserted(() ->
                 Assert.assertTrue(ml.getConfig().getBookKeeperEnsemblePlacementPolicyProperties().size() > 0));
 
-        for (int i = 0; i < 80; i++) {
+        for (int i=0; i<80; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
         producer.close();
 
-        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
@@ -416,7 +415,7 @@ public class BrokerBookieIsolationTest {
         List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
         // validate ledgers' ensemble with affinity bookies
         // The second ledger will be created after the first ledger is full and the isolationGroup has not been set.
-        for (int i = 2; i < ledgers.size(); i++) {
+        for (int i=2; i<ledgers.size();i++) {
             LedgerInfo lInfo = ledgers.get(i);
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
@@ -549,7 +548,7 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
@@ -720,7 +719,7 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic2 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", totalPublish);
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
@@ -881,8 +880,7 @@ public class BrokerBookieIsolationTest {
                 .subscribe();
         consumer.close();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName)
-                .sendTimeout(5, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < totalPublish; i++) {

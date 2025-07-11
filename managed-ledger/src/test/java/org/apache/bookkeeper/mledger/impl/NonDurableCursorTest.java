@@ -25,8 +25,9 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Iterables;
-import io.netty.buffer.ByteBuf;
+
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -36,6 +37,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.netty.buffer.ByteBuf;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -483,9 +486,9 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         final ManagedCursor c1 = ledger.openCursor("c1");
         final AtomicReference<Position> lastPosition = new AtomicReference<Position>();
 
-        final int num = 100;
-        final CountDownLatch latch = new CountDownLatch(num);
-        for (int i = 0; i < num; i++) {
+        final int N = 100;
+        final CountDownLatch latch = new CountDownLatch(N);
+        for (int i = 0; i < N; i++) {
             ledger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
                 @Override
                 public void addFailed(ManagedLedgerException exception, Object ctx) {

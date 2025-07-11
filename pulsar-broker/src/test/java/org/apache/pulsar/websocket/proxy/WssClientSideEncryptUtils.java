@@ -64,7 +64,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 @Slf4j
 public class WssClientSideEncryptUtils {
 
-    public static final Charset UTF8 = StandardCharsets.UTF_8;
+    public static Charset UTF8 = StandardCharsets.UTF_8;
 
     public static String base64AndUrlEncode(String str) {
         return base64AndUrlEncode(str.getBytes(UTF8), UTF8);
@@ -230,8 +230,7 @@ public class WssClientSideEncryptUtils {
         return res;
     }
 
-    public static byte[] unCompressionIfNeeded(byte[] payloadBytes, EncryptionContext encryptionContext)
-            throws IOException {
+    public static byte[] unCompressionIfNeeded(byte[] payloadBytes, EncryptionContext encryptionContext) throws IOException {
         if (encryptionContext.getCompressionType() != null && !org.apache.pulsar.client.api.CompressionType.NONE
                 .equals(encryptionContext.getCompressionType())) {
             CompressionCodec codec =

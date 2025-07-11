@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import java.io.ByteArrayOutputStream;

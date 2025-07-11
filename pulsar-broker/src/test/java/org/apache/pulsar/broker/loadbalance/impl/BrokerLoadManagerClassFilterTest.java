@@ -20,8 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import java.util.HashSet;
-import java.util.Set;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -29,6 +28,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.testng.annotations.Test;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Unit test for {@link BrokerLoadManagerClassFilter}.

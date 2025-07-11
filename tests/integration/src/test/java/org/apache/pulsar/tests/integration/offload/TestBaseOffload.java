@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.offload;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -57,7 +58,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
 
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
+        pulsarCluster.runAdminCommandOnAnyBroker( "tenants",
                 "create", "--allowed-clusters", pulsarCluster.getClusterName(),
                 "--admin-roles", "offload-admin", tenant);
 
@@ -66,7 +67,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 "create", "--clusters", pulsarCluster.getClusterName(), namespace);
 
         long firstLedger = -1;
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
             Producer<byte[]> producer = client.newProducer().topic(topic)
                     .maxPendingMessages(getNumEntriesPerLedger() / 2).sendTimeout(60, TimeUnit.SECONDS)
                     .blockIfQueueFull(true).enableBatching(false).create();) {
@@ -82,7 +83,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                             log.error("failed to send a message", e);
                             success.set(false);
                             return null;
-                        });
+                        });;
             }
             producer.flush();
             Assert.assertTrue(success.get());
@@ -98,7 +99,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                     "offload", "--size-threshold", "100G", topic).getStdout();
             Assert.assertTrue(output.contains("Nothing to offload"));
 
-            output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
+            output = pulsarCluster.runAdminCommandOnAnyBroker( "topics",
                     "offload-status", topic).getStdout();
             Assert.assertTrue(output.contains("Offload has not been run"));
 
@@ -123,7 +124,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
 
         log.info("Read back the data (which would be in that first ledger)");
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
             Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
             // read back from topic
             for (int i = 0; i < getNumEntriesPerLedger() * 1.5; i++) {
@@ -149,7 +150,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 "set-offload-threshold", "--size", "1M", namespace);
 
         long firstLedger = 0;
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
             Producer<byte[]> producer = client.newProducer().topic(topic)
                     .maxPendingMessages(getNumEntriesPerLedger() / 2).sendTimeout(60, TimeUnit.SECONDS)
                     .blockIfQueueFull(true).enableBatching(false).create()) {
@@ -164,7 +165,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                             log.error("failed to send a message", e);
                             success.set(false);
                             return null;
-                        });
+                        });;
             }
 
             producer.flush();
@@ -225,7 +226,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
     private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic, int partitionNum)
             throws Exception {
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
             Producer<byte[]> producer = client.newProducer().topic(topic)
                     .maxPendingMessages(getNumEntriesPerLedger() / 2).sendTimeout(60, TimeUnit.SECONDS)
                     .blockIfQueueFull(true).enableBatching(false).create();

@@ -53,16 +53,16 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class JettySslContextFactoryWithKeyStoreTest {
-    static final String BROKEN_KEY_STORE_PATH =
+    final static String brokerKeyStorePath =
             Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
-    static final String BROKER_TRUST_STORE_PATH =
+    final static String brokerTrustStorePath =
             Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
-    static final String CLIENT_KEY_STORE_PATH =
+    final static String clientKeyStorePath =
             Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
-    static final String CLIENT_TRUST_STORE_PATH =
+    final static String clientTrustStorePath =
             Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
-    static final String KEY_STORE_TYPE = "JKS";
-    static final String KEY_STORE_PASSWORD = "111111";
+    final static String keyStoreType = "JKS";
+    final static String keyStorePassword = "111111";
 
     @Test
     public void testJettyTlsServerTls() throws Exception {
@@ -70,12 +70,12 @@ public class JettySslContextFactoryWithKeyStoreTest {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
-                .tlsKeyStoreType(KEY_STORE_TYPE)
-                .tlsKeyStorePath(BROKEN_KEY_STORE_PATH)
-                .tlsKeyStorePassword(KEY_STORE_PASSWORD)
-                .tlsTrustStoreType(KEY_STORE_TYPE)
-                .tlsTrustStorePath(CLIENT_TRUST_STORE_PATH)
-                .tlsTrustStorePassword(KEY_STORE_PASSWORD)
+                .tlsKeyStoreType(keyStoreType)
+                .tlsKeyStorePath(brokerKeyStorePath)
+                .tlsKeyStorePassword(keyStorePassword)
+                .tlsTrustStoreType(keyStoreType)
+                .tlsTrustStorePath(clientTrustStorePath)
+                .tlsTrustStorePassword(keyStorePassword)
                 .requireTrustedClientCertOnConnect(true)
                 .tlsEnabledWithKeystore(true)
                 .isHttps(true)
@@ -111,12 +111,12 @@ public class JettySslContextFactoryWithKeyStoreTest {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
-                .tlsKeyStoreType(KEY_STORE_TYPE)
-                .tlsKeyStorePath(BROKEN_KEY_STORE_PATH)
-                .tlsKeyStorePassword(KEY_STORE_PASSWORD)
-                .tlsTrustStoreType(KEY_STORE_TYPE)
-                .tlsTrustStorePath(CLIENT_TRUST_STORE_PATH)
-                .tlsTrustStorePassword(KEY_STORE_PASSWORD)
+                .tlsKeyStoreType(keyStoreType)
+                .tlsKeyStorePath(brokerKeyStorePath)
+                .tlsKeyStorePassword(keyStorePassword)
+                .tlsTrustStoreType(keyStoreType)
+                .tlsTrustStorePath(clientTrustStorePath)
+                .tlsTrustStorePassword(keyStorePassword)
                 .tlsProtocols(new HashSet<String>() {
                     {
                         this.add("TLSv1.3");
@@ -161,12 +161,12 @@ public class JettySslContextFactoryWithKeyStoreTest {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
-                .tlsKeyStoreType(KEY_STORE_TYPE)
-                .tlsKeyStorePath(BROKEN_KEY_STORE_PATH)
-                .tlsKeyStorePassword(KEY_STORE_PASSWORD)
-                .tlsTrustStoreType(KEY_STORE_TYPE)
-                .tlsTrustStorePath(CLIENT_TRUST_STORE_PATH)
-                .tlsTrustStorePassword(KEY_STORE_PASSWORD)
+                .tlsKeyStoreType(keyStoreType)
+                .tlsKeyStorePath(brokerKeyStorePath)
+                .tlsKeyStorePassword(keyStorePassword)
+                .tlsTrustStoreType(keyStoreType)
+                .tlsTrustStorePath(clientTrustStorePath)
+                .tlsTrustStorePassword(keyStorePassword)
                 .tlsCiphers(new HashSet<String>() {
                     {
                         this.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
@@ -218,7 +218,7 @@ public class JettySslContextFactoryWithKeyStoreTest {
     }
 
     private static SSLContext getClientSslContext() {
-        return getSslContext(CLIENT_KEY_STORE_PATH, KEY_STORE_PASSWORD, BROKER_TRUST_STORE_PATH, KEY_STORE_PASSWORD);
+        return getSslContext(clientKeyStorePath, keyStorePassword, brokerTrustStorePath, keyStorePassword);
     }
 
     private static SSLContext getSslContext(String keyStorePath, String keyStorePassword,

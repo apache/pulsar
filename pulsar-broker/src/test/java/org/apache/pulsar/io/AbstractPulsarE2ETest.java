@@ -75,32 +75,32 @@ import org.testng.annotations.Test;
 
 public abstract class AbstractPulsarE2ETest {
 
-    public static final Logger LOG = LoggerFactory.getLogger(AbstractPulsarE2ETest.class);
+	public static final Logger log = LoggerFactory.getLogger(AbstractPulsarE2ETest.class);
 
-    protected static final String TLS_SERVER_CERT_FILE_PATH =
+    protected final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    protected static final String TLS_SERVER_KEY_FILE_PATH =
+    protected final String TLS_SERVER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    protected static final String TLS_CLIENT_CERT_FILE_PATH =
+    protected final String TLS_CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    protected static final String TLS_CLIENT_KEY_FILE_PATH =
+    protected final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    protected static final String TLS_TRUST_CERT_FILE_PATH =
+    protected final String TLS_TRUST_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
     protected final String tenant = "external-repl-prop";
 
-    protected LocalBookkeeperEnsemble bkEnsemble;
-    protected ServiceConfiguration config;
-    protected WorkerConfig workerConfig;
-    protected PulsarService pulsar;
-    protected PulsarAdmin admin;
-    protected PulsarClient pulsarClient;
-    protected BrokerStats brokerStatsClient;
-    protected PulsarWorkerService functionsWorkerService;
-    protected String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
-    protected String primaryHost;
-    protected String workerId;
-    protected PulsarFunctionTestTemporaryDirectory tempDirectory;
+	protected LocalBookkeeperEnsemble bkEnsemble;
+	protected ServiceConfiguration config;
+	protected WorkerConfig workerConfig;
+	protected PulsarService pulsar;
+	protected PulsarAdmin admin;
+	protected PulsarClient pulsarClient;
+	protected BrokerStats brokerStatsClient;
+	protected PulsarWorkerService functionsWorkerService;
+	protected String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
+	protected String primaryHost;
+	protected String workerId;
+	protected PulsarFunctionTestTemporaryDirectory tempDirectory;
     protected FileServer fileServer;
 
     @DataProvider(name = "validRoleName")
@@ -110,7 +110,7 @@ public abstract class AbstractPulsarE2ETest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup(Method method) throws Exception {
-        LOG.info("--- Setting up method {} ---", method.getName());
+        log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -237,7 +237,7 @@ public abstract class AbstractPulsarE2ETest {
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
-        LOG.info("--- Shutting down ---");
+        log.info("--- Shutting down ---");
         try {
             if (fileServer != null) {
                 fileServer.stop();
@@ -287,8 +287,9 @@ public abstract class AbstractPulsarE2ETest {
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class)); // worker talks to local broker
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getMapper().getObjectMapper()
+                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));        // worker talks to local broker
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");

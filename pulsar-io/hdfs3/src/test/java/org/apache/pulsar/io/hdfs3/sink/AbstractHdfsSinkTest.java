@@ -106,14 +106,13 @@ public abstract class AbstractHdfsSinkTest<K, V> {
 
         @Override
         public void run() {
-            while (keepRunning) {
+            while (keepRunning)
                 try {
                     sink.write(mockRecord);
                 } catch (Exception e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
-            }
         }
 
         public void halt() {

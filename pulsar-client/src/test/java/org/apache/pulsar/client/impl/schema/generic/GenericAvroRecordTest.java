@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import static org.testng.Assert.assertEquals;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
@@ -39,8 +40,7 @@ public class GenericAvroRecordTest {
 
         GenericRecord record = schema.newRecordBuilder().set("test", "foo").build();
         assertEquals(GenericAvroRecord.class, record.getClass());
-        org.apache.avro.generic.GenericRecord nativeRecord =
-                (org.apache.avro.generic.GenericRecord) record.getNativeObject();
+        org.apache.avro.generic.GenericRecord nativeRecord = (org.apache.avro.generic.GenericRecord) record.getNativeObject();
         assertEquals("foo", nativeRecord.get("test").toString());
         assertEquals(1, nativeRecord.getSchema().getFields().size());
         assertEquals(schemaType, record.getSchemaType());

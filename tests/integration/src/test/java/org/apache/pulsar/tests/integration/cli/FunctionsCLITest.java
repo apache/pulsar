@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.cli;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;

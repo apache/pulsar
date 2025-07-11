@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +30,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.testng.annotations.Test;
 
 /**
- * Test compareTo method in MessageIdImpl and BatchMessageIdImpl.
+ * Test compareTo method in MessageIdImpl and BatchMessageIdImpl
  */
 public class MessageIdCompareToTest  {
 

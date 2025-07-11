@@ -20,6 +20,7 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.MSG_COMPRESSION_TYPE;
 import static org.testng.Assert.assertEquals;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -126,8 +127,7 @@ public class StrategicCompactionTest extends CompactionTest {
 
         Map<String, Integer> expectedCopy = new HashMap<>(expected);
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<Integer> consumer =
-                     pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
+        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             while (!expected.isEmpty()) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -137,8 +137,7 @@ public class StrategicCompactionTest extends CompactionTest {
         }
 
         // can get full backlog if read compacted disabled
-        try (Consumer<Integer> consumer =
-                     pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
+        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
                 .readCompacted(false).subscribe()) {
             while (true) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -185,8 +184,8 @@ public class StrategicCompactionTest extends CompactionTest {
         FutureUtil.waitForAll(futures).get();
 
         // 2.compact the topic.
-        StrategicTwoPhaseCompactor compactor =
-                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor
+                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries

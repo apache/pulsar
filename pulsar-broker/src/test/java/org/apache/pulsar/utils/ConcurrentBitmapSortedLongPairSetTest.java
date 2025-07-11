@@ -183,15 +183,15 @@ public class ConcurrentBitmapSortedLongPairSetTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 8;
-        final int num = 1000;
+        final int N = 1000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
             final int threadIdx = i;
             futures.add(executor.submit(() -> {
 
-                int start = num * (threadIdx + 1);
-                for (int j = 0; j < num; j++) {
+                int start = N * (threadIdx + 1);
+                for (int j = 0; j < N; j++) {
                     int key = start + j;
                     // Ensure keys are unique
                     set.add(key, key);
@@ -203,7 +203,7 @@ public class ConcurrentBitmapSortedLongPairSetTest {
             future.get();
         }
 
-        assertEquals(set.size(), num * nThreads);
+        assertEquals(set.size(), N * nThreads);
     }
 
     @Test

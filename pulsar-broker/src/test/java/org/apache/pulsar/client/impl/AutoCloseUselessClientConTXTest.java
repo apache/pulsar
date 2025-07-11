@@ -46,18 +46,18 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSupports {
 
-    private static final String topicName = UUID.randomUUID().toString().replaceAll("-", "");
+    private static final String topicName = UUID.randomUUID().toString().replaceAll("-","");
     private static final String topicFullName = "persistent://public/default/" + topicName;
 
     @BeforeMethod
     public void before() throws PulsarAdminException, MetadataStoreException {
         // Create Topics
-        PulsarAdmin pulsarAdmin0 = super.getAllAdmins().get(0);
-        List<String> topicListDefaultNamespace = pulsarAdmin0.topics().getList("public/default");
-        if (!topicListDefaultNamespace.contains(topicName)
-                && !topicListDefaultNamespace.contains(topicFullName + "-partition-0")
-                && !topicListDefaultNamespace.contains(topicFullName)){
-            pulsarAdmin0.topics().createNonPartitionedTopic(topicFullName);
+        PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
+        List<String> topicList_defaultNamespace = pulsarAdmin_0.topics().getList("public/default");
+        if (!topicList_defaultNamespace.contains(topicName)
+                && !topicList_defaultNamespace.contains(topicFullName + "-partition-0")
+                && !topicList_defaultNamespace.contains(topicFullName)){
+            pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName);
         }
     }
 

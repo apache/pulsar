@@ -95,22 +95,22 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
     @Test
     public void testMTProduceConsumeRGUsagePersistentTopicNamesSameTenant() throws Exception {
-        testProduceConsumeUsageOnRG(persistentTopicNamesSameTenantAndNsRGs);
+        testProduceConsumeUsageOnRG(PersistentTopicNamesSameTenantAndNsRGs);
     }
 
     @Test
     public void testMTProduceConsumeRGUsagePersistentTopicNamesDifferentTenant() throws Exception {
-        testProduceConsumeUsageOnRG(persistentTopicNamesDifferentTenantAndNsRGs);
+        testProduceConsumeUsageOnRG(PersistentTopicNamesDifferentTenantAndNsRGs);
     }
 
     @Test
     public void testMTProduceConsumeRGUsageNonPersistentTopicNamesSameTenant() throws Exception {
-        testProduceConsumeUsageOnRG(nonPersistentTopicNamesSameTenantAndNsRGs);
+        testProduceConsumeUsageOnRG(NonPersistentTopicNamesSameTenantAndNsRGs);
     }
 
     @Test
     public void testMTProduceConsumeRGUsageNonPersistentTopicNamesDifferentTenant() throws Exception {
-        testProduceConsumeUsageOnRG(nonPersistentTopicNamesDifferentTenantAndNsRGs);
+        testProduceConsumeUsageOnRG(NonPersistentTopicNamesDifferentTenantAndNsRGs);
     }
 
     // A class which implements the producer; the main test thread will spawn multiple producers.
@@ -317,14 +317,14 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     }
 
     // Given a topic, get the tenant RG-name
-    private String topicToTenantRGName(TopicName topicName) {
+    private String TopicToTenantRGName(TopicName topicName) {
         // Under the current topic naming scheme, the tenant-rg name is just the tenant part of the topic.
         String tenant = topicName.getTenant();
         return tenant;
     }
 
     // Given a topic, get the namespace RG-name
-    private String topicToNamespaceRGName(TopicName topicName) {
+    private String TopicToNamespaceRGName(TopicName topicName) {
         // Under the current topic naming  scheme, the namespace-rg name is just the namespace part of the topic.
         String nameSpace = topicName.getNamespacePortion();
         return nameSpace;
@@ -338,8 +338,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         int numTopics = topicStrings.length;
         for (String topicStr : topicStrings) {
             TopicName topic = TopicName.get(topicStr);
-            String tenantRG = topicToTenantRGName(topic);
-            String namespaceRG = topicToNamespaceRGName(topic);
+            String tenantRG = TopicToTenantRGName(topic);
+            String namespaceRG = TopicToNamespaceRGName(topic);
             if (tenantRG.compareTo(namespaceRG) == 0) {
                 numEqualRGs++;
             } else {
@@ -358,8 +358,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private void registerTenantsAndNamespaces(String[] topicStrings) throws Exception {
         for (String topicStr : topicStrings) {
             final TopicName topic = TopicName.get(topicStr);
-            final String tenantRG = topicToTenantRGName(topic);
-            final String namespaceRG = topicToNamespaceRGName(topic);
+            final String tenantRG = TopicToTenantRGName(topic);
+            final String namespaceRG = TopicToNamespaceRGName(topic);
             final NamespaceName ns = topic.getNamespaceObject();
 
             // The tenant name and namespace name parts of the topic are the same as their corresponding RG-names.
@@ -378,8 +378,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private void unRegisterTenantsAndNamespaces(String[] topicStrings) throws Exception {
         for (String topicStr : topicStrings) {
             final TopicName topic = TopicName.get(topicStr);
-            final String tenantRG = topicToTenantRGName(topic);
-            final String namespaceRG = topicToNamespaceRGName(topic);
+            final String tenantRG = TopicToTenantRGName(topic);
+            final String namespaceRG = TopicToNamespaceRGName(topic);
             final String tenantAndNamespace = topic.getNamespace();
 
             // The tenant name and namespace name parts of the topic are the same as their corresponding RG-names.
@@ -403,8 +403,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         // createTopics(topicStrings);
         registerTenantsAndNamespaces(topicStrings);
 
-        final int totalExpectedMessagesToSend = NUM_TOTAL_MESSAGES;
-        final int totalExpectedMessagesToReceive = totalExpectedMessagesToSend;
+        final int TotalExpectedMessagesToSend = NUM_TOTAL_MESSAGES;
+        final int TotalExpectedMessagesToReceive = TotalExpectedMessagesToSend;
 
         final SubscriptionType consumeSubscriptionType = SubscriptionType.Shared;  // Shared, or Exclusive
 
@@ -417,7 +417,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         // Fork some consumers to receive the messages.
         for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
             consThr[ix] = new ConsumerWithThread();
-            ConsumeMessages cm = new ConsumeMessages(ix, NUM_MESSAGES_PER_CONSUMER, totalExpectedMessagesToReceive,
+            ConsumeMessages cm = new ConsumeMessages(ix, NUM_MESSAGES_PER_CONSUMER, TotalExpectedMessagesToReceive,
                     consumeSubscriptionType, topicStrings);
             Thread thr = new Thread(cm);
             thr.start();
@@ -460,7 +460,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             sentNumBytes += sentBytes;
             sentNumMsgs += sentMsgs;
         }
-        Assert.assertEquals(sentNumMsgs, totalExpectedMessagesToSend);
+        Assert.assertEquals(sentNumMsgs, TotalExpectedMessagesToSend);
         Assert.assertEquals(numProducerExceptions, 0);
 
         int recvdNumMsgs;
@@ -475,9 +475,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                 consNumMesgsRecvd = consThr[ix].consumer.getNumMessagesRecvd();
                 recvdNumMsgs += consNumMesgsRecvd;
                 log.debug("consumer={} received {} messages (current total {}, expected {})",
-                        ix, consNumMesgsRecvd, recvdNumMsgs, totalExpectedMessagesToReceive);
+                        ix, consNumMesgsRecvd, recvdNumMsgs, TotalExpectedMessagesToReceive);
             }
-        } while (recvdNumMsgs < totalExpectedMessagesToReceive);
+        } while (recvdNumMsgs < TotalExpectedMessagesToReceive);
 
         // Tell the consumers that all expected messages have been received (but don't close them yet).
         for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
@@ -515,7 +515,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             consThr[ix].consumer.closeConsumer();
         }
 
-        Assert.assertEquals(recvdNumMsgs, totalExpectedMessagesToReceive);
+        Assert.assertEquals(recvdNumMsgs, TotalExpectedMessagesToReceive);
         Assert.assertEquals(numConsumerExceptions, 0);
 
         boolean tenantRGEqualsNsRG = tenantRGEqualsNamespaceRG(topicStrings);
@@ -526,8 +526,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         final int scaleFactor = tenantRGEqualsNsRG ? 1 : 2;
 
         // Verify producer and consumer side stats.
-        this.verifyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor,
-                true, true);
+        this.verifyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
 
         // Verify the metrics corresponding to the operations in this test.
         this.verifyRGMetrics(sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
@@ -555,8 +554,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         // Pulsar runtime adds some additional bytes in the exchanges: a 42-byte per-message
         // metadata of some kind, plus more as the number of messages increases.
         // Hence the ">=" assertion with ExpectedNumBytesSent/Received in the following checks.
-        final int expectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
-        final int expectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
+        final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
+        final int ExpectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
 
         long totalOutMessages = 0, totalOutBytes = 0;
         long totalInMessages = 0, totalInBytes = 0;
@@ -568,8 +567,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         // Since the following walk is on topics, keep track of the RGs for which we have already gathered stats,
         // so that we do not double-accumulate stats if multiple topics refer to the same RG.
-        HashSet<String> rgsWithPublishStatsGathered = new HashSet<>();
-        HashSet<String> rgsWithDispatchStatsGathered = new HashSet<>();
+        HashSet<String> RGsWithPublishStatsGathered = new HashSet<>();
+        HashSet<String> RGsWithDispatchStatsGathered = new HashSet<>();
 
         // Hack to ensure aggregator calculation without waiting for a period of aggregation.
         // [aggregateResourceGroupLocalUsages() is idempotent when there's no fresh traffic flowing.]
@@ -593,35 +592,35 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                 if (sentNumMsgs > 0 || recvdNumMsgs > 0) {
                     TopicName topic = TopicName.get(mapTopicName);
 
-                    final String tenantRGName = topicToTenantRGName(topic);
-                    if (!rgsWithPublishStatsGathered.contains(tenantRGName)) {
+                    final String tenantRGName = TopicToTenantRGName(topic);
+                    if (!RGsWithPublishStatsGathered.contains(tenantRGName)) {
                         prodCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Publish,
                                 getCumulativeUsageStats);
                         totalTenantRGProdCounts = ResourceGroup.accumulateBMCount(totalTenantRGProdCounts, prodCounts);
-                        rgsWithPublishStatsGathered.add(tenantRGName);
+                        RGsWithPublishStatsGathered.add(tenantRGName);
                     }
-                    if (!rgsWithDispatchStatsGathered.contains(tenantRGName)) {
+                    if (!RGsWithDispatchStatsGathered.contains(tenantRGName)) {
                         consCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Dispatch,
                                 getCumulativeUsageStats);
                         totalTenantRGConsCounts = ResourceGroup.accumulateBMCount(totalTenantRGConsCounts, consCounts);
-                        rgsWithDispatchStatsGathered.add(tenantRGName);
+                        RGsWithDispatchStatsGathered.add(tenantRGName);
                     }
 
-                    final String nsRGName = topicToNamespaceRGName(topic);
+                    final String nsRGName = TopicToNamespaceRGName(topic);
                     // If tenantRGName == nsRGName, the RG-infra will avoid double counting.
                     // We will do the same here, to get the expected stats.
                     if (tenantRGName.compareTo(nsRGName) != 0) {
-                        if (!rgsWithPublishStatsGathered.contains(nsRGName)) {
+                        if (!RGsWithPublishStatsGathered.contains(nsRGName)) {
                             prodCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Publish,
                                     getCumulativeUsageStats);
                             totalNsRGProdCounts = ResourceGroup.accumulateBMCount(totalNsRGProdCounts, prodCounts);
-                            rgsWithPublishStatsGathered.add(nsRGName);
+                            RGsWithPublishStatsGathered.add(nsRGName);
                         }
-                        if (!rgsWithDispatchStatsGathered.contains(nsRGName)) {
+                        if (!RGsWithDispatchStatsGathered.contains(nsRGName)) {
                             consCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Dispatch,
                                     getCumulativeUsageStats);
                             totalNsRGConsCounts = ResourceGroup.accumulateBMCount(totalNsRGConsCounts, consCounts);
-                            rgsWithDispatchStatsGathered.add(nsRGName);
+                            RGsWithDispatchStatsGathered.add(nsRGName);
                         }
                     }
                 }
@@ -636,24 +635,24 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         if (checkProduce) {
             Assert.assertEquals(totalInMessages, sentNumMsgs);
-            Assert.assertTrue(totalInBytes >= expectedNumBytesSent);
+            Assert.assertTrue(totalInBytes >= ExpectedNumBytesSent);
         }
 
         if (checkConsume) {
             Assert.assertEquals(totalOutMessages, recvdNumMsgs);
-            Assert.assertTrue(totalOutBytes >= expectedNumBytesReceived);
+            Assert.assertTrue(totalOutBytes >= ExpectedNumBytesReceived);
         }
 
         if (checkProduce) {
             prodCounts = ResourceGroup.accumulateBMCount(totalTenantRGProdCounts, totalNsRGProdCounts);
             Assert.assertEquals(prodCounts.messages, sentNumMsgs * scaleFactor);
-            Assert.assertTrue(prodCounts.bytes >= expectedNumBytesSent);
+            Assert.assertTrue(prodCounts.bytes >= ExpectedNumBytesSent);
         }
 
         if (checkConsume) {
             consCounts = ResourceGroup.accumulateBMCount(totalTenantRGConsCounts, totalNsRGConsCounts);
             Assert.assertEquals(consCounts.messages, recvdNumMsgs * scaleFactor);
-            Assert.assertTrue(consCounts.bytes >= expectedNumBytesReceived);
+            Assert.assertTrue(consCounts.bytes >= ExpectedNumBytesReceived);
         }
     }
 
@@ -662,8 +661,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                                  int recvdNumBytes, int recvdNumMsgs,
                                  int scaleFactor, boolean checkProduce,
                                  boolean checkConsume) throws Exception {
-        final int expectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
-        final int expectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
+        final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
+        final int ExpectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
         long totalTenantRegisters = 0;
         long totalTenantUnRegisters = 0;
         long totalNamespaceRegisters = 0;
@@ -679,7 +678,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         // [aggregateResourceGroupLocalUsages() is idempotent when there's no new traffic flowing.]
         this.rgservice.aggregateResourceGroupLocalUsages();
 
-        for (String rgName : rgNames) {
+        for (String rgName : RGNames) {
             for (ResourceGroupMonitoringClass mc : ResourceGroupMonitoringClass.values()) {
                 String mcName = mc.name();
                 int mcIndex = mc.ordinal();
@@ -696,8 +695,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             totalNamespaceUnRegisters += ResourceGroupService.getRgNamespaceUnRegistersCount(rgName);
             totalUpdates += ResourceGroupService.getRgUpdatesCount(rgName);
         }
-        log.info("totalTenantRegisters={}, totalTenantUnRegisters={}, "
-                        + "totalNamespaceRegisters={}, totalNamespaceUnRegisters={}",
+        log.info("totalTenantRegisters={}, totalTenantUnRegisters={}, " +
+                        "totalNamespaceRegisters={}, totalNamespaceUnRegisters={}",
                 totalTenantRegisters, totalTenantUnRegisters, totalNamespaceRegisters, totalNamespaceUnRegisters);
 
         // On each run, there will be 'NumRGs' registrations
@@ -715,9 +714,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         for (ResourceGroupMonitoringClass mc : ResourceGroupMonitoringClass.values()) {
             int mcIdx = mc.ordinal();
-            log.info("mc={}: totalQuotaBytes={}, totalQuotaMessages={}, "
-                            + " totalUsedBytes={}, totalUsedMessages={}"
-                            + " totalUsageReports={}",
+            log.info("mc={}: totalQuotaBytes={}, totalQuotaMessages={}, " +
+                            " totalUsedBytes={}, totalUsedMessages={}" +
+                            " totalUsageReports={}",
                     mc.name(), totalQuotaBytes[mcIdx], totalQuotaMessages[mcIdx],
                     totalUsedBytes[mcIdx], totalUsedMessages[mcIdx], totalUsageReportCounts[mcIdx]);
             // On each run, the bytes/messages are monotone incremented in Prometheus metrics.
@@ -726,12 +725,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualSentNumMessages,
                         sentNumMsgs * scaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualSentNumBytes
-                        >= expectedNumBytesSent);
+                        >= ExpectedNumBytesSent);
             } else if (checkConsume && mc == ResourceGroupMonitoringClass.Dispatch) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualRecvdNumMessages,
                         recvdNumMsgs * scaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualRecvdNumBytes
-                        >= expectedNumBytesReceived);
+                        >= ExpectedNumBytesReceived);
             }
 
             long perClassUsageReports = numLocalUsageReports / ResourceGroupMonitoringClass.values().length;
@@ -780,10 +779,10 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private ResourceGroupService rgservice;
 
     private final String clusterName = "test";
-    private static final String BaseRGName = "rg-";
-    private static final String BaseTestTopicName = "rgusage-topic-";
+    private final String BaseRGName = "rg-";
+    private final String BaseTestTopicName = "rgusage-topic-";
 
-    private final String[] rgNames = new String[NUM_RESOURCE_GROUPS];
+    private final String[] RGNames = new String[NUM_RESOURCE_GROUPS];
 
     // The number of times we pretend to have not suppressed sending a local usage report.
     private long numLocalUsageReports;
@@ -793,22 +792,22 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     // [This is required to test the special case of "tenant and NS refer to the same RG", because in that case
     // we don't double-count the usage.]
     // Same-order mapping: e.g., rg-0/rg-0 (for 0th entry)
-    private final String[] tenantAndNsNameSameOrder = new String[NUM_RESOURCE_GROUPS];
+    private final String[] TenantAndNsNameSameOrder = new String[NUM_RESOURCE_GROUPS];
 
     // Opposite order mapping: e.g., rg-0/rg-49 (for 0th entry with 50 RGs)
-    private final String[] tenantAndNsNameOppositeOrder = new String[NUM_RESOURCE_GROUPS];
+    private final String[] TenantAndNsNameOppositeOrder = new String[NUM_RESOURCE_GROUPS];
 
     // Similar to above (same and opposite order) for topics.
     // E.g., rg-0/rg-0/rgusage-topic0 for 0-th topic in "same order"
     // and rg-0/rg-49/rgusage-topic0 for 0-th topic in "opposite order", with 50 RGs
-    private final String[] topicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
-    private final String[] topicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
+    private final String[] TopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
+    private final String[] TopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
 
     // Persistent and non-persistent topic strings with the above names.
-    private final String[] persistentTopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
-    private final String[] persistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
-    private final String[] nonPersistentTopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
-    private final String[] nonPersistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
+    private final String[] PersistentTopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
+    private final String[] PersistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
+    private final String[] NonPersistentTopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
+    private final String[] NonPersistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
 
 
     // We don't periodically report to a remote broker in this test. So, we will use cumulative stats.
@@ -860,14 +859,14 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
     // Create all the RGs named in RGNames[]
     private void createRGs() throws Exception {
-        for (String rgname : rgNames) {
+        for (String rgname : RGNames) {
             this.rgservice.resourceGroupCreate(rgname, rgConfig);
         }
     }
 
     // Destroy all the RGs named in RGNames[]
     private void destroyRGs() throws Exception {
-        for (String rgname : rgNames) {
+        for (String rgname : RGNames) {
             this.rgservice.resourceGroupDelete(rgname);
         }
     }
@@ -893,9 +892,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         Assert.assertEquals(NUM_TOPICS % NUM_RESOURCE_GROUPS, 0);
 
         // Ensure that the messages-per-consumer is an integral multiple of the number of consumers.
-        final int numConsumerMessages = NUM_MESSAGES_PER_CONSUMER * NUM_CONSUMERS;
-        final int numProducerMessages = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
-        Assert.assertTrue(NUM_MESSAGES_PER_CONSUMER > 0 && numConsumerMessages == numProducerMessages);
+        final int NumConsumerMessages = NUM_MESSAGES_PER_CONSUMER * NUM_CONSUMERS;
+        final int NumProducerMessages = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
+        Assert.assertTrue(NUM_MESSAGES_PER_CONSUMER > 0 && NumConsumerMessages == NumProducerMessages);
 
         rgConfig.setPublishRateInBytes(1500L);
         rgConfig.setPublishRateInMsgs(100);
@@ -904,58 +903,58 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         // Set up the RG names; creation of RGs will be done elsewhere.
         for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
-            rgNames[ix] = BaseRGName + ix;
+            RGNames[ix] = BaseRGName + ix;
         }
 
         // Create all the tenants
         final TenantInfo configInfo =
                 new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName));
         for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
-            admin.tenants().createTenant(rgNames[ix], configInfo);
+            admin.tenants().createTenant(RGNames[ix], configInfo);
         }
 
         // Set up the tenant-and-nsname mapping strings, for same and opposite order of RGs.
         for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
-            tenantAndNsNameSameOrder[ix] = rgNames[ix] + "/" + rgNames[ix];
-            tenantAndNsNameOppositeOrder[ix] = rgNames[ix] + "/" + rgNames[NUM_RESOURCE_GROUPS - (ix + 1)];
+            TenantAndNsNameSameOrder[ix] = RGNames[ix] + "/" + RGNames[ix];
+            TenantAndNsNameOppositeOrder[ix] = RGNames[ix] + "/" + RGNames[NUM_RESOURCE_GROUPS - (ix + 1)];
         }
 
         // Create all the namespaces
         for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
-            if (!createdNamespaces.contains(tenantAndNsNameSameOrder[ix])) {
-                admin.namespaces().createNamespace(tenantAndNsNameSameOrder[ix]);
+            if (!createdNamespaces.contains(TenantAndNsNameSameOrder[ix])) {
+                admin.namespaces().createNamespace(TenantAndNsNameSameOrder[ix]);
                 admin.namespaces().setNamespaceReplicationClusters(
-                        tenantAndNsNameSameOrder[ix], Sets.newHashSet(clusterName));
-                createdNamespaces.add(tenantAndNsNameSameOrder[ix]);
+                        TenantAndNsNameSameOrder[ix], Sets.newHashSet(clusterName));
+                createdNamespaces.add(TenantAndNsNameSameOrder[ix]);
             }
 
-            if (!createdNamespaces.contains(tenantAndNsNameOppositeOrder[ix])) {
-                admin.namespaces().createNamespace(tenantAndNsNameOppositeOrder[ix]);
+            if (!createdNamespaces.contains(TenantAndNsNameOppositeOrder[ix])) {
+                admin.namespaces().createNamespace(TenantAndNsNameOppositeOrder[ix]);
                 admin.namespaces().setNamespaceReplicationClusters(
-                        tenantAndNsNameOppositeOrder[ix], Sets.newHashSet(clusterName));
-                createdNamespaces.add(tenantAndNsNameOppositeOrder[ix]);
+                        TenantAndNsNameOppositeOrder[ix], Sets.newHashSet(clusterName));
+                createdNamespaces.add(TenantAndNsNameOppositeOrder[ix]);
             }
         }
 
         // Create all the topic name strings
         for (int ix = 0; ix < NUM_TOPICS; ix++) {
-            topicNamesSameTenantAndNsRGs[ix] =
-                    tenantAndNsNameSameOrder[ix % NUM_RESOURCE_GROUPS] + "/" + BaseTestTopicName + ix;
-            topicNamesDifferentTenantAndNsRGs[ix] =
-                    tenantAndNsNameOppositeOrder[ix % NUM_RESOURCE_GROUPS] + "/" + BaseTestTopicName + ix;
+            TopicNamesSameTenantAndNsRGs[ix] =
+                    TenantAndNsNameSameOrder[ix % NUM_RESOURCE_GROUPS] + "/" + BaseTestTopicName + ix;
+            TopicNamesDifferentTenantAndNsRGs[ix] =
+                    TenantAndNsNameOppositeOrder[ix % NUM_RESOURCE_GROUPS] + "/" + BaseTestTopicName + ix;
         }
 
         // Create all the persistent and non-persistent topic strings
         for (int ix = 0; ix < NUM_TOPICS; ix++) {
-            persistentTopicNamesSameTenantAndNsRGs[ix] =
-                    "persistent://" + topicNamesSameTenantAndNsRGs[ix];
-            persistentTopicNamesDifferentTenantAndNsRGs[ix] =
-                    "persistent://" + topicNamesDifferentTenantAndNsRGs[ix];
+            PersistentTopicNamesSameTenantAndNsRGs[ix] =
+                    "persistent://" + TopicNamesSameTenantAndNsRGs[ix];
+            PersistentTopicNamesDifferentTenantAndNsRGs[ix] =
+                    "persistent://" + TopicNamesDifferentTenantAndNsRGs[ix];
 
-            nonPersistentTopicNamesSameTenantAndNsRGs[ix] =
-                    "non-persistent://" + topicNamesSameTenantAndNsRGs[ix];
-            nonPersistentTopicNamesDifferentTenantAndNsRGs[ix] =
-                    "non-persistent://" + topicNamesDifferentTenantAndNsRGs[ix];
+            NonPersistentTopicNamesSameTenantAndNsRGs[ix] =
+                    "non-persistent://" + TopicNamesSameTenantAndNsRGs[ix];
+            NonPersistentTopicNamesDifferentTenantAndNsRGs[ix] =
+                    "non-persistent://" + TopicNamesDifferentTenantAndNsRGs[ix];
         }
     }
 }

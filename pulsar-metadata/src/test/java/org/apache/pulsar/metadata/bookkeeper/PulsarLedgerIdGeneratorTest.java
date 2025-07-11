@@ -132,8 +132,7 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
     public void testGenerateLedgerIdWithZkPrefix() throws Exception {
         @Cleanup
         MetadataStoreExtended store =
-                MetadataStoreExtended.create(zks.getConnectionString() + "/test",
-                        MetadataStoreConfig.builder().build());
+                MetadataStoreExtended.create(zks.getConnectionString() + "/test", MetadataStoreConfig.builder().build());
 
         @Cleanup
         PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
@@ -198,8 +197,7 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
                 "Wait ledger id generation threads to stop timeout : ");
         ///test/ledgers/idgen-long/HOB-0000000001/ID-0000000000
         for (Long ledgerId : longLedgerIds) {
-            assertFalse(store.exists("/ledgers/idgen-long/HOB-0000000001/ID-"
-                            + String.format("%010d", ledgerId >> 32)).get(),
+            assertFalse(store.exists("/ledgers/idgen-long/HOB-0000000001/ID-" + String.format("%010d", ledgerId >> 32)).get(),
                     "Exception during deleting node for id generation : ");
         }
 

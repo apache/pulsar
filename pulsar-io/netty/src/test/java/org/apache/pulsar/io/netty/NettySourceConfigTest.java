@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.io.netty;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
+import org.testng.annotations.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 /**
- * Tests for Netty Tcp or Udp Source Config.
+ * Tests for Netty Tcp or Udp Source Config
  */
 public class NettySourceConfigTest {
 

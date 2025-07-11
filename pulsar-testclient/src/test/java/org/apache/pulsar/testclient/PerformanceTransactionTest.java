@@ -18,13 +18,9 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.net.URL;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -47,6 +43,11 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.testng.Assert.fail;
 
 @Slf4j
 public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
@@ -86,7 +87,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         int exitCode = lastExitCode.get();
         if (exitCode != 0) {
-            fail("Unexpected JVM exit code " + exitCode);
+            fail("Unexpected JVM exit code "+exitCode);
         }
     }
 

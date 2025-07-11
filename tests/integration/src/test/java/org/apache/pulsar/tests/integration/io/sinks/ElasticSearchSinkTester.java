@@ -161,13 +161,13 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
                 final SimplePojo keyPojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i + 1),
+                        Arrays.asList(i, i +1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
                 final SimplePojo valuePojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i + 1),
+                        Arrays.asList(i, i +1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
                 producer.newMessage()

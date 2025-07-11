@@ -24,10 +24,7 @@ import static org.testng.Assert.assertTrue;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -35,6 +32,9 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.Test;
+import javax.crypto.SecretKey;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 public class MultiRolesTokenAuthorizationProviderTest {
 
@@ -193,8 +193,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
         assertTrue(provider.authorize("test-role", null, authorizeFunc).get());
         assertFalse(provider.authorize("test-role-x", null, authorizeFunc).get());
-        assertTrue(provider.authorize("test-role",
-                new AuthenticationDataSubscription(null, "test-sub"), authorizeFunc).get());
+        assertTrue(provider.authorize("test-role", new AuthenticationDataSubscription(null, "test-sub"), authorizeFunc).get());
     }
 
     @Test
@@ -299,8 +298,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
             return CompletableFuture.completedFuture(false);
         };
-        assertTrue(provider.authorize(testAdminRole, ads,
-                (String role) -> CompletableFuture.completedFuture(false)).get());
+        assertTrue(provider.authorize(testAdminRole, ads, (String role) -> CompletableFuture.completedFuture(false)).get());
         assertTrue(provider.authorize("admin1", null, authorizeFunc).get());
         assertFalse(provider.authorize("admin2", null, authorizeFunc).get());
     }

@@ -140,7 +140,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, 10);
 
         // create subscription for one partition
-        final String partitionedTopic0 = topic + "-partition-0";
+        final String partitionedTopic0 = topic+"-partition-0";
         admin.topics().createSubscription(partitionedTopic0, "sub-1", MessageId.latest);
 
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
@@ -473,14 +473,14 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void testWaitingCurosrCausedMemoryLeak() throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic";
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 10; i ++) {
             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                     .subscriptionType(SubscriptionType.Failover).subscriptionName("test" + i).subscribe();
             Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
             consumer.close();
         }
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) (topicRef.getManagedLedger());
+        ManagedLedgerImpl ml = (ManagedLedgerImpl)(topicRef.getManagedLedger());
         assertEquals(ml.getWaitingCursorsCount(), 0);
     }
 

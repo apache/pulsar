@@ -132,9 +132,9 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
         }
 
         // delete the ResourceGroups we created.
-        Iterator<String> rgIterator = expectedRgNames.iterator();
-        while (rgIterator.hasNext()) {
-            resourcegroups.deleteResourceGroup(rgIterator.next());
+        Iterator<String> rg_Iterator = expectedRgNames.iterator();
+        while (rg_Iterator.hasNext()) {
+            resourcegroups.deleteResourceGroup(rg_Iterator.next());
         }
     }
 

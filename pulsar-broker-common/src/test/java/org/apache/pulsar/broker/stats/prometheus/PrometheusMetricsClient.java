@@ -144,8 +144,8 @@ public class PrometheusMetricsClient {
         public final Metric findSingleMetricByNameAndLabels(String metricName, Pair<String, String>... nameValuePairs) {
             List<Metric> metricByNameAndLabels = findByNameAndLabels(metricName, nameValuePairs);
             if (metricByNameAndLabels.size() != 1) {
-                fail("Expected to find 1 metric, but found the following: " + metricByNameAndLabels
-                + ". Metrics are = " + nameToDataPoints.get(metricName) + ". Labels requested = " + Arrays.toString(
+                fail("Expected to find 1 metric, but found the following: "+metricByNameAndLabels +
+                ". Metrics are = "+nameToDataPoints.get(metricName)+". Labels requested = "+ Arrays.toString(
                         nameValuePairs));
             }
             return metricByNameAndLabels.get(0);

@@ -175,9 +175,8 @@ public class PulsarAdminBuilderImplTest {
 
     @SneakyThrows
     private Authentication createAdminAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080")
-                .loadConf(confProps).build()) {
-            return ((PulsarAdminImpl) admin).auth;
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").loadConf(confProps).build()) {
+            return ((PulsarAdminImpl)admin).auth;
         }
     }
 
@@ -189,7 +188,7 @@ public class PulsarAdminBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 

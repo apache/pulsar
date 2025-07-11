@@ -64,8 +64,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         final int messages = 100;
 
         @Cleanup
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer =
-                pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscribe();
 
         @Cleanup
@@ -83,8 +82,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         Assert.assertEquals(received, messages);
 
         // cleanup.
-        org.apache.pulsar.broker.service.Consumer serverConsumer =
-                pulsar.getBrokerService().getTopicReference(topicName)
+        org.apache.pulsar.broker.service.Consumer serverConsumer = pulsar.getBrokerService().getTopicReference(topicName)
                 .get().getSubscription(subName).getConsumers().get(0);
         ((ServerCnx) serverConsumer.cnx()).close();
         consumer.close();
@@ -155,8 +153,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
     private void testPubAndSub(String topicName, String subName, String expectedHostAndPort,
                                PulsarClientImpl pulsarClient) throws Exception {
         // Verify: subscribe
-        org.apache.pulsar.client.api.Consumer<String> clientConsumer =
-                pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+        org.apache.pulsar.client.api.Consumer<String> clientConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
                 .subscriptionName(subName).subscribe();
         org.apache.pulsar.broker.service.Consumer serverConsumer = pulsar.getBrokerService()
                 .getTopicReference(topicName).get().getSubscription(subName).getConsumers().get(0);

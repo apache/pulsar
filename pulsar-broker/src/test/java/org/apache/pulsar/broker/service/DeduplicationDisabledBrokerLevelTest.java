@@ -88,9 +88,9 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         producer.close();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
         Awaitility.await().atMost(Duration.ofSeconds(deduplicationSnapshotFrequency * 3)).untilAsserted(() -> {
-            Position lac = ml.getLastConfirmedEntry();
+            Position LAC = ml.getLastConfirmedEntry();
             Position cursorMD = cursor.getMarkDeletedPosition();
-            assertTrue(lac.compareTo(cursorMD) <= 0);
+            assertTrue(LAC.compareTo(cursorMD) <= 0);
         });
 
         // cleanup.

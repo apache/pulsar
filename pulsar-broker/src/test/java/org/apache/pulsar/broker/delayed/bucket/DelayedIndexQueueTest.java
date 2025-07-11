@@ -89,7 +89,7 @@ public class DelayedIndexQueueTest {
         segmentListB.add(new SnapshotSegment());
 
         List<DelayedIndex> listC = new ArrayList<>();
-        for (int i = 10; i < 30; i += 2) {
+        for (int i = 10; i < 30; i+=2) {
             DelayedIndex delayedIndex =
                     new DelayedIndex().setTimestamp(i).setLedgerId(2L).setEntryId(1L);
 
@@ -124,7 +124,7 @@ public class DelayedIndexQueueTest {
     }
 
     @Test
-    public void tripleLongPriorityDelayedIndexQueueTest() {
+    public void TripleLongPriorityDelayedIndexQueueTest() {
 
         @Cleanup
         TripleLongPriorityQueue queue = new TripleLongPriorityQueue();

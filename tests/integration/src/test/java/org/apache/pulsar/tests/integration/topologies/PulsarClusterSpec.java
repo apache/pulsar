@@ -21,12 +21,14 @@ package org.apache.pulsar.tests.integration.topologies;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Singular;
 import lombok.experimental.Accessors;
+
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -80,7 +82,7 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Allow to query the last message.
+     * Allow to query the last message
      */
     @Default
     boolean queryLastMessage = false;
@@ -117,19 +119,19 @@ public class PulsarClusterSpec {
     boolean enableContainerLog = false;
 
     /**
-     * Provide a map of paths (in the classpath) to mount as volumes inside the containers.
+     * Provide a map of paths (in the classpath) to mount as volumes inside the containers
      */
     @Builder.Default
     Map<String, String> classPathVolumeMounts = new TreeMap<>();
 
     /**
-     * Data container.
+     * Data container
      */
     @Builder.Default
     GenericContainer<?> dataContainer = null;
 
     /**
-     * Pulsar Test Image Name.
+     * Pulsar Test Image Name
      *
      * @return the version of the pulsar test image to use
      */

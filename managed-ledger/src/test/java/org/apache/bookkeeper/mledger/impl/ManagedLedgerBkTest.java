@@ -90,15 +90,15 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedger ledger = factory.open("my-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        int num = 1;
+        int N = 1;
 
-        for (int i = 0; i < num; i++) {
+        for (int i = 0; i < N; i++) {
             String entry = "entry-" + i;
             ledger.addEntry(entry.getBytes());
         }
 
-        List<Entry> entries = cursor.readEntries(num);
-        assertEquals(num, entries.size());
+        List<Entry> entries = cursor.readEntries(N);
+        assertEquals(N, entries.size());
         entries.forEach(Entry::release);
     }
 
@@ -181,15 +181,15 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         conf.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
         final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my-ledger" + testName, conf);
 
-        int numProducers = 1;
-        int numConsumers = 1;
+        int NumProducers = 1;
+        int NumConsumers = 1;
 
         final AtomicBoolean done = new AtomicBoolean();
-        final CyclicBarrier barrier = new CyclicBarrier(numProducers + numConsumers + 1);
+        final CyclicBarrier barrier = new CyclicBarrier(NumProducers + NumConsumers + 1);
 
         List<Future<?>> futures = new ArrayList();
 
-        for (int i = 0; i < numProducers; i++) {
+        for (int i = 0; i < NumProducers; i++) {
             futures.add(executor.submit(() -> {
                 try {
                     barrier.await();
@@ -204,7 +204,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             }));
         }
 
-        for (int i = 0; i < numConsumers; i++) {
+        for (int i = 0; i < NumConsumers; i++) {
             final int idx = i;
             futures.add(executor.submit(() -> {
                 try {
@@ -260,16 +260,16 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
                 .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
         final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my-ledger" + testName, conf);
 
-        int numProducers = 5;
-        int numConsumers = 10;
+        int NumProducers = 5;
+        int NumConsumers = 10;
 
         final AtomicBoolean done = new AtomicBoolean();
-        final CyclicBarrier barrier = new CyclicBarrier(numProducers + numConsumers + 1);
+        final CyclicBarrier barrier = new CyclicBarrier(NumProducers + NumConsumers + 1);
 
         List<Future<?>> futures = new ArrayList();
         List<Position> positions = new CopyOnWriteArrayList<>();
 
-        for (int i = 0; i < numProducers; i++) {
+        for (int i = 0; i < NumProducers; i++) {
             futures.add(executor.submit(() -> {
                 try {
                     // wait for all threads to be ready to start at once
@@ -289,7 +289,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // create a dummy cursor since caching happens only when there are active consumers
         ManagedCursor cursor = ledger.openCursor("dummy");
 
-        for (int i = 0; i < numConsumers; i++) {
+        for (int i = 0; i < NumConsumers; i++) {
             futures.add(executor.submit(() -> {
                 try {
                     // wait for all threads to be ready to start at once
@@ -494,7 +494,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     }
 
     /**
-     * When another process steals the ML, the old instance should not succeed in any operation.
+     * When another process steals the ML, the old instance should not succeed in any operation
      */
     @Test
     public void ledgerFencedByFailover() throws Exception {
@@ -545,15 +545,15 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedger ledger = factory.open("property/cluster/namespace/my-ledger", config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        int num = 1;
+        int N = 1;
 
-        for (int i = 0; i < num; i++) {
+        for (int i = 0; i < N; i++) {
             String entry = "entry-" + i;
             ledger.addEntry(entry.getBytes());
         }
 
-        List<Entry> entries = cursor.readEntries(num);
-        assertEquals(num, entries.size());
+        List<Entry> entries = cursor.readEntries(N);
+        assertEquals(N, entries.size());
         entries.forEach(Entry::release);
         ledger.close();
 
@@ -603,12 +603,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
         ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory.open("my_test_ledger" + testName, config);
 
-        int num = 100;
+        int N = 100;
 
         AtomicReference<ManagedLedgerException> res = new AtomicReference<>();
-        CountDownLatch latch = new CountDownLatch(num);
+        CountDownLatch latch = new CountDownLatch(N);
 
-        for (int i = 0; i < num; i++) {
+        for (int i = 0; i < N; i++) {
             ledger1.asyncAddEntry(("entry-" + i).getBytes(), new AddEntryCallback() {
 
                 @Override
@@ -752,8 +752,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
         log.info("before: {}", cursor1.getIndividuallyDeletedMessagesSet().asRanges());
         log.info("after : {}", cursor2.getIndividuallyDeletedMessagesSet().asRanges());
-        assertEquals(cursor1.getIndividuallyDeletedMessagesSet().asRanges(),
-                cursor2.getIndividuallyDeletedMessagesSet().asRanges());
+        assertEquals(cursor1.getIndividuallyDeletedMessagesSet().asRanges(), cursor2.getIndividuallyDeletedMessagesSet().asRanges());
         assertEquals(cursor1.markDeletePosition, cursor2.markDeletePosition);
 
         ledger2.close();
@@ -791,7 +790,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             entries.add(p);
         }
         // Make ack holes and trigger a mark deletion.
-        for (int i = totalEntries - 1; i >= 0; i--) {
+        for (int i = totalEntries - 1; i >=0 ; i--) {
             if (i % 2 == 0) {
                 cursor1.delete(entries.get(i));
             }

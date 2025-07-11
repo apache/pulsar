@@ -81,9 +81,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
         super.internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
-                .serviceUrl("http://localhost:" + webServicePort).build());
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(new HashSet<>(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/txn", 10);
@@ -258,8 +257,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .getTopic(CONSUME_TOPIC, false).get().get();
 
         List<String> sendMessageList = new ArrayList<>();
-        List<MessageIdData> messageIdDataList = appendTransactionMessages(txnID, persistentTopic,
-                transactionMessageCnt, sendMessageList);
+        List<MessageIdData> messageIdDataList = appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
 
         persistentTopic.endTxn(txnID, TxnAction.ABORT_VALUE, 0L).get();
         log.info("Abort txn.");
@@ -341,8 +339,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 /**
                  * Return the producer name for the original producer.
                  *
-                 * For messages published locally, this will return the same local producer name,
-                 * though in case of replicated messages, the original producer name will differ
+                 * For messages published locally, this will return the same local producer name, though in case of replicated
+                 * messages, the original producer name will differ
                  */
                 public String getOriginalProducerName() {
                     return "test";

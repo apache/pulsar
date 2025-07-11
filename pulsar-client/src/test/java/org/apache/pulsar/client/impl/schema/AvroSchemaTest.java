@@ -92,12 +92,12 @@ public class AvroSchemaTest {
 
     @Data
     private static class SchemaLogicalType{
-        @org.apache.avro.reflect.AvroSchema("{\n"
-                + "  \"type\": \"bytes\",\n"
-                + "  \"logicalType\": \"decimal\",\n"
-                + "  \"precision\": 4,\n"
-                + "  \"scale\": 2\n"
-                + "}")
+        @org.apache.avro.reflect.AvroSchema("{\n" +
+                "  \"type\": \"bytes\",\n" +
+                "  \"logicalType\": \"decimal\",\n" +
+                "  \"precision\": 4,\n" +
+                "  \"scale\": 2\n" +
+                "}")
         BigDecimal decimal;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
         LocalDate date;
@@ -157,8 +157,7 @@ public class AvroSchemaTest {
             // expected
         }
 
-        AvroSchema<StructWithAnnotations> schema3 = AvroSchema.of(
-                SchemaDefinition.<StructWithAnnotations>builder().withJsonDef(schemaDef1).build());
+        AvroSchema<StructWithAnnotations> schema3 = AvroSchema.of(SchemaDefinition.<StructWithAnnotations>builder().withJsonDef(schemaDef1).build());
         String schemaDef3 = new String(schema3.getSchemaInfo().getSchema(), UTF_8);
         assertEquals(schemaDef1, schemaDef3);
         assertNotEquals(schemaDef2, schemaDef3);
@@ -183,8 +182,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullSchema() throws JSONException {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder()
-                .withPojo(Foo.class).withAlwaysAllowNull(false).build());
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -229,8 +227,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder()
-                .withPojo(Foo.class).withAlwaysAllowNull(false).build());
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
@@ -290,11 +287,11 @@ public class AvroSchemaTest {
                 .withPojo(SchemaLogicalType.class).withJSR310ConversionEnabled(true).build());
 
         SchemaLogicalType schemaLogicalType = new SchemaLogicalType();
-        schemaLogicalType.setTimestampMicros(System.currentTimeMillis() * 1000);
+        schemaLogicalType.setTimestampMicros(System.currentTimeMillis()*1000);
         schemaLogicalType.setTimestampMillis(Instant.parse("2019-03-26T04:39:58.469Z"));
         schemaLogicalType.setDecimal(new BigDecimal("12.34"));
         schemaLogicalType.setDate(LocalDate.now());
-        schemaLogicalType.setTimeMicros(System.currentTimeMillis() * 1000);
+        schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
         schemaLogicalType.setTimeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS));
 
         byte[] bytes1 = avroSchema.encode(schemaLogicalType);
@@ -311,10 +308,10 @@ public class AvroSchemaTest {
         AvroSchema<JodaTimeLogicalType> avroSchema = AvroSchema.of(SchemaDefinition.<JodaTimeLogicalType>builder()
                 .withPojo(JodaTimeLogicalType.class).build());
         JodaTimeLogicalType schemaLogicalType = new JodaTimeLogicalType();
-        schemaLogicalType.setTimestampMicros(System.currentTimeMillis() * 1000);
+        schemaLogicalType.setTimestampMicros(System.currentTimeMillis()*1000);
         schemaLogicalType.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
         schemaLogicalType.setDate(LocalDate.now());
-        schemaLogicalType.setTimeMicros(System.currentTimeMillis() * 1000);
+        schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
         schemaLogicalType.setTimeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS));
 
         byte[] bytes1 = avroSchema.encode(schemaLogicalType);
@@ -346,8 +343,7 @@ public class AvroSchemaTest {
     org.apache.avro.Schema recordSchema = new org.apache.avro.Schema.Parser().parse(
         new String(schemaInfo.getSchema(), UTF_8)
     );
-    AvroSchema<NasaMission> avroSchema = AvroSchema.of(SchemaDefinition.<NasaMission>builder()
-            .withPojo(NasaMission.class).build());
+    AvroSchema<NasaMission> avroSchema = AvroSchema.of(SchemaDefinition.<NasaMission>builder().withPojo(NasaMission.class).build());
     assertEquals(recordSchema, avroSchema.schema);
 
     NasaMission nasaMission = NasaMission.newBuilder()
@@ -399,7 +395,7 @@ public class AvroSchemaTest {
         badNasaMissionData.setName(null);
 
         // Because data does not conform to schema expect a crash
-        Assert.assertThrows(SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
+        Assert.assertThrows( SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
 
         // Assert that the buffer position is reset to zero
         Assert.assertEquals(avroWriter.getEncoder().bytesBuffered(), 0);
@@ -441,12 +437,12 @@ public class AvroSchemaTest {
 
     static class MyBigDecimalPojo {
         public BigDecimal value1;
-        @org.apache.avro.reflect.AvroSchema("{\n"
-                + "  \"type\": \"bytes\",\n"
-                + "  \"logicalType\": \"decimal\",\n"
-                + "  \"precision\": 4,\n"
-                + "  \"scale\": 2\n"
-                + "}")
+        @org.apache.avro.reflect.AvroSchema("{\n" +
+                "  \"type\": \"bytes\",\n" +
+                "  \"logicalType\": \"decimal\",\n" +
+                "  \"precision\": 4,\n" +
+                "  \"scale\": 2\n" +
+                "}")
         public BigDecimal value2;
     }
 
@@ -507,8 +503,7 @@ public class AvroSchemaTest {
         Assert.assertEquals(decodeWithJson, decodeWithPojo);
         Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
 
-        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader =
-                AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
                 .withJsonDef(schemaDefinition)
                 .withJSR310ConversionEnabled(false).build());
 
@@ -540,8 +535,7 @@ public class AvroSchemaTest {
         Assert.assertEquals(decodeWithJson, decodeWithPojo);
         Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
 
-        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader =
-                AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
                 .withJsonDef(schemaDefinition)
                 .withJSR310ConversionEnabled(true).build());
 

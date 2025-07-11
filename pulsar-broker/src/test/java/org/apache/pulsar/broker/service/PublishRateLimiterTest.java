@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class PublishRateLimiterTest {
-    private static final String CLUSTER_NAME = "clusterName";
+    private final String CLUSTER_NAME = "clusterName";
     private final Policies policies = new Policies();
     private final PublishRate publishRate = new PublishRate(10, 100);
     private final PublishRate newPublishRate = new PublishRate(20, 200);

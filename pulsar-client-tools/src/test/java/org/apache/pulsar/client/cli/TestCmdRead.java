@@ -21,6 +21,7 @@ package org.apache.pulsar.client.cli;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.lang.reflect.Field;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;

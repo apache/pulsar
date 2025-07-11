@@ -100,29 +100,24 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
     // PEM
-    protected final String brokerCertFilePath =
-            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    protected final String brokerFilePath =
-            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
-    protected final String clientCertFilePath =
-            Resources.getResource("certificate-authority/client-keys/admin.cert.pem").getPath();
-    protected final String clientKeyFilePath =
-            Resources.getResource("certificate-authority/client-keys/admin.key-pk8.pem").getPath();
-    protected final String caCertFilePath =
-            Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+    protected final String brokerCertFilePath = Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    protected final String brokerFilePath = Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
+    protected final String clientCertFilePath = Resources.getResource("certificate-authority/client-keys/admin.cert.pem").getPath();
+    protected final String clientKeyFilePath = Resources.getResource("certificate-authority/client-keys/admin.key-pk8.pem").getPath();
+    protected final String caCertFilePath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
 
     // KEYSTORE
     protected boolean tlsWithKeyStore = false;
-    protected final String brokerKeyStorePath =
+    protected final static String brokerKeyStorePath =
             Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
-    protected final String brokerTrustStorePath =
+    protected final static String brokerTrustStorePath =
             Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
-    protected final String clientKeyStorePath =
+    protected final static String clientKeyStorePath =
             Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
-    protected final String clientTrustStorePath =
+    protected final static String clientTrustStorePath =
             Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
-    protected final String keyStoreType = "JKS";
-    protected final String keyStorePassword = "111111";
+    protected final static String keyStoreType = "JKS";
+    protected final static String keyStorePassword = "111111";
 
     protected final String cluster1 = "r1";
     protected final String cluster2 = "r2";
@@ -317,8 +312,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .serviceUrlTls("https://global:8443")
                 .build());
         admin1.namespaces().createNamespace("pulsar/global/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
-                Sets.newHashSet(cluster1, cluster2, cluster3));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet(cluster1, cluster2, cluster3));
 
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");

@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
-    private static final String CLUSTER = "test";
+    private final String CLUSTER = "test";
 
     @BeforeClass
     @Override
@@ -60,9 +60,8 @@ public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreateAndDeleteTenant() throws PulsarAdminException {
-        String tenant = "test-tenant-" + UUID.randomUUID();
-        admin.tenants().createTenant(tenant, TenantInfo.builder()
-                .allowedClusters(Collections.singleton(CLUSTER)).build());
+        String tenant = "test-tenant-"+ UUID.randomUUID();
+        admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
         List<String> tenants = admin.tenants().getTenants();
         assertTrue(tenants.contains(tenant));
         admin.tenants().deleteTenant(tenant);

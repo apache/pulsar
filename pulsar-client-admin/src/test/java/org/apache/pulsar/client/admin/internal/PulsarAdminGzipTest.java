@@ -57,7 +57,7 @@ public class PulsarAdminGzipTest {
 
     static byte[] gzipContent(String content) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
+        try(GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
             gzipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
         }
         return byteArrayOutputStream.toByteArray();

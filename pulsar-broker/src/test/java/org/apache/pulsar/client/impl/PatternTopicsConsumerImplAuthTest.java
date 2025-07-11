@@ -218,8 +218,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         IntStream.range(0, topics.size()).forEach(index ->
                 assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
-                .forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -234,7 +233,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet++;
+            messageSet ++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -271,7 +270,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                 AuthenticationDataSource authenticationData, String subscription) {
+                                                          AuthenticationDataSource authenticationData, String subscription) {
             return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
@@ -282,20 +281,17 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
-                                                                AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
-                                                              AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
-                                                            AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 
@@ -313,19 +309,18 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace,
-                                               String subscriptionName, Set<String> roles, String authDataJson) {
+                                                                        String subscriptionName, Set<String> roles, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
-                                                String subscriptionName, String role, String authDataJson) {
+                                                                         String subscriptionName, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
-                                                        AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
             return CompletableFuture.completedFuture(true);
         }
 
@@ -337,8 +332,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Boolean> allowNamespaceOperationAsync(
-                NamespaceName namespaceName, String role, NamespaceOperation operation,
-                AuthenticationDataSource authData) {
+                NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
             if (role.equals(superUserRole) || role.equals(clientRole)) {

@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -42,11 +45,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationPolicyImplTest {
-    private final String defaultPolicyJson = "{\"namespaces\":[\"pulsar/use/test.*\"],"
-            + "\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],"
-            + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
-            + "\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\","
-            + "\"usage_threshold\":\"90\"}}}";
+    private final String defaultPolicyJson = "{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"90\"}}}";
 
     private NamespaceIsolationPolicyImpl getDefaultPolicy() throws Exception {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();

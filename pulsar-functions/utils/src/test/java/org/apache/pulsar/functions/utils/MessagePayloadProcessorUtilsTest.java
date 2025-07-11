@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Consumer;
+import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.MessagePayloadContext;

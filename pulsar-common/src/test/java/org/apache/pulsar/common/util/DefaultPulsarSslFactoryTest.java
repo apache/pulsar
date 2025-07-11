@@ -33,21 +33,21 @@ import org.testng.annotations.Test;
 
 public class DefaultPulsarSslFactoryTest {
 
-    public static final String KEYSTORE_FILE_PATH =
+    public final static String KEYSTORE_FILE_PATH =
             getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
-    public static final String TRUSTSTORE_FILE_PATH =
+    public final static String TRUSTSTORE_FILE_PATH =
             getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
-    public static final String TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+    public final static String TRUSTSTORE_NO_PASSWORD_FILE_PATH =
             getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
-    public static final String KEYSTORE_PW = "111111";
-    public static final String TRUSTSTORE_PW = "111111";
-    public static final String KEYSTORE_TYPE = "JKS";
+    public final static String KEYSTORE_PW = "111111";
+    public final static String TRUSTSTORE_PW = "111111";
+    public final static String KEYSTORE_TYPE = "JKS";
 
-    public static final String CA_CERT_FILE_PATH =
+    public final static String CA_CERT_FILE_PATH =
             getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public static final String CERT_FILE_PATH =
+    public final static String CERT_FILE_PATH =
             getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public static final String KEY_FILE_PATH =
+    public final static String KEY_FILE_PATH =
             getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     @Test

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.io.jdbc;
 
+
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,7 +30,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class SqliteUtils {
@@ -41,7 +43,7 @@ public final class SqliteUtils {
     }
 
     public interface ResultSetReadCallback {
-        void read(ResultSet rs) throws SQLException;
+        void read(final ResultSet rs) throws SQLException;
     }
 
     private final Path dbPath;

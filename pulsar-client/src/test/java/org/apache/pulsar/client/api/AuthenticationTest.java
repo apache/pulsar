@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.auth.MockAuthentication;
 import org.apache.pulsar.client.impl.auth.MockEncodedAuthenticationParameterSupport;
-import org.testng.Assert;
+import org.apache.pulsar.client.impl.auth.MockAuthentication;
+
 import org.testng.annotations.Test;
+import org.testng.Assert;
 
 public class AuthenticationTest {
 
     @Test
     public void testConfigureDefaultFormat() {
         try {
-            MockAuthentication testAuthentication = (MockAuthentication) AuthenticationFactory
-                    .create("org.apache.pulsar.client.impl.auth.MockAuthentication",
+            MockAuthentication testAuthentication =
+                    (MockAuthentication) AuthenticationFactory.create("org.apache.pulsar.client.impl.auth.MockAuthentication",
                             "key1:value1,key2:value2");
             Assert.assertEquals(testAuthentication.authParamsMap.get("key1"), "value1");
             Assert.assertEquals(testAuthentication.authParamsMap.get("key2"), "value2");

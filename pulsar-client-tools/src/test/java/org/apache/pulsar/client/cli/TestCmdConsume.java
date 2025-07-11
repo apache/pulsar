@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
+
 import java.lang.reflect.Field;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

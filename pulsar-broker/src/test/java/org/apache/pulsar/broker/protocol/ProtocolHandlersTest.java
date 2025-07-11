@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
+
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.net.InetSocketAddress;

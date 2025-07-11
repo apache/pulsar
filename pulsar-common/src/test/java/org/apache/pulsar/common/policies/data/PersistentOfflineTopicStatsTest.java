@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

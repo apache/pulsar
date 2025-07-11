@@ -143,13 +143,13 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     /**
-     * Start cluster.
+     * Start cluster
      *
      * @throws Exception
      */
     protected void startBookKeeper() throws Exception {
         for (int i = 0; i < numBookies; i++) {
-            metadataStore.put("/ledgers/available/192.168.1.1:" + (5000 + i), new byte[0], Optional.empty()).join();
+            metadataStore.put( "/ledgers/available/192.168.1.1:" + (5000 + i), new byte[0], Optional.empty()).join();
         }
 
         metadataStore.put("/ledgers/LAYOUT", "1\nflat:1".getBytes(), Optional.empty()).join();

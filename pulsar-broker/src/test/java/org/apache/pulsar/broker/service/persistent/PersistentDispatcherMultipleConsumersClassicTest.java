@@ -66,8 +66,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName).subscriptionName(subscription)
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         // Make an error that "consumerSet" is mismatch with "consumerList".
         Dispatcher dispatcher = pulsar.getBrokerService()
@@ -94,8 +93,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName).subscriptionName(subscription)
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         // Make an error that "consumerSet" is mismatch with "consumerList".
         Dispatcher dispatcher = pulsar.getBrokerService()
@@ -165,8 +163,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
 
         dispatcher.readMoreEntries();
 
-        // Verify: the readEntriesFailed should be called once and
-        // the scheduleReadEntriesWithDelay should not be called.
+        // Verify: the readEntriesFailed should be called once and the scheduleReadEntriesWithDelay should not be called.
         Assert.assertTrue(callReadEntriesFailed.get() == 1 && callScheduleReadEntriesWithDelayCnt.get() == 0);
 
         // Verify: the topic can be deleted successfully.

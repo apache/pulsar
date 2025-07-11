@@ -234,7 +234,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
     }
 
     public void testSupportsGetPartitionedMetadataWithoutAutoCreation() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://" + NAMESPACE + "/tp");
+        final String topic = BrokerTestUtil.newUniqueName( "persistent://" + NAMESPACE + "/tp");
         admin.topics().createNonPartitionedTopic(topic);
         PulsarClientImpl clientWitBinaryLookup = (PulsarClientImpl) PulsarClient.builder()
                 .maxNumberOfRejectedRequestPerConnection(1)

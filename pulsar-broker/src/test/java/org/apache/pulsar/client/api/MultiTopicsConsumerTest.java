@@ -23,10 +23,11 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -240,7 +241,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                 .subscribe();
 
         producer.newMessage()
-                .value(1L)
+                .value(1l)
                 .send();
 
         // first batch receive
@@ -391,7 +392,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             }
             Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
             assertTrue(unwrapEx instanceof IllegalArgumentException);
-            assertTrue(e.getMessage().contains("Subscription topics include duplicate items"
+            assertTrue(e.getMessage().contains( "Subscription topics include duplicate items"
                     + " or invalid names"));
         }
         // cleanup.

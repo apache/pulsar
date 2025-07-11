@@ -20,6 +20,7 @@ package org.apache.pulsar.io.elasticsearch;
 
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+
 import java.util.Optional;
 import org.apache.pulsar.functions.api.Record;
 import org.mockito.Mockito;

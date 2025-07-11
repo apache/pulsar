@@ -33,17 +33,17 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SslContextTest {
-    static final String BROKER_KEY_STORE_PATH =
+    final static String brokerKeyStorePath =
             Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
-    static final String BROKER_TRUST_STORE_PATH =
+    final static String brokerTrustStorePath =
             Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
-    static final String KEY_STORE_TYPE = "JKS";
-    static final String KEY_STORE_PASSWORD = "111111";
+    final static String keyStoreType = "JKS";
+    final static String keyStorePassword = "111111";
 
-    static final String CA_CERT_PATH = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
-    static final String BROKER_CERT_PATH =
+    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+    final static String brokerCertPath =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    static final String BROKER_KEY_PATH =
+    final static String brokerKeyPath =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     @DataProvider(name = "caCertSslContextDataProvider")
@@ -84,13 +84,13 @@ public class SslContextTest {
     public void testServerKeyStoreSSLContext(Set<String> cipher) throws Exception {
         PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
                 .tlsEnabledWithKeystore(true)
-                .tlsKeyStoreType(KEY_STORE_TYPE)
-                .tlsKeyStorePath(BROKER_KEY_STORE_PATH)
-                .tlsKeyStorePassword(KEY_STORE_PASSWORD)
+                .tlsKeyStoreType(keyStoreType)
+                .tlsKeyStorePath(brokerKeyStorePath)
+                .tlsKeyStorePassword(keyStorePassword)
                 .allowInsecureConnection(false)
-                .tlsTrustStoreType(KEY_STORE_TYPE)
-                .tlsTrustStorePath(BROKER_TRUST_STORE_PATH)
-                .tlsTrustStorePassword(KEY_STORE_PASSWORD)
+                .tlsTrustStoreType(keyStoreType)
+                .tlsTrustStorePath(brokerTrustStorePath)
+                .tlsTrustStorePassword(keyStorePassword)
                 .requireTrustedClientCertOnConnect(true)
                 .tlsCiphers(cipher)
                 .build();
@@ -112,9 +112,9 @@ public class SslContextTest {
         PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
                 .allowInsecureConnection(false)
                 .tlsEnabledWithKeystore(true)
-                .tlsTrustStoreType(KEY_STORE_TYPE)
-                .tlsTrustStorePath(BROKER_TRUST_STORE_PATH)
-                .tlsTrustStorePassword(KEY_STORE_PASSWORD)
+                .tlsTrustStoreType(keyStoreType)
+                .tlsTrustStorePath(brokerTrustStorePath)
+                .tlsTrustStorePassword(keyStorePassword)
                 .tlsCiphers(cipher)
                 .authData(new ClientAuthenticationData())
                 .build();
@@ -129,9 +129,9 @@ public class SslContextTest {
             throws Exception {
         try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
             PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
-                    .tlsTrustCertsFilePath(CA_CERT_PATH)
-                    .tlsCertificateFilePath(BROKER_CERT_PATH)
-                    .tlsKeyFilePath(BROKER_KEY_PATH)
+                    .tlsTrustCertsFilePath(caCertPath)
+                    .tlsCertificateFilePath(brokerCertPath)
+                    .tlsKeyFilePath(brokerKeyPath)
                     .tlsCiphers(ciphers)
                     .requireTrustedClientCertOnConnect(true);
             if (sslProvider != null) {
@@ -156,7 +156,7 @@ public class SslContextTest {
         try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
             PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
                     .allowInsecureConnection(true)
-                    .tlsTrustCertsFilePath(CA_CERT_PATH)
+                    .tlsTrustCertsFilePath(caCertPath)
                     .tlsCiphers(ciphers);
             if (sslProvider != null) {
                 builder.tlsProvider(sslProvider.name());

@@ -68,11 +68,8 @@ public class OffloadIndexTest {
     // use mock to setLastEntryId
 //    public static class LedgerMetadataMock extends org.apache.bookkeeper.client.LedgerMetadata {
 //        long lastId = 0;
-//        public LedgerMetadataMock(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
-//        org.apache.bookkeeper.client.BookKeeper.DigestType digestType, byte[] password, Map<String,
-//        byte[]> customMetadata, boolean storeSystemtimeAsLedgerCreationTime) {
-//            super(ensembleSize, writeQuorumSize, ackQuorumSize, digestType, password, customMetadata,
-//            storeSystemtimeAsLedgerCreationTime);
+//        public LedgerMetadataMock(int ensembleSize, int writeQuorumSize, int ackQuorumSize, org.apache.bookkeeper.client.BookKeeper.DigestType digestType, byte[] password, Map<String, byte[]> customMetadata, boolean storeSystemtimeAsLedgerCreationTime) {
+//            super(ensembleSize, writeQuorumSize, ackQuorumSize, digestType, password, customMetadata, storeSystemtimeAsLedgerCreationTime);
 //        }
 //
 //        @Override
@@ -232,7 +229,7 @@ public class OffloadIndexTest {
         out2.reset();
         byte streamContent[] = new byte[streamLength];
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
-        try (InputStream stream3 = new ByteArrayInputStream(streamContent, 0, streamLength)) {
+        try(InputStream stream3 = new ByteArrayInputStream(streamContent, 0, streamLength)) {
             OffloadIndexBlock indexBlock3 = (OffloadIndexBlock) blockBuilder.fromStream(stream3);
             fail("Should throw IOException");
         } catch (Exception e) {
@@ -242,7 +239,7 @@ public class OffloadIndexTest {
 
         // simulate read header too small, throw EOFException.
         out2.read(streamContent);
-        try (InputStream stream4 =
+        try(InputStream stream4 =
                 new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
             OffloadIndexBlock indexBlock4 = (OffloadIndexBlock) blockBuilder.fromStream(stream4);
             fail("Should throw EOFException");

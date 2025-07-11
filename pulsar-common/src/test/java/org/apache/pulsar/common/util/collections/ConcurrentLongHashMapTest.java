@@ -23,7 +23,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Lists;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongFunction;
+
 import lombok.Cleanup;
 import org.testng.annotations.Test;
 
@@ -245,7 +248,7 @@ public class ConcurrentLongHashMapTest {
             });
         }
 
-        assertNull(map.put(1, "v1"));
+        assertNull(map.put(1,"v1"));
         future = executor.submit(() -> {
             try {
                 barrier.await();
@@ -358,7 +361,7 @@ public class ConcurrentLongHashMapTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
-        final int num = 100_000;
+        final int N = 100_000;
         String value = "value";
 
         List<Future<?>> futures = new ArrayList<>();
@@ -368,7 +371,7 @@ public class ConcurrentLongHashMapTest {
             futures.add(executor.submit(() -> {
                 Random random = new Random();
 
-                for (int j = 0; j < num; j++) {
+                for (int j = 0; j < N; j++) {
                     long key = random.nextLong();
                     // Ensure keys are uniques
                     key -= key % (threadIdx + 1);
@@ -382,7 +385,7 @@ public class ConcurrentLongHashMapTest {
             future.get();
         }
 
-        assertEquals(map.size(), num * nThreads);
+        assertEquals(map.size(), N * nThreads);
     }
 
     @Test
@@ -393,7 +396,7 @@ public class ConcurrentLongHashMapTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
-        final int num = 100_000;
+        final int N = 100_000;
         String value = "value";
 
         List<Future<?>> futures = new ArrayList<>();
@@ -403,7 +406,7 @@ public class ConcurrentLongHashMapTest {
             futures.add(executor.submit(() -> {
                 Random random = new Random();
 
-                for (int j = 0; j < num; j++) {
+                for (int j = 0; j < N; j++) {
                     long key = random.nextLong();
                     // Ensure keys are uniques
                     key -= key % (threadIdx + 1);
@@ -417,7 +420,7 @@ public class ConcurrentLongHashMapTest {
             future.get();
         }
 
-        assertEquals(map.size(), num * nThreads);
+        assertEquals(map.size(), N * nThreads);
     }
 
     public void stressConcurrentInsertionsAndReads() throws Throwable {
@@ -483,7 +486,7 @@ public class ConcurrentLongHashMapTest {
 
         map.put(0, "zero");
 
-        assertEquals(map.keys(), Lists.newArrayList(0L));
+        assertEquals(map.keys(), Lists.newArrayList(0l));
         assertEquals(map.values(), Lists.newArrayList("zero"));
 
         map.remove(0);
@@ -497,7 +500,7 @@ public class ConcurrentLongHashMapTest {
 
         List<Long> keys = map.keys();
         keys.sort(null);
-        assertEquals(keys, Lists.newArrayList(0L, 1L, 2L));
+        assertEquals(keys, Lists.newArrayList(0l, 1l, 2l));
 
         List<String> values = map.values();
         values.sort(null);
@@ -507,7 +510,7 @@ public class ConcurrentLongHashMapTest {
 
         keys = map.keys();
         keys.sort(null);
-        assertEquals(keys, Lists.newArrayList(0L, 1L, 2L));
+        assertEquals(keys, Lists.newArrayList(0l, 1l, 2l));
 
         values = map.values();
         values.sort(null);
@@ -519,9 +522,9 @@ public class ConcurrentLongHashMapTest {
 
     @Test
     public void testHashConflictWithDeletion() {
-        final int buckets = 16;
+        final int Buckets = 16;
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .expectedItems(buckets)
+                .expectedItems(Buckets)
                 .concurrencyLevel(1)
                 .build();
 
@@ -529,8 +532,8 @@ public class ConcurrentLongHashMapTest {
         long key1 = 1;
         long key2 = 27;
 
-        int bucket1 = ConcurrentLongHashMap.signSafeMod(ConcurrentLongHashMap.hash(key1), buckets);
-        int bucket2 = ConcurrentLongHashMap.signSafeMod(ConcurrentLongHashMap.hash(key2), buckets);
+        int bucket1 = ConcurrentLongHashMap.signSafeMod(ConcurrentLongHashMap.hash(key1), Buckets);
+        int bucket2 = ConcurrentLongHashMap.signSafeMod(ConcurrentLongHashMap.hash(key2), Buckets);
         assertEquals(bucket1, bucket2);
 
         assertNull(map.put(key1, "value-1"));

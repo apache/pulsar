@@ -69,9 +69,9 @@ public abstract class BlobStoreTestBase {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-        if (blobStore != null
-            && (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))
-             && !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
+        if (blobStore != null &&
+            (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) &&
+             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }
 

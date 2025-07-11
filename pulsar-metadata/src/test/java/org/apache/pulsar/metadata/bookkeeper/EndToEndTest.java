@@ -34,7 +34,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- * Test the Bookie and Client end-to-end with MetadataStore backend.
+ * Test the Bookie and Client end-to-end with MetadataStore backend
  */
 @Slf4j
 public class EndToEndTest extends BaseMetadataStoreTest {

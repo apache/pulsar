@@ -449,7 +449,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
-     * Validate that chunking is not supported with batching and non-persistent topic.
+     * Validate that chunking is not supported with batching and non-persistent topic
      *
      * @throws Exception
      */
@@ -492,8 +492,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
-        TypedMessageBuilderImpl<byte[]> msg =
-                (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
+        TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
         MessageMetadata msgMetadata = msg.getMetadataBuilder();
         msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L)
@@ -562,8 +561,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
     }
 
-    interface ThrowingBiConsumer<T, K> {
-        void accept(T t, K u) throws Exception;
+    interface ThrowingBiConsumer<T, U> {
+        void accept(T t, U u) throws Exception;
     }
 
     @Test

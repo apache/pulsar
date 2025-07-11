@@ -45,14 +45,14 @@ public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndT
     }
 
     @Override
-    @Test(dataProvider = "unackMessagesCountParams", enabled = false)
+    @Test(dataProvider="unackMessagesCountParams", enabled = false)
     public void testUnackMessageAfterAckAllMessages(boolean batchSend, boolean batchAck, boolean asyncAck)
             throws Exception {
         super.testUnackMessageAfterAckAllMessages(batchSend, batchAck, asyncAck);
     }
 
     @Override
-    @Test(dataProvider = "enableBatch", enabled = false)
+    @Test(dataProvider="enableBatch", enabled = false)
     public void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
         super.testAckWithTransactionReduceUnAckMessageCount(enableBatch);
     }

@@ -21,11 +21,12 @@ package org.apache.pulsar.functions.runtime.process;
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.util.JsonFormat;
-import io.kubernetes.client.openapi.models.V1PodSpec;
+
 import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import io.kubernetes.client.openapi.models.V1PodSpec;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -80,13 +83,11 @@ public class ProcessRuntimeTest {
         }
 
         @Override
-        public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                              FunctionDetails functionDetails) {
+        public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, FunctionDetails functionDetails) {
         }
 
         @Override
-        public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                           FunctionDetails functionDetails) {
+        public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, FunctionDetails functionDetails) {
         }
 
         @Override
@@ -285,11 +286,10 @@ public class ProcessRuntimeTest {
 
     private void verifyJavaInstance(InstanceConfig config, Path depsDir, String webServiceUrl) throws Exception {
         List<String> args;
-        try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class,
-                Mockito.CALLS_REAL_METHODS)) {
+        try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
             systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
             ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile,
-                    userJarFile, userJarFile, 30L);
+                    userJarFile, userJarFile,30L);
             args = container.getProcessArgs();
         }
 
@@ -308,7 +308,7 @@ public class ProcessRuntimeTest {
             portArg = 37;
             metricsPortArg = 39;
         } else {
-            assertEquals(args.size(), totalArgCount - 1);
+            assertEquals(args.size(), totalArgCount-1);
             extraDepsEnv = "";
             portArg = 36;
             metricsPortArg = 38;
@@ -318,15 +318,14 @@ public class ProcessRuntimeTest {
             metricsPortArg += 3;
         }
 
-        String pulsarAdminArg = webServiceUrl != null && config.isExposePulsarAdminClientEnabled()
-                ? " --web_serviceurl " + webServiceUrl + " --expose_pulsaradmin" : "";
+        String pulsarAdminArg = webServiceUrl != null && config.isExposePulsarAdminClientEnabled() ?
+                " --web_serviceurl " + webServiceUrl + " --expose_pulsaradmin" : "";
 
         String expectedArgs = "java -cp " + classpath
                 + extraDepsEnv
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=java_instance_log4j2.xml "
-                + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/"
-                + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
+                + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
@@ -341,12 +340,10 @@ public class ProcessRuntimeTest {
                 + " --instance_id " + config.getInstanceId()
                 + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details '"
-                + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + pulsarAdminArg
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port "
-                + args.get(metricsPortArg)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --pending_async_requests 200"
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval 30"
@@ -377,8 +374,7 @@ public class ProcessRuntimeTest {
     }
 
     private void verifyPythonInstance(InstanceConfig config, String extraDepsDir) throws Exception {
-        ProcessRuntime container = factory.createContainer(config, userJarFile, null, null,
-                null, 30L);
+        ProcessRuntime container = factory.createContainer(config, userJarFile, null, null, null,30l);
         List<String> args = container.getProcessArgs();
 
         int totalArgs = 36;
@@ -394,8 +390,7 @@ public class ProcessRuntimeTest {
                 + " --logging_config_file " + args.get(configArg) + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details '"
-                + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg)
                 + " --metrics_port " + args.get(metricsPortArg)

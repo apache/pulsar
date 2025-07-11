@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertM
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
 import io.opentelemetry.api.common.Attributes;
 import java.util.HashMap;
 import java.util.Map;

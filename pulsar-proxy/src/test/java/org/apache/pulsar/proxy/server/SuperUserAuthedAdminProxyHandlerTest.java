@@ -20,9 +20,12 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+
 import java.util.Optional;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -106,8 +109,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
 
-        ServletHolder servletHolder = new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider,
-                proxyClientAuthentication));
+        ServletHolder servletHolder = new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication));
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
 
@@ -139,8 +141,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
     @Test
     public void testAuthenticatedProxyAsAdmin() throws Exception {
         try (PulsarAdmin adminAdmin = getAdminClient("admin")) {
-            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder()
-                    .serviceUrl(brokerUrl.toString()).build());
+            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             adminAdmin.tenants().createTenant("tenant1",
                                               new TenantInfoImpl(ImmutableSet.of("randoUser"),
                                                              ImmutableSet.of(configClusterName)));
@@ -158,8 +159,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
-            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder()
-                    .serviceUrl(brokerUrl.toString()).build());
+            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             adminAdmin.tenants().createTenant("tenant1",
                                               new TenantInfoImpl(ImmutableSet.of("unknownUser"),
                                                              ImmutableSet.of(configClusterName)));

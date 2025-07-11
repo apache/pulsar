@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
 import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
@@ -108,10 +109,8 @@ public class ConsumerImplTest {
     public void testCorrectBackoffConfiguration() {
         final Backoff backoff = consumer.getConnectionHandler().backoff;
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
-        Assert.assertEquals(backoff.getMax(),
-                TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
-        Assert.assertEquals(backoff.next(),
-                TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
     @Test(invocationTimeOut = 1000)

@@ -68,15 +68,15 @@ public class PulsarFunctionTlsTest {
 
     protected static final int BROKER_COUNT = 2;
 
-    private static final String TLS_SERVER_CERT_FILE_PATH =
+    private final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private static final String TLS_SERVER_KEY_FILE_PATH =
+    private final String TLS_SERVER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private static final String TLS_CLIENT_CERT_FILE_PATH =
+    private final String TLS_CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private static final String TLS_CLIENT_KEY_FILE_PATH =
+    private final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    private static final String CA_CERT_FILE_PATH =
+    private final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -89,8 +89,7 @@ public class PulsarFunctionTlsTest {
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
-    private PulsarFunctionTestTemporaryDirectory[] tempDirectories =
-            new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
+    private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
     @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
@@ -269,8 +268,7 @@ public class PulsarFunctionTlsTest {
                     assertTrue(true);
                 } else {
                     final WorkerInfo workerInfo = workerService.getMembershipManager().getLeader();
-                    assertTrue(workerInfo != null
-                            && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
+                    assertTrue(workerInfo != null && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
                 }
             });
             pulsarAdmins[i].functions().createFunctionWithUrl(

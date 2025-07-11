@@ -20,6 +20,7 @@ package org.apache.pulsar.client.examples;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -71,7 +72,7 @@ public class TransactionExample {
 
             // process the messages to generate other messages
             String outputMessage1 = message.getValue() + "-output-1";
-            String outputMessage2 = message.getValue() + "-output-2";
+            String outputMessage2= message.getValue() + "-output-2";
 
             Transaction txn = client.newTransaction()
                 .withTransactionTimeout(1, TimeUnit.MINUTES)

@@ -60,31 +60,31 @@ public class JavaInstanceTest {
 
     @Test
     public void testNullReturningFunction() throws Exception  {
-        JavaInstance instance = new JavaInstance(
+    	JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
                 (Function<String, String>) (input, context) -> null,
                 new InstanceConfig());
-        String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertNull(result.getResult());
-        instance.close();
+    	String testString = "ABC123";
+    	JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+    	assertNull(result.getResult());
+    	instance.close();
     }
 
     @Test
     public void testUserExceptionThrowingFunction() throws Exception  {
-        final UserException userException = new UserException("Boom");
-        Function<String, String> func = (input, context) -> {
-            throw userException;
-        };
+    	final UserException userException = new UserException("Boom");
+    	Function<String, String> func = (input, context) -> {
+    		throw userException;
+    	};
 
-        JavaInstance instance = new JavaInstance(
+    	JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
                 func,
                 new InstanceConfig());
-        String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertSame(userException, result.getUserException());
-        instance.close();
+    	String testString = "ABC123";
+    	JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+    	assertSame(userException, result.getUserException());
+    	instance.close();
     }
 
     @Test
@@ -159,7 +159,7 @@ public class JavaInstanceTest {
 
     @Test
     public void testUserExceptionThrowingAsyncFunction() throws Exception {
-        final UserException userException = new UserException("Boom");
+    	final UserException userException = new UserException("Boom");
         InstanceConfig instanceConfig = new InstanceConfig();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
@@ -168,7 +168,7 @@ public class JavaInstanceTest {
             log.info("input string: {}", input);
             CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
-                result.completeExceptionally(userException);
+            	result.completeExceptionally(userException);
             });
 
             return result;
@@ -243,10 +243,10 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-    private static class UserException extends Exception {
-        public UserException(String msg) {
-            super(msg);
-        }
+	private static class UserException extends Exception {
+    	public UserException(String msg) {
+    		super(msg);
+    	}
     }
 
     @Test

@@ -105,7 +105,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
 
         log.info("make individual ack.");
         ConsumerAndReceivedMessages consumerAndReceivedMessages1 =
-                waitConsumeAndAllMessages(topicName, subName, enabledBatch, false);
+                waitConsumeAndAllMessages(topicName, subName, enabledBatch,false);
         List<MessageIdImpl>[] messageIds = consumerAndReceivedMessages1.messageIds;
         Consumer consumer = consumerAndReceivedMessages1.consumer;
         MessageIdImpl individualPosition = messageIds[1].get(messageCountPerEntry - 1);
@@ -137,10 +137,10 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
     }
 
     private ManagedCursorImpl getCursor(String topicName, String subName) throws Exception {
-        PersistentSubscription subscription =
+        PersistentSubscription subscription_ =
                 (PersistentSubscription) pulsar.getBrokerService().getTopic(topicName, false)
                         .get().get().getSubscription(subName);
-        return  (ManagedCursorImpl) subscription.getCursor();
+        return  (ManagedCursorImpl) subscription_.getCursor();
     }
 
     private void waitMarkDeleteLargeAndEquals(String topicName, String subName, final long markDeletedLedgerId,
@@ -229,7 +229,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
         }
         producer.close();
         FutureUtil.waitForAll(messageIdFutures).get();
-        return messageIdFutures.stream().map(f -> (MessageIdImpl) f.join()).collect(Collectors.toList());
+        return messageIdFutures.stream().map(f -> (MessageIdImpl)f.join()).collect(Collectors.toList());
     }
 
     private ConsumerAndReceivedMessages waitConsumeAndAllMessages(String topicName, String subName,
@@ -271,11 +271,11 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
                 if (enabledBatch){
                     BatchMessageIdImpl mb1 = (BatchMessageIdImpl) m1;
                     BatchMessageIdImpl mb2 = (BatchMessageIdImpl) m2;
-                    return (int) (mb1.getLedgerId() * 1000000 + mb1.getEntryId() * 1000 + mb1.getBatchIndex()
-                            - mb2.getLedgerId() * 1000000 + mb2.getEntryId() * 1000 + mb2.getBatchIndex());
+                    return (int) (mb1.getLedgerId() * 1000000 + mb1.getEntryId() * 1000 + mb1.getBatchIndex() -
+                            mb2.getLedgerId() * 1000000 + mb2.getEntryId() * 1000 + mb2.getBatchIndex());
                 }
-                return (int) (m1.getLedgerId() * 1000 + m1.getEntryId()
-                        - m2.getLedgerId() * 1000 + m2.getEntryId());
+                return (int) (m1.getLedgerId() * 1000 + m1.getEntryId() -
+                        m2.getLedgerId() * 1000 + m2.getEntryId());
             });
         }
         return res;

@@ -20,9 +20,10 @@ package org.apache.pulsar.compaction;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.testng.annotations.Test;
+
+import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-compaction")
 public class CompactorMXBeanImplTest {

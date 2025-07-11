@@ -109,14 +109,13 @@ public class AuthenticationProviderTokenTest {
         String privateKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
         String publicKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
 
-        String token = AuthTokenUtils.createToken(
-                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey), SignatureAlgorithm.RS256),
+        String token = AuthTokenUtils.createToken(AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey), SignatureAlgorithm.RS256),
                 SUBJECT,
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parserBuilder().setSigningKey(
-                AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
+                .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
                 .build()
                 .parse(token);
 
@@ -376,8 +375,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey =
-                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
@@ -420,8 +418,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey =
-                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, authRole);
@@ -467,8 +464,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey =
-                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.ES256);
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.ES256);
         String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
@@ -735,7 +731,7 @@ public class AuthenticationProviderTokenTest {
         AuthData expiredAuthData = AuthData.of(expiringToken.getBytes());
 
         // It is important that this call doesn't fail because we no longer authenticate the auth data at construction
-        AuthenticationState authState = provider.newAuthState(expiredAuthData, null, null);
+        AuthenticationState authState = provider.newAuthState(expiredAuthData,null, null);
         // The call to authenticate the token is the call that fails
         assertThrows(AuthenticationException.class, () -> authState.authenticate(expiredAuthData));
     }
@@ -848,8 +844,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey =
-                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, Arrays.asList(authRole, "other-role"));
@@ -980,7 +975,7 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
-        AuthenticationState authState = provider.newAuthState(null, null, null);
+        AuthenticationState authState = provider.newAuthState(null,null, null);
 
         // Haven't authenticated yet, so cannot get role when using constructor with no auth data
         assertThrows(AuthenticationException.class, authState::getAuthRole);
@@ -1022,7 +1017,7 @@ public class AuthenticationProviderTokenTest {
     }
 
     private static void testTokenAudienceWithDifferentConfig(Properties properties,
-                                                        String audienceClaim, List<String> audiences) throws Exception {
+                                                             String audienceClaim, List<String> audiences) throws Exception {
         @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);

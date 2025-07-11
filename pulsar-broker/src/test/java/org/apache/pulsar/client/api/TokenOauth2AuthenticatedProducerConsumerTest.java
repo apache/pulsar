@@ -56,7 +56,7 @@ import org.testng.annotations.Test;
 /**
  * Test Token authentication with:
  *    client: org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
- *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken.
+ *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
  */
 @Test(groups = "broker-api")
 public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
@@ -65,8 +65,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     private MockOIDCIdentityProvider server;
 
     // Credentials File, which contains "client_id" and "client_secret"
-    private static final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
-    private static final String audience = "my-pulsar-cluster";
+    private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
+    private final String audience = "my-pulsar-cluster";
 
     @BeforeClass(alwaysRun = true)
     protected void setupClass() {
@@ -151,8 +151,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder =
-                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
@@ -205,8 +204,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
             .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder =
-                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;

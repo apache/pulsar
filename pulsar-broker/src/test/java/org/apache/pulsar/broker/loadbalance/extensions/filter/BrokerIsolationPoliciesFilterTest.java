@@ -27,12 +27,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -173,7 +175,7 @@ public class BrokerIsolationPoliciesFilterTest {
                                       Set<String> primary,
                                       Set<String> secondary,
                                       Set<String> shared,
-                                      int minLimit) {
+                                      int min_limit) {
         reset(policies);
         doReturn(CompletableFuture.completedFuture(true))
                 .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
@@ -195,7 +197,7 @@ public class BrokerIsolationPoliciesFilterTest {
 
         doAnswer(invocationOnMock -> {
             Integer totalPrimaryCandidates = invocationOnMock.getArgument(1, Integer.class);
-            return totalPrimaryCandidates < minLimit;
+            return totalPrimaryCandidates < min_limit;
         }).when(policies).shouldFailoverToSecondaries(eq(namespaceName), anyInt());
     }
 

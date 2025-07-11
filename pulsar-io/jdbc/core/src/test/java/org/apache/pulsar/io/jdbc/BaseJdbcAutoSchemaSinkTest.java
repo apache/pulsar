@@ -55,8 +55,7 @@ public class BaseJdbcAutoSchemaSinkTest {
 
     @Test
     public void testConvertAvroInt() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MIN_VALUE,
-                createFieldAndGetSchema((builder) ->
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MIN_VALUE, createFieldAndGetSchema((builder) ->
                 builder.name("field").type().intType().noDefault()));
         Assert.assertEquals(converted, Integer.MIN_VALUE);
     }
@@ -91,8 +90,7 @@ public class BaseJdbcAutoSchemaSinkTest {
 
     @Test
     public void testConvertAvroDouble() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Double.MIN_VALUE,
-                createFieldAndGetSchema((builder) ->
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Double.MIN_VALUE, createFieldAndGetSchema((builder) ->
                 builder.name("field").type().doubleType().noDefault()));
         Assert.assertEquals(converted, Double.MIN_VALUE);
     }
@@ -100,8 +98,7 @@ public class BaseJdbcAutoSchemaSinkTest {
 
     @Test
     public void testConvertAvroUnion() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MAX_VALUE,
-                createFieldAndGetSchema((builder) ->
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MAX_VALUE, createFieldAndGetSchema((builder) ->
                 builder.name("field").type().unionOf().intType().endUnion().noDefault()));
         Assert.assertEquals(converted, Integer.MAX_VALUE);
     }
@@ -197,8 +194,7 @@ public class BaseJdbcAutoSchemaSinkTest {
                 new PC("brand1", "model1"),
                 new PC("brand2", "model2")
         ));
-        org.apache.pulsar.client.api.Schema<TStates> jsonSchema =
-                org.apache.pulsar.client.api.Schema.JSON(TStates.class);
+        org.apache.pulsar.client.api.Schema<TStates> jsonSchema = org.apache.pulsar.client.api.Schema.JSON(TStates.class);
         GenericJsonSchema genericJsonSchema = new GenericJsonSchema(jsonSchema.getSchemaInfo());
         byte[] encode = jsonSchema.encode(tStates);
         GenericRecord genericRecord = genericJsonSchema.decode(encode);
@@ -221,8 +217,7 @@ public class BaseJdbcAutoSchemaSinkTest {
         baseJdbcAutoSchemaSink.setColumnValue(mockPreparedStatement, 0, mutation.getValues().apply("state"));
         baseJdbcAutoSchemaSink.setColumnValue(mockPreparedStatement, 1, mutation.getValues().apply("pcList"));
         verify(mockPreparedStatement).setString(0, "tstats");
-        verify(mockPreparedStatement).setString(1,
-                "[{\"brand\":\"brand1\",\"model\":\"model1\"},{\"brand\":\"brand2\",\"model\":\"model2\"}]");
+        verify(mockPreparedStatement).setString(1, "[{\"brand\":\"brand1\",\"model\":\"model1\"},{\"brand\":\"brand2\",\"model\":\"model2\"}]");
     }
 
     @Data

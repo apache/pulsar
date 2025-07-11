@@ -19,9 +19,6 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
@@ -47,6 +44,9 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
@@ -82,15 +82,14 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
     @Test
     public void testProduceConsumeUsageOnRG() throws Exception {
-        testProduceConsumeUsageOnRG(produceConsumePersistentTopic);
-        testProduceConsumeUsageOnRG(produceConsumeNonPersistentTopic);
+        testProduceConsumeUsageOnRG(PRODUCE_CONSUME_PERSISTENT_TOPIC);
+        testProduceConsumeUsageOnRG(PRODUCE_CONSUME_NON_PERSISTENT_TOPIC);
     }
 
     private void testProduceConsumeUsageOnRG(String topicString) throws Exception {
         ResourceUsagePublisher ruP = new ResourceUsagePublisher() {
             @Override
-            public String getID() {
-                return activeRG.getID(); }
+            public String getID() { return activeRG.getID(); }
             @Override
             public void fillResourceUsage(ResourceUsage resourceUsage) {
                 activeRG.rgFillResourceUsage(resourceUsage);
@@ -100,8 +99,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
         ResourceUsageConsumer ruC = new ResourceUsageConsumer() {
             @Override
-            public String getID() {
-                return activeRG.getID(); }
+            public String getID() { return activeRG.getID(); }
             @Override
             public void acceptResourceUsage(String broker, ResourceUsage resourceUsage) {
                 activeRG.rgResourceUsageListener(broker, resourceUsage);
@@ -142,12 +140,12 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         rgs.registerTenant(activeRgName, tenantString);
         rgs.registerNameSpace(activeRgName, NamespaceName.get(nsString));
 
-        final int numMessagesToSend = 10;
+        final int NumMessagesToSend = 10;
         int sentNumBytes = 0;
         int sentNumMsgs = 0;
         int recvdNumBytes = 0;
         int recvdNumMsgs = 0;
-        for (int ix = 0; ix < numMessagesToSend; ix++) {
+        for (int ix = 0; ix < NumMessagesToSend; ix++) {
             byte[] mesg;
             try {
                 mesg = String.format("Hi, ix=%s", ix).getBytes();
@@ -155,8 +153,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 sentNumBytes += mesg.length;
                 sentNumMsgs++;
             } catch (PulsarClientException p) {
-                final String errMsg = String.format("Got exception while sending %s-th time: ex=%s", ix,
-                        p.getMessage());
+                final String errMsg = String.format("Got exception while sending %s-th time: ex=%s", ix, p.getMessage());
                 Assert.fail(errMsg);
             }
         }
@@ -262,13 +259,13 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     int numRgUsageListenerCallbacks = 0;
     int numRgFillUsageCallbacks = 0;
 
-    final String tenantName = "pulsar-test";
-    final String nsName = "test";
-    final String tenantAndNsName = tenantName + "/" + nsName;
-    final String testProduceConsumeTopicName = "/test/prod-cons-topic";
-    final String produceConsumePersistentTopic = "persistent://" + tenantAndNsName + testProduceConsumeTopicName;
-    final String produceConsumeNonPersistentTopic =
-                                                "non-persistent://" + tenantAndNsName + testProduceConsumeTopicName;
+    final String TenantName = "pulsar-test";
+    final String NsName = "test";
+    final String TenantAndNsName = TenantName + "/" + NsName;
+    final String TestProduceConsumeTopicName = "/test/prod-cons-topic";
+    final String PRODUCE_CONSUME_PERSISTENT_TOPIC = "persistent://" + TenantAndNsName + TestProduceConsumeTopicName;
+    final String PRODUCE_CONSUME_NON_PERSISTENT_TOPIC =
+                                                "non-persistent://" + TenantAndNsName + TestProduceConsumeTopicName;
     private static final int PUBLISH_INTERVAL_SECS = 300;
 
     // Initial set up for transport manager and producer/consumer clusters/tenants/namespaces/topics.
@@ -279,9 +276,9 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
         final String clusterName = "test";
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-            admin.tenants().createTenant(tenantName,
+            admin.tenants().createTenant(TenantName,
                     new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
-        admin.namespaces().createNamespace(tenantAndNsName);
-        admin.namespaces().setNamespaceReplicationClusters(tenantAndNsName, Sets.newHashSet(clusterName));
+        admin.namespaces().createNamespace(TenantAndNsName);
+        admin.namespaces().setNamespaceReplicationClusters(TenantAndNsName, Sets.newHashSet(clusterName));
     }
 }

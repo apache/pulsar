@@ -170,8 +170,7 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase impleme
             if (elapsedFullSeconds > 0 && lastCalculatedSecond.compareAndSet(elapsedFullSeconds - 1,
                     elapsedFullSeconds)) {
                 int messagesCountForPreviousSecond = currentSecondMessagesCount.getAndSet(0);
-                log.info("Rate for second {}: {} msg/s {}", elapsedFullSeconds, messagesCountForPreviousSecond,
-                        TimeUnit.NANOSECONDS.toMillis(durationNanos));
+                log.info("Rate for second {}: {} msg/s {}", elapsedFullSeconds, messagesCountForPreviousSecond, TimeUnit.NANOSECONDS.toMillis(durationNanos));
                 collectedRatesForEachSecond.add(messagesCountForPreviousSecond);
             }
         };

@@ -62,10 +62,8 @@ public class SubscribeRateTest extends BrokerTestBase {
         final int ratePerConsumer = 10;
         final int ratePeriod = 60;
 
-        String defaultRatePerConsumer = admin.brokers().getRuntimeConfigurations()
-                .get("subscribeThrottlingRatePerConsumer");
-        String defaultRatePeriod = admin.brokers().getRuntimeConfigurations()
-                .get("subscribeRatePeriodPerConsumerInSecond");
+        String defaultRatePerConsumer = admin.brokers().getRuntimeConfigurations().get("subscribeThrottlingRatePerConsumer");
+        String defaultRatePeriod = admin.brokers().getRuntimeConfigurations().get("subscribeRatePeriodPerConsumerInSecond");
         Assert.assertNotNull(defaultRatePerConsumer);
         Assert.assertNotNull(defaultRatePeriod);
         Assert.assertNotEquals(ratePerConsumer, Integer.parseInt(defaultRatePerConsumer));
@@ -80,8 +78,7 @@ public class SubscribeRateTest extends BrokerTestBase {
 
         // subscribeRatePeriodPerConsumerInSecond
         admin.brokers().updateDynamicConfiguration("subscribeRatePeriodPerConsumerInSecond", ratePeriod + "");
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getSubscribeRate().ratePeriodInSecond,
-                ratePeriod));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getSubscribeRate().ratePeriodInSecond, ratePeriod));
         Assert.assertEquals(limiter.getSubscribeRate().subscribeThrottlingRatePerConsumer, ratePerConsumer);
 
         producer.close();

@@ -20,9 +20,10 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import java.sql.Time;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.sql.Time;
 
 public class TimeSchemaTest {
 
@@ -38,7 +39,7 @@ public class TimeSchemaTest {
                 (byte) (data.getTime() >>> 24),
                 (byte) (data.getTime() >>> 16),
                 (byte) (data.getTime() >>> 8),
-                ((Long) data.getTime()).byteValue()
+                ((Long)data.getTime()).byteValue()
         };
         Assert.assertEquals(expected, schema.encode(data));
     }
@@ -64,7 +65,7 @@ public class TimeSchemaTest {
         };
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(byteData.length);
         byteBuf.writeBytes(byteData);
-        long expected = 10 * 65536 + 24 * 256 + 42;
+        long expected = 10*65536 + 24*256 + 42;
         TimeSchema schema = TimeSchema.of();
         Assert.assertEquals(expected, schema.decode(byteData).getTime());
         Assert.assertEquals(expected, schema.decode(byteBuf).getTime());

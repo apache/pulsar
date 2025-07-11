@@ -268,8 +268,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
 
         assertEquals(persistentDispatcher.getRecentlyJoinedConsumers().size(), 6);
 
-        Iterator<Map.Entry<Consumer, Position>> itr =
-                persistentDispatcher.getRecentlyJoinedConsumers().entrySet().iterator();
+        Iterator<Map.Entry<Consumer, Position>> itr
+                = persistentDispatcher.getRecentlyJoinedConsumers().entrySet().iterator();
 
         Map.Entry<Consumer, Position> entry1 = itr.next();
         assertEquals(entry1.getValue(), PositionFactory.create(4, 1));
@@ -309,8 +309,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         }
 
         List<Entry> entries = new ArrayList<>();
-        ByteBuf markerMessage =
-                Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
+        ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
         entries.add(EntryImpl.create(1, 1, markerMessage));
         markerMessage.release();
         entries.add(createEntry(1, 2, "message1", 1));
@@ -636,7 +635,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-
         ByteBuf payload = Unpooled.copiedBuffer(message.getBytes(UTF_8));
         ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
         payload.release();

@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -44,14 +39,21 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 /**
- * This tests verifies that a batch source can be successfully submitted and run via the pulsar-admin CLI.
+ * This tests verifies that a batch source can be successfully submitted and run via the pulsar-admin CLI
  */
 @Slf4j
 public class BatchSourceTest extends PulsarStandaloneTestSuite {
 
-    private static final String BATCH_CONFIG = "{\"discoveryTriggererConfig\": {\"__CRON__\": \"* * * * * *\"}, "
-            + "\"discoveryTriggererClassName\": \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\"}";
+    private static final String BATCH_CONFIG = "{\"discoveryTriggererConfig\": {\"__CRON__\": \"* * * * * *\"}, " +
+            "\"discoveryTriggererClassName\": \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\"}";
 
     @Test(groups = {"source"})
     public void testGenericRecordSource() throws Exception {
@@ -129,7 +131,7 @@ public class BatchSourceTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + sourceName + "\""));
     }
 
-    private static void getSourceStatus(StandaloneContainer container, String sourceName) throws Exception {
+    private static void getSourceStatus(StandaloneContainer container,String sourceName) throws Exception {
         retryStrategically((test) -> {
                     try {
                         ContainerExecResult result = container.execCmd(
@@ -181,11 +183,11 @@ public class BatchSourceTest extends PulsarStandaloneTestSuite {
         for (int i = 0; i < numMessages; i++) {
             Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
-                fail("message " + i + " not received in time");
+                fail("message "+i+" not received in time");
                 return;
             }
             log.info("received {}", msg.getValue());
-            msg.getValue().getFields().forEach(f -> {
+            msg.getValue().getFields().forEach( f -> {
                 log.info("field {} {}", f, msg.getValue().getField(f));
             });
         }

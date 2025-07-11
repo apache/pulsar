@@ -49,7 +49,7 @@ public class LoadBalanceResourcesTest {
         String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
         loadBalanceResources.getBundleDataResources().deleteBundleDataAsync(ns);
 
-        String tenant = "my-tenant";
+        String tenant="my-tenant";
         String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
         loadBalanceResources.getBundleDataResources().deleteBundleDataTenantAsync(tenant);
 

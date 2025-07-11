@@ -1050,11 +1050,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         bkc = new BookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
-                                                                         DNSToSwitchMapping dnsResolver,
-                                                                         HashedWheelTimer timer,
-                                                                         FeatureProvider featureProvider,
-                                                                         StatsLogger statsLogger,
-                                                                         BookieAddressResolver bookieAddressResolver)
+                                                                                DNSToSwitchMapping dnsResolver,
+                                                                                HashedWheelTimer timer,
+                                                                                FeatureProvider featureProvider,
+                                                                                StatsLogger statsLogger,
+                                                                                BookieAddressResolver bookieAddressResolver)
                     throws IOException {
                 EnsemblePlacementPolicy ensemblePlacementPolicy = null;
                 if (ZoneawareEnsemblePlacementPolicy.class == placementPolicyClass) {
@@ -1113,11 +1113,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         BookKeeper bookKeeper = new BookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
-                                                                         DNSToSwitchMapping dnsResolver,
-                                                                         HashedWheelTimer timer,
-                                                                         FeatureProvider featureProvider,
-                                                                         StatsLogger statsLogger,
-                                                                         BookieAddressResolver bookieAddressResolver)
+                                                                                DNSToSwitchMapping dnsResolver,
+                                                                                HashedWheelTimer timer,
+                                                                                FeatureProvider featureProvider,
+                                                                                StatsLogger statsLogger,
+                                                                                BookieAddressResolver bookieAddressResolver)
                     throws IOException {
                 EnsemblePlacementPolicy ensemblePlacementPolicy = null;
                 if (ZoneawareEnsemblePlacementPolicy.class == placementPolicyClass) {

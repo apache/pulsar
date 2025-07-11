@@ -124,8 +124,7 @@ public class OpenTelemetrySanityTest {
         var targetInfoMetricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
         var cpuCountMetricName = "jvm_cpu_count"; // Configured by the OpenTelemetryService.
         waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            var expectedMetrics = new String[] {targetInfoMetricName, cpuCountMetricName,
-                    "pulsar_broker_topic_producer_count"};
+            var expectedMetrics = new String[] {targetInfoMetricName, cpuCountMetricName, "pulsar_broker_topic_producer_count"};
             var actualMetrics = getMetricsFromPrometheus(pulsarCluster.getBroker(0), prometheusExporterPort);
             assertThat(expectedMetrics).allMatch(expectedMetric -> !actualMetrics.findByNameAndLabels(expectedMetric,
                     Pair.of("pulsar_cluster", clusterName),

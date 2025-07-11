@@ -19,6 +19,7 @@
 package org.apache.pulsar.client;
 
 import static org.mockito.Mockito.spy;
+
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;

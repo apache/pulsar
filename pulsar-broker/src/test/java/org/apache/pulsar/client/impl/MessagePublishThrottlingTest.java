@@ -359,7 +359,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         List<ProducerImpl<byte[]>> producers = Lists.newArrayListWithExpectedSize(topicNumber);
         List<PersistentTopic> topics = Lists.newArrayListWithExpectedSize(topicNumber);
 
-        for (int i = 0; i < topicNumber; i++) {
+        for (int i = 0 ; i < topicNumber; i ++) {
             String iTopicName = topicNameBase + i;
             ProducerImpl<byte[]> iProducer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(iTopicName)
@@ -382,7 +382,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         final AtomicInteger index = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(topicNumber);
 
-        for (int i = 0; i < topicNumber; i++) {
+        for (int i = 0; i < topicNumber; i ++) {
             topicRatesCounter.add(() -> {
                 int id = index.incrementAndGet();
                 ProducerImpl<byte[]> iProducer = producers.get(id);

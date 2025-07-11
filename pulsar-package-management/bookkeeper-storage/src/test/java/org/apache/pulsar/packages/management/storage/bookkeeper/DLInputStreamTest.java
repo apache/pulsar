@@ -19,20 +19,22 @@
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.eq;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.fail;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.AsyncLogReader;
@@ -65,7 +67,7 @@ public class DLInputStreamTest {
     }
 
     /**
-     * Test Case: reader hits eos (end of stream).
+     * Test Case: reader hits eos (end of stream)
      */
     @Test
     public void testReadEos() throws Exception {

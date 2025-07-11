@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.conf;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
 import org.testng.annotations.Test;
 
 public class DefaultCryptoKeyReaderConfigurationDataTest {
@@ -49,23 +50,19 @@ public class DefaultCryptoKeyReaderConfigurationDataTest {
     public void testToString() {
         DefaultCryptoKeyReaderConfigurationData conf = new DefaultCryptoKeyReaderConfigurationData();
         assertEquals(conf.toString(),
-                "DefaultCryptoKeyReaderConfigurationData(defaultPublicKey=null, defaultPrivateKey=null, "
-                        + "publicKeys={}, privateKeys={})");
+                "DefaultCryptoKeyReaderConfigurationData(defaultPublicKey=null, defaultPrivateKey=null, publicKeys={}, privateKeys={})");
 
         conf.setDefaultPublicKey("file:///path/to/default-public.key");
         conf.setDefaultPrivateKey("data:AAAAA");
         conf.setPublicKey("key1", "file:///path/to/public.key");
         conf.setPrivateKey("key2", "file:///path/to/private.key");
         assertEquals(conf.toString(),
-                "DefaultCryptoKeyReaderConfigurationData(defaultPublicKey=file:///path/to/default-public.key, "
-                        + "defaultPrivateKey=data:*****, publicKeys={key1=file:///path/to/public.key}, "
-                        + "privateKeys={key2=file:///path/to/private.key})");
+                "DefaultCryptoKeyReaderConfigurationData(defaultPublicKey=file:///path/to/default-public.key, defaultPrivateKey=data:*****, publicKeys={key1=file:///path/to/public.key}, privateKeys={key2=file:///path/to/private.key})");
 
         conf.setPublicKey("key3", "data:BBBBB");
         conf.setPrivateKey("key4", "data:CCCCC");
         assertTrue(conf.toString().startsWith(
-                "DefaultCryptoKeyReaderConfigurationData(defaultPublicKey=file:///path/to/default-public.key, "
-                        + "defaultPrivateKey=data:*****, publicKeys={"));
+                "DefaultCryptoKeyReaderConfigurationData(defaultPublicKey=file:///path/to/default-public.key, defaultPrivateKey=data:*****, publicKeys={"));
         assertTrue(conf.toString().contains("key3=data:*****"));
         assertFalse(conf.toString().contains("key3=data:BBBBB"));
         assertTrue(conf.toString().contains("key4=data:*****"));

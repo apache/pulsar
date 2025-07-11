@@ -588,8 +588,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
     public void testNamespaceNotExist(TopicDomain topicDomain) throws Exception {
         int lookupPermitsBefore = getLookupRequestPermits();
         final String namespaceNotExist = BrokerTestUtil.newUniqueName("public/ns");
-        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString()
-                + "://" + namespaceNotExist + "/tp");
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString() + "://" + namespaceNotExist + "/tp");
         PulsarClientImpl[] clientArray = getClientsToTest(false);
         for (PulsarClientImpl client : clientArray) {
             try {
@@ -614,8 +613,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         int lookupPermitsBefore = getLookupRequestPermits();
         final String tenantNotExist = BrokerTestUtil.newUniqueName("tenant");
         final String namespaceNotExist = BrokerTestUtil.newUniqueName(tenantNotExist + "/default");
-        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString()
-                + "://" + namespaceNotExist + "/tp");
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString() + "://" + namespaceNotExist + "/tp");
         PulsarClientImpl[] clientArray = getClientsToTest(false);
         for (PulsarClientImpl client : clientArray) {
             try {
@@ -626,8 +624,8 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
                 fail("Expected a not found ex");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
-                assertTrue(unwrapEx instanceof PulsarClientException.BrokerMetadataException
-                        || unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
+                assertTrue(unwrapEx instanceof PulsarClientException.BrokerMetadataException ||
+                        unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
             }
         }
         // Verify: lookup semaphore has been releases.

@@ -18,8 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImplTest.TestPayloadProcessor;
 import static org.testng.Assert.assertEquals;
+import static org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImplTest.TestPayloadProcessor;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;

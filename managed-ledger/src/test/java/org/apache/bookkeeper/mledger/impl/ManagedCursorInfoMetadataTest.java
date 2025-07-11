@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public class ManagedCursorInfoMetadataTest {
-    private static final String INVALID_TYPE = "INVALID_TYPE";
+    private final String INVALID_TYPE = "INVALID_TYPE";
 
     @DataProvider(name = "compressionTypeProvider")
     private Object[][] compressionTypeProvider() {

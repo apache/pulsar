@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     private static final String CLUSTER_NAME = "proxy-authorization";
-    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
     private ProxyService proxyService;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();

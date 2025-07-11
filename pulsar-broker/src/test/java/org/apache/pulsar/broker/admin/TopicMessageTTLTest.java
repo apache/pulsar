@@ -51,14 +51,12 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
-        admin.clusters().createCluster(testCluster, ClusterData.builder()
-                .serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testCluster));
         admin.topics().createPartitionedTopic(testTopic, 2);
-        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
-                + "dummy-topic").create();
+        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "dummy-topic").create();
         producer.close();
         waitForZooKeeperWatchers();
     }
@@ -101,7 +99,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            admin.topics().setMessageTTL(testTopic, (int) 2147483650L);
+            admin.topics().setMessageTTL(testTopic, (int)2147483650L);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), HttpStatus.PRECONDITION_FAILED_412);
@@ -149,8 +147,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testDifferentLevelPolicyPriority() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicIfExists(topicName).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
@@ -178,7 +175,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "isV1")
     public void testNamespaceTTL(boolean isV1) throws Exception {
-        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1" + isV1;
+        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1"+isV1;
         admin.namespaces().createNamespace(myNamespace, Set.of(testCluster));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);

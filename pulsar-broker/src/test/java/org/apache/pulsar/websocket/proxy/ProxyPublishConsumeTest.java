@@ -123,10 +123,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     public void socketTest() throws Exception {
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
-        String readerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/reader/persistent/my-property/my-ns/my-topic1";
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
+        String readerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/reader/persistent/my-property/my-ns/my-topic1";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
 
         URI consumeUri = URI.create(consumerUri);
         URI readUri = URI.create(readerUri);
@@ -201,8 +199,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                 "ws://localhost:%d/ws/v2/consumer/persistent/%s/%s?pullMode=true&subscriptionType=Shared",
                 proxyServer.getListenPortHTTP().get(), topic, subscription
         );
-        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s",
-                proxyServer.getListenPortHTTP().get(), topic);
+        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s", proxyServer.getListenPortHTTP().get(), topic);
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -236,8 +233,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getBuffer().size(), 11));
             // Assert not reach end of topic yet
-            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1),
-                    "{\"endOfTopic\":false}");
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
 
             // Send 20 more permits, should receive all message
             consumeSocket.sendPermits(20);
@@ -249,8 +245,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 32));
             // Assert not reached end of topic.
-            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1),
-                    "{\"endOfTopic\":false}");
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
 
             admin.topics().terminateTopicAsync(topic).get();
             consumeSocket.isEndOfTopic();
@@ -258,8 +253,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 33));
             // Assert reached end of topic.
-            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1),
-                    "{\"endOfTopic\":true}");
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":true}");
         } finally {
             stopWebSocketClient(consumeClient, produceClient);
         }
@@ -273,8 +267,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName, 3);
 
         final String subscription = "my-sub";
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
 
         URI consumeUri = URI.create(consumerUri);
         WebSocketClient consumeClient = new WebSocketClient();
@@ -348,8 +341,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             try {
                 consumeClient2.start();
                 ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
-                Future<Session> consumerFuture2 =
-                        consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
+                Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
                 consumerFuture2.get();
                 fail("should fail: conflicting subscription name");
             } catch (Exception e) {
@@ -385,8 +377,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             try {
                 produceClient2.start();
                 ClientUpgradeRequest produceRequest2 = new ClientUpgradeRequest();
-                Future<Session> producerFuture2 =
-                        produceClient2.connect(produceSocket2, produceUri, produceRequest2);
+                Future<Session> producerFuture2 = produceClient2.connect(produceSocket2, produceUri, produceRequest2);
                 producerFuture2.get();
                 fail("should fail: conflicting producer name");
             } catch (Exception e) {
@@ -415,10 +406,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         final String topic = namespace + "/my-topic5";
         final String subscription = "my-sub";
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
-        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/" + topic;
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -593,20 +582,17 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies proxy topic-stats and proxy-metrics api.
+     * It verifies proxy topic-stats and proxy-metrics api
      *
      * @throws Exception
      */
     @Test(timeOut = 10000)
     public void testProxyStats() throws Exception {
         final String topic = "my-property/my-ns/my-topic6";
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/consumer/persistent/" + topic
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic
                 + "/my-sub?subscriptionType=Failover";
-        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/producer/persistent/" + topic + "/";
-        final String readerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/reader/persistent/" + topic;
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/" + topic + "/";
+        final String readerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/reader/persistent/" + topic;
         System.out.println(consumerUri + ", " + producerUri);
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -675,10 +661,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic("persistent://" + topic, 3);
 
         final String subscription = "my-sub";
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
-        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/" + topic;
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -719,8 +703,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                 "ws://localhost:%d/ws/v2/consumer/persistent/%s/%s?pullMode=true&subscriptionType=Shared",
                 proxyServer.getListenPortHTTP().get(), topic, subscription
         );
-        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s",
-                proxyServer.getListenPortHTTP().get(), topic);
+        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s", proxyServer.getListenPortHTTP().get(), topic);
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -777,19 +760,19 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         final String dlqTopic = "my-property/my-ns/nack-msg-dlq-" + UUID.randomUUID();
         final String consumerTopic = "my-property/my-ns/nack-msg-" + UUID.randomUUID();
 
-        final String dlqUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-          + "/ws/v2/consumer/persistent/"
-          + dlqTopic + "/" + subscription
-          + "?subscriptionType=Shared";
+        final String dlqUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+          "/ws/v2/consumer/persistent/" +
+          dlqTopic + "/" + subscription +
+          "?subscriptionType=Shared";
 
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-          + "/ws/v2/consumer/persistent/"
-          + consumerTopic + "/" + subscription
-          + "?deadLetterTopic=" + dlqTopic
-          + "&maxRedeliverCount=1&subscriptionType=Shared&negativeAckRedeliveryDelay=1000";
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+          "/ws/v2/consumer/persistent/" +
+          consumerTopic + "/" + subscription +
+          "?deadLetterTopic=" + dlqTopic +
+          "&maxRedeliverCount=1&subscriptionType=Shared&negativeAckRedeliveryDelay=1000";
 
-        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-          + "/ws/v2/producer/persistent/" + consumerTopic;
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+          "/ws/v2/producer/persistent/" + consumerTopic;
 
         WebSocketClient consumeClient1 = new WebSocketClient();
         SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
@@ -810,18 +793,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeClient2.start();
             ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
             ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 =
-                    consumeClient1.connect(consumeSocket1, URI.create(consumerUri), consumeRequest1);
-            Future<Session> consumerFuture2 =
-                    consumeClient2.connect(consumeSocket2, URI.create(dlqUri), consumeRequest2);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, URI.create(consumerUri), consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, URI.create(dlqUri), consumeRequest2);
 
             assertTrue(consumerFuture1.get().isOpen());
             assertTrue(consumerFuture2.get().isOpen());
 
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             produceClient.start();
-            Future<Session> producerFuture =
-                    produceClient.connect(produceSocket, URI.create(producerUri), produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, URI.create(producerUri), produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
             assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
@@ -900,8 +880,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     public void ackBatchMessageTest() throws Exception {
         final String subscription = "my-sub";
         final String topic = "my-property/my-ns/ack-batch-message" + UUID.randomUUID();
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
         final int messages = 10;
 
         WebSocketClient consumerClient = new WebSocketClient();
@@ -915,8 +895,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumerClient.start();
             ClientUpgradeRequest consumerRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture =
-                    consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
+            Future<Session> consumerFuture = consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
 
             assertTrue(consumerFuture.get().isOpen());
             assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
@@ -944,46 +923,16 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     public void consumeEncryptedMessages() throws Exception {
         final String subscription = "my-sub";
         final String topic = "my-property/my-ns/encrypted" + UUID.randomUUID();
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/consumer/persistent/" + topic + "/" + subscription + "?cryptoFailureAction=CONSUME";
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v2/consumer/persistent/" + topic + "/" + subscription + "?cryptoFailureAction=CONSUME";
         final int messages = 10;
 
         WebSocketClient consumerClient = new WebSocketClient();
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
 
 
-        final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQ"
-                + "klqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmN"
-                + "hOXdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zO"
-                + "XJ6WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0h"
-                + "xTDdzQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtR"
-                + "zRNKzZ4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzd"
-                + "IVHUwTFNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
-
-        final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tL"
-                + "QpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1"
-                + "Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQkl"
-                + "yVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMF"
-                + "RPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNc"
-                + "zdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJB"
-                + "b0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGV"
-                + "nNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2"
-                + "oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY"
-                + "3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNO"
-                + "QTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15Vit"
-                + "yUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUE"
-                + "NXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzc"
-                + "HJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hD"
-                + "alNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp"
-                + "2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbS"
-                + "tTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4d"
-                + "DgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZ"
-                + "QVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25"
-                + "Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU"
-                + "1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJe"
-                + "k85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tL"
-                + "eApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVR"
-                + "FIEtFWS0tLS0tCg==";
+        final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0hxTDdzQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtRzRNKzZ4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzdIVHUwTFNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
+        final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQklyVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMFRPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNczdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJBb0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGVnNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNOQTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15VityUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUENXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzcHJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hDalNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbStTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4dDgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZQVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJek85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tLeApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -996,8 +945,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumerClient.start();
             ClientUpgradeRequest consumerRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture =
-                    consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
+            Future<Session> consumerFuture = consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
 
             assertTrue(consumerFuture.get().isOpen());
             assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
@@ -1111,11 +1059,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         final String subscription2 = "my-sub2";
         final String topic1 = "my-property/my-ns/testMultiTopics" + UUID.randomUUID();
         final String topic2 = "my-property/my-ns/testMultiTopics" + UUID.randomUUID();
-        final String consumerUri1 = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v3/consumer/" + subscription1 + "?topics=" + topic1 + "," + topic2;
+        final String consumerUri1 = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v3/consumer/" + subscription1 + "?topics=" + topic1 + "," + topic2;
 
-        final String consumerUri2 = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v3/consumer/" + subscription2 + "?topicsPattern=my-property/my-ns/testMultiTopics.*";
+        final String consumerUri2 = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v3/consumer/" + subscription2 + "?topicsPattern=my-property/my-ns/testMultiTopics.*";
 
         int messages = 10;
         WebSocketClient consumerClient1 = new WebSocketClient();
@@ -1138,17 +1086,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumerClient2.start();
             ClientUpgradeRequest consumerRequest1 = new ClientUpgradeRequest();
             ClientUpgradeRequest consumerRequest2 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 =
-                    consumerClient1.connect(consumeSocket1, URI.create(consumerUri1), consumerRequest1);
-            Future<Session> consumerFuture2 =
-                    consumerClient2.connect(consumeSocket2, URI.create(consumerUri2), consumerRequest2);
+            Future<Session> consumerFuture1 = consumerClient1.connect(consumeSocket1, URI.create(consumerUri1), consumerRequest1);
+            Future<Session> consumerFuture2 = consumerClient2.connect(consumeSocket2, URI.create(consumerUri2), consumerRequest2);
 
             assertTrue(consumerFuture1.get().isOpen());
             assertTrue(consumerFuture2.get().isOpen());
             assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
             assertEquals(consumeSocket2.getReceivedMessagesCount(), 0);
 
-            for (int i = 1; i <= messages; i++) {
+            for (int i = 1; i <= messages; i ++) {
                 producer1.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
                 producer2.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
             }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.schema.validator;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;

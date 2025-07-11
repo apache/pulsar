@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -106,7 +106,7 @@ public class ClientBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testClientBuilderWithIllegalDNSServerHostname() throws PulsarClientException {
         PulsarClient.builder().dnsServerAddresses(
-                Arrays.asList(new InetSocketAddress("1.2.3.4", 53), new InetSocketAddress("localhost", 53)));
+                Arrays.asList(new InetSocketAddress("1.2.3.4", 53), new InetSocketAddress("localhost",53)));
     }
 
     @Test()
@@ -228,9 +228,8 @@ public class ClientBuilderImplTest {
 
     @SneakyThrows
     private Authentication createClientAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:8080")
-                .loadConf(confProps).build()) {
-            return ((PulsarClientImpl) client).conf.getAuthentication();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:8080").loadConf(confProps).build()) {
+            return ((PulsarClientImpl)client).conf.getAuthentication();
         }
     }
 
@@ -242,7 +241,7 @@ public class ClientBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 

@@ -67,7 +67,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
     }
 
     @Test
-    public void testConsumedLedgersTrim() throws Exception {
+    public void TestConsumedLedgersTrim() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(1);
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/TestConsumedLedgersTrim";
@@ -188,7 +188,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
     }
 
     @Test
-    public void testAdminTrimLedgers() throws Exception {
+    public void TestAdminTrimLedgers() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(Integer.MAX_VALUE / 2);
         conf.setDefaultNumberOfNamespaceBundles(1);
         super.baseSetup();

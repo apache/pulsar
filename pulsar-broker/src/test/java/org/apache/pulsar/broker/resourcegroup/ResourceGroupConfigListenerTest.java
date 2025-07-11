@@ -53,7 +53,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
 
     ResourceGroup testAddRg = new ResourceGroup();
     final String rgName = "testRG";
-    static final int MAX_RGS = 10;
+    final int MAX_RGS = 10;
     final String tenantName = "test-tenant";
     final String namespaceName = "test-tenant/test-namespace";
     final String clusterName = "test";
@@ -291,8 +291,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster(clusterName, ClusterData.builder()
-                .serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
 
         testAddRg.setPublishRateInBytes(10000L);
         testAddRg.setPublishRateInMsgs(100);
@@ -318,8 +317,8 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
                 .when(resourceGroupResources).getStore();
         doReturn(resourceGroupResources).when(pulsarResources).getResourcegroupResources();
 
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        ServiceConfiguration ServiceConfiguration = new ServiceConfiguration();
+        doReturn(ServiceConfiguration).when(pulsarService).getConfiguration();
 
         ResourceGroupConfigListener resourceGroupConfigListener =
                 new ResourceGroupConfigListener(resourceGroupService, pulsarService);

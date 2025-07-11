@@ -18,17 +18,6 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-import java.io.File;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
@@ -40,6 +29,19 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.io.File;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Test the implementation of {@link KafkaConnectSource}.
@@ -63,10 +65,8 @@ public class KafkaConnectSourceErrTest extends ProducerConsumerBase  {
         super.producerBaseSetup();
 
         config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.pulsar.io.kafka.connect.ErrFileStreamSourceTask");
-        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG,
-                "org.apache.kafka.connect.storage.StringConverter");
-        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG,
-                "org.apache.kafka.connect.storage.StringConverter");
+        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
+        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
 
         this.offsetTopicName = "persistent://my-property/my-ns/kafka-connect-source-offset";
         config.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
@@ -75,8 +75,7 @@ public class KafkaConnectSourceErrTest extends ProducerConsumerBase  {
         config.put(FileStreamSourceConnector.TOPIC_CONFIG, topicName);
         tempFile = File.createTempFile("some-file-name", null);
         config.put(FileStreamSourceConnector.FILE_CONFIG, tempFile.getAbsoluteFile().toString());
-        config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG,
-                String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
+        config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG, String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
 
         this.context = mock(SourceContext.class);
         this.client = PulsarClient.builder()

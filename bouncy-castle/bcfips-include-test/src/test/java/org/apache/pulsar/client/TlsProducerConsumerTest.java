@@ -34,7 +34,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
     /**
      * verifies that messages whose size is larger than 2^14 bytes (max size of single TLS chunk) can be
-     * produced/consumed.
+     * produced/consumed
      *
      * @throws Exception
      */
@@ -42,8 +42,8 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     public void testTlsLargeSizeMessage() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size {} --", messageSize);
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size {} --", MESSAGE_SIZE);
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
@@ -54,7 +54,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
                 .create();
         for (int i = 0; i < 10; i++) {
-            byte[] message = new byte[messageSize];
+            byte[] message = new byte[MESSAGE_SIZE];
             Arrays.fill(message, (byte) i);
             producer.send(message);
         }
@@ -62,7 +62,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
-            byte[] expected = new byte[messageSize];
+            byte[] expected = new byte[MESSAGE_SIZE];
             Arrays.fill(expected, (byte) i);
             Assert.assertEquals(expected, msg.getData());
         }
@@ -76,8 +76,8 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size {} --", messageSize);
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size {} --", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
@@ -106,8 +106,8 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size {} --", messageSize);
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size {} --", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure

@@ -24,13 +24,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+
 import com.google.common.collect.ImmutableMap;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.ByteBufferDeserializer;
@@ -52,6 +49,11 @@ import org.apache.pulsar.io.kafka.KafkaAbstractSource.KeyValueKafkaRecord;
 import org.bouncycastle.util.encoders.Base64;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 public class KafkaBytesSourceTest {
@@ -89,7 +91,7 @@ public class KafkaBytesSourceTest {
     }
 
     private void validateSchemaNoKeyValue(String keyDeserializationClass, Schema<?> expectedKeySchema,
-                                     String valueDeserializationClass, Schema<?> expectedValueSchema) throws Exception {
+                                          String valueDeserializationClass, Schema<?> expectedValueSchema) throws Exception {
         try (KafkaBytesSource source = new KafkaBytesSource()) {
             Map<String, Object> config = new HashMap<>();
             config.put("topic", "test");

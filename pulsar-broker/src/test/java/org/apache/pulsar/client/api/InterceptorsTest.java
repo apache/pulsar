@@ -74,7 +74,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
     }
 
     /**
-     * 0 indicate the topic is non-partition topic.
+     * 0 indicate the topic is non-partition topic
      */
     @DataProvider(name = "topicPartition")
     public Object[][] getTopicPartition() {
@@ -134,14 +134,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public boolean eligible(Message message) {
                 return SchemaType.STRING.equals(
-                        ((MessageImpl) message).getSchemaInternal().getSchemaInfo().getType());
+                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
             }
         };
         BaseInterceptor interceptor3 = new BaseInterceptor("int3") {
             @Override
             public boolean eligible(Message message) {
                 return SchemaType.INT32.equals(
-                        ((MessageImpl) message).getSchemaInternal().getSchemaInfo().getType());
+                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
             }
         };
 
@@ -176,8 +176,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onSendAcknowledgement(Producer<String> producer, Message<String> message,
-                                              MessageId msgId, Throwable exception) {
+            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
                 throw new IllegalArgumentException();
             }
         };
@@ -205,8 +204,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onSendAcknowledgement(Producer<String> producer, Message<String> message,
-                                              MessageId msgId, Throwable exception) {
+            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
                 throw new AbstractMethodError();
             }
         };
@@ -749,8 +747,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "topics")
-    public void testConsumerInterceptorForNegativeAcksSend(List<String> topics)
-            throws PulsarClientException, InterruptedException {
+    public void testConsumerInterceptorForNegativeAcksSend(List<String> topics) throws PulsarClientException, InterruptedException {
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
@@ -1007,8 +1004,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         final int receiveQueueSize = 100;
         final int totalNumOfMessages = receiveQueueSize * 2;
 
-        // The onArrival method is called for half of the receiveQueueSize messages
-        // before beforeConsume is called for all messages.
+        // The onArrival method is called for half of the receiveQueueSize messages before beforeConsume is called for all messages.
         CountDownLatch latch = new CountDownLatch(receiveQueueSize / 2);
         final AtomicInteger onArrivalCount = new AtomicInteger(0);
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {

@@ -72,14 +72,10 @@ public class TimeConversionTest {
 
     @Test
     public void testFailingParsing() {
-        assertThrows(IllegalArgumentException.class,
-                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("")); // Empty string
-        assertThrows(IllegalArgumentException.class,
-                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("s")); // Non-numeric character
-        assertThrows(IllegalArgumentException.class,
-                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1z")); // Invalid time unit
-        assertThrows(IllegalArgumentException.class,
-                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1.5")); // Floating point number
+        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("")); // Empty string
+        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("s")); // Non-numeric character
+        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1z")); // Invalid time unit
+        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1.5")); // Floating point number
     }
 
     @Test

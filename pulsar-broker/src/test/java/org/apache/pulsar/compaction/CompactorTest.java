@@ -402,9 +402,8 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         Position lastCompactedPosition = topicCompactionService.getLastCompactedPosition().get();
         Entry lastCompactedEntry = topicCompactionService.readLastCompactedEntry().get();
 
-        Assert.assertTrue(PositionFactory.create(lastCompactedPosition.getLedgerId(),
-                lastCompactedPosition.getEntryId()).compareTo(lastCompactedEntry.getLedgerId(),
-                lastCompactedEntry.getEntryId()) >= 0);
+        Assert.assertTrue(PositionFactory.create(lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId())
+                .compareTo(lastCompactedEntry.getLedgerId(), lastCompactedEntry.getEntryId()) >= 0);
 
         future.join();
     }

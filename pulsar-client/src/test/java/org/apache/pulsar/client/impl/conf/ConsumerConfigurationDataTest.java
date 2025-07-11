@@ -19,12 +19,14 @@
 package org.apache.pulsar.client.impl.conf;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.regex.Pattern;
+
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.SubscriptionType;

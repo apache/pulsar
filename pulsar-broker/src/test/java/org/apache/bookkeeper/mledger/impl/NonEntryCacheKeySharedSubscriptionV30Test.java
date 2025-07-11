@@ -135,12 +135,12 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         ackAllMessages(consumer1, consumer2);
         Position mdPosition = (Position) cursor.getMarkDeletedPosition();
         Position readPosition = (Position) cursor.getReadPosition();
-        Position lastConfirmed = (Position) ml.getLastConfirmedEntry();
-        assertTrue(readPosition.compareTo(lastConfirmed) >= 0);
+        Position LAC = (Position) ml.getLastConfirmedEntry();
+        assertTrue(readPosition.compareTo(LAC) >= 0);
         Position firstWaitingAckPos = ml.getNextValidPosition(mdPosition);
         log.info("md-pos {}:{}", mdPosition.getLedgerId(), mdPosition.getEntryId());
         log.info("rd-pos {}:{}", readPosition.getLedgerId(), readPosition.getEntryId());
-        log.info("lac-pos {}:{}", lastConfirmed.getLedgerId(), lastConfirmed.getEntryId());
+        log.info("lac-pos {}:{}", LAC.getLedgerId(), LAC.getEntryId());
         log.info("first-waiting-ack-pos {}:{}", firstWaitingAckPos.getLedgerId(), firstWaitingAckPos.getEntryId());
 
         // Inject a delay for the next replay read.
@@ -225,15 +225,15 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
             if (dispatcher.getRecentlyJoinedConsumers().size() > 0) {
                 Position mdPosition2 = (Position) cursor.getMarkDeletedPosition();
                 Position readPosition2 = (Position) cursor.getReadPosition();
-                Position lastConfirmed2 = (Position) ml.getLastConfirmedEntry();
-                assertTrue(readPosition.compareTo(lastConfirmed) >= 0);
+                Position LAC2 = (Position) ml.getLastConfirmedEntry();
+                assertTrue(readPosition.compareTo(LAC) >= 0);
                 Position firstWaitingAckPos2 = ml.getNextValidPosition(mdPosition);
-                if (readPosition2.compareTo(firstWaitingAckPos) > 0) {
+                if(readPosition2.compareTo(firstWaitingAckPos) > 0) {
                     keepPublishing.set(false);
                     log.info("consumer-index: {}", i);
                     log.info("md-pos-2 {}:{}", mdPosition2.getLedgerId(), mdPosition2.getEntryId());
                     log.info("rd-pos-2 {}:{}", readPosition2.getLedgerId(), readPosition2.getEntryId());
-                    log.info("lac-pos-2 {}:{}", lastConfirmed2.getLedgerId(), lastConfirmed2.getEntryId());
+                    log.info("lac-pos-2 {}:{}", LAC2.getLedgerId(), LAC2.getEntryId());
                     log.info("first-waiting-ack-pos-2 {}:{}", firstWaitingAckPos2.getLedgerId(),
                             firstWaitingAckPos2.getEntryId());
                     // finish the replay read here.

@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.io.jdbc;
 
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.jdbc.JdbcUtils.TableDefinition;
 import org.apache.pulsar.io.jdbc.JdbcUtils.TableId;
@@ -32,8 +28,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
+
 /**
- * Jdbc Utils test.
+ * Jdbc Utils test
  */
 @Slf4j
 public class JdbcUtilsTest {
@@ -61,18 +62,18 @@ public class JdbcUtilsTest {
         String tableName = "TestGetTableId";
 
         sqliteUtils.createTable(
-            "CREATE TABLE " + tableName + "("
-                + "    firstName  TEXT,"
-                + "    lastName  TEXT,"
-                + "    age INTEGER,"
-                + "    bool  NUMERIC NULL,"
-                + "    byte  INTEGER NULL,"
-                + "    short INTEGER NULL,"
-                + "    long INTEGER,"
-                + "    float NUMERIC NULL,"
-                + "    double NUMERIC NULL,"
-                + "    bytes BLOB NULL, "
-                + "PRIMARY KEY (firstName, lastName));"
+            "CREATE TABLE " + tableName + "(" +
+                "    firstName  TEXT," +
+                "    lastName  TEXT," +
+                "    age INTEGER," +
+                "    bool  NUMERIC NULL," +
+                "    byte  INTEGER NULL," +
+                "    short INTEGER NULL," +
+                "    long INTEGER," +
+                "    float NUMERIC NULL," +
+                "    double NUMERIC NULL," +
+                "    bytes BLOB NULL, " +
+                "PRIMARY KEY (firstName, lastName));"
         );
 
         try (Connection connection = sqliteUtils.getConnection(true);) {
@@ -114,19 +115,19 @@ public class JdbcUtilsTest {
                 Assert.assertEquals(table.getNonKeyColumns().get(1).getTypeName(), "INTEGER");
                 // Test get getTableDefinition
                 log.info("verify buildInsertSql");
-                String expctedInsertStatement = "INSERT INTO " + tableName
-                        + "(firstName,lastName,age,bool,byte,short,long,float,double,bytes)"
-                        + " VALUES(?,?,?,?,?,?,?,?,?,?)";
+                String expctedInsertStatement = "INSERT INTO " + tableName +
+                        "(firstName,lastName,age,bool,byte,short,long,float,double,bytes)" +
+                        " VALUES(?,?,?,?,?,?,?,?,?,?)";
                 String insertStatement = JdbcUtils.buildInsertSql(table);
                 Assert.assertEquals(insertStatement, expctedInsertStatement);
                 log.info("verify buildUpdateSql");
-                String expectedUpdateStatement = "UPDATE " + tableName
-                        + " SET age=? ,long=?  WHERE firstName=? AND lastName=?";
+                String expectedUpdateStatement = "UPDATE " + tableName +
+                        " SET age=? ,long=?  WHERE firstName=? AND lastName=?";
                 String updateStatement = JdbcUtils.buildUpdateSql(table);
                 Assert.assertEquals(updateStatement, expectedUpdateStatement);
                 log.info("verify buildDeleteSql");
-                String expectedDeleteStatement = "DELETE FROM " + tableName
-                        + " WHERE firstName=? AND lastName=?";
+                String expectedDeleteStatement = "DELETE FROM " + tableName +
+                        " WHERE firstName=? AND lastName=?";
                 String deleteStatement = JdbcUtils.buildDeleteSql(table);
                 Assert.assertEquals(deleteStatement, expectedDeleteStatement);
             } else {
@@ -154,19 +155,19 @@ public class JdbcUtilsTest {
                 Assert.assertEquals(table.getNonKeyColumns().get(1).getTypeName(), "INTEGER");
                 // Test get getTableDefinition
                 log.info("verify buildInsertSql");
-                String expctedInsertStatement = "INSERT INTO " + tableName
-                        + "(firstName,lastName,age,long)"
-                        + " VALUES(?,?,?,?)";
+                String expctedInsertStatement = "INSERT INTO " + tableName +
+                        "(firstName,lastName,age,long)" +
+                        " VALUES(?,?,?,?)";
                 String insertStatement = JdbcUtils.buildInsertSql(table);
                 Assert.assertEquals(insertStatement, expctedInsertStatement);
                 log.info("verify buildUpdateSql");
-                String expectedUpdateStatement = "UPDATE " + tableName
-                        + " SET age=? ,long=?  WHERE firstName=? AND lastName=?";
+                String expectedUpdateStatement = "UPDATE " + tableName +
+                        " SET age=? ,long=?  WHERE firstName=? AND lastName=?";
                 String updateStatement = JdbcUtils.buildUpdateSql(table);
                 Assert.assertEquals(updateStatement, expectedUpdateStatement);
                 log.info("verify buildDeleteSql");
-                String expectedDeleteStatement = "DELETE FROM " + tableName
-                        + " WHERE firstName=? AND lastName=?";
+                String expectedDeleteStatement = "DELETE FROM " + tableName +
+                        " WHERE firstName=? AND lastName=?";
                 String deleteStatement = JdbcUtils.buildDeleteSql(table);
                 Assert.assertEquals(deleteStatement, expectedDeleteStatement);
 

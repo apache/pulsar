@@ -244,8 +244,8 @@ public class PulsarClientImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp =
-                    "Both externalExecutorProvider and internalExecutorProvider must be specified or unspecified.")
+            expectedExceptionsMessageRegExp = "Both externalExecutorProvider and internalExecutorProvider must be " +
+                    "specified or unspecified.")
     public void testBothExecutorProvidersMustBeSpecified() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");

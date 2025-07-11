@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -81,7 +82,7 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
     }
 
     /**
-     * see: https://github.com/apache/pulsar/pull/18688.
+     * see: https://github.com/apache/pulsar/pull/18688
      */
     @Test
     public void testConcurrentCloseLedgerAndSwitchLedgerForReproduceIssue() throws Exception {

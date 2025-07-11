@@ -263,7 +263,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topicName).create().close();
         OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) admin.topics().getOffloadPolicies(topicName, true);
         OffloadPoliciesImpl brokerPolicies = OffloadPoliciesImpl
-                .mergeConfiguration(null, null, pulsar.getConfiguration().getProperties());
+                .mergeConfiguration(null,null, pulsar.getConfiguration().getProperties());
 
         assertEquals(offloadPolicies, brokerPolicies);
         //Since off loader is not really set, avoid code exceptions

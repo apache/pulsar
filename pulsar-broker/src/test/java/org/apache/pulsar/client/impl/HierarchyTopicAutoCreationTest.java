@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.List;
-import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.UUID;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;

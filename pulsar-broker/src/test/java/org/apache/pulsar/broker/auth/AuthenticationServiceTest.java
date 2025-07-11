@@ -73,8 +73,7 @@ public class AuthenticationServiceTest {
     @Test(timeOut = 10000)
     public void testAuthenticationHttpWithMultipleProviders() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
-        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName(),
-                MockAuthenticationProviderWithDifferentName.class.getName());
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName(), MockAuthenticationProviderWithDifferentName.class.getName());
         config.setAuthenticationProviders(providersClassNames);
         config.setAuthenticationEnabled(true);
         AuthenticationService service = new AuthenticationService(config);
@@ -95,8 +94,7 @@ public class AuthenticationServiceTest {
         HttpServletRequest requestUnsupportedAuthProvider = mock(HttpServletRequest.class);
         when(requestUnsupportedAuthProvider.getRemoteAddr()).thenReturn("192.168.1.1");
         when(requestUnsupportedAuthProvider.getRemotePort()).thenReturn(8080);
-        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name"))
-                .thenReturn("unsupportedAuthProvider");
+        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("unsupportedAuthProvider");
         Assert.assertThrows(() -> service.authenticateHttpRequest(requestUnsupportedAuthProvider));
 
         service.close();
@@ -148,8 +146,7 @@ public class AuthenticationServiceTest {
         HttpServletRequest requestUnsupportedAuthProvider = mock(HttpServletRequest.class);
         when(requestUnsupportedAuthProvider.getRemoteAddr()).thenReturn("192.168.1.1");
         when(requestUnsupportedAuthProvider.getRemotePort()).thenReturn(8080);
-        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name"))
-                .thenReturn("unsupportedAuthProvider");
+        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("unsupportedAuthProvider");
         Assert.assertThrows(() ->
                 service.authenticateHttpRequest(requestUnsupportedAuthProvider, (HttpServletResponse) null));
 

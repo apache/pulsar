@@ -57,8 +57,7 @@ public abstract class ElasticSearchTestBase {
     protected ElasticsearchContainer createElasticsearchContainer() {
         ElasticsearchContainer elasticsearchContainer;
         if (elasticImageName.equals(OPENSEARCH)) {
-            DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH)
-                    .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
+            DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH).asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
             elasticsearchContainer = new ElasticsearchContainer(dockerImageName)
                     .withEnv("OPENSEARCH_INITIAL_ADMIN_PASSWORD", "0pEn7earch!")
                     .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms128m -Xmx256m")
@@ -124,8 +123,7 @@ public abstract class ElasticSearchTestBase {
                     client.getRestClient();
             ElasticsearchClient lowLevelClient = restClient.getClient();
 
-            final CreateApiKeyResponse response = lowLevelClient.security().createApiKey(
-                    new CreateApiKeyRequest.Builder().name("api-key").build());
+            final CreateApiKeyResponse response = lowLevelClient.security().createApiKey(new CreateApiKeyRequest.Builder().name("api-key").build());
             return response.encoded();
         } else {
             final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient)

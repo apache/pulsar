@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SplitManagerTest {
-
+    
     String bundle = "bundle-1";
 
     String dstBroker = "broker-1";

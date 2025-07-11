@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
-import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -39,6 +35,11 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
+import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 /**
  * Source Property related test cases.
  */
@@ -48,8 +49,7 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
     public void testSourceProperty() throws Exception {
         String outputTopicName = "test-source-property-input-" + randomName(8);
         String sourceName = "test-source-property-" + randomName(8);
-        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestPropertySource",
-                JAVAJAR);
+        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestPropertySource",  JAVAJAR);
 
         // get source info
         getSourceInfoSuccess(sourceName);

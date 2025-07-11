@@ -20,7 +20,9 @@ package org.apache.pulsar.io;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
+
 import com.google.common.collect.Sets;
+
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collections;
@@ -29,6 +31,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -57,7 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar sink on function.
+ * Test Pulsar sink on function
  */
 @Test(groups = "broker-io")
 public class PulsarFunctionAdminTest {
@@ -75,15 +78,15 @@ public class PulsarFunctionAdminTest {
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
 
-    private static final String TLS_SERVER_CERT_FILE_PATH =
+    private final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private static final String TLS_SERVER_KEY_FILE_PATH =
+    private final String TLS_SERVER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private static final String TLS_CLIENT_CERT_FILE_PATH =
+    private final String TLS_CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private static final String TLS_CLIENT_KEY_FILE_PATH =
+    private final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    private static final String TLS_TRUST_CERT_FILE_PATH =
+    private final String TLS_TRUST_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionAdminTest.class);

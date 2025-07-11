@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.common.util;
 
-import static org.apache.pulsar.common.util.URIPreconditions.checkURI;
-import static org.apache.pulsar.common.util.URIPreconditions.checkURIIfPresent;
-import java.util.Objects;
+import static org.apache.pulsar.common.util.URIPreconditions.*;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import java.util.Objects;
 
 public class URIPreconditionsTest {
 

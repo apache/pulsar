@@ -126,7 +126,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 ByteBuf byteBuf = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
-            }
+            };
             return mockPromise;
         }).when(consumerMock).sendMessages(any(List.class), any(List.class), any(EntryBatchSizes.class), any(),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
@@ -181,8 +181,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
 }

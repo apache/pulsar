@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
+
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -94,10 +95,10 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
-                .when(proxyService).createLocalMetadataStore();
+        proxyService = Mockito.spy(new ProxyService(proxyConfig,
+                                                    new AuthenticationService(
+                                                            PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 

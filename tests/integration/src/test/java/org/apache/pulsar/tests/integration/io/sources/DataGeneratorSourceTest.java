@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,8 +38,15 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+
+import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 /**
- * This tests verifies that a batch source can be successfully submitted and run via the pulsar-admin CLI.
+ * This tests verifies that a batch source can be successfully submitted and run via the pulsar-admin CLI
  */
 @Slf4j
 public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {

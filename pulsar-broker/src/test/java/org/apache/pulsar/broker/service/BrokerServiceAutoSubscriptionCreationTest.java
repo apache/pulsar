@@ -169,8 +169,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
                 ()-> pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe());
         admin.brokers().updateDynamicConfiguration(allowAutoSubscriptionCreation, "true");
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(admin.brokers().getAllDynamicConfigurations()
-                    .get(allowAutoSubscriptionCreation), "true");
+            Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get(allowAutoSubscriptionCreation), "true");
             pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
             assertTrue(admin.topics().getSubscriptions(topicString).contains(subscriptionName));
         });

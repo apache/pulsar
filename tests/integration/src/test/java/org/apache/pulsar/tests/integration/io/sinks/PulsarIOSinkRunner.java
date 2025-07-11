@@ -21,12 +21,11 @@ package org.apache.pulsar.tests.integration.io.sinks;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.gson.Gson;
+
 import dev.failsafe.Failsafe;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -44,22 +43,26 @@ import org.apache.pulsar.tests.integration.topologies.PulsarTestBase;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.collections.Maps;
 
+import com.google.gson.Gson;
+
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+
 @Slf4j
 public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
-    public PulsarIOSinkRunner(PulsarCluster cluster, String functionRuntimeType) {
-        super(cluster, functionRuntimeType);
-    }
+	public PulsarIOSinkRunner(PulsarCluster cluster, String functionRuntimeType) {
+		super(cluster, functionRuntimeType);
+	}
 
-    @SuppressWarnings({ "rawtypes" })
-    public <T extends GenericContainer> void runSinkTester(SinkTester<T> tester, boolean builtin) throws Exception {
+	@SuppressWarnings({ "rawtypes" })
+	public <T extends GenericContainer> void runSinkTester(SinkTester<T> tester, boolean builtin) throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
             + tester.getSinkType() + "-" + functionRuntimeType + "-input-topic-" + PulsarTestBase.randomName(8);
         final String sinkName = "test-sink-connector-"
-            + tester.getSinkType().name().toLowerCase() + "-" + functionRuntimeType + "-name-"
-                + PulsarTestBase.randomName(8);
+            + tester.getSinkType().name().toLowerCase() + "-" + functionRuntimeType + "-name-" + PulsarTestBase.randomName(8);
         final int numMessages = 20;
 
         // prepare the testing environment for sink
@@ -82,9 +85,8 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
             // produce messages
             Map<String, String> kvs;
-            if (tester instanceof JdbcPostgresSinkTester && !((JdbcPostgresSinkTester) tester).isKeyValueSchema()) {
-                kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages,
-                        AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
+            if (tester instanceof JdbcPostgresSinkTester && !((JdbcPostgresSinkTester)tester).isKeyValueSchema()) {
+                kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
                 // wait for sink to process messages
                 Failsafe.with(statusRetryPolicy).run(() ->
                         waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
@@ -92,8 +94,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                 // validate the sink result
                 tester.validateSinkResult(kvs);
 
-                kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages,
-                        AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
+                kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
                 // wait for sink to process messages
                 Failsafe.with(statusRetryPolicy).run(() ->
@@ -102,8 +103,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                 // validate the sink result
                 tester.validateSinkResult(kvs);
 
-                kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages,
-                        AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
+                kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
                 // wait for sink to process messages
                 Failsafe.with(statusRetryPolicy).run(() ->
@@ -136,7 +136,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
     }
 
     @SuppressWarnings("rawtypes")
-    protected void prepareSink(SinkTester tester) throws Exception {
+	protected void prepareSink(SinkTester tester) throws Exception {
         tester.prepareSink();
     }
 
@@ -237,8 +237,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
         log.info("Get sink info : {}", result.getStdout());
         if (builtin) {
             assertTrue(
-                    result.getStdout().contains("\"archive\": \"builtin://"
-                            + tester.getSinkType().getValue().toLowerCase() + "\""),
+                    result.getStdout().contains("\"archive\": \"builtin://" + tester.getSinkType().getValue().toLowerCase() + "\""),
                     result.getStdout()
             );
         } else {

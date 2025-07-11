@@ -20,8 +20,6 @@ package org.apache.pulsar.io.rabbitmq.source;
 
 import static org.mockito.Mockito.mock;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSource;
@@ -29,6 +27,9 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class RabbitMQSourceTest {
 

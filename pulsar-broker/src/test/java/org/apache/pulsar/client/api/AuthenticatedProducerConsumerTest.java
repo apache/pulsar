@@ -22,7 +22,6 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
-import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -35,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.crypto.SecretKey;
 import javax.ws.rs.InternalServerErrorException;
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -65,10 +65,10 @@ import org.testng.annotations.Test;
 public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticatedProducerConsumerTest.class);
 
-    private static final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
+    private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
-    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private static final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
+    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
 
 
     @BeforeMethod
@@ -152,8 +152,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder =
-                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true);
@@ -315,7 +314,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * verifies that topicLookup/PartitionMetadataLookup gives InternalServerError(500) instead 401(auth_failed) on
-     * unknown-exception failure.
+     * unknown-exception failure
      *
      * @throws Exception
      */
@@ -526,8 +525,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         roles.add(role1);
         roles.add(role2);
         admin.namespaces().grantPermissionOnSubscription(namespace, subscription, roles);
-        Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources()
-                .getPolicies(NamespaceName.get(namespace));
+        Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace));
         assertTrue(policies.isPresent());
         assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
         assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));

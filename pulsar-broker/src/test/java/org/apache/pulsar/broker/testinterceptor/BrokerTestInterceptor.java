@@ -109,13 +109,13 @@ public class BrokerTestInterceptor {
     public static class TestManagedLedgerStorage extends ManagedLedgerClientFactory {
         @Override
         protected ManagedLedgerFactoryImpl createManagedLedgerFactory(MetadataStoreExtended metadataStore,
-                                   OpenTelemetry openTelemetry,
-                                   ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory,
-                                   ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
-                                   StatsLogger statsLogger) throws Exception {
+                                                                      OpenTelemetry openTelemetry,
+                                                                      ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory,
+                                                                      ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                      StatsLogger statsLogger) throws Exception {
             return INSTANCE.managedLedgerFactoryDecorator.apply(
-                    new TestManagedLedgerFactoryImpl(metadataStore, bkFactory,
-                            managedLedgerFactoryConfig, statsLogger, openTelemetry));
+                    new TestManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
+                            openTelemetry));
         }
     }
 
@@ -156,8 +156,7 @@ public class BrokerTestInterceptor {
 
     @Getter
     @Setter
-    private Function<PersistentSubscription, PersistentSubscription> persistentSubscriptionDecorator =
-            Function.identity();
+    private Function<PersistentSubscription, PersistentSubscription> persistentSubscriptionDecorator = Function.identity();
 
     @Getter
     @Setter
@@ -165,8 +164,7 @@ public class BrokerTestInterceptor {
 
     @Getter
     @Setter
-    private Function<ManagedLedgerFactoryImpl, ManagedLedgerFactoryImpl> managedLedgerFactoryDecorator =
-            Function.identity();
+    private Function<ManagedLedgerFactoryImpl, ManagedLedgerFactoryImpl> managedLedgerFactoryDecorator = Function.identity();
 
     @Getter
     @Setter

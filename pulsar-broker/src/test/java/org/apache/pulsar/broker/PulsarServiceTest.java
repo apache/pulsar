@@ -189,14 +189,10 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(conf, pulsar.getConfiguration());
         assertEquals(conf.getBrokerServicePortTls(), pulsar.getBrokerListenPortTls());
         assertEquals(conf.getBrokerServicePort(), pulsar.getBrokerListenPort());
-        assertEquals(pulsar.getBrokerServiceUrlTls(),
-                "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
-        assertEquals(pulsar.getBrokerServiceUrl(),
-                "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
-        assertEquals(pulsar.getWebServiceAddress(),
-                "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
-        assertEquals(pulsar.getWebServiceAddressTls(),
-                "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
+        assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
+        assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
+        assertEquals(pulsar.getWebServiceAddress(), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
+        assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
     @Test

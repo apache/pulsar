@@ -18,20 +18,13 @@
  */
 package org.apache.pulsar.functions.runtime.thread;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mockStatic;
-import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
@@ -39,6 +32,14 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mockStatic;
 
 @Slf4j
 public class ThreadRuntimeFactoryTest {
@@ -48,15 +49,13 @@ public class ThreadRuntimeFactoryTest {
     @Test
     public void testMemoryLimitPercent() throws Exception {
         ClientBuilder clientBuilder = testMemoryLimit(null, 50.0);
-        Mockito.verify(clientBuilder, Mockito.times(1))
-                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
     }
 
     @Test
     public void testMemoryLimitAbsolute() throws Exception {
         ClientBuilder clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, null);
-        Mockito.verify(clientBuilder, Mockito.times(1))
-                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -77,27 +76,22 @@ public class ThreadRuntimeFactoryTest {
     @Test
     public void testMemoryLimitNotSet() throws Exception {
         ClientBuilder clientBuilder = testMemoryLimit(null, null);
-        Mockito.verify(clientBuilder, Mockito.times(1))
-                .memoryLimit(Mockito.eq(0L), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(0L), Mockito.eq(SizeUnit.BYTES));
     }
 
     @Test
     public void testMemoryLimitBothSet() throws Exception {
         ClientBuilder clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, 100.0);
-        Mockito.verify(clientBuilder, Mockito.times(1))
-                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
 
         clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY * 2, 100.0);
-        Mockito.verify(clientBuilder, Mockito.times(1))
-                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY), Mockito.eq(SizeUnit.BYTES));
 
         clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, 25.0);
-        Mockito.verify(clientBuilder, Mockito.times(1))
-                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 4), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 4), Mockito.eq(SizeUnit.BYTES));
 
         clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, 75.0);
-        Mockito.verify(clientBuilder, Mockito.times(1))
-                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
     }
 
 
@@ -122,8 +116,8 @@ public class ThreadRuntimeFactoryTest {
 
             WorkerConfig workerConfig = new WorkerConfig();
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-            workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper().getObjectMapper()
-                    .convertValue(threadRuntimeFactoryConfig, Map.class));
+            workerConfig.setFunctionRuntimeFactoryConfigs(
+                    ObjectMapperFactory.getMapper().getObjectMapper().convertValue(threadRuntimeFactoryConfig, Map.class));
             workerConfig.setPulsarServiceUrl("pulsar://broker.pulsar:6650");
 
             ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory();

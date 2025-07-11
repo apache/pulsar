@@ -19,13 +19,6 @@
 package org.apache.pulsar.tests.integration.websocket;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -38,6 +31,13 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public abstract class WebSocketTestSuite extends PulsarTestSuite {
     private static final Logger log = LoggerFactory.getLogger(WebSocketTestSuite.class);
@@ -124,11 +124,11 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
         }
 
         void send(String payload) throws IOException {
-            sendText("{\n"
-                    + "  \"payload\": \"" + payload + "\",\n"
-                    + "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n"
-                    + "  \"context\": \"1\"\n"
-                    + "}");
+            sendText("{\n" +
+                    "  \"payload\": \"" + payload + "\",\n" +
+                    "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n" +
+                    "  \"context\": \"1\"\n" +
+                    "}");
         }
     }
 

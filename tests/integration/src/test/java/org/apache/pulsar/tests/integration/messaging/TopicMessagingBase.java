@@ -22,10 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -37,11 +34,15 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+
 @Slf4j
 public class TopicMessagingBase extends MessagingBase {
 
-    protected void nonPartitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent)
-            throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-exclusive", isPersistent);
         @Cleanup
@@ -80,8 +81,7 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void partitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent)
-            throws Exception {
+    protected void partitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-exclusive", isPersistent, partitions);
@@ -135,8 +135,7 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent)
-            throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-failover", isPersistent);
         @Cleanup
@@ -186,8 +185,7 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void partitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent)
-            throws Exception {
+    protected void partitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-failover", isPersistent, partitions);
@@ -239,8 +237,7 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithShared(String serviceUrl, boolean isPersistent)
-            throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithShared(String serviceUrl, boolean isPersistent) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-shared", isPersistent);
         @Cleanup
@@ -332,8 +329,7 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent)
-            throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-key-shared", isPersistent);
         @Cleanup
@@ -388,8 +384,7 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void partitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent)
-            throws Exception {
+    protected void partitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-key-shared", isPersistent, partitions);

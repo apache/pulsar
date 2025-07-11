@@ -53,8 +53,7 @@ public class ClusterServiceCoordinatorTest {
 
         this.leaderService = mock(LeaderService.class);
         this.checkIsStillLeader = () -> leaderService.isLeader();
-        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService,
-                checkIsStillLeader, mockExecutor);
+        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader, mockExecutor);
     }
 
 

@@ -247,8 +247,7 @@ public class TopicNameTest {
 
     @Test
     public void testDecodeEncode() throws Exception {
-        String encodedName =
-                "a%3Aen-in_in_business_content_item_20150312173022_https%5C%3A%2F%2Fin.news.example.com%2Fr";
+        String encodedName = "a%3Aen-in_in_business_content_item_20150312173022_https%5C%3A%2F%2Fin.news.example.com%2Fr";
         String rawName = "a:en-in_in_business_content_item_20150312173022_https\\://in.news.example.com/r";
         assertEquals(Codec.decode(encodedName), rawName);
         assertEquals(Codec.encode(rawName), encodedName);

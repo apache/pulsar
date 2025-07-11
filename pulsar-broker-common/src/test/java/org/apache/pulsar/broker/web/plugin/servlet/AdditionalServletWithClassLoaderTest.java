@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.broker.web.plugin.servlet;
 
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.testng.annotations.Test;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.testng.annotations.Test;
 
 /**
  * Unit test {@link AdditionalServletWithClassLoader}.

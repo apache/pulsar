@@ -111,7 +111,7 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     /**
-     * Start cluster.
+     * Start cluster
      *
      * @throws Exception
      */

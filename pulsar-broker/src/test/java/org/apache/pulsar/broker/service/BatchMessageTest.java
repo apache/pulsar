@@ -111,12 +111,10 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "codecAndContainerBuilder")
-    public void testSimpleBatchProducerWithFixedBatchSize(CompressionType compressionType, BatcherBuilder builder)
-            throws Exception {
+    public void testSimpleBatchProducerWithFixedBatchSize(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 2;
-        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSize-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSize-" + UUID.randomUUID();
         final String subscriptionName = "sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -124,9 +122,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgsInBatch)
-                .enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -159,12 +155,10 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "codecAndContainerBuilder")
-    public void testSimpleBatchProducerWithFixedBatchBytes(CompressionType compressionType, BatcherBuilder builder)
-            throws Exception {
+    public void testSimpleBatchProducerWithFixedBatchBytes(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 50;
         int numBytesInBatch = 600;
-        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSize-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSize-" + UUID.randomUUID();
         final String subscriptionName = "sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -210,11 +204,9 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "codecAndContainerBuilder")
-    public void testSimpleBatchProducerWithFixedBatchTime(CompressionType compressionType, BatcherBuilder builder)
-            throws Exception {
+    public void testSimpleBatchProducerWithFixedBatchTime(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 100;
-        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchTime-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchTime-" + UUID.randomUUID();
         final String subscriptionName = "time-sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -248,11 +240,9 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "codecAndContainerBuilder")
-    public void testSimpleBatchProducerWithFixedBatchSizeAndTime(CompressionType compressionType,
-                                                                 BatcherBuilder builder) throws Exception {
+    public void testSimpleBatchProducerWithFixedBatchSizeAndTime(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 100;
-        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSizeAndTime-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSizeAndTime-" + UUID.randomUUID();
         final String subscriptionName = "time-size-sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -286,8 +276,7 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "codecAndContainerBuilder")
-    public void testBatchProducerWithLargeMessage(CompressionType compressionType, BatcherBuilder builder)
-            throws Exception {
+    public void testBatchProducerWithLargeMessage(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 2;
         final String topicName = "persistent://prop/ns-abc/testBatchProducerWithLargeMessage-" + UUID.randomUUID();
@@ -301,8 +290,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -348,8 +336,7 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "codecAndContainerBuilder")
-    public void testSimpleBatchProducerConsumer(CompressionType compressionType, BatcherBuilder builder)
-            throws Exception {
+    public void testSimpleBatchProducerConsumer(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 500;
         int numMsgsInBatch = numMsgs / 20;
         final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerConsumer-" + UUID.randomUUID();
@@ -385,8 +372,7 @@ public class BatchMessageTest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
         assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
-        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false),
-                numMsgs / numMsgsInBatch);
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), numMsgs / numMsgsInBatch);
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
         Message<byte[]> lastunackedMsg = null;
@@ -412,8 +398,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testSimpleBatchSyncProducerWithFixedBatchSize(BatcherBuilder builder) throws Exception {
         int numMsgs = 10;
         int numMsgsInBatch = numMsgs / 2;
-        final String topicName = "persistent://prop/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize-" + UUID.randomUUID();
         final String subscriptionName = "syncsub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -421,8 +406,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -457,8 +441,7 @@ public class BatchMessageTest extends BrokerTestBase {
         // Send enough messages to trigger one batch by size and then have a remaining message in the batch container
         int numMsgs = 3;
         int numMsgsInBatch = 2;
-        final String topicName = "persistent://prop/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize-" + UUID.randomUUID();
         final String subscriptionName = "syncsub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -510,8 +493,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testSimpleBatchProducerConsumer1kMessages(BatcherBuilder builder) throws Exception {
         int numMsgs = 2000;
         int numMsgsInBatch = 4;
-        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerConsumer1kMessages-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerConsumer1kMessages-" + UUID.randomUUID();
         final String subscriptionName = "pc1k-sub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -519,8 +501,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).maxPendingMessages(numMsgs + 1)
-                .batchingMaxPublishDelay(30, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(30, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -547,8 +528,7 @@ public class BatchMessageTest extends BrokerTestBase {
         // allow stats to be updated..
         LOG.info("[{}] checking backlog stats..", topic);
         rolloverPerIntervalStats();
-        assertEquals(topic.getSubscription(subscriptionName)
-                .getNumberOfEntriesInBacklog(false), numMsgs / numMsgsInBatch);
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), numMsgs / numMsgsInBatch);
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
         Message<byte[]> lastunackedMsg = null;
@@ -584,8 +564,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = new ArrayList<>();
@@ -598,8 +577,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertEquals(topic.getSubscription(subscriptionName)
-                .getNumberOfEntriesInBacklog(false), numMsgs / numMsgsInBatch);
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), numMsgs / numMsgsInBatch);
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
         Set<Integer> individualAcks = new HashSet<>();
         for (int i = 15; i < 20; i++) {
@@ -643,8 +621,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testNonBatchCumulativeAckAfterBatchPublish(BatcherBuilder builder) throws Exception {
         int numMsgs = 10;
         int numMsgsInBatch = numMsgs;
-        final String topicName = "persistent://prop/ns-abc/testNonBatchCumulativeAckAfterBatchPublish-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testNonBatchCumulativeAckAfterBatchPublish-" + UUID.randomUUID();
         final String subscriptionName = "nbcaabp-sub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -652,8 +629,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -753,8 +729,7 @@ public class BatchMessageTest extends BrokerTestBase {
         }
         consumer.acknowledgeCumulative(lastunackedMsg);
 
-        retryStrategically(t -> topic.getSubscription(subscriptionName)
-                .getNumberOfEntriesInBacklog(false) == 0, 100, 100);
+        retryStrategically(t -> topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false) == 0, 100, 100);
 
         consumer.close();
         producer.close();
@@ -762,7 +737,7 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     /**
-     * Verifies batch-message acking is thread-safe.
+     * Verifies batch-message acking is thread-safe
      *
      * @throws Exception
      */
@@ -777,8 +752,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgs).enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -824,8 +798,7 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test
-    public void testOrderingOfKeyBasedBatchMessageContainer()
-            throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testOrderingOfKeyBasedBatchMessageContainer() throws PulsarClientException, ExecutionException, InterruptedException {
         final String topicName = "persistent://prop/ns-abc/testKeyBased";
         final String subscriptionName = "sub-1";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -899,8 +872,7 @@ public class BatchMessageTest extends BrokerTestBase {
             .subscriptionType(SubscriptionType.Shared).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
-                .batchingMaxMessages(10).enableBatching(true)
+            .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(10).enableBatching(true)
             .batcherBuilder(builder)
             .create();
         String msg = "my-message";
@@ -933,8 +905,7 @@ public class BatchMessageTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgs).enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -966,8 +937,7 @@ public class BatchMessageTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMsgs).enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -1021,8 +991,7 @@ public class BatchMessageTest extends BrokerTestBase {
 
         int numMsgs = 1000;
         int batchMessages = 10;
-        final String topicName = "persistent://prop/ns-abc/testBatchMessageDispatchingAccordingToPermits-"
-                + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/testBatchMessageDispatchingAccordingToPermits-" + UUID.randomUUID();
         final String subscriptionName = "bmdap-sub-1";
 
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
@@ -1055,7 +1024,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer2.close();
     }
 
-    @Test(dataProvider = "testSubTypeAndEnableBatch")
+    @Test(dataProvider="testSubTypeAndEnableBatch")
     private void testDecreaseUnAckMessageCountWithAckReceipt(SubscriptionType subType,
                                                              boolean enableBatch) throws Exception {
         final int messageCount = 50;

@@ -21,12 +21,14 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -102,7 +104,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         PulsarAdmin admin0 = getAllAdmins().get(0);
 
         String namespace = RandomStringUtils.randomAlphabetic(5);
-        admin0.namespaces().createNamespace("public/" + namespace, 3);
+        admin0.namespaces().createNamespace( "public/" + namespace, 3);
         admin0.namespaces().setAutoTopicCreation("public/" + namespace,
                 AutoTopicCreationOverride.builder().allowAutoTopicCreation(false).build());
 

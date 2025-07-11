@@ -46,10 +46,10 @@ import org.testng.annotations.Test;
  */
 public class BKStateStoreImplTest {
 
-    private static final String TENANT = "test-tenant";
-    private static final String NS = "test-ns";
-    private static final String NAME = "test-name";
-    private static final String FQSN = "test-tenant/test-ns/test-name";
+    private final String TENANT = "test-tenant";
+    private final String NS = "test-ns";
+    private final String NAME = "test-name";
+    private final String FQSN = "test-tenant/test-ns/test-name";
 
     private Table<ByteBuf, ByteBuf> mockTable;
     private BKStateStoreImpl stateContext;
@@ -121,13 +121,13 @@ public class BKStateStoreImplTest {
         KeyValue returnedKeyValue = mock(KeyValue.class);
         ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
         when(returnedKeyValue.value()).thenReturn(returnedValue);
-        when(returnedKeyValue.version()).thenReturn(1L);
+        when(returnedKeyValue.version()).thenReturn(1l);
         when(returnedKeyValue.isNumber()).thenReturn(false);
         when(mockTable.getKv(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(returnedKeyValue));
         StateValue result = stateContext.getStateValue("test-key");
         assertEquals("test-value", new String(result.getValue(), UTF_8));
-        assertEquals(1L, result.getVersion().longValue());
+        assertEquals(1l, result.getVersion().longValue());
         assertEquals(false, result.getIsNumber().booleanValue());
         verify(mockTable, times(1)).getKv(
             eq(Unpooled.copiedBuffer("test-key", UTF_8))

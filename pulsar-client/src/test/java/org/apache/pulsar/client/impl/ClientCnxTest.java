@@ -58,8 +58,7 @@ public class ClientCnxTest {
 
     @Test
     public void testClientCnxTimeout() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
-                new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
@@ -78,8 +77,7 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
-                new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -111,8 +109,7 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphoreServiceNotReady() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
-                new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -149,8 +146,7 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingWaitingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
-                new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);

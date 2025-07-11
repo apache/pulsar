@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.fail;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -40,6 +37,10 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.PostgreSQLContainer;
+
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 /**
  * A tester for testing jdbc sink.
@@ -116,24 +117,24 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
         log.info("getConnection: {}, jdbcurl: {}", connection, jdbcUrl);
 
         // create table
-        String createTable = "CREATE TABLE " + tableName
-            + " (field1 TEXT, field2 TEXT, field3 INTEGER, PRIMARY KEY (field3))";
+        String createTable = "CREATE TABLE " + tableName +
+            " (field1 TEXT, field2 TEXT, field3 INTEGER, PRIMARY KEY (field3))";
         int ret = connection.createStatement().executeUpdate(createTable);
         log.info("created table in jdbc: {}, return value: {}", createTable, ret);
     }
 
     @Override
-    public void produceMessage(int numMessages, PulsarClient client, String inputTopicName, LinkedHashMap<String,
-            String> kvs) throws Exception {
+    public void produceMessage(int numMessages, PulsarClient client, String inputTopicName, LinkedHashMap<String, String> kvs) throws Exception {
         if (!keyValueSchema) {
             super.produceMessage(numMessages, client, inputTopicName, kvs);
             return;
         }
 
         @Cleanup
-        Producer<KeyValue<KVSchemaKey, KVSchemaValue>> producer =
-                client.newProducer(Schema.KeyValue(Schema.JSON(KVSchemaKey.class), Schema.AVRO(KVSchemaValue.class),
-                                KeyValueEncodingType.SEPARATED)).topic(inputTopicName).create();
+        Producer<KeyValue<KVSchemaKey, KVSchemaValue>> producer = client.newProducer(Schema.KeyValue(Schema.JSON(KVSchemaKey.class),
+                        Schema.AVRO(KVSchemaValue.class), KeyValueEncodingType.SEPARATED))
+                .topic(inputTopicName)
+                .create();
 
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;

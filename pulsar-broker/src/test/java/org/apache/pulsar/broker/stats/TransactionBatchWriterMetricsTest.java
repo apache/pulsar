@@ -141,37 +141,36 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
                 Collectors.toList());
 
         // verify tc.
-        String metricsKeyTxnTcRecordCountSum =
+        String metrics_key_txn_tc_record_count_sum =
                 "pulsar_txn_tc_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metricsKeyTxnTcRecordCountSum, metricsLabelCluster, metricsLabelBroker))
+                String.format(metrics_key_txn_tc_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);
-        String metricsKeyTxnTcMaxDelay =
+        String metrics_key_txn_tc_max_delay =
                 "pulsar_txn_tc_bufferedwriter_flush_trigger_max_delay_total{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metricsKeyTxnTcMaxDelay, metricsLabelCluster, metricsLabelBroker))
+                String.format(metrics_key_txn_tc_max_delay, metricsLabelCluster, metricsLabelBroker))
                 > 0);
-        String metricsKeyTxnTcBytesSize =
+        String metrics_key_txn_tc_bytes_size =
                 "pulsar_txn_tc_bufferedwriter_batch_size_bytes_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metricsKeyTxnTcBytesSize, metricsLabelCluster, metricsLabelBroker))
+                String.format(metrics_key_txn_tc_bytes_size, metricsLabelCluster, metricsLabelBroker))
                 > 0);
         // verify pending ack.
-        String metricsKeyTxnPendingAckRecordCountSum =
+        String metrics_key_txn_pending_ack_record_count_sum =
                 "pulsar_txn_pending_ack_store_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metricsKeyTxnPendingAckRecordCountSum, metricsLabelCluster, metricsLabelBroker))
+                String.format(metrics_key_txn_pending_ack_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);
-        String metricsKeyTxnPendingAckMaxDelay =
-                "pulsar_txn_pending_ack_store_bufferedwriter_flush_trigger_max_delay_total{cluster=\"%s\","
-                        + "broker=\"%s\"} ";
+        String metrics_key_txn_pending_ack_max_delay =
+                "pulsar_txn_pending_ack_store_bufferedwriter_flush_trigger_max_delay_total{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metricsKeyTxnPendingAckMaxDelay, metricsLabelCluster, metricsLabelBroker))
+                String.format(metrics_key_txn_pending_ack_max_delay, metricsLabelCluster, metricsLabelBroker))
                 > 0);
-        String metricsKeyTxnPendingAckBytesSize =
+        String metrics_key_txn_pending_ack_bytes_size =
                 "pulsar_txn_pending_ack_store_bufferedwriter_batch_size_bytes_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metricsKeyTxnPendingAckBytesSize, metricsLabelCluster, metricsLabelBroker))
+                String.format(metrics_key_txn_pending_ack_bytes_size, metricsLabelCluster, metricsLabelBroker))
                 > 0);
 
         // cleanup.

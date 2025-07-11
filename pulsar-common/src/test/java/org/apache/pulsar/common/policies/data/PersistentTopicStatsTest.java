@@ -20,14 +20,15 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import java.util.Map;
-import java.util.stream.Collectors;
+
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class PersistentTopicStatsTest {
 
@@ -250,8 +251,7 @@ public class PersistentTopicStatsTest {
         expectedPublishersMap.put("name1", 2.0);
         expectedPublishersMap.put("name2", 1.0);
         assertEquals(target.getPublishers().stream().collect(
-                Collectors.toMap(PublisherStats::getProducerName,
-                        e -> ((PublisherStatsImpl) e).msgRateIn)), expectedPublishersMap);
+                Collectors.toMap(PublisherStats::getProducerName, e -> ((PublisherStatsImpl) e).msgRateIn)), expectedPublishersMap);
         assertEquals(target.subscriptions.size(), 1);
         assertEquals(target.replication.size(), 1);
     }

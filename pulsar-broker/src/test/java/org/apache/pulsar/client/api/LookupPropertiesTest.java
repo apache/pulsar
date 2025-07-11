@@ -103,7 +103,7 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .build();
         final var futures = new ArrayList<CompletableFuture<LookupTopicResult>>();
-        BrokerIdAwareLoadManager.CLIENT_ID_LIST.clear();
+        BrokerIdAwareLoadManager.clientIdList.clear();
 
         final var clientIdList = IntStream.range(0, 10).mapToObj(i -> "key-" + i).toList();
         for (var clientId : clientIdList) {
@@ -112,17 +112,17 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
             client.getConfiguration().setLookupProperties(Collections.emptyMap());
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(clientIdList, BrokerIdAwareLoadManager.CLIENT_ID_LIST);
+        Assert.assertEquals(clientIdList, BrokerIdAwareLoadManager.clientIdList);
     }
 
     public static class BrokerIdAwareLoadManager extends ExtensibleLoadManagerImpl {
 
-        static final List<String> CLIENT_ID_LIST = Collections.synchronizedList(new ArrayList<>());
+        static final List<String> clientIdList = Collections.synchronizedList(new ArrayList<>());
 
         @Override
         public CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic,
                                                                     ServiceUnitId serviceUnit, LookupOptions options) {
-            getClientId(options).ifPresent(CLIENT_ID_LIST::add);
+            getClientId(options).ifPresent(clientIdList::add);
             return super.assign(topic, serviceUnit, options);
         }
 

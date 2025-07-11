@@ -743,8 +743,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     @Test
     public void testDeleteSchema() throws Exception {
         @Cleanup
-        PulsarClientImpl httpProtocolClient =
-                (PulsarClientImpl) PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
+        PulsarClientImpl httpProtocolClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         PulsarClientImpl binaryProtocolClient = (PulsarClientImpl) pulsarClient;
         LookupService binaryLookupService = binaryProtocolClient.getLookup();
         LookupService httpLookupService = httpProtocolClient.getLookup();
@@ -768,17 +767,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(topicHasSchema(topicName));
 
         Assert.assertEquals(admin.schemas().getAllSchemas(topicName).size(), 1);
-        assertTrue(httpLookupService.getSchema(TopicName.get(topicName),
-                ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
-        assertTrue(binaryLookupService.getSchema(TopicName.get(topicName),
-                ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        assertTrue(httpLookupService.getSchema(TopicName.get(topicName), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        assertTrue(binaryLookupService.getSchema(TopicName.get(topicName), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
 
         topic.get().deleteSchema().join();
         Assert.assertEquals(admin.schemas().getAllSchemas(topicName).size(), 0);
-        assertFalse(httpLookupService.getSchema(TopicName.get(topicName),
-                ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
-        assertFalse(binaryLookupService.getSchema(TopicName.get(topicName),
-                ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        assertFalse(httpLookupService.getSchema(TopicName.get(topicName), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        assertFalse(binaryLookupService.getSchema(TopicName.get(topicName), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
 
         assertFalse(topicHasSchema(topicName));
     }
@@ -855,7 +850,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
     /**
      * A topic that has retention policy set to -1, should not be GCed until it has been inactive for at least the
-     * retention time and the data should never be deleted.
+     * retention time and the data should never be deleted
      */
     @Test
     public void testInfiniteRetentionPolicy() throws Exception {
@@ -1145,7 +1140,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. shared consumer on an exclusive sub fails
         try {
-            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             closeables.add(pulsarClient);
             consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -1156,7 +1151,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 2. failover consumer on an exclusive sub fails
         try {
-            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             closeables.add(pulsarClient);
             consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Failover).subscribe();
@@ -1168,7 +1163,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 3. disconnected sub can be converted in shared
         consumer1.close();
         try {
-            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             closeables.add(pulsarClient);
             consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -1179,7 +1174,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 4. exclusive fails on shared sub
         try {
-            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             closeables.add(pulsarClient);
             consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -1191,7 +1186,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 5. disconnected sub can be converted in failover
         consumer2.close();
         try {
-            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             closeables.add(pulsarClient);
             consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Failover).subscribe();
@@ -1203,7 +1198,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 5. exclusive consumer can connect after failover disconnects
         consumer3.close();
         try {
-            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+            PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             closeables.add(pulsarClient);
             consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -1268,8 +1263,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         long ledgerId = managedLedger.getLedgersInfoAsList().get(0).getLedgerId();
 
         // 2. producer publish messages
-        final int syncMessages = 10;
-        for (int i = 0; i < syncMessages; i++) {
+        final int SyncMessages = 10;
+        for (int i = 0; i < SyncMessages; i++) {
             String message = "my-message-" + i;
             MessageId receivedMessageId = producer.send(message.getBytes());
 
@@ -1277,10 +1272,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         // 3. producer publish messages async
-        final int asyncMessages = 10;
-        final CountDownLatch counter = new CountDownLatch(asyncMessages);
+        final int AsyncMessages = 10;
+        final CountDownLatch counter = new CountDownLatch(AsyncMessages);
 
-        for (int i = syncMessages; i < (syncMessages + asyncMessages); i++) {
+        for (int i = SyncMessages; i < (SyncMessages + AsyncMessages); i++) {
             String content = "my-message-" + i;
             final int index = i;
 
@@ -1876,7 +1871,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertEquals(admin.topics().getStats(topicName).getPublishers().size(), 1);
 
-        for (int i = 0; i < 5; i++) {
+        for (int i =0; i < 5; i++) {
             try {
                 pulsarClient.newProducer(Schema.STRING)
                         .topic(topicName)
@@ -1940,8 +1935,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             super.initChannel(ch);
             //remove parent
             ch.pipeline().remove("handler");
-            PersistentTopicE2ETest.ServerCnxForTest serverCnxForTest =
-                    new PersistentTopicE2ETest.ServerCnxForTest(this.pulsar, this.opts.getListenerName());
+            PersistentTopicE2ETest.ServerCnxForTest serverCnxForTest = new PersistentTopicE2ETest.ServerCnxForTest(this.pulsar, this.opts.getListenerName());
             ch.pipeline().addAfter("flowController", "testHandler", serverCnxForTest);
         }
 
@@ -1994,9 +1988,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 Class<T> topicClazz) {
             try {
                 count.incrementAndGet();
-                if (topicClazz == NonPersistentTopic.class) {
+                if(topicClazz == NonPersistentTopic.class) {
                     return (T) new NonPersistentTopic(topic, brokerService);
-                } else {
+                }else {
                     return (T) new PersistentTopic(topic, ledger, brokerService);
                 }
             } catch (Exception e) {

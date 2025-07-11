@@ -60,7 +60,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
         Client client = ClientBuilder.newClient();
         WebTarget target = client.target("http://127.0.0.1:" + port
                 + "/admin/v2/persistent/" + namespaceName + "/" + topicNameSuffix + "/retention");
-        Map<String, Object> data = new HashMap<>();
+        Map<String,Object> data = new HashMap<>();
         data.put("retention_size_in_mb", -1);
         data.put("retention_time_in_minutes", 40320);
         // Configuration default, response success.

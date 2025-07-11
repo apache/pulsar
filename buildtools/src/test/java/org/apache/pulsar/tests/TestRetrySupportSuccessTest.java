@@ -24,7 +24,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
- * Tests that TestRetrySupport doesn't call setup & cleanup when tests are successful.
+ * Tests that TestRetrySupport doesn't call setup & cleanup when tests are successful
  */
 public class TestRetrySupportSuccessTest extends TestRetrySupport {
     private int setupCallCount;

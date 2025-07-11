@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,9 +33,12 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.GrowablePriorityLongPairQueue.LongPair;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
 
 public class GrowablePriorityLongPairQueueTest {
 
@@ -164,7 +167,7 @@ public class GrowablePriorityLongPairQueueTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
-        final int num = 100_000;
+        final int N = 100_000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
@@ -173,7 +176,7 @@ public class GrowablePriorityLongPairQueueTest {
             futures.add(executor.submit(() -> {
                 Random random = new Random();
 
-                for (int j = 0; j < num; j++) {
+                for (int j = 0; j < N; j++) {
                     long key = random.nextLong();
                     // Ensure keys are unique
                     key -= key % (threadIdx + 1);
@@ -187,7 +190,7 @@ public class GrowablePriorityLongPairQueueTest {
             future.get();
         }
 
-        assertEquals(queue.size(), num * nThreads);
+        assertEquals(queue.size(), N * nThreads);
     }
 
     @Test
@@ -197,7 +200,7 @@ public class GrowablePriorityLongPairQueueTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
-        final int num = 100_000;
+        final int N = 100_000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
@@ -206,7 +209,7 @@ public class GrowablePriorityLongPairQueueTest {
             futures.add(executor.submit(() -> {
                 Random random = new Random();
 
-                for (int j = 0; j < num; j++) {
+                for (int j = 0; j < N; j++) {
                     long key = random.nextLong();
                     // Ensure keys are unique
                     key -= key % (threadIdx + 1);
@@ -220,7 +223,7 @@ public class GrowablePriorityLongPairQueueTest {
             future.get();
         }
 
-        assertEquals(map.size(), num * nThreads);
+        assertEquals(map.size(), N * nThreads);
     }
 
     @Test
@@ -229,17 +232,17 @@ public class GrowablePriorityLongPairQueueTest {
 
         assertEquals(queue.items(), Collections.emptyList());
 
-        queue.add(0L, 0L);
+        queue.add(0l, 0l);
 
-        assertEquals(new LongPair(0L, 0L), queue.items().iterator().next());
+        assertEquals(new LongPair(0l, 0l), queue.items().iterator().next());
 
-        queue.remove(0L, 0L);
+        queue.remove(0l, 0l);
 
         assertEquals(queue.items(), Collections.emptyList());
 
-        queue.add(0L, 0L);
-        queue.add(1L, 1L);
-        queue.add(2L, 2L);
+        queue.add(0l, 0l);
+        queue.add(1l, 1l);
+        queue.add(2l, 2l);
 
         List<LongPair> values = new ArrayList<>(queue.items());
         values.sort(null);
@@ -329,12 +332,12 @@ public class GrowablePriorityLongPairQueueTest {
 
         long t1 = 1;
         long t2 = 2;
-        long t1b = 1;
-        assertEquals(t1, t1b);
+        long t1_b = 1;
+        assertEquals(t1, t1_b);
         assertNotEquals(t2, t1);
-        assertNotEquals(t2, t1b);
+        assertNotEquals(t2, t1_b);
         queue.add(t1, t1);
-        assertTrue(queue.remove(t1b, t1b));
+        assertTrue(queue.remove(t1_b, t1_b));
     }
 
     @Test

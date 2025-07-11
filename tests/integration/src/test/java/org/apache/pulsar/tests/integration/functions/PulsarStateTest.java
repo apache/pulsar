@@ -124,8 +124,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         String byteStrState = "{\"key\":\"test-str-bytes\",\"byteValue\":\"" + bytesStrString + "\"}";
         putAndQueryState(functionName, "test-str-bytes", byteStrState, valueStr);
 
-        String byteStrStateWithEmptyValues = "{\"key\":\"test-str-bytes\",\"byteValue\":\"" + bytesStrString + "\","
-                + "\"stringValue\":\"\",\"numberValue\":0}";
+        String byteStrStateWithEmptyValues = "{\"key\":\"test-str-bytes\",\"byteValue\":\"" + bytesStrString + "\",\"stringValue\":\"\",\"numberValue\":0}";
         putAndQueryState(functionName, "test-str-bytes", byteStrStateWithEmptyValues, valueStr);
 
         // delete function
@@ -140,8 +139,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         String outputTopicName = "test-state-source-output-" + randomName(8);
         String sourceName = "test-state-source-" + randomName(8);
 
-        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestStateSource",
-                JAVAJAR);
+        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestStateSource",  JAVAJAR);
 
         // get source info
         getSourceInfoSuccess(sourceName);
@@ -180,8 +178,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             }
 
             Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-                FunctionState functionState =
-                        admin.functions().getFunctionState("public", "default", sourceName, "now");
+                FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
                 assertTrue(functionState.getStringValue().matches("val1-.*"));
             });
         }
@@ -286,8 +283,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         String outputTopicName = "test-state-source-output-" + randomName(8);
         String sourceName = "test-state-source-" + randomName(8);
 
-        submitSourceConnector(sourceName, outputTopicName,
-                "org.apache.pulsar.tests.integration.io.TestByteStateSource", JAVAJAR);
+        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestByteStateSource",  JAVAJAR);
 
         // get source info
         getSourceInfoSuccess(sourceName);
@@ -311,8 +307,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             }
 
             Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-                FunctionState functionState =
-                        admin.functions().getFunctionState("public", "default", sourceName, "now");
+                FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
                 assertNull(functionState.getStringValue());
                 assertEquals(functionState.getByteValue(), Base64.getDecoder().decode(VALUE_BASE64));
             });

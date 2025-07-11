@@ -80,8 +80,7 @@ public class PulsarTestClient extends PulsarClientImpl {
                 new DefaultThreadFactory("pulsar-test-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
-        ConnectionPool connectionPool =
-                new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
+        ConnectionPool connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
                 () -> clientCnxSupplierReference.get().get(), null);
 
         return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,

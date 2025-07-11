@@ -18,16 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.pulsar.client.api.Schema;
@@ -44,6 +35,17 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Unit testing generic schemas.
@@ -74,8 +76,7 @@ public class GenericSchemaTest {
                 + "\"namespace\": \"org.apache.pulsar.schema.compatibility.TestA\",\n"
                 + "\"type\": \"enum\",\n"
                 + "\"name\": \"EventSource\",\n"
-                + "\"symbols\": [\"AUTO_EVENTING\", \"HOODLUM\", \"OPTA\", \"ISD\", \"LIVE_STATS\", \"NGSS\", "
-                + "\"UNIFIED\"]\n"
+                + "\"symbols\": [\"AUTO_EVENTING\", \"HOODLUM\", \"OPTA\", \"ISD\", \"LIVE_STATS\", \"NGSS\", \"UNIFIED\"]\n"
                 + "}, {\n"
                 + "\"namespace\": \"org.apache.pulsar.schema.compatibility.TestB\",\n"
                 + "\"type\": \"enum\",\n"
@@ -169,7 +170,9 @@ public class GenericSchemaTest {
                 Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchemaImpl.of(
                     Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()
                 );
-                decodeSchema.configureSchemaInfo("test-topic", "topic", kvSchema.getSchemaInfo());
+                decodeSchema.configureSchemaInfo(
+                    "test-topic", "topic",kvSchema.getSchemaInfo()
+                );
 
                 when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                         .thenReturn(CompletableFuture.completedFuture(

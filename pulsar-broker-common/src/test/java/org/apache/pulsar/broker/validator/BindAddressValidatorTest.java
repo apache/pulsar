@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.validator;
 
-import static org.testng.AssertJUnit.assertEquals;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +26,8 @@ import java.util.Optional;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.testng.annotations.Test;
+
+import static org.testng.AssertJUnit.assertEquals;
 
 /**
  * testcase for BindAddressValidator.

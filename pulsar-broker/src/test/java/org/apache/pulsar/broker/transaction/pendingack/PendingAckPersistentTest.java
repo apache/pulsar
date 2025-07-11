@@ -638,7 +638,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
-                        ((MessageIdImpl) message.getMessageId()).getEntryId()));
+                        ((MessageIdImpl)message.getMessageId()).getEntryId()));
         // 7 more acks. Will find that there are still only two records in the map.
         Transaction transaction1 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -655,7 +655,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Assert.assertEquals(maxIndexLag, 5);
         //add new index
         for (int i = 0; i < 9; i++) {
-            message0 = consumer.receive(5, TimeUnit.SECONDS);
+            message0= consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
         }
 
@@ -667,7 +667,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Message<byte[]> message1 = message0;
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
-                        ((MessageIdImpl) message1.getMessageId()).getEntryId()));
+                        ((MessageIdImpl)message1.getMessageId()).getEntryId()));
 
         Transaction transaction2 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)

@@ -20,8 +20,7 @@ package org.apache.pulsar.tests.integration.io.sources.debezium;
 
 import com.google.common.collect.Sets;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
@@ -36,6 +35,9 @@ import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContaine
 import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
+
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
@@ -113,16 +115,14 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName,
-                testWithClientBuilder);
+        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName, testWithClientBuilder);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mysql server
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mySQLContainer);
 
-        PulsarIODebeziumSourceRunner runner =
-                new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
                 converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
                 consumeTopicName, client);
 
@@ -157,12 +157,10 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium postgresql server
-        DebeziumPostgreSqlContainer postgreSqlContainer =
-                new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
+        DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(postgreSqlContainer);
 
-        PulsarIODebeziumSourceRunner runner =
-                new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
                 converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
                 consumeTopicName, client);
 
@@ -180,7 +178,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
         // This is the binlog count that contained in mongodb container.
         final int numMessages = 17;
-
+        
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -201,8 +199,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mongoDbContainer);
 
-        PulsarIODebeziumSourceRunner runner =
-                new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
                 converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
                 consumeTopicName, client);
 
@@ -238,8 +235,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         DebeziumMsSqlContainer msSqlContainer = new DebeziumMsSqlContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(msSqlContainer);
 
-        PulsarIODebeziumSourceRunner runner =
-                new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
                 converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
                 consumeTopicName, client);
 

@@ -19,10 +19,13 @@
 package org.apache.pulsar.common.protocol;
 
 import static org.testng.Assert.assertEquals;
+
 import io.netty.buffer.ByteBuf;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
+
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;

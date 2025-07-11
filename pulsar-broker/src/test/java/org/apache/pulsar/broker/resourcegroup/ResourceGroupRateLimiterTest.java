@@ -44,7 +44,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     new org.apache.pulsar.common.policies.data.ResourceGroup();
     final String namespaceName = "prop/ns-abc";
     final String persistentTopicString = "persistent://prop/ns-abc/test-topic";
-    static final int MESSAGE_SIZE = 10;
+    final int MESSAGE_SIZE = 10;
 
     @BeforeClass
     @Override
@@ -60,8 +60,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    public void createResourceGroup(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rg)
-            throws PulsarAdminException {
+    public void createResourceGroup(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rg) throws PulsarAdminException {
         admin.resourcegroups().createResourceGroup(rgName, rg);
 
         Awaitility.await().untilAsserted(() -> {
@@ -114,7 +113,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         // Second message should fail with timeout.
         Producer<byte[]> finalProducer = producer;
         Assert.assertThrows(TimeoutException.class, () -> {
-            finalProducer.sendAsync(new byte[MESSAGE_SIZE]).get(500, TimeUnit.MILLISECONDS); });
+            finalProducer.sendAsync(new byte[MESSAGE_SIZE]).get(500, TimeUnit.MILLISECONDS);});
 
         // In the next interval, the above message will be accepted. Wait for one more second (total 2s),
         // to publish the next message.

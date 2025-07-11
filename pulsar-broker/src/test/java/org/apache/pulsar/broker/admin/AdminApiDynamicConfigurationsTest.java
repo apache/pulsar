@@ -53,25 +53,24 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
     }
 
     @Test
-    public void testGetAllDynamicConfigurations() throws Exception {
-        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations();
+    public void TestGetAllDynamicConfigurations() throws Exception {
+        Map<String,String> configs = admin.brokers().getAllDynamicConfigurations();
         assertNotNull(configs);
     }
 
     @Test
-    public void testDeleteDynamicConfiguration() throws Exception {
+    public void TestDeleteDynamicConfiguration() throws Exception {
         admin.brokers().deleteDynamicConfiguration("dispatcherMinReadBatchSize");
     }
 
     @Test
-    public void testDeleteInvalidDynamicConfiguration() {
+    public void TestDeleteInvalidDynamicConfiguration() {
         try {
             admin.brokers().deleteDynamicConfiguration("errorName");
             fail("exception should be thrown");
         } catch (Exception e) {
             if (e instanceof PulsarAdminException) {
-                assertEquals(((PulsarAdminException) e).getStatusCode(),
-                        Response.Status.PRECONDITION_FAILED.getStatusCode());
+                assertEquals(((PulsarAdminException) e).getStatusCode(), Response.Status.PRECONDITION_FAILED.getStatusCode());
             } else {
                 fail("PulsarAdminException should be thrown");
             }

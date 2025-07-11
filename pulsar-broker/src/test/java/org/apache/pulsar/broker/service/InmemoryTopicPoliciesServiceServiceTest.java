@@ -69,8 +69,7 @@ public class InmemoryTopicPoliciesServiceServiceTest extends MockedPulsarService
 
         final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopic).get()
                 .orElseThrow();
-        Assert.assertEquals(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getShadowTopics(),
-                List.of(shadowTopic));
+        Assert.assertEquals(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getShadowTopics(), List.of(shadowTopic));
         Assert.assertEquals(persistentTopic.getShadowReplicators().size(), 1);
     }
 

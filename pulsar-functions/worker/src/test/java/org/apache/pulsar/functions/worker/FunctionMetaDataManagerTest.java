@@ -301,8 +301,8 @@ public class FunctionMetaDataManagerTest {
         doReturn(true).when(functionMetaDataManager).processUpdate(any(Function.FunctionMetaData.class));
         doReturn(true).when(functionMetaDataManager).processDeregister(any(Function.FunctionMetaData.class));
 
-        Request.ServiceRequest serviceRequest =
-                Request.ServiceRequest.newBuilder().setServiceRequestType(
+        Request.ServiceRequest serviceRequest
+                = Request.ServiceRequest.newBuilder().setServiceRequestType(
                 Request.ServiceRequest.ServiceRequestType.UPDATE).build();
         Message msg = mock(Message.class);
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
@@ -312,12 +312,14 @@ public class FunctionMetaDataManagerTest {
                 (any(Function.FunctionMetaData.class));
         verify(functionMetaDataManager).processUpdate(serviceRequest.getFunctionMetaData());
 
-        serviceRequest = Request.ServiceRequest.newBuilder().setServiceRequestType(
+        serviceRequest
+                = Request.ServiceRequest.newBuilder().setServiceRequestType(
                 Request.ServiceRequest.ServiceRequestType.INITIALIZE).build();
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);
 
-        serviceRequest = Request.ServiceRequest.newBuilder().setServiceRequestType(
+        serviceRequest
+                = Request.ServiceRequest.newBuilder().setServiceRequestType(
                 Request.ServiceRequest.ServiceRequestType.DELETE).build();
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);

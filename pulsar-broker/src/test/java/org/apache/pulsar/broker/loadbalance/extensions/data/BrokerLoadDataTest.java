@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.data;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.testng.Assert.assertEquals;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -50,15 +51,16 @@ public class BrokerLoadDataTest {
         SystemResourceUsage usage1 = new SystemResourceUsage();
         var cpu = new ResourceUsage(1.0, 100.0);
         var memory = new ResourceUsage(800.0, 200.0);
-        var directMemory = new ResourceUsage(2.0, 100.0);
-        var bandwidthIn = new ResourceUsage(3.0, 100.0);
-        var bandwidthOut = new ResourceUsage(4.0, 100.0);
+        var directMemory= new ResourceUsage(2.0, 100.0);
+        var bandwidthIn= new ResourceUsage(3.0, 100.0);
+        var bandwidthOut= new ResourceUsage(4.0, 100.0);
         usage1.setCpu(cpu);
         usage1.setMemory(memory);
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
         data.update(usage1, 1, 2, 3, 4, 5, 6, conf);
+        
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
         assertEquals(data.getDirectMemory(), directMemory);
@@ -79,9 +81,9 @@ public class BrokerLoadDataTest {
         SystemResourceUsage usage2 = new SystemResourceUsage();
         cpu = new ResourceUsage(300.0, 100.0);
         memory = new ResourceUsage(200.0, 200.0);
-        directMemory = new ResourceUsage(2.0, 100.0);
-        bandwidthIn = new ResourceUsage(3.0, 100.0);
-        bandwidthOut = new ResourceUsage(4.0, 100.0);
+        directMemory= new ResourceUsage(2.0, 100.0);
+        bandwidthIn= new ResourceUsage(3.0, 100.0);
+        bandwidthOut= new ResourceUsage(4.0, 100.0);
         usage2.setCpu(cpu);
         usage2.setMemory(memory);
         usage2.setDirectMemory(directMemory);
@@ -104,7 +106,7 @@ public class BrokerLoadDataTest {
         assertEquals(data.getWeightedMaxEMA(), 1.875);
         assertEquals(data.getMsgThroughputEMA(), 5);
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
-        assertEquals(data.getReportedAt(), 0L);
+        assertEquals(data.getReportedAt(), 0l);
         assertEquals(data.toString(conf), "cpu= 300.00%, memory= 100.00%, directMemory= 2.00%, "
                 + "bandwidthIn= 3.00%, bandwidthOut= 4.00%, "
                 + "cpuWeight= 0.500000, memoryWeight= 0.500000, directMemoryWeight= 0.500000, "
@@ -134,9 +136,9 @@ public class BrokerLoadDataTest {
         SystemResourceUsage usage1 = new SystemResourceUsage();
         var cpu = new ResourceUsage(1.0, 100.0);
         var memory = new ResourceUsage(800.0, 200.0);
-        var directMemory = new ResourceUsage(2.0, 100.0);
-        var bandwidthIn = new ResourceUsage(3.0, 100.0);
-        var bandwidthOut = new ResourceUsage(4.0, 100.0);
+        var directMemory= new ResourceUsage(2.0, 100.0);
+        var bandwidthIn= new ResourceUsage(3.0, 100.0);
+        var bandwidthOut= new ResourceUsage(4.0, 100.0);
         usage1.setCpu(cpu);
         usage1.setMemory(memory);
         usage1.setDirectMemory(directMemory);

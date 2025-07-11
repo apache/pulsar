@@ -36,7 +36,7 @@ public class EntryFilter2Test implements EntryFilter {
         PersistentSubscription subscription = (PersistentSubscription) context.getSubscription();
         if (!MapUtils.isEmpty(subscription.getSubscriptionProperties())) {
             for (KeyValue keyValue : list) {
-                if (subscription.getSubscriptionProperties().containsKey(keyValue.getKey())){
+                if(subscription.getSubscriptionProperties().containsKey(keyValue.getKey())){
                     return FilterResult.ACCEPT;
                 }
             }

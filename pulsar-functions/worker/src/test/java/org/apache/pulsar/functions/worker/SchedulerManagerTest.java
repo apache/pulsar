@@ -366,8 +366,7 @@ public class SchedulerManagerTest {
         // delete assignment message should only have key = full qualified instance id and value = null;
         Assert.assertEquals(0, send.length);
 
-        // make sure we also directly deleted the assignment from the in memory assignment cache in
-        // function runtime manager
+        // make sure we also directly deleted the assignment from the in memory assignment cache in function runtime manager
         verify(functionRuntimeManager, times(1))
                 .deleteAssignment(eq(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())));
     }
@@ -554,39 +553,39 @@ public class SchedulerManagerTest {
             }
         });
 
-        Function.Assignment assignment21 = Function.Assignment.newBuilder()
+        Function.Assignment assignment2_1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(0).build())
                 .build();
-        Function.Assignment assignment22 = Function.Assignment.newBuilder()
+        Function.Assignment assignment2_2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(1).build())
                 .build();
-        Function.Assignment assignment23 = Function.Assignment.newBuilder()
+        Function.Assignment assignment2_3 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(2).build())
                 .build();
 
-        assertTrue(allAssignments.contains(assignment21));
-        assertTrue(allAssignments.contains(assignment22));
-        assertTrue(allAssignments.contains(assignment23));
+        assertTrue(allAssignments.contains(assignment2_1));
+        assertTrue(allAssignments.contains(assignment2_2));
+        assertTrue(allAssignments.contains(assignment2_3));
 
         // make sure we also directly add the assignment to the in memory assignment cache in function runtime manager
         verify(functionRuntimeManager, times(3)).processAssignment(any());
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment21));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment22));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment23));
+        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2_1));
+        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2_2));
+        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2_3));
 
         // updating assignments
         currentAssignments.get("worker-1")
-                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment21.getInstance()), assignment21);
+                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
         currentAssignments.get("worker-1")
-                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment22.getInstance()), assignment22);
+                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
         currentAssignments.get("worker-1")
-                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment23.getInstance()), assignment23);
+                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
 
         // scale down
 
@@ -623,13 +622,12 @@ public class SchedulerManagerTest {
 
         assertTrue(allAssignments2.contains(assignment2Scaled));
 
-        // make sure we also directly removed the assignment from the in memory assignment cache in
-        // function runtime manager
+        // make sure we also directly removed the assignment from the in memory assignment cache in function runtime manager
         verify(functionRuntimeManager, times(2)).deleteAssignment(anyString());
         verify(functionRuntimeManager, times(1))
-                .deleteAssignment(eq(FunctionCommon.getFullyQualifiedInstanceId(assignment22.getInstance())));
+                .deleteAssignment(eq(FunctionCommon.getFullyQualifiedInstanceId(assignment2_2.getInstance())));
         verify(functionRuntimeManager, times(1))
-                .deleteAssignment(eq(FunctionCommon.getFullyQualifiedInstanceId(assignment22.getInstance())));
+                .deleteAssignment(eq(FunctionCommon.getFullyQualifiedInstanceId(assignment2_2.getInstance())));
 
         verify(functionRuntimeManager, times(4)).processAssignment(any());
         verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Scaled));
@@ -737,17 +735,17 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        Function.Assignment assignment21 = Function.Assignment.newBuilder()
+        Function.Assignment assignment2_1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(0).build())
                 .build();
-        Function.Assignment assignment22 = Function.Assignment.newBuilder()
+        Function.Assignment assignment2_2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(1).build())
                 .build();
-        Function.Assignment assignment23 = Function.Assignment.newBuilder()
+        Function.Assignment assignment2_3 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(2).build())
@@ -768,23 +766,23 @@ public class SchedulerManagerTest {
         });
 
         assertEquals(allAssignments.size(), 3);
-        assertTrue(allAssignments.contains(assignment21));
-        assertTrue(allAssignments.contains(assignment22));
-        assertTrue(allAssignments.contains(assignment23));
+        assertTrue(allAssignments.contains(assignment2_1));
+        assertTrue(allAssignments.contains(assignment2_2));
+        assertTrue(allAssignments.contains(assignment2_3));
 
         // make sure we also directly add the assignment to the in memory assignment cache in function runtime manager
         verify(functionRuntimeManager, times(3)).processAssignment(any());
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment21));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment22));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment23));
+        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2_1));
+        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2_2));
+        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2_3));
 
         // updating assignments
         currentAssignments.get("worker-1")
-                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment21.getInstance()), assignment21);
+                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
         currentAssignments.get("worker-1")
-                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment22.getInstance()), assignment22);
+                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
         currentAssignments.get("worker-1")
-                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment23.getInstance()), assignment23);
+                .put(FunctionCommon.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
 
         // update field
 
@@ -834,8 +832,7 @@ public class SchedulerManagerTest {
         assertTrue(allAssignments2.contains(assignment2Updated2));
         assertTrue(allAssignments2.contains(assignment2Updated3));
 
-        // make sure we also directly updated the assignment to the in memory assignment cache in
-        // function runtime manager
+        // make sure we also directly updated the assignment to the in memory assignment cache in function runtime manager
         verify(functionRuntimeManager, times(6)).processAssignment(any());
         verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Updated1));
         verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Updated2));
@@ -1136,7 +1133,6 @@ public class SchedulerManagerTest {
         switch (op) {
             default:
                 Assert.fail("Unexpected drain operation");
-                return null;
             case GetDrainStatus:
                 return schedulerManager.getDrainStatus(workerId);
             case SetDrainStatus:

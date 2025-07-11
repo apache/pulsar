@@ -20,12 +20,16 @@ package org.apache.pulsar.io.netty.tcp;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import io.netty.channel.socket.nio.NioSocketChannel;
+
 import org.apache.pulsar.io.netty.NettySource;
+import org.apache.pulsar.io.netty.tcp.NettyTCPChannelInitializer;
+import org.apache.pulsar.io.netty.tcp.NettyTCPServerHandler;
 import org.testng.annotations.Test;
 
+import io.netty.channel.socket.nio.NioSocketChannel;
+
 /**
- * Tests for Netty Channel Initializer.
+ * Tests for Netty Channel Initializer
  */
 public class NettyTCPChannelInitializerTest {
 
@@ -40,5 +44,5 @@ public class NettyTCPChannelInitializerTest {
         assertNotNull(channel.pipeline().toMap());
         assertEquals(2, channel.pipeline().toMap().size());
     }
-
+    
 }

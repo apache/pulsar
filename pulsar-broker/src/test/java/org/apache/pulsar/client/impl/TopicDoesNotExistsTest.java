@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.HashedWheelTimer;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -29,6 +27,9 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for not exists topic.

@@ -73,13 +73,12 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
                 .lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
 
         for (int i = 0; map.containsValue(getPulsarServiceList().get(i).getBrokerServiceUrl()); i++) {
-            if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl())) {
+            if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl()))
                 if (localAdmin != null) {
                     localAdmin.close();
                 }
                 localAdmin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
                         .serviceHttpUrl(pulsarServiceList.get(i + 1).getWebServiceAddress())));
-            }
         }
         if (pulsarClient != null) {
             pulsarClient.shutdown();
@@ -103,7 +102,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         }
         String topic1 = NAMESPACE1 +  "/testGetTransactionBufferInternalStatsInMultiBroker";
         assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
-        for (int i = 0; true; i++) {
+        for (int i = 0; true ; i++) {
             topic1 = topic1 + i;
             admin.topics().createNonPartitionedTopic(topic1);
             String segmentTopicBroker = admin.lookups()

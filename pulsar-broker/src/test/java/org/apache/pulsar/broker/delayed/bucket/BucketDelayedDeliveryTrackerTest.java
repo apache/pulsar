@@ -194,8 +194,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertTrue(
-                    tracker.getImmutableBuckets().asMapOfRanges().values().stream().noneMatch(x -> x.merging
-                            || !x.getSnapshotCreateFuture().get().isDone()));
+                    tracker.getImmutableBuckets().asMapOfRanges().values().stream().noneMatch(x -> x.merging ||
+                            !x.getSnapshotCreateFuture().get().isDone()));
         });
 
         assertTrue(tracker.hasMessageAvailable());
@@ -363,7 +363,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         tracker.close();
 
         BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
-                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 10);
+                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1,10);
 
         Long delayedMessagesInSnapshotValue = delayedMessagesInSnapshot.getValue();
         assertEquals(tracker2.getNumberOfDelayedMessages(), delayedMessagesInSnapshotValue);
