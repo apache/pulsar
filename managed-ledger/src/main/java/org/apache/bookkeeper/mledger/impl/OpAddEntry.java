@@ -115,7 +115,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         op.closeWhenDone = false;
         op.entryId = -1;
         op.startTime = System.nanoTime();
-        op.state = State.OPEN;
+        STATE_UPDATER.set(op, State.OPEN);
         op.payloadProcessorHandle = null;
         op.timeoutTriggered = timeoutTriggered;
         ml.mbean.addAddEntrySample(op.dataLength);
@@ -160,7 +160,12 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             }
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
+            State state = STATE_UPDATER.get(OpAddEntry.this);
             log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            if (state != State.INITIATED && state != State.COMPLETED && state != State.CLOSED) {
+                ml.pendingAddEntries.remove(OpAddEntry.this);
+                this.failed(new ManagedLedgerException("Unexpected state " + state));
+            }
         }
     }
 
@@ -171,7 +176,12 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             //Use entryId in PublishContext and call addComplete directly.
             this.addComplete(BKException.Code.OK, ledger, ((Position) ctx).getEntryId(), addOpCount);
         } else {
-            log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            State state = STATE_UPDATER.get(OpAddEntry.this);
+            log.warn("[{}] initiateShadowWrite with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            if (state != State.INITIATED && state != State.COMPLETED && state != State.CLOSED) {
+                ml.pendingAddEntries.remove(OpAddEntry.this);
+                this.failed(new ManagedLedgerException("Unexpected state " + state));
+            }
         }
     }
 
