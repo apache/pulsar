@@ -482,6 +482,13 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "6");
         admin.brokers().updateDynamicConfiguration("allowAutoTopicCreationType", "partitioned");
         admin.brokers().updateDynamicConfiguration("defaultNumPartitions", "4");
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(pulsar.getConfiguration().isAllowAutoTopicCreation());
+            assertEquals(pulsar.getConfiguration().getMaxNumPartitionsPerPartitionedTopic(), 6);
+            assertEquals(pulsar.getConfiguration().getAllowAutoTopicCreationType(), TopicType.PARTITIONED);
+            assertEquals(pulsar.getConfiguration().getDefaultNumPartitions(), 4);
+
+        });
         Producer<byte[]> producer  = pulsarClient.newProducer().topic(topic).create();
         List<String> topics = admin.topics().getList(namespaceName);
         List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName);
