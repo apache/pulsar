@@ -88,11 +88,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class SimpleLoadManagerImplTest {
 
-    public final static String CA_CERT_FILE_PATH =
+    public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
+    public static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
+    public static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -368,7 +368,8 @@ public class SimpleLoadManagerImplTest {
     public void testLoadReportParsing() throws Exception {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         reportData.setName("b1");
         SystemResourceUsage resource = new SystemResourceUsage();
         ResourceUsage resourceUsage = new ResourceUsage();
@@ -387,7 +388,8 @@ public class SimpleLoadManagerImplTest {
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
         @Cleanup("stop")
-        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
+        SimpleLoadManagerImpl loadManager =
+                spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
@@ -419,10 +421,12 @@ public class SimpleLoadManagerImplTest {
         stats.put("property/cluster/namespace2/0x00000000_0xFFFFFFFF", nsb2);
 
         Map<ResourceUnit, org.apache.pulsar.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport1.setSystemResourceUsage(systemResource);
         loadReport1.setBundleStats(stats);
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport2.setSystemResourceUsage(new SystemResourceUsage());
         loadReport2.setBundleStats(stats);
         loadReports.put(ru1, loadReport1);

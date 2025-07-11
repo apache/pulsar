@@ -1686,7 +1686,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                             new ProducerBuilderImpl(pulsarClientMock, invocation.getArgument(0)) {
                                 @Override
                                 public CompletableFuture<org.apache.pulsar.client.api.Producer> createAsync() {
-                                    return CompletableFuture.completedFuture(mock(org.apache.pulsar.client.api.Producer.class));
+                                    return CompletableFuture.completedFuture(
+                                            mock(org.apache.pulsar.client.api.Producer.class));
                                 }
                             };
                     return producerBuilder;
@@ -2217,7 +2218,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
+        CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(
+                new GetStatsOptions(false, false, false, false, false));
         assertThat(stats3Async).succeedsWithin(Duration.ofSeconds(3))
                 .matches(stats3 -> {
                     assertEquals(stats3.keySharedMode, "STICKY");

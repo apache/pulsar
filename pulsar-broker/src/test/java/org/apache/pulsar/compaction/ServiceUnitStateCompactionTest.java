@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.SystemTopic;
@@ -62,8 +62,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateDataConflictResolver;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateDataConflictResolver;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -82,7 +82,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -99,7 +98,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitStateData testData = null;
 
-    private static Random RANDOM = new Random();
+    private static final Random RANDOM = new Random();
 
 
     private ServiceUnitStateData testValue(ServiceUnitState state, String broker) {
@@ -121,7 +120,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
                 .filter(to -> isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
-        var state=  candidates.get(RANDOM.nextInt(candidates.size()));
+        var state =  candidates.get(RANDOM.nextInt(candidates.size()));
         return state;
     }
 
@@ -130,7 +129,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .filter(to -> to != Init && to != Splitting && to != Deleted
                         && isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
-        var state=  candidates.get(RANDOM.nextInt(candidates.size()));
+        var state =  candidates.get(RANDOM.nextInt(candidates.size()));
         return state;
     }
 
@@ -244,8 +243,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         var expected = testData.expected;
         var all = testData.all;
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
@@ -255,7 +254,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         Assert.assertFalse(internalStats.compactedLedger.offloaded);
 
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             while (true) {
                 Message<ServiceUnitStateData> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -268,7 +268,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         }
 
         // can get full backlog if read compacted disabled
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(false).subscribe()) {
             while (true) {
                 Message<ServiceUnitStateData> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -290,8 +291,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         var expected = testData.expected;
         var all = testData.all;
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries
@@ -346,7 +347,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(expectedCopy.size(), tv.size()));
 
-        for(var etr : tv.entrySet()){
+        for (var etr : tv.entrySet()){
             Assert.assertEquals(expectedCopy.remove(etr.getKey()), etr.getValue());
             if (expectedCopy.isEmpty()) {
                 break;
@@ -354,10 +355,10 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         }
 
         Assert.assertTrue(expectedCopy.isEmpty());
-        tv.close();;
+        tv.close();
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries
@@ -368,7 +369,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                         ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
-        for(var etr : tableview.entrySet()){
+        for (var etr : tableview.entrySet()){
             Assert.assertEquals(expected.remove(etr.getKey()), etr.getValue());
             if (expected.isEmpty()) {
                 break;
@@ -398,7 +399,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             producer.newMessage().key(key).value(val).send();
         }
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive();
             Assert.assertEquals(m.getKey(), key);
@@ -413,11 +415,12 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Assert.assertEquals(m.getValue(), testValues.get(2));
         }
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive();
             Assert.assertEquals(m.getKey(), key);
@@ -439,21 +442,22 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         String key = "key0";
         var testValues = Arrays.asList(
-                testValue( "content0"),
+                testValue("content0"),
                 testValue("content1"),
-                testValue( "content2"),
+                testValue("content2"),
                 testValue("content3"));
         producer.newMessage().key(key).value(testValues.get(0)).send();
         producer.newMessage().key(key).value(testValues.get(1)).send();
         producer.newMessage().key(key).value(testValues.get(2)).send();
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         producer.newMessage().key(key).value(testValues.get(3)).send();
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive();
             Assert.assertEquals(m.getKey(), key);
@@ -485,11 +489,12 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             producer.newMessage().key(key).value(val).send();
         }
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             consumer.seek(MessageId.earliest);
             Message<ServiceUnitStateData> m = consumer.receive();
@@ -497,7 +502,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Assert.assertEquals(m.getValue(), testValues.get(2));
         }
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(false).subscribe()) {
             consumer.seek(MessageId.earliest);
 
@@ -576,8 +582,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
 
         String bundle = "bundle1";
         String src = "broker0";
@@ -666,8 +672,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
 
         var reader = ((CompletableFuture<ReaderImpl<ServiceUnitStateData>>) FieldUtils
                 .readDeclaredField(tv, "reader", true)).get();
@@ -727,11 +733,12 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         for (var val : testValues) {
             producer.newMessage().key(key).value(val).send();
         }
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive();
             Assert.assertEquals(m.getKey(), key);
@@ -739,7 +746,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         }
 
         stopBroker();
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             consumer.receive();
             Assert.fail("Shouldn't have been able to receive anything");
@@ -748,7 +756,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         }
         startBroker();
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive();
             Assert.assertEquals(m.getKey(), key);
@@ -768,14 +777,15 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
-        var testValue =  testValue( "content0");
+        var testValue = testValue("content0");
         producer.newMessage().key("key0").value(testValue).send();
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive();
             Assert.assertEquals(m.getKey(), "key0");
@@ -803,14 +813,14 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                      .messageRoutingMode(MessageRoutingMode.SinglePartition)
                      .create()) {
             producerBatch.newMessage().key("key1").value(testValue("my-message-1")).sendAsync();
-            producerBatch.newMessage().key("key1").value(testValue( "my-message-2")).sendAsync();
+            producerBatch.newMessage().key("key1").value(testValue("my-message-2")).sendAsync();
             producerBatch.newMessage().key("key1").value(testValue("my-message-3")).sendAsync();
-            producerNormal.newMessage().key("key1").value(testValue( "my-message-4")).send();
+            producerNormal.newMessage().key("key1").value(testValue("my-message-4")).send();
         }
 
         // compact the topic
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic)
@@ -833,17 +843,18 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         producer.newMessage().key("1").value(testValue("1")).send();
         producer.newMessage().key("2").value(testValue("3")).send();
-        producer.newMessage().key("3").value(testValue( "5")).send();
+        producer.newMessage().key("3").value(testValue("5")).send();
         producer.newMessage().key("1").value(null).send();
         producer.newMessage().key("2").value(null).send();
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         Set<String> expected = Sets.newHashSet("3");
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive(2, TimeUnit.SECONDS);
             assertTrue(expected.remove(m.getKey()));
@@ -866,12 +877,13 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         producer.newMessage().key("1").value(null).send();
         producer.newMessage().key("2").value(null).send();
 
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive(2, TimeUnit.SECONDS);
             assertNull(m);
@@ -900,12 +912,13 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         FutureUtil.waitForAll(futures).get();
 
         // 2.compact the topic.
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
             Message<ServiceUnitStateData> m = consumer.receive(2, TimeUnit.SECONDS);
             assertNull(m);
@@ -938,8 +951,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         FutureUtil.waitForAll(futures).get();
 
         // 2.compact the topic.
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // 3. Send more ten messages
@@ -952,7 +965,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         // 4.compact again.
         compactor.compact(topic, strategy).get();
 
-        try (Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+        try (Consumer<ServiceUnitStateData> consumer =
+                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
             Message<ServiceUnitStateData> m1 = consumer.receive();
             assertNotNull(m1);
@@ -986,8 +1000,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         FutureUtil.waitForAll(futures).get();
 
         // 2.compact the topic.
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // 3. Send more ten messages

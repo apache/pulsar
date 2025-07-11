@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.testng.annotations.Test;
@@ -50,7 +49,7 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
 
         ReplicatedSubscriptionsSnapshot s7 = new ReplicatedSubscriptionsSnapshot()
                 .setSnapshotId("snapshot-7");
-        s7.setLocalMessageId().setLedgerId(7 ).setEntryId(7);
+        s7.setLocalMessageId().setLedgerId(7).setEntryId(7);
 
         cache.addNewSnapshot(s1);
         cache.addNewSnapshot(s2);

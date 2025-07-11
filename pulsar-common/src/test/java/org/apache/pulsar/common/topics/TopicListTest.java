@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.common.topics;
 
-import com.google.common.collect.Lists;
-import com.google.re2j.Pattern;
-import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Stream;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import com.google.re2j.Pattern;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
+import org.testng.annotations.Test;
 
 public class TopicListTest {
 
@@ -68,18 +66,18 @@ public class TopicListTest {
         Set<String> addedNames = TopicList.minus(newNames, oldNames);
         Set<String> removedNames = TopicList.minus(oldNames, newNames);
 
-        assertTrue(addedNames.size() == 2 &&
-                addedNames.contains(topicName5) &&
-                addedNames.contains(topicName6));
-        assertTrue(removedNames.size() == 2 &&
-                removedNames.contains(topicName1) &&
-                removedNames.contains(topicName2));
+        assertTrue(addedNames.size() == 2
+                && addedNames.contains(topicName5)
+                && addedNames.contains(topicName6));
+        assertTrue(removedNames.size() == 2
+                && removedNames.contains(topicName1)
+                && removedNames.contains(topicName2));
 
         // totally 2 different list, should return content of first lists.
         Set<String> addedNames2 = TopicList.minus(addedNames, removedNames);
-        assertTrue(addedNames2.size() == 2 &&
-                addedNames2.contains(topicName5) &&
-                addedNames2.contains(topicName6));
+        assertTrue(addedNames2.size() == 2
+                && addedNames2.contains(topicName5)
+                && addedNames2.contains(topicName6));
 
         // 2 same list, should return empty list.
         Set<String> addedNames3 = TopicList.minus(addedNames, addedNames);

@@ -178,7 +178,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         // Inject a mechanism to drop all send receipt, to implement a scenario: the messages of the internal producer
         // of the replicator will be resent after a disconnection.
         AtomicBoolean stuckSendReceipt = new AtomicBoolean(true);
-        Runnable cleanInjection = injectReplicatorClientCnx((conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+        Runnable cleanInjection = injectReplicatorClientCnx((conf, eventLoopGroup) -> new ClientCnx(
+                InstrumentProvider.NOOP, conf, eventLoopGroup) {
             @Override
             protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
                 if (stuckSendReceipt.get()) {
@@ -355,7 +356,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                         }
 
                         Object data = invocation.getArguments()[0];
-                        if (true && !(data instanceof ByteBufPair)) {
+                        if (!(data instanceof ByteBufPair)) {
                             return invocation.callRealMethod();
                         }
                         // Repeatedly send every message.
@@ -660,7 +661,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             }
 
                             Object data = invocation.getArguments()[0];
-                            if (true && !(data instanceof ByteBufPair)) {
+                            if (!(data instanceof ByteBufPair)) {
                                 return invocation.callRealMethod();
                             }
                             // Repeatedly send every message.

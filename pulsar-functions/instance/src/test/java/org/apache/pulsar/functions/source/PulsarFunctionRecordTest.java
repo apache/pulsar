@@ -22,7 +22,6 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.*;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.annotations.Test;

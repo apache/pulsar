@@ -79,8 +79,8 @@ public class PersistentSubscriptionTest {
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     final String subName = "subscriptionName";
 
-    final TxnID txnID1 = new TxnID(1,1);
-    final TxnID txnID2 = new TxnID(1,2);
+    final TxnID txnID1 = new TxnID(1, 1);
+    final TxnID txnID2 = new TxnID(1, 2);
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -164,8 +164,8 @@ public class PersistentSubscriptionTest {
             persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic][subscriptionName] "
+                    + "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();
@@ -177,9 +177,9 @@ public class PersistentSubscriptionTest {
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionConflictException);
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
-                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 1:100");
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic]"
+                    + "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: "
+                    + "2:50 within range of current currentPosition: 1:100");
         }
 
         List<Position> positionList = new ArrayList<>();
