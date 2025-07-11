@@ -73,7 +73,7 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
                 kinesisSourceConfig.getAwsCredentialPluginParam());
 
         KinesisAsyncClient kClient = kinesisSourceConfig.buildKinesisAsyncClient(credentialsProvider);
-        recordProcessorFactory = new KinesisRecordProcessorFactory(queue, kinesisSourceConfig, sourceContext);
+        recordProcessorFactory = new KinesisRecordProcessorFactory(queue, kinesisSourceConfig);
         configsBuilder = new ConfigsBuilder(kinesisSourceConfig.getAwsKinesisStreamName(),
                                             kinesisSourceConfig.getApplicationName(),
                                             kClient,

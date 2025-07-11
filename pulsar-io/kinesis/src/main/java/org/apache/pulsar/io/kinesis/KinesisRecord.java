@@ -41,15 +41,9 @@ public class KinesisRecord implements Record<byte[]> {
     private final Optional<String> key;
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<>();
-
-    private final String sequenceNumber;
-    private final KinesisRecordProcessor recordProcessor;
-
     public KinesisRecord(KinesisClientRecord record, String shardId, long millisBehindLatest,
-                         Set<String> propertiesToInclude, KinesisRecordProcessor recordProcessor) {
+                         Set<String> propertiesToInclude) {
         this.key = Optional.of(record.partitionKey());
-        this.sequenceNumber = record.sequenceNumber();
-        this.recordProcessor = recordProcessor;
         // encryption type can (annoyingly) be null, so we default to NONE
         EncryptionType encType = EncryptionType.NONE;
         if (record.encryptionType() != null) {
@@ -98,16 +92,6 @@ public class KinesisRecord implements Record<byte[]> {
     @Override
     public byte[] getValue() {
         return value;
-    }
-
-    @Override
-    public void ack() {
-        this.recordProcessor.updateSequenceNumberToCheckpoint(this.sequenceNumber);
-    }
-
-    @Override
-    public void fail() {
-        this.recordProcessor.failed();
     }
 
     public Map<String, String> getProperties() {

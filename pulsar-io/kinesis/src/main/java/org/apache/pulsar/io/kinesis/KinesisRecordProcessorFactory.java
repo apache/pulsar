@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.kinesis;
 
 import java.util.concurrent.LinkedBlockingQueue;
-import org.apache.pulsar.io.core.SourceContext;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 
@@ -27,17 +26,14 @@ public class KinesisRecordProcessorFactory implements ShardRecordProcessorFactor
 
     private final LinkedBlockingQueue<KinesisRecord> queue;
     private final KinesisSourceConfig config;
-    private final SourceContext sourceContext;
     public KinesisRecordProcessorFactory(LinkedBlockingQueue<KinesisRecord> queue,
-                                         KinesisSourceConfig kinesisSourceConfig,
-                                         SourceContext sourceContext) {
+                                         KinesisSourceConfig kinesisSourceConfig) {
         this.queue = queue;
         this.config = kinesisSourceConfig;
-        this.sourceContext = sourceContext;
     }
 
     @Override
     public ShardRecordProcessor shardRecordProcessor() {
-        return new KinesisRecordProcessor(queue, config, sourceContext);
+        return new KinesisRecordProcessor(queue, config);
     }
 }

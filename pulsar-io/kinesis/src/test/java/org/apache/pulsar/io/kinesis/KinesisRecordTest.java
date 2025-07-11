@@ -66,8 +66,7 @@ public class KinesisRecordTest {
                 KinesisRecord.MILLIS_BEHIND_LATEST
         ));
 
-        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest,
-                propertiesToInclude, null);
+        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest, propertiesToInclude);
         Map<String, String> properties = kinesisRecord.getProperties();
 
         assertEquals(properties.size(), 6);
@@ -86,8 +85,7 @@ public class KinesisRecordTest {
                 KinesisRecord.SEQUENCE_NUMBER
         ));
 
-        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest,
-                propertiesToInclude, null);
+        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest, propertiesToInclude);
         Map<String, String> properties = kinesisRecord.getProperties();
 
         assertEquals(properties.size(), 2);
@@ -104,8 +102,7 @@ public class KinesisRecordTest {
     public void testNoPropertiesIncluded() {
         Set<String> propertiesToInclude = Collections.emptySet();
 
-        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest,
-                propertiesToInclude, null);
+        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest, propertiesToInclude);
         Map<String, String> properties = kinesisRecord.getProperties();
 
         assertTrue(properties.isEmpty());
