@@ -26,6 +26,9 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGE
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.bookkeeper.mledger.AsyncCallbacks.BatchMsgAckResType;
+import static org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
+import static org.apache.bookkeeper.mledger.AsyncCallbacks.PositionAckState;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Collections2;
@@ -2351,7 +2354,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
 
     @Override
-    public void asyncDelete(Iterable<Position> positions, AsyncCallbacks.DeleteCallback callback, Object ctx) {
+    public void asyncDelete(Iterable<Position> positions, DeleteCallback callback, Object ctx) {
         if (isClosed()) {
             callback.deleteFailed(new ManagedLedgerException
                     .CursorAlreadyClosedException("Cursor was already closed"), ctx);
@@ -2362,12 +2365,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lock.writeLock().lock();
         boolean skipMarkDeleteBecauseAckedNothing = false;
+        List<PositionAckState> positionAckNotices = new ArrayList<>();
         try {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Deleting individual messages at {}. Current status: {} - md-position: {}",
                         ledger.getName(), name, positions, individualDeletedMessages, markDeletePosition);
             }
-
             for (Position pos : positions) {
                 Position position  = requireNonNull(pos);
                 if (ledger.getLastConfirmedEntry().compareTo(position) < 0) {
@@ -2391,8 +2394,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
                 if (ackSet == null || ackSet.length == 0) {
-                    if (batchDeletedIndexes != null) {
-                        batchDeletedIndexes.remove(position);
+                    BitSet bitSet;
+                    if (batchDeletedIndexes == null || (bitSet = batchDeletedIndexes.remove(position)) == null) {
+                        positionAckNotices.add(new PositionAckState(position, BatchMsgAckResType.AckAllAtOnce, -1));
+                    } else {
+                        positionAckNotices.add(new PositionAckState(position, BatchMsgAckResType.LatestPartialAck,
+                                bitSet.cardinality()));
                     }
                     // Add a range (prev, pos] to the set. Adding the previous entry as an open limit to the range will
                     // make the RangeSet recognize the "continuity" between adjacent Positions.
@@ -2413,18 +2420,27 @@ public class ManagedCursorImpl implements ManagedCursor {
                             individualDeletedMessages);
                     }
                 } else if (batchDeletedIndexes != null) {
-                    final var givenBitSet = BitSet.valueOf(ackSet);
-                    final var bitSet = batchDeletedIndexes.computeIfAbsent(position, __ -> givenBitSet);
-                    if (givenBitSet != bitSet) {
-                        bitSet.and(givenBitSet);
-                    }
-                    if (bitSet.isEmpty()) {
-                        Position previousPosition = ledger.getPreviousPosition(position);
-                        individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
-                            previousPosition.getEntryId(),
-                            position.getLedgerId(), position.getEntryId());
-                        MSG_CONSUMED_COUNTER_UPDATER.incrementAndGet(this);
-                        batchDeletedIndexes.remove(position);
+                    final var ackingBitSet = BitSet.valueOf(ackSet);
+                    final var combinedBitSet = batchDeletedIndexes.computeIfAbsent(position, __ -> ackingBitSet);
+                    if (ackingBitSet != combinedBitSet) {
+                        int unAckedBefore = combinedBitSet.cardinality();
+                        combinedBitSet.and(ackingBitSet);
+                        int unAckedAfter = combinedBitSet.cardinality();
+                        if (combinedBitSet.isEmpty()) {
+                            Position previousPosition = ledger.getPreviousPosition(position);
+                            individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
+                                    previousPosition.getEntryId(),
+                                    position.getLedgerId(), position.getEntryId());
+                            MSG_CONSUMED_COUNTER_UPDATER.incrementAndGet(this);
+                            batchDeletedIndexes.remove(position);
+                            positionAckNotices.add(new PositionAckState(position, BatchMsgAckResType.LatestPartialAck,
+                                    unAckedBefore - unAckedAfter));
+                        } else {
+                            positionAckNotices.add(new PositionAckState(position, BatchMsgAckResType.PartialAck,
+                                    unAckedBefore - unAckedAfter));
+                        }
+                    } else {
+                        positionAckNotices.add(new PositionAckState(position, BatchMsgAckResType.FirstPartialAck, -1));
                     }
                 }
             }
@@ -2478,7 +2494,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         } finally {
             lock.writeLock().unlock();
             if (skipMarkDeleteBecauseAckedNothing) {
-                callback.deleteComplete(ctx);
+                completeDeleteCallback(callback, ctx, positionAckNotices);
             }
         }
 
@@ -2486,7 +2502,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
             isDirty = true;
             updateLastMarkDeleteEntryToLatest(newMarkDeletePosition, null);
-            callback.deleteComplete(ctx);
+            completeDeleteCallback(callback, ctx, positionAckNotices);
             return;
         }
 
@@ -2497,7 +2513,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             internalAsyncMarkDelete(newMarkDeletePosition, properties, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
-                    callback.deleteComplete(ctx);
+                    completeDeleteCallback(callback, ctx, positionAckNotices);
                 }
 
                 @Override
@@ -2514,6 +2530,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
             callback.deleteFailed(new ManagedLedgerException(e), ctx);
+        }
+    }
+
+    private void completeDeleteCallback(DeleteCallback deleteCallback, Object ctx,
+                                        List<PositionAckState> positionAckStates) {
+        if (deleteCallback instanceof AsyncCallbacks.CursorDeleteCallback cursorDeleteCallback) {
+            cursorDeleteCallback.deleteComplete(ctx, positionAckStates);
+        } else {
+            deleteCallback.deleteComplete(ctx);
         }
     }
 
