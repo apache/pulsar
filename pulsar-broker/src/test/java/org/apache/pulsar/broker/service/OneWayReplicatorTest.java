@@ -52,7 +52,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -70,6 +69,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.ClassUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
@@ -1334,10 +1335,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
      */
     @Test
     public void testCloseTopicAfterStartReplicationFailed() throws Exception {
-        Field fieldTopicNameCache = TopicName.class.getDeclaredField("cache");
+        Field fieldTopicNameCache =
+                ClassUtils.getClass("org.apache.pulsar.common.naming.TopicNameCache").getDeclaredField("INSTANCE");
         fieldTopicNameCache.setAccessible(true);
-        ConcurrentHashMap<String, TopicName> topicNameCache =
-                (ConcurrentHashMap<String, TopicName>) fieldTopicNameCache.get(null);
+        Object topicNameCache = fieldTopicNameCache.get(null);
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
         // 1.Create topic, does not enable replication now.
         admin1.topics().createNonPartitionedTopic(topicName);
@@ -1362,9 +1363,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // - Since the topic should not be touched anymore, we use "TopicName" to confirm whether it be used by
         //   Replication again.
         Thread.sleep(10 * 1000);
-        topicNameCache.remove(topicName);
+        MethodUtils.invokeMethod(topicNameCache, "invalidateCache");
         Thread.sleep(60 * 1000);
-        assertTrue(!topicNameCache.containsKey(topicName));
+        assertNull(MethodUtils.invokeMethod(topicNameCache, "getIfPresent", topicName));
 
         // cleanup.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
