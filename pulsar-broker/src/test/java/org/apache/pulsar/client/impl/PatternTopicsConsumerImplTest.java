@@ -28,8 +28,10 @@ import com.google.common.collect.Lists;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -1263,5 +1265,208 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         } else {
             admin.topics().delete(topicName, false);
         }
+    }
+
+    @Test(timeOut = 20000)
+    public void testBlockAndUnBlockGivenTopics() throws Exception {
+        String baseTopicName = "persistent://my-property/my-ns/testBlockAndUnBlockGivenTopics-" + System.currentTimeMillis();
+        Pattern pattern = Pattern.compile(baseTopicName + ".*");
+
+        // create 3 topics.
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-1")
+                .create();
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-2")
+                .create();
+        Producer<String> producer3 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-3")
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(pattern)
+                .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        // wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+
+        assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
+        PatternMultiTopicsConsumerImpl<String> consumerImpl = (PatternMultiTopicsConsumerImpl<String>) consumer;
+
+        // verify consumer get methods.
+        assertSame(consumerImpl.getPattern().pattern(), pattern.pattern());
+        assertEquals(consumerImpl.getPartitionedTopics().size(), 0);
+
+        sendMessage(producer1, "msg1-1", consumer);
+        sendMessage(producer2, "msg2-1", consumer);
+        sendMessage(producer3, "msg3-1", consumer);
+
+        // add block topics.
+        Set<String> blockTopics = new HashSet<>();
+        blockTopics.add(baseTopicName + "-2");
+        blockTopics.add(baseTopicName + "-3");
+        ((PatternMultiTopicsConsumerImpl<String>) consumer).blockTopics(blockTopics);
+
+        // waiting for topics to be blocked.
+        Thread.sleep(2000);
+
+        sendMessage(producer1, "msg1-2", consumer);
+        producer2.send("msg2-2");
+        producer3.send("msg3-2");
+
+        // await to check if msg2-2 and msg3-2 is not received in 5 seconds.
+        Awaitility.await().during(5, TimeUnit.SECONDS).until(() -> {
+            Message<String> receivedMessage = consumer.receive(100, TimeUnit.MILLISECONDS);
+            if (receivedMessage != null
+                    && (receivedMessage.getValue().equals("msg2-2") || receivedMessage.getValue().equals("msg3-2"))) {
+                throw new AssertionError("Received message which was supposed to be blocked");
+            }
+            return receivedMessage == null
+                    || (!receivedMessage.getValue().equals("msg2-2") && !receivedMessage.getValue().equals("msg3-2"));
+        });
+
+        ((PatternMultiTopicsConsumerImpl<String>) consumer).unBlockTopics(blockTopics);
+
+        receivedAndAckedMessage(consumer);
+        receivedAndAckedMessage(consumer);
+
+        producer2.send("msg2-3");
+        receivedAndAckedMessage(consumer, "msg2-3");
+        producer3.send("msg3-3");
+        receivedAndAckedMessage(consumer, "msg3-3");
+    }
+
+    @Test(timeOut = 20000)
+    public void testRecheckTopicsAfterTopicBlocked() throws Exception {
+        String baseTopicName = "persistent://my-property/my-ns/testBlockAndUnBlockGivenTopics-"
+                + System.currentTimeMillis();
+        Pattern pattern = Pattern.compile(baseTopicName + ".*");
+
+        // create 2 topics.
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-1")
+                .create();
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-2")
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(pattern)
+                .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        // wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+
+        assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
+        PatternMultiTopicsConsumerImpl<String> consumerImpl = (PatternMultiTopicsConsumerImpl<String>) consumer;
+
+        // verify consumer get methods.
+        assertSame(consumerImpl.getPattern().pattern(), pattern.pattern());
+        assertEquals(consumerImpl.getPartitionedTopics().size(), 0);
+
+        sendMessage(producer1, "msg1-1", consumer);
+        sendMessage(producer2, "msg2-1", consumer);
+
+        // add block topics.
+        Set<String> blockTopics = new HashSet<>();
+        blockTopics.add(baseTopicName + "-2");
+        ((PatternMultiTopicsConsumerImpl<String>) consumer).blockTopics(blockTopics);
+
+        // waiting for topic2 to be blocked.
+        Thread.sleep(2000);
+
+        producer2.send("msg2-2");
+
+        ((PatternMultiTopicsConsumerImpl<String>) consumer).recheckTopicsChange();
+
+        // await to check if msg2-2 is not received in 5 seconds.
+        Awaitility.await().during(5, TimeUnit.SECONDS).until(() -> {
+            Message<String> receivedMessage = consumer.receive(100, TimeUnit.MILLISECONDS);
+            if (receivedMessage != null && receivedMessage.getValue().equals("msg2-2")) {
+                throw new AssertionError("Received message which was supposed to be blocked");
+            }
+            return receivedMessage == null || !receivedMessage.getValue().equals("msg2-2");
+        });
+
+        ((PatternMultiTopicsConsumerImpl<String>) consumer).unBlockTopics(blockTopics);
+
+        receivedAndAckedMessage(consumer, "msg2-2");
+    }
+
+    @Test(timeOut = 20000)
+    public void testBlockUnExistsTopic() throws Exception {
+        String baseTopicName = "persistent://my-property/my-ns/testBlockAndUnBlockGivenTopics-"
+                + System.currentTimeMillis();
+        Pattern pattern = Pattern.compile(baseTopicName + ".*");
+
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-1")
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(pattern)
+                .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        // wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+
+        assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
+        PatternMultiTopicsConsumerImpl<String> consumerImpl = (PatternMultiTopicsConsumerImpl<String>) consumer;
+
+        // verify consumer get methods.
+        assertSame(consumerImpl.getPattern().pattern(), pattern.pattern());
+        assertEquals(consumerImpl.getPartitionedTopics().size(), 0);
+
+        sendMessage(producer1, "msg1-1", consumer);
+
+        // add block topics.
+        Set<String> blockTopics = new HashSet<>();
+        blockTopics.add(baseTopicName + "-2");
+        ((PatternMultiTopicsConsumerImpl<String>) consumer).blockTopics(blockTopics);
+
+        // waiting for topic2 to be blocked.
+        Thread.sleep(2000);
+
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-2")
+                .create();
+
+        // Blocking a non-existent topic will ignore the block request. At this time, messages can still be consumed.
+        sendMessage(producer2, "msg2-1", consumer);
+    }
+
+    private <T> void sendMessage(Producer<T> producer, T sendMessage,
+                                 Consumer<T> consumer) throws PulsarClientException {
+        producer.send(sendMessage);
+        receivedAndAckedMessage(consumer, sendMessage);
+    }
+
+    private <T> void receivedAndAckedMessage(Consumer<T> consumer, T sendMessage) throws PulsarClientException {
+        Message<T> message = consumer.receive();
+        assertEquals(message.getValue(), sendMessage);
+        consumer.acknowledge(message);
+    }
+
+    private <T> void receivedAndAckedMessage(Consumer<T> consumer) throws PulsarClientException {
+        Message<T> message = consumer.receive();
+        consumer.acknowledge(message);
     }
 }
