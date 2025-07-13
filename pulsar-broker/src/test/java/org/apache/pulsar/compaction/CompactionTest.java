@@ -2176,7 +2176,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     private void triggerCompactionAndWait(String topicName) throws Exception {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
-        persistentTopic.triggerCompaction();
+        persistentTopic.triggerCompactionWithCheckHasMoreMessages().join();
         CompletableFuture<Long> currentCompaction =
                 (CompletableFuture<Long>) FieldUtils.readDeclaredField(persistentTopic, "currentCompaction", true);
         currentCompaction.get(10, TimeUnit.SECONDS);
@@ -2383,7 +2383,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .topic(topicName).readCompacted(true).subscriptionName("s1")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        persistentTopic.triggerCompaction();
+        persistentTopic.triggerCompactionWithCheckHasMoreMessages().join();
         Awaitility.await().untilAsserted(() -> {
            assertEquals(persistentTopic.getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 1);
         });
