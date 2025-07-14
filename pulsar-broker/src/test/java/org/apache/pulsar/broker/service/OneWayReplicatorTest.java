@@ -1802,7 +1802,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // cleanup.
         producer1.close();
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
-        waitReplicatorStopped(topicName);
+        waitReplicatorStopped(topicName, false);
         admin1.topics().delete(topicName, false);
         if (originalReplClient2 == null) {
             pulsar1.getBrokerService().getReplicationClients().remove(cluster2);
