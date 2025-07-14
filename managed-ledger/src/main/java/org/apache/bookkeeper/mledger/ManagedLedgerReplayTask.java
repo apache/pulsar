@@ -34,6 +34,7 @@ import org.jspecify.annotations.Nullable;
 @Slf4j
 public class ManagedLedgerReplayTask {
 
+    private final String name;
     private final Executor executor; // run user-provided processor on entry
     private final int maxEntriesPerRead;
     @Getter // NOTE: the getter must be called in the callback of `replay` for thread safety
@@ -78,7 +79,7 @@ public class ManagedLedgerReplayTask {
                     try {
                         processor.process(position, buffer);
                     } catch (Throwable throwable) {
-                        log.error("[{}] Failed to process entry {}", processor.getName(), position, throwable);
+                        log.error("[{}] Failed to process entry {}", name, position, throwable);
                         return CompletableFuture.completedFuture(Optional.ofNullable(processedPosition));
                     }
                     // It does not need to be atomic because the update happens before the future completes

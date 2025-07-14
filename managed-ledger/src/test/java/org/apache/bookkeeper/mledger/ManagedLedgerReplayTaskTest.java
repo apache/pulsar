@@ -50,8 +50,8 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
         };
 
         final var maxEntriesPerRead = 5;
-        final var replayTask = new ManagedLedgerReplayTask(executor, maxEntriesPerRead);
         @Cleanup final var ml = factory.open("testNormalReplay");
+        final var replayTask = new ManagedLedgerReplayTask(ml.getName(), executor, maxEntriesPerRead);
         final var cursor = ml.openCursor("cursor");
         final var processor = new TestEntryProcessor();
         assertTrue(replayTask.replay(cursor, processor).get().isEmpty());
@@ -90,7 +90,7 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 10; i++) {
             positions.add(ml.addEntry(("msg-" + i).getBytes(StandardCharsets.UTF_8)));
         }
-        final var replayTask = new ManagedLedgerReplayTask(Runnable::run, 10);
+        final var replayTask = new ManagedLedgerReplayTask(ml.getName(), Runnable::run, 10);
         final var cursor = ml.newNonDurableCursor(positions.get(3), "sub");
         final var values = new ArrayList<String>();
         final var maxPosition = positions.get(8);
@@ -115,7 +115,7 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testUnexpectedException() throws Exception {
-        final var replayTask = new ManagedLedgerReplayTask(Runnable::run, 10);
+        final var replayTask = new ManagedLedgerReplayTask("testUnexpectedException", Runnable::run, 10);
         final var cursor = mock(ManagedCursor.class);
         final var count = new AtomicInteger(0);
         doAnswer(invocation -> {

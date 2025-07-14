@@ -142,7 +142,7 @@ public class MessageDeduplication {
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
-        this.replayTask = new ManagedLedgerReplayTask(pulsar.getExecutor(), 100);
+        this.replayTask = new ManagedLedgerReplayTask("MessageDeduplication", pulsar.getExecutor(), 100);
     }
 
     public Status getStatus() {

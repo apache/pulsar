@@ -27,8 +27,4 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 public interface EntryProcessor {
 
     void process(Position position, ByteBuf buffer);
-
-    default String getName() {
-        return "DefaultEntryProcessor";
-    }
 }
