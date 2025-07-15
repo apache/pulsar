@@ -52,6 +52,8 @@ public class ManagedLedgerReplayTask {
      *         3. If any exception is thrown from {@link EntryProcessor#process}, it will be the position of the last
      *            entry that has been processed successfully.
      *         4. If an unexpected exception is thrown, the future will complete exceptionally.
+     * @apiNote The implementation of `processor` should not call `release()` on the buffer because this method will
+     *          eventually release the buffer after it's processed.
      */
     public CompletableFuture<Optional<Position>> replay(ManagedCursor cursor, EntryProcessor processor) {
         try {
