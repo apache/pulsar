@@ -344,7 +344,7 @@ The Apache Software License, Version 2.0
     - commons-io-2.18.0.jar
     - commons-lang-2.6.jar
     - commons-logging-1.2.jar
-    - commons-lang3-3.11.jar
+    - commons-lang3-3.18.0.jar
     - commons-text-1.10.0.jar
     - commons-compress-1.26.0.jar
  * Netty

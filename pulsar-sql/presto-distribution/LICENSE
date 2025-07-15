@@ -229,7 +229,7 @@ The Apache Software License, Version 2.0
  * Apache Commons
     - commons-math3-3.6.1.jar
     - commons-compress-1.26.0.jar
-    - commons-lang3-3.11.jar
+    - commons-lang3-3.18.0.jar
  * Netty
     - netty-buffer-4.1.122.Final.jar
     - netty-codec-4.1.122.Final.jar
