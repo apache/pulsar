@@ -1099,7 +1099,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         // decrement usage only if this was a valid producer close
         USAGE_COUNT_UPDATER.decrementAndGet(this);
         // this conditional check is an optimization so we don't have acquire the write lock
-        // and execute following routine if there are no exclusive producers or there is no producer but still got waitingExclusiveProducers to call
+        // and execute following routine if there are no exclusive producers
+        // or there is no producer but still got waitingExclusiveProducers to call
         if (hasExclusiveProducer || (producers.size() == 0 && !waitingExclusiveProducers.isEmpty())) {
             lock.writeLock().lock();
             try {
