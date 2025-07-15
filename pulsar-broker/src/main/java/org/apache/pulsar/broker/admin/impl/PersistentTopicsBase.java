@@ -976,7 +976,8 @@ public class PersistentTopicsBase extends AdminResource {
             .thenApply(op -> {
                 TopicPolicies policies = op.orElseGet(TopicPolicies::new);
                 DelayedDeliveryPolicies delayedDeliveryPolicies = null;
-                if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
+                if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()
+                        && policies.isDelayedDeliveryMaxDelayInMillisSet()) {
                     delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                             .tickTime(policies.getDelayedDeliveryTickTimeMillis())
                             .active(policies.getDelayedDeliveryEnabled())
