@@ -265,6 +265,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         // close p1,p2 and p3Future should be done and return a producer.
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             assertTrue(p3Future.isDone());
+            assertTrue(p3Future.get().isConnected());
         });
         p3Future.get().close();
     }
