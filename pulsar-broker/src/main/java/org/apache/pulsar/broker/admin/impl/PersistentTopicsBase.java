@@ -971,11 +971,13 @@ public class PersistentTopicsBase extends AdminResource {
                 TopicPolicies policies = op.orElseGet(TopicPolicies::new);
                 DelayedDeliveryPolicies delayedDeliveryPolicies = null;
                 if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
-                    delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                    DelayedDeliveryPolicies.Builder builder = DelayedDeliveryPolicies.builder()
                             .tickTime(policies.getDelayedDeliveryTickTimeMillis())
-                            .active(policies.getDelayedDeliveryEnabled())
-                            .maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis())
-                            .build();
+                            .active(policies.getDelayedDeliveryEnabled());
+                    if (policies.isDelayedDeliveryMaxDelayInMillisSet()) {
+                        builder.maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis());
+                    }
+                    delayedDeliveryPolicies = builder.build();
                 }
                 if (delayedDeliveryPolicies == null && applied) {
                     delayedDeliveryPolicies = getNamespacePolicies(namespaceName).delayed_delivery_policies;
