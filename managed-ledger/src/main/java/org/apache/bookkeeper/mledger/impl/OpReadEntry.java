@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -67,28 +66,27 @@ class OpReadEntry implements ReadEntriesCallback {
         return op;
     }
 
-    void internalReadEntriesComplete(List<Entry> returnedEntries, Object ctx, Position lastPosition) {
+    private void internalReadEntriesComplete(List<Entry> returnedEntries) {
+        if (returnedEntries.isEmpty()) {
+            checkReadCompletion();
+            return;
+        }
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
         long entriesSize = 0;
-        for (int i = 0; i < entriesCount; i++) {
-            entriesSize += returnedEntries.get(i).getLength();
+        for (final var returnedEntry : returnedEntries) {
+            entriesSize += returnedEntry.getLength();
         }
+        final var lastPosition = returnedEntries.get(returnedEntries.size() - 1).getPosition();
         cursor.updateReadStats(entriesCount, entriesSize);
 
-        if (entriesCount != 0) {
-            lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
-        }
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
                     cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
         }
 
-        List<Entry> filteredEntries = Collections.emptyList();
-        if (entriesCount != 0) {
-            filteredEntries = cursor.filterReadEntries(returnedEntries);
-            entries.addAll(filteredEntries);
-        }
+        final var filteredEntries = cursor.filterReadEntries(returnedEntries);
+        entries.addAll(filteredEntries);
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
         final Position nexReadPosition = entriesCount != filteredEntries.size()
@@ -99,19 +97,30 @@ class OpReadEntry implements ReadEntriesCallback {
 
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
-        internalReadEntriesComplete(returnedEntries, ctx, null);
+        try {
+            internalReadEntriesComplete(returnedEntries);
+        } catch (Throwable throwable) {
+            log.error("[{}] Fallback to readEntriesFailed for exception in readEntriesComplete", this, throwable);
+            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+        }
     }
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+        try {
+            internalReadEntriesFailed(exception, ctx);
+        } catch (Throwable throwable) {
+            // At least we should complete the callback
+            fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+        }
+    }
+
+    private void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
         cursor.readOperationCompleted();
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            cursor.ledger.getExecutor().execute(() -> {
-                callback.readEntriesComplete(entries, ctx);
-                recycle();
-            });
+            complete(ctx);
         } else if (cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
@@ -129,9 +138,7 @@ class OpReadEntry implements ReadEntriesCallback {
             }
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
-                callback.readEntriesFailed(exception, ctx);
-                cursor.ledger.mbean.recordReadEntriesError();
-                recycle();
+                fail(exception, ctx);
                 return;
             }
             updateReadPosition(nexReadPosition);
@@ -152,9 +159,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 }
             }
 
-            callback.readEntriesFailed(exception, ctx);
-            cursor.ledger.mbean.recordReadEntriesError();
-            recycle();
+            fail(exception, ctx);
         }
     }
 
@@ -177,12 +182,8 @@ class OpReadEntry implements ReadEntriesCallback {
             // The reading was already completed, release resources and trigger callback
             try {
                 cursor.readOperationCompleted();
-
             } finally {
-                cursor.ledger.getExecutor().execute(() -> {
-                    callback.readEntriesComplete(entries, ctx);
-                    recycle();
-                });
+                complete(ctx);
             }
         }
     }
@@ -215,6 +216,48 @@ class OpReadEntry implements ReadEntriesCallback {
         maxPosition = null;
         skipCondition = null;
         recyclerHandle.recycle(this);
+    }
+
+    private void complete(Object ctx) {
+        cursor.ledger.getExecutor().execute(() -> {
+            try {
+                callback.readEntriesComplete(entries, ctx);
+            } catch (Throwable throwable) {
+                log.error("[{}] readEntriesComplete failed (last position: {})", this, lastEntryPosition(), throwable);
+            } finally {
+                recycle();
+            }
+        });
+    }
+
+    private void fail(ManagedLedgerException e, Object ctx) {
+        try {
+            callback.readEntriesFailed(e, ctx);
+            cursor.ledger.mbean.recordReadEntriesError();
+        } catch (Throwable throwable) {
+            log.error("[{}] readEntriesFailed failed (exception: {})", this, e.getMessage(), throwable);
+        } finally {
+            recycle();
+        }
+    }
+
+    @Override
+    public String toString() {
+        final var cursor = this.cursor;
+        if (cursor != null) {
+            return cursor.ledger.getName() + ":" + cursor.getName();
+        } else {
+            return "(null)";
+        }
+    }
+
+    private String lastEntryPosition() {
+        final var entries = this.entries;
+        if (entries != null) {
+            return entries.isEmpty() ? "(empty)" : entries.get(entries.size() - 1).getPosition().toString();
+        } else {
+            return "(null)";
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);
