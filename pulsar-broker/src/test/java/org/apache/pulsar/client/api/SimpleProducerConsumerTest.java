@@ -3297,6 +3297,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             String expectedMessage = "my-message-" + msgNum++;
             Assert.assertNotEquals(receivedMessage, expectedMessage, "Received encrypted message " + receivedMessage
                     + " should not match the expected message " + expectedMessage);
+            // Verify that decryption failed since no CryptoKeyReader is configured
+            Optional<EncryptionContext> encryptionCtx = msg.getEncryptionCtx();
+            Assert.assertTrue(encryptionCtx.isPresent(), "EncryptionContext should be present for encrypted message");
+            Assert.assertTrue(encryptionCtx.get().isEncrypted(),
+                "isEncrypted should be true when no CryptoKeyReader is configured");
             consumer.acknowledgeCumulative(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -3313,8 +3318,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = msgNum; i < totalMsg - 1; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             // verify that encrypted message contains encryption-context
-            msg.getEncryptionCtx()
+            Optional<EncryptionContext> encryptionCtx = msg.getEncryptionCtx();
+            EncryptionContext ctx = encryptionCtx
                     .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
+            // Verify that decryption succeeded since CryptoKeyReader is properly configured
+            Assert.assertFalse(ctx.isEncrypted(),
+                "isEncrypted should be false when CryptoKeyReader is properly configured and decryption succeeds");
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
@@ -3398,6 +3407,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         TopicMessageImpl<byte[]> msg =
                 (TopicMessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+        // Verify that decryption failed since no CryptoKeyReader is configured for the consumer
+        Optional<EncryptionContext> encryptionCtx = msg.getEncryptionCtx();
+        Assert.assertTrue(encryptionCtx.isPresent(), "EncryptionContext should be present for encrypted message");
+        Assert.assertTrue(encryptionCtx.get().isEncrypted(),
+            "isEncrypted should be true when consumer has no CryptoKeyReader configured");
 
         String receivedMessage = decryptMessage(msg, encryptionKeyName, new EncKeyReader());
         assertEquals(message, receivedMessage);
@@ -5250,6 +5265,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             final var msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
+            // Verify that decryption failed due to mismatched keys
+            if (msg instanceof MessageImpl) {
+                MessageImpl<String> msgImpl = (MessageImpl<String>) msg;
+                Optional<EncryptionContext> encryptionCtx = msgImpl.getEncryptionCtx();
+                Assert.assertTrue(encryptionCtx.isPresent(),
+                        "EncryptionContext should be present for encrypted message");
+                Assert.assertTrue(encryptionCtx.get().isEncrypted(),
+                    "isEncrypted should be true when using mismatched keys for decryption");
+            }
             consumer.acknowledge(msg);
         }
 
