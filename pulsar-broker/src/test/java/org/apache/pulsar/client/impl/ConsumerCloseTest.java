@@ -59,7 +59,8 @@ public class ConsumerCloseTest extends ProducerConsumerBase {
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         String subName = "test-sub";
-        String mlCursorPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + subName;
+        String mlCursorPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/"
+                + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + subName;
 
         // Make create cursor delay 1s
         CountDownLatch topicLoadLatch = new CountDownLatch(1);

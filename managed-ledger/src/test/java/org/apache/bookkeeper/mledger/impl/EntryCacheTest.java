@@ -27,7 +27,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;

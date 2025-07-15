@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClientException.MemoryBufferIsFullError;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -27,12 +31,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 @Test(groups = "broker-api")
 public class MemoryLimitTest extends ProducerConsumerBase {

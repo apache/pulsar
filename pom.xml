@@ -80,7 +80,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
-    <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
+    <pulsar.client.compiler.release>17</pulsar.client.compiler.release>
 
     <pulsar.client.python.version>3.7.0</pulsar.client.python.version>
 
@@ -177,7 +177,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.27.1</commons-compress.version>
 
-    <bookkeeper.version>4.17.1</bookkeeper.version>
+    <bookkeeper.version>4.17.2</bookkeeper.version>
     <zookeeper.version>3.9.3</zookeeper.version>
     <commons-cli.version>1.9.0</commons-cli.version>
     <commons-text.version>1.13.1</commons-text.version>
@@ -212,7 +212,7 @@ flexible messaging model and an intuitive client API.</description>
     <zt-zip.version>1.17</zt-zip.version>
     <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.56.1</grpc.version>
+    <grpc.version>1.72.0</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.26.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
@@ -2410,20 +2410,6 @@ flexible messaging model and an intuitive client API.</description>
   </build>
 
   <profiles>
-    <profile>
-      <!-- used for running integration tests on Java 8 -->
-      <id>integration-test-java8</id>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
-      <properties>
-        <test.additional.args/>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-        <pulsar.broker.compiler.release/>
-        <pulsar.client.compiler.release/>
-      </properties>
-    </profile>
     <profile>
       <id>coverage</id>
       <properties>

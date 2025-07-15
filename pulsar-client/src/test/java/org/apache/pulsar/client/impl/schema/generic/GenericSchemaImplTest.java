@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -141,9 +140,7 @@ public class GenericSchemaImplTest {
                 Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchemaImpl.of(
                     Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()
                 );
-                decodeSchema.configureSchemaInfo(
-                    "test-topic", "topic",kvSchema.getSchemaInfo()
-                );
+                decodeSchema.configureSchemaInfo("test-topic", "topic", kvSchema.getSchemaInfo());
 
                 GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
                 when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))

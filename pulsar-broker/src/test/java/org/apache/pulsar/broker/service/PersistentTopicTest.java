@@ -1686,7 +1686,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                             new ProducerBuilderImpl(pulsarClientMock, invocation.getArgument(0)) {
                                 @Override
                                 public CompletableFuture<org.apache.pulsar.client.api.Producer> createAsync() {
-                                    return CompletableFuture.completedFuture(mock(org.apache.pulsar.client.api.Producer.class));
+                                    return CompletableFuture.completedFuture(
+                                            mock(org.apache.pulsar.client.api.Producer.class));
                                 }
                             };
                     return producerBuilder;
@@ -1812,22 +1813,26 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
                         policies);
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = Mockito.spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         topic.initialize().get();
+        doAnswer(invocationOnMock -> {
+            topic.triggerCompaction();
+            return CompletableFuture.completedFuture(null);
+        }).when(topic).triggerCompactionWithCheckHasMoreMessages();
 
         topic.checkCompaction();
 
-        verify(compactor, times(0)).compact(anyString());
+        verify(topic, times(0)).triggerCompactionWithCheckHasMoreMessages();
 
         doReturn(10L).when(ledgerMock).getTotalSize();
         doReturn(10L).when(ledgerMock).getEstimatedBacklogSize();
 
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
 
         // run a second time, shouldn't run again because already running
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
     }
 
     @Test
@@ -1848,21 +1853,25 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
                         policies);
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = Mockito.spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         topic.initialize().get();
+        doAnswer(invocationOnMock -> {
+            topic.triggerCompaction();
+            return CompletableFuture.completedFuture(null);
+        }).when(topic).triggerCompactionWithCheckHasMoreMessages();
 
         topic.checkCompaction();
 
-        verify(compactor, times(0)).compact(anyString());
+        verify(topic, times(0)).triggerCompactionWithCheckHasMoreMessages();
 
         doReturn(10L).when(subCursor).getEstimatedSizeSinceMarkDeletePosition();
 
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
 
         // run a second time, shouldn't run again because already running
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
     }
 
     @Test
@@ -2217,7 +2226,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
+        CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(
+                new GetStatsOptions(false, false, false, false, false));
         assertThat(stats3Async).succeedsWithin(Duration.ofSeconds(3))
                 .matches(stats3 -> {
                     assertEquals(stats3.keySharedMode, "STICKY");

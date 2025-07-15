@@ -598,20 +598,6 @@ jobs:
             group: LOADBALANCE
             no_coverage: true
 
-          - name: Shade on Java 8
-            group: SHADE_RUN
-            upload_name: SHADE_RUN_8
-            runtime_jdk: 8
-            setup: ./build/run_integration_group.sh SHADE_BUILD
-            no_coverage: true
-
-          - name: Shade on Java 11
-            group: SHADE_RUN
-            upload_name: SHADE_RUN_11
-            runtime_jdk: 11
-            setup: ./build/run_integration_group.sh SHADE_BUILD
-            no_coverage: true
-
           - name: Shade on Java 17
             group: SHADE_RUN
             upload_name: SHADE_RUN_17

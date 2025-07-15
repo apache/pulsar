@@ -18,10 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.google.common.io.ByteSource;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-
+import org.apache.commons.io.IOUtils;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
@@ -30,24 +33,18 @@ import org.jclouds.blobstore.domain.MultipartUpload;
 import org.jclouds.blobstore.options.PutOptions;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
-import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
-import org.apache.commons.io.IOUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.io.ByteSource;
-
 public abstract class AbstractJCloudBlobStoreFactoryTest {
-    
-    protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
-    protected static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
+
+    protected static final int DEFAULT_BLOCK_SIZE = 5 * 1024 * 1024;
+    protected static final int DEFAULT_READ_BUFFER_SIZE = 1 * 1024 * 1024;
     protected static final ByteSource PAYLOAD = ByteSource.wrap("blob-content".getBytes(Charsets.UTF_8));
-    
+
     protected TieredStorageConfiguration config;
     protected BlobStore blobStore;
-    
+
     protected abstract Map<String, String> getConfig();
 
     @BeforeTest
@@ -56,7 +53,7 @@ public abstract class AbstractJCloudBlobStoreFactoryTest {
         config.getProvider().validate(config);
         blobStore = config.getBlobStore();
     }
-    
+
     protected void sendBlob(String containerName, String blobName, ByteSource payload) throws IOException {
      // Create a Blob
         Blob blob = createBlob(payload, blobName);
@@ -65,20 +62,20 @@ public abstract class AbstractJCloudBlobStoreFactoryTest {
         blobStore.putBlob(containerName, blob);
         Assert.assertTrue(blobStore.blobExists(containerName, blobName));
     }
-    
+
     protected void verifyBlob(String containerName, String blobName, ByteSource payload) throws IOException {
         Blob retrieved = blobStore.getBlob(containerName, blobName);
         Assert.assertNotNull(retrieved);
-        
+
         Payload p = retrieved.getPayload();
         Assert.assertEquals(IOUtils.toByteArray(p.openStream()), payload.read());
     }
-    
+
     protected void sendAndVerifyBlob(String containerName, String blobName, ByteSource payload) throws IOException {
         sendBlob(containerName, blobName, payload);
         verifyBlob(containerName, blobName, payload);
     }
-    
+
     protected void sendMultipartPayload(String containerName, String blobName, String[] lines) {
         MultipartUpload mpu = null;
         List<MultipartPart> parts = Lists.newArrayList();
@@ -97,17 +94,17 @@ public abstract class AbstractJCloudBlobStoreFactoryTest {
 
         blobStore.completeMultipartUpload(mpu, parts);
     }
-    
+
     protected void deleteBlobAndVerify(String containerName, String blobName) {
         blobStore.removeBlob(containerName, blobName);
         Assert.assertFalse(blobStore.blobExists(containerName, blobName));
     }
-    
+
     protected void deleteContainerAndVerify(String containerName) {
         blobStore.deleteContainer(containerName);
         Assert.assertFalse(blobStore.containerExists(containerName));
     }
-    
+
     protected Blob createBlob(ByteSource payload, String name) throws IOException {
         return blobStore.blobBuilder(name) // The blob name?
                 .payload(payload.read())

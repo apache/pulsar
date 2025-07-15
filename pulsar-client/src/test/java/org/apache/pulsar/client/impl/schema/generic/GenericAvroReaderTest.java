@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
@@ -82,7 +81,8 @@ public class GenericAvroReaderTest {
     public void testGenericAvroReaderByReaderSchema() {
         byte[] fooV2Bytes = fooV2Schema.encode(fooV2);
 
-        GenericAvroReader genericAvroSchemaByReaderSchema = new GenericAvroReader(fooV2Schema.getAvroSchema(), fooSchemaNotNull.getAvroSchema(), new byte[10]);
+        GenericAvroReader genericAvroSchemaByReaderSchema = new GenericAvroReader(fooV2Schema.getAvroSchema(),
+                fooSchemaNotNull.getAvroSchema(), new byte[10]);
         GenericRecord genericRecordByReaderSchema = genericAvroSchemaByReaderSchema.read(fooV2Bytes);
         assertEquals(genericRecordByReaderSchema.getField("fieldUnableNull"), "defaultValue");
         assertEquals(genericRecordByReaderSchema.getField("field1"), "foo1");

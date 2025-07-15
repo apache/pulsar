@@ -128,7 +128,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         // create default resources.
         admin.clusters().createCluster(conf.getClusterName(),
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfo tenantInfo = new TenantInfoImpl(Collections.emptySet(), Collections.singleton(conf.getClusterName()));
+        TenantInfo tenantInfo = new TenantInfoImpl(Collections.emptySet(),
+                Collections.singleton(conf.getClusterName()));
         admin.tenants().createTenant("public", tenantInfo);
         admin.namespaces().createNamespace("public/default");
     }
@@ -140,7 +141,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(configClusterName);
 
-        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        proxyClientAuthentication = AuthenticationFactory.create(
+                proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
     }
@@ -241,7 +243,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * test auto create partitioned topic by proxy
+     * test auto create partitioned topic by proxy.
      **/
     @Test
     public void testAutoCreateTopic() throws Exception{

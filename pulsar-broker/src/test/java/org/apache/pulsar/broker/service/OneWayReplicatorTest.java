@@ -72,8 +72,10 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
-import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
@@ -97,8 +99,8 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -229,7 +231,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // The topic in cluster2 has a replicator created producer(schema Auto_Produce), but does not have any schema。
         // Verify: the consumer of this cluster2 can create successfully.
         Consumer<String> consumer2 = client2.newConsumer(Schema.STRING).topic(topicName).subscriptionName("s1")
-                .subscribe();;
+                .subscribe();
         // Wait for replicator started.
         waitReplicatorStarted(topicName);
         // cleanup.
@@ -239,6 +241,34 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
         });
+    }
+
+    /**
+     * Since {@link NonPersistentReplicator} never implement the rate limitation, the config
+     * "replicationProducerQueueSize" should not affect {@link NonPersistentReplicator}.
+     */
+    @Test
+    public void testNonPersistentReplicatorQueueSize() throws Exception {
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "2");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), 2);
+        });
+        final String topicName = BrokerTestUtil.newUniqueName("non-persistent://" + replicatedNamespace + "/tp_");
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        // Wait for replicator started.
+        Awaitility.await().untilAsserted(() -> {
+            Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional2.isPresent());
+            NonPersistentTopic persistentTopic2 = (NonPersistentTopic) topicOptional2.get();
+            assertFalse(persistentTopic2.getProducers().isEmpty());
+        });
+
+        NonPersistentTopic topic = (NonPersistentTopic) broker1.getTopic(topicName, false).get().get();
+        NonPersistentReplicator nonPersistentReplicator = topic.getReplicators().get(cluster2);
+        assertEquals(nonPersistentReplicator.getProducer().getConfiguration().getMaxPendingMessages(), 1000);
+        // cleanup.
+        producer1.close();
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "1000");
     }
 
     @Test(timeOut = 45 * 1000)

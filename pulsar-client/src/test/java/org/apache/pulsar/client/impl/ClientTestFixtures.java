@@ -50,7 +50,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.mockito.Mockito;
 
 class ClientTestFixtures {
-    public static ScheduledExecutorService SCHEDULER =
+    public static ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor(
                     new ThreadFactoryBuilder()
                             .setNameFormat("ClientTestFixtures-SCHEDULER-%d")
@@ -178,13 +178,13 @@ class ClientTestFixtures {
 
     static <T> CompletableFuture<T> createDelayedCompletedFuture(T result, int delayMillis) {
         CompletableFuture<T> future = new CompletableFuture<>();
-        SCHEDULER.schedule(() -> future.complete(result), delayMillis, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> future.complete(result), delayMillis, TimeUnit.MILLISECONDS);
         return future;
     }
 
     static <T> CompletableFuture<T> createExceptionFuture(Throwable ex, int delayMillis) {
         CompletableFuture<T> future = new CompletableFuture<>();
-        SCHEDULER.schedule(() -> future.completeExceptionally(ex), delayMillis, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> future.completeExceptionally(ex), delayMillis, TimeUnit.MILLISECONDS);
         return future;
     }
 

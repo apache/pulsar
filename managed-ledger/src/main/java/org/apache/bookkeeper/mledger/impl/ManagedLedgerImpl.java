@@ -4815,4 +4815,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ManagedLedgerImplUtils
                 .asyncGetLastValidPosition(this, predicate, startPosition);
     }
+
+    @Override
+    public long getLastAddEntryTime() {
+        return lastAddEntryTimeMs;
+    }
+
+    @Override
+    public long getMetadataCreationTimestamp() {
+        return ledgersStat != null ? ledgersStat.getCreationTimestamp() : 0;
+    }
 }
