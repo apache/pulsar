@@ -976,13 +976,14 @@ public class PersistentTopicsBase extends AdminResource {
             .thenApply(op -> {
                 TopicPolicies policies = op.orElseGet(TopicPolicies::new);
                 DelayedDeliveryPolicies delayedDeliveryPolicies = null;
-                if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()
-                        && policies.isDelayedDeliveryMaxDelayInMillisSet()) {
-                    delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
+                    DelayedDeliveryPolicies.Builder builder = DelayedDeliveryPolicies.builder()
                             .tickTime(policies.getDelayedDeliveryTickTimeMillis())
-                            .active(policies.getDelayedDeliveryEnabled())
-                            .maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis())
-                            .build();
+                            .active(policies.getDelayedDeliveryEnabled());
+                    if (policies.isDelayedDeliveryMaxDelayInMillisSet()) {
+                        builder.maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis());
+                    }
+                    delayedDeliveryPolicies = builder.build();
                 }
                 if (delayedDeliveryPolicies == null && applied) {
                     delayedDeliveryPolicies = getNamespacePolicies(namespaceName).delayed_delivery_policies;
