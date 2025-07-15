@@ -71,6 +71,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             AtomicReferenceFieldUpdater.newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
     volatile State state;
 
+    volatile boolean shouldFail;
+
     @Setter
     private AtomicBoolean timeoutTriggered;
 
@@ -113,6 +115,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         op.ctx = ctx;
         op.addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
         op.closeWhenDone = false;
+        op.shouldFail = false;
         op.entryId = -1;
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
@@ -133,6 +136,13 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
+            if (ml.failAddOperations) {
+                ml.pendingAddEntries.remove(this);
+                failed(new ManagedLedgerException("xxx"));
+                ReferenceCountUtil.safeRelease(data);
+                recycle();
+                return;
+            }
 
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
@@ -143,10 +153,16 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                     payloadProcessorHandle = ml.getManagedLedgerInterceptor()
                             .processPayloadBeforeLedgerWrite(this.getCtx(), duplicateBuffer);
                 } catch (Exception e) {
-                    ml.pendingAddEntries.remove(this);
-                    ReferenceCountUtil.safeRelease(duplicateBuffer);
-                    log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
-                    this.failed(new ManagedLedgerException.ManagedLedgerInterceptException(e));
+                    ml.setFailAddOperations(true);
+                    if (ml.pendingAddEntries.peek() == this) {
+                        ml.pendingAddEntries.remove(this);
+                        ReferenceCountUtil.safeRelease(duplicateBuffer);
+                        log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
+                        this.failed(new ManagedLedgerException.ManagedLedgerInterceptException(e));
+                        recycle();
+                    } else {
+                        shouldFail = true;
+                    }
                     return;
                 }
                 if (payloadProcessorHandle != null) {
@@ -261,6 +277,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
+        ManagedLedgerImpl ml0 = this.ml;
+
         if (closeWhenDone) {
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledgerId);
             // `data` will be released in `closeComplete`
@@ -279,6 +297,13 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             } else {
                 ReferenceCountUtil.release(data);
             }
+        }
+
+        OpAddEntry next = ml0.pendingAddEntries.peek();
+        if (next != null && next.shouldFail) {
+            ml0.pendingAddEntries.remove(next);
+            next.failed(new ManagedLedgerException("xxx"));
+            ReferenceCountUtil.safeRelease(next.data);
         }
     }
 

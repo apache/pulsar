@@ -420,6 +420,8 @@ public interface ManagedLedger {
      */
     long getOffloadedSize();
 
+    void setFailAddOperations(boolean failAddOperations);
+
     /**
      * Get last offloaded ledgerId. If no offloaded yet, it returns 0.
      *
