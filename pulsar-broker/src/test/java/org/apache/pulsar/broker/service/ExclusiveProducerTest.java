@@ -266,6 +266,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             assertTrue(p3Future.isDone());
         });
+        p3Future.get().close();
     }
 
     @Test(dataProvider = "topics")
