@@ -128,6 +128,10 @@ public class TopicPolicies {
         return delayedDeliveryEnabled != null;
     }
 
+    public boolean isDelayedDeliveryMaxDelayInMillisSet(){
+        return delayedDeliveryMaxDelayInMillis != null;
+    }
+
     public boolean isMaxUnackedMessagesOnSubscriptionSet() {
         return maxUnackedMessagesOnSubscription != null;
     }
