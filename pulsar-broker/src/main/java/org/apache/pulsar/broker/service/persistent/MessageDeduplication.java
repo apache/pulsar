@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.markDelete;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.openCursor;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
@@ -32,7 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -556,14 +556,13 @@ public class MessageDeduplication {
     }
 
     private CompletableFuture<Void> takeSnapshot(Position position) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            future.complete(null);
-            return future;
+            log.warn("[{}] There is a pending snapshot when taking snapshot for {}", topic.getName(), position);
+            return CompletableFuture.completedFuture(null);
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -573,25 +572,23 @@ public class MessageDeduplication {
             }
         });
 
-        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
-            @Override
-            public void markDeleteComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
-                }
-                lastSnapshotTimestamp = System.currentTimeMillis();
-                snapshotTaking.set(false);
-                future.complete(null);
+        final var cursor = managedCursor;
+        if (cursor == null) {
+            log.warn("[{}] Cursor is null when taking snapshot for {}", topic.getName(), position);
+            return CompletableFuture.completedFuture(null);
+        }
+        final var future = markDelete(cursor, position, snapshot).thenRun(() -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
             }
-
-            @Override
-            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}",
-                        topic.getName(), position, exception);
-                snapshotTaking.set(false);
-                future.completeExceptionally(exception);
-            }
-        }, null);
+            lastSnapshotTimestamp = System.currentTimeMillis();
+            snapshotTaking.set(false);
+        });
+        future.exceptionally(e -> {
+            log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position, e);
+            snapshotTaking.set(false);
+            return null;
+        });
         return future;
     }
 
