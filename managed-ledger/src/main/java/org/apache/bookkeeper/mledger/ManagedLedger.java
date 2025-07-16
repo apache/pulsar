@@ -420,7 +420,12 @@ public interface ManagedLedger {
      */
     long getOffloadedSize();
 
-    void setFailAddOperations(boolean failAddOperations);
+    /**
+     * Reset Exception before write to null.
+     */
+    default void resetExceptionBeforeWrite() {
+        // Default implementation does nothing
+    }
 
     /**
      * Get last offloaded ledgerId. If no offloaded yet, it returns 0.

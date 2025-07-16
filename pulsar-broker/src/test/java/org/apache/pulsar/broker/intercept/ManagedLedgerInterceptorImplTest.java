@@ -47,7 +47,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
-import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
@@ -163,86 +162,6 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         ledger.close();
         factory.shutdown();
         config.setManagedLedgerInterceptor(null);
-    }
-
-
-    public static class TestPayloadProcessor0 implements ManagedLedgerPayloadProcessor {
-        private final AtomicInteger counter = new AtomicInteger(0);
-        private final int failAt;
-
-        public TestPayloadProcessor0(int failAt) {
-            this.failAt = failAt;
-        }
-
-        @Override
-        public Processor inputProcessor() {
-            return new Processor() {
-                @Override
-                public ByteBuf process(Object contextObj, ByteBuf inputPayload) {
-                    if (counter.incrementAndGet() == failAt) {
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        throw new RuntimeException("Failed to process input payload");
-                    }
-                    return inputPayload.retainedDuplicate();
-                }
-
-                @Override
-                public void release(ByteBuf processedPayload) {
-                    processedPayload.release();
-                }
-            };
-        }
-    }
-
-    @Test
-    public void testManagedLegerPayloadInterceptorThrows() throws Exception {
-        Set<ManagedLedgerPayloadProcessor> processors = new HashSet<>();
-        processors.add(new TestPayloadProcessor0(3));
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(Collections.emptySet(), processors);
-
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setMaxEntriesPerLedger(10);
-        config.setManagedLedgerInterceptor(interceptor);
-
-        ManagedLedger ledger = factory.open("testManagedLegerPayloadInterceptorThrows", config);
-
-        CountDownLatch latch = new CountDownLatch(6);
-        AsyncCallbacks.AddEntryCallback addEntryCallback = new AsyncCallbacks.AddEntryCallback() {
-            @Override
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                latch.countDown();
-            }
-
-            @Override
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                latch.countDown();
-            }
-        };
-
-        ledger.asyncAddEntry("Test Message1".getBytes(), addEntryCallback, null);
-        ledger.asyncAddEntry("Test Message2".getBytes(), addEntryCallback, null);
-        ledger.asyncAddEntry("Test Message3".getBytes(), addEntryCallback, null);
-        ledger.asyncAddEntry("Test Message4".getBytes(), addEntryCallback, null);
-        ledger.asyncAddEntry("Test Message5".getBytes(), addEntryCallback, null);
-        ledger.asyncAddEntry("Test Message6".getBytes(), addEntryCallback, null);
-        latch.await();
-
-        ManagedCursor cursor = ledger.openCursor("testManagedLegerPayloadInterceptorThrows",
-                CommandSubscribe.InitialPosition.Earliest);
-        List<Entry> entries = cursor.readEntries(10);
-        assertEquals(entries.size(), 5);
-
-        List<String> entryContents = new ArrayList<>();
-        for (Entry entry : entries) {
-            String message = new String(entry.getData());
-            entryContents.add(message);
-            entry.release();
-        }
-        System.out.println();
     }
 
     @Test

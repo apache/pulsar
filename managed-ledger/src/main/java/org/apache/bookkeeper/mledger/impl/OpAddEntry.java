@@ -71,8 +71,6 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             AtomicReferenceFieldUpdater.newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
     volatile State state;
 
-    volatile boolean shouldFail;
-
     @Setter
     private AtomicBoolean timeoutTriggered;
 
@@ -115,7 +113,6 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         op.ctx = ctx;
         op.addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
         op.closeWhenDone = false;
-        op.shouldFail = false;
         op.entryId = -1;
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
@@ -136,9 +133,11 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
-            if (ml.failAddOperations) {
+            // Fail the add operation if the managed ledger is in a state that prevents adding entries.
+            ManagedLedgerException exbw = ml.exceptionBeforeWrite;
+            if (exbw != null) {
                 ml.pendingAddEntries.remove(this);
-                failed(new ManagedLedgerException("xxx"));
+                this.failed(exbw);
                 ReferenceCountUtil.safeRelease(data);
                 recycle();
                 return;
@@ -153,16 +152,13 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                     payloadProcessorHandle = ml.getManagedLedgerInterceptor()
                             .processPayloadBeforeLedgerWrite(this.getCtx(), duplicateBuffer);
                 } catch (Exception e) {
-                    ml.setFailAddOperations(true);
-                    if (ml.pendingAddEntries.peek() == this) {
-                        ml.pendingAddEntries.remove(this);
-                        ReferenceCountUtil.safeRelease(duplicateBuffer);
-                        log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
-                        this.failed(new ManagedLedgerException.ManagedLedgerInterceptException(e));
-                        recycle();
-                    } else {
-                        shouldFail = true;
-                    }
+                    ManagedLedgerException mle = new ManagedLedgerException.ManagedLedgerInterceptException(e);
+                    ml.exceptionBeforeWrite = mle;
+                    ml.pendingAddEntries.remove(this);
+                    ReferenceCountUtil.safeRelease(duplicateBuffer);
+                    log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
+                    this.failed(mle);
+                    recycle();
                     return;
                 }
                 if (payloadProcessorHandle != null) {
@@ -187,7 +183,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             //Use entryId in PublishContext and call addComplete directly.
             this.addComplete(BKException.Code.OK, ledger, ((Position) ctx).getEntryId(), addOpCount);
         } else {
-            log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            log.warn("[{}] initiateShadowWrite with unexpected state {}, expect OPEN state.", ml.getName(), state);
         }
     }
 
@@ -297,13 +293,6 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             } else {
                 ReferenceCountUtil.release(data);
             }
-        }
-
-        OpAddEntry next = ml0.pendingAddEntries.peek();
-        if (next != null && next.shouldFail) {
-            ml0.pendingAddEntries.remove(next);
-            next.failed(new ManagedLedgerException("xxx"));
-            ReferenceCountUtil.safeRelease(next.data);
         }
     }
 

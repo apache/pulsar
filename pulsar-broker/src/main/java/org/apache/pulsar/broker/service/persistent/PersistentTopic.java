@@ -4277,7 +4277,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private synchronized void unfence() {
         isFenced = false;
-        getManagedLedger().setFailAddOperations(false);
+        ledger.resetExceptionBeforeWrite();
         cancelFencedTopicMonitoringTask();
     }
 
