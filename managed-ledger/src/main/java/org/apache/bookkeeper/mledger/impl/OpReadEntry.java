@@ -223,10 +223,9 @@ class OpReadEntry implements ReadEntriesCallback {
         cursor.ledger.getExecutor().execute(() -> {
             try {
                 callback.readEntriesComplete(entries, ctx);
+                recycle();
             } catch (Throwable throwable) {
                 log.error("[{}] readEntriesComplete failed (last position: {})", this, lastEntryPosition(), throwable);
-            } finally {
-                recycle();
             }
         });
     }
@@ -235,10 +234,9 @@ class OpReadEntry implements ReadEntriesCallback {
         try {
             callback.readEntriesFailed(e, ctx);
             cursor.ledger.mbean.recordReadEntriesError();
+            recycle();
         } catch (Throwable throwable) {
             log.error("[{}] readEntriesFailed failed (exception: {})", this, e.getMessage(), throwable);
-        } finally {
-            recycle();
         }
     }
 
