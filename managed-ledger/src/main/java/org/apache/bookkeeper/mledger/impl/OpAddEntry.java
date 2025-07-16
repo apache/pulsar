@@ -273,8 +273,6 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
-        ManagedLedgerImpl ml0 = this.ml;
-
         if (closeWhenDone) {
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledgerId);
             // `data` will be released in `closeComplete`
