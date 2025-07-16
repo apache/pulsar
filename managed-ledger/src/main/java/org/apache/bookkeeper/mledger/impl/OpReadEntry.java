@@ -84,11 +84,12 @@ class OpReadEntry implements ReadEntriesCallback {
                     cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
         }
 
+        // Entries might be released after `filterReadEntries`, so retrieve the last position before that
+        final var lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
         final var filteredEntries = cursor.filterReadEntries(returnedEntries);
         entries.addAll(filteredEntries);
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
-        final var lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
         final Position nexReadPosition = entriesCount != filteredEntries.size()
                 ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
         updateReadPosition(nexReadPosition);
