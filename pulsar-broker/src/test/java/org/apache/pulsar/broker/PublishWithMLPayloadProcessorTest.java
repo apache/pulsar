@@ -31,52 +31,48 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setBrokerEntryPayloadProcessors(
-                Collections.singleton("org.apache.pulsar.broker.ManagedLedgerPayloadProcessor0"));
+                Collections.singleton(ManagedLedgerPayloadProcessor0.class.getName()));
+        super.internalSetup();
+        super.producerBaseSetup();
+        // Add delay is for testing an OpAddEntry can be finished before the previous one.
+        pulsarTestContext.getMockBookKeeper().addEntryDelay(500, TimeUnit.MILLISECONDS);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
 
-    @Test(singleThreaded = true)
+    @Test(timeOut = 30_000)
     public void testPublishWithoutDeduplication() throws Exception {
         String topic = "persistent://public/default/testPublishWithoutDeduplication";
-        conf.setBrokerDeduplicationEnabled(false);
-        super.internalSetup();
-        super.producerBaseSetup();
-        pulsarTestContext.getMockBookKeeper().addEntryDelay(1, TimeUnit.SECONDS);
-
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setDeduplicationStatus(topic, false);
         publishAndVerify(topic);
     }
 
-    @Test(singleThreaded = true)
+    @Test(timeOut = 30_000)
     public void testPublishWithDeduplication() throws Exception {
         String topic = "persistent://public/default/testPublishWithDeduplication";
-        conf.setBrokerDeduplicationEnabled(true);
-        super.internalSetup();
-        super.producerBaseSetup();
-        pulsarTestContext.getMockBookKeeper().addEntryDelay(1, TimeUnit.SECONDS);
-
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setDeduplicationStatus(topic, true);
         publishAndVerify(topic);
     }
 
 
     private void publishAndVerify(String topic) throws Exception {
-        admin.topics().createNonPartitionedTopic(topic);
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
 
