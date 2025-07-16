@@ -85,7 +85,7 @@ public abstract class BaseResource {
             AuthenticationDataProvider authData = auth.getAuthData(target.getUri().getHost());
 
             if (authData.hasDataForHttp()) {
-                auth.authenticationStage(target.getUri().toString(), authData, null, authFuture);
+                auth.authenticationStage(target, authData, null, authFuture);
             } else {
                 authFuture.complete(null);
             }

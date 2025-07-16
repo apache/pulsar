@@ -302,18 +302,17 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     }
 
     @Override
-    public void authenticationStage(String requestUrl,
-                                    AuthenticationDataProvider authData,
+    public void authenticationStage(WebTarget webTarget, AuthenticationDataProvider authData,
                                     Map<String, String> previousResHeaders,
                                     CompletableFuture<Map<String, String>> authFuture) {
         // a new request for sasl auth
-        Builder builder = newRequestBuilder(client.target(requestUrl), authData, previousResHeaders);
+        Builder builder = newRequestBuilder(webTarget, authData, previousResHeaders);
         builder.async().get(new InvocationCallback<Response>() {
             @Override
             public void completed(Response response) {
                 if (response.getStatus() == HTTP_UNAUTHORIZED) {
                     // sasl auth on going
-                    authenticationStage(requestUrl, authData, getHeaders(response), authFuture);
+                    authenticationStage(webTarget, authData, getHeaders(response), authFuture);
                     return;
                 }
 
