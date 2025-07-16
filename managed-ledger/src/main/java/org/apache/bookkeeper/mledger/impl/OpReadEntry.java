@@ -74,10 +74,9 @@ class OpReadEntry implements ReadEntriesCallback {
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
         long entriesSize = 0;
-        for (final var returnedEntry : returnedEntries) {
-            entriesSize += returnedEntry.getLength();
+        for (int i = 0; i < entriesCount; i++) {
+            entriesSize += returnedEntries.get(i).getLength();
         }
-        final var lastPosition = returnedEntries.get(returnedEntries.size() - 1).getPosition();
         cursor.updateReadStats(entriesCount, entriesSize);
 
         if (log.isDebugEnabled()) {
@@ -89,6 +88,7 @@ class OpReadEntry implements ReadEntriesCallback {
         entries.addAll(filteredEntries);
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
+        final var lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
         final Position nexReadPosition = entriesCount != filteredEntries.size()
                 ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
         updateReadPosition(nexReadPosition);
