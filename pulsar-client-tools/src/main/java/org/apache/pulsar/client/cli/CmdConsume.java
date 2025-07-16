@@ -153,6 +153,10 @@ public class CmdConsume extends AbstractCmdConsume {
             throw new CommandLine.ParameterException(commandSpec.commandLine(),
                     "end timestamp should be positive.");
         }
+        if (this.endTimestamp < startTimestamp) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "end timestamp should larger than start timestamp.");
+        }
 
         if (this.serviceURL.startsWith("ws")) {
             return consumeFromWebSocket(topic);
