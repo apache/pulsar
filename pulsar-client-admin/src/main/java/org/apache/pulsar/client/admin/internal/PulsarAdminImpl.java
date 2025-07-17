@@ -51,13 +51,14 @@ import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.Worker;
-import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
-import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.internal.http.AsyncHttpConnector;
+import org.apache.pulsar.client.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -124,8 +125,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
             clientConfigData.setServiceUrl(serviceUrl);
         }
 
+        PulsarServiceNameResolver pulsarServiceNameResolver = new PulsarServiceNameResolver();
+        pulsarServiceNameResolver.updateServiceUrl(serviceUrl);
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
-                clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression);
+                clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression, pulsarServiceNameResolver);
 
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);

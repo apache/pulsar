@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin.internal.http;
+package org.apache.pulsar.client.internal.http;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -44,6 +44,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.Request;
@@ -174,9 +176,11 @@ public class AsyncHttpConnectorTest {
         Executor delayedExecutor = runnable -> {
             scheduledExecutor.schedule(runnable, requestTimeout, TimeUnit.MILLISECONDS);
         };
+        PulsarServiceNameResolver pulsarServiceNameResolver = new PulsarServiceNameResolver();
+        pulsarServiceNameResolver.updateServiceUrl(conf.getServiceUrl());
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, requestTimeout,
-                requestTimeout, 0, conf, false) {
+                requestTimeout, 0, conf, false, pulsarServiceNameResolver) {
             @Override
             protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
                 // delay the response to simulate a timeout
@@ -214,7 +218,7 @@ public class AsyncHttpConnectorTest {
     }
 
     @Test
-    void testMaxRedirects() {
+    void testMaxRedirects() throws InvalidServiceURL {
         // Redirect to itself to test max redirects
         server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
                 .willReturn(aResponse()
@@ -224,9 +228,11 @@ public class AsyncHttpConnectorTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("http://localhost:" + server.port());
 
+        PulsarServiceNameResolver pulsarServiceNameResolver = new PulsarServiceNameResolver();
+        pulsarServiceNameResolver.updateServiceUrl(conf.getServiceUrl());
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, pulsarServiceNameResolver);
 
         Request request = new RequestBuilder("GET")
                 .setUrl("http://localhost:" + server.port() + "/admin/v2/clusters")
@@ -243,21 +249,21 @@ public class AsyncHttpConnectorTest {
     }
 
     @Test
-    void testRelativeRedirect() throws ExecutionException, InterruptedException {
+    void testRelativeRedirect() throws ExecutionException, InterruptedException, InvalidServiceURL {
         doTestRedirect("path2");
     }
 
     @Test
-    void testAbsoluteRedirect() throws ExecutionException, InterruptedException {
+    void testAbsoluteRedirect() throws ExecutionException, InterruptedException, InvalidServiceURL {
         doTestRedirect("/path2");
     }
 
     @Test
-    void testUrlRedirect() throws ExecutionException, InterruptedException {
+    void testUrlRedirect() throws ExecutionException, InterruptedException, InvalidServiceURL {
         doTestRedirect("http://localhost:" + server.port() + "/path2");
     }
 
-    private void doTestRedirect(String location) throws InterruptedException, ExecutionException {
+    private void doTestRedirect(String location) throws InterruptedException, ExecutionException, InvalidServiceURL {
         server.stubFor(get(urlEqualTo("/path1"))
                 .willReturn(aResponse()
                         .withStatus(301)
@@ -270,9 +276,11 @@ public class AsyncHttpConnectorTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("http://localhost:" + server.port());
 
+        PulsarServiceNameResolver pulsarServiceNameResolver = new PulsarServiceNameResolver();
+        pulsarServiceNameResolver.updateServiceUrl(conf.getServiceUrl());
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, pulsarServiceNameResolver);
 
         Request request = new RequestBuilder("GET")
                 .setUrl("http://localhost:" + server.port() + "/path1")
@@ -283,7 +291,7 @@ public class AsyncHttpConnectorTest {
     }
 
     @Test
-    void testRedirectWithBody() throws ExecutionException, InterruptedException {
+    void testRedirectWithBody() throws ExecutionException, InterruptedException, InvalidServiceURL {
         server.stubFor(post(urlEqualTo("/path1"))
                 .willReturn(aResponse()
                         .withStatus(307)
@@ -296,9 +304,12 @@ public class AsyncHttpConnectorTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("http://localhost:" + server.port());
 
+        PulsarServiceNameResolver pulsarServiceNameResolver = new PulsarServiceNameResolver();
+        pulsarServiceNameResolver.updateServiceUrl(conf.getServiceUrl());
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, pulsarServiceNameResolver);
+
 
         Request request = new RequestBuilder("POST")
                 .setUrl("http://localhost:" + server.port() + "/path1")
@@ -310,7 +321,7 @@ public class AsyncHttpConnectorTest {
     }
 
     @Test
-    void testMaxConnections() throws ExecutionException, InterruptedException {
+    void testMaxConnections() throws ExecutionException, InterruptedException, InvalidServiceURL {
         server.stubFor(post(urlEqualTo("/concurrency-test"))
                 .willReturn(aResponse()
                         .withTransformers("concurrency-test")));
@@ -320,9 +331,11 @@ public class AsyncHttpConnectorTest {
         conf.setConnectionsPerBroker(maxConnections);
         conf.setServiceUrl("http://localhost:" + server.port());
 
+        PulsarServiceNameResolver pulsarServiceNameResolver = new PulsarServiceNameResolver();
+        pulsarServiceNameResolver.updateServiceUrl(conf.getServiceUrl());
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, pulsarServiceNameResolver);
 
         Request request = new RequestBuilder("POST")
                 .setUrl("http://localhost:" + server.port() + "/concurrency-test")
