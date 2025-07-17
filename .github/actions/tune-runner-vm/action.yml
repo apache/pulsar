@@ -80,7 +80,7 @@ runs:
             # enable docker experimental mode which is
             # required for using "docker build --squash" / "-Ddocker.squash=true"
             if [ -f /etc/docker/daemon.json ]; then
-              daemon_json=$(sudo cat /etc/docker/daemon.json | jq '.experimental = true')
+              daemon_json=$(sudo cat /etc/docker/daemon.json || echo '{}' | jq '.experimental = true')
             else
               daemon_json=$(jq -n '{experimental: true}')
             fi
