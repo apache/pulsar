@@ -68,6 +68,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
     private void internalReadEntriesComplete(List<Entry> returnedEntries) {
         if (returnedEntries.isEmpty()) {
+            log.warn("[{}] Read no entries unexpectedly", this);
             checkReadCompletion();
             return;
         }
@@ -243,8 +244,17 @@ class OpReadEntry implements ReadEntriesCallback {
     @Override
     public String toString() {
         final var cursor = this.cursor;
+        final var readPosition = this.readPosition;
+        final var nextReadPosition = this.nextReadPosition;
+        final var entries = this.entries;
+        final var maxPosition = this.maxPosition;
+        final var count = this.count;
         if (cursor != null) {
-            return cursor.ledger.getName() + ":" + cursor.getName();
+            return cursor.ledger.getName() + " " + cursor.getName() + "{ readPosition: "
+                    + (readPosition != null ? readPosition : "(null)") + ", nextReadPosition: "
+                    + (nextReadPosition != null ? nextReadPosition : "(null)") + ", maxPosition: "
+                    + (maxPosition != null ? maxPosition : "(null)") + ", entries count: "
+                    + (entries != null ? entries.size() : "(null)") + ", count: " + count + " }";
         } else {
             return "(null)";
         }
