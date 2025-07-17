@@ -26,9 +26,11 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -141,6 +143,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected String configClusterName = "test";
 
     protected boolean enableBrokerInterceptor = false;
+
+    private final List<AutoCloseable> closeables = new ArrayList<>();
 
     // Set to true in test's constructor to use a real Zookeeper (TestZKServer)
     protected boolean useTestZookeeper;
@@ -287,6 +291,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
 
         resetConfig();
+        callCloseables(closeables);
+        closeables.clear();
         onCleanup();
 
         // clear fields to avoid test runtime memory leak, pulsarTestContext already handles closing of these instances
@@ -297,6 +303,21 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void onCleanup() {
 
+    }
+
+    protected <T extends AutoCloseable> T registerCloseable(T closeable) {
+        closeables.add(closeable);
+        return closeable;
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
+        for (int i = closeables.size() - 1; i >= 0; i--) {
+            try {
+                closeables.get(i).close();
+            } catch (Exception e) {
+                log.error("Failure in calling close method", e);
+            }
+        }
     }
 
     protected abstract void setup() throws Exception;
