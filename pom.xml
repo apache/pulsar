@@ -263,7 +263,7 @@ flexible messaging model and an intuitive client API.</description>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
     <opentelemetry.semconv.version>1.29.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
-    <re2j.version>1.7</re2j.version>
+    <re2j.version>1.8</re2j.version>
     <completable-futures.version>0.3.6</completable-futures.version>
     <failsafe.version>3.3.2</failsafe.version>
 
