@@ -44,7 +44,7 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
+public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
 
     protected int BROKER_COUNT = 5;
 
