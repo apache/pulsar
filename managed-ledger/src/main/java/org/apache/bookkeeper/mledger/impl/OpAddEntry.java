@@ -139,7 +139,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                 ml.pendingAddEntries.remove(this);
                 this.failed(exbw);
                 ReferenceCountUtil.safeRelease(data);
-                recycle();
+                // Don't recycle object here, see: https://lists.apache.org/thread/po08w0tkhc7q8gc5khpdft6stxnr1v2y
+                // recycle();
                 return;
             }
 
@@ -158,7 +159,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                     ReferenceCountUtil.safeRelease(duplicateBuffer);
                     log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
                     this.failed(mle);
-                    recycle();
+                    // Don't recycle object here, see: https://lists.apache.org/thread/po08w0tkhc7q8gc5khpdft6stxnr1v2y
+                    // recycle();
                     return;
                 }
                 if (payloadProcessorHandle != null) {
