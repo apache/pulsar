@@ -512,7 +512,7 @@ The Apache Software License, Version 2.0
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar
     - com.google.auto.value-auto-value-annotations-1.11.0.jar
-    - com.google.re2j-re2j-1.7.jar
+    - com.google.re2j-re2j-1.8.jar
   * Jetcd - shaded
   * IPAddress
     - com.github.seancfoley-ipaddress-5.5.0.jar
