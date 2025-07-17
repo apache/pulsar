@@ -110,6 +110,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,8 +173,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
-                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE, OpenTelemetry.noop(),
-                factory -> new RangeEntryCacheManagerImpl(factory, factory.scheduledExecutor, OpenTelemetry.noop()));
+                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE, OpenTelemetry.noop(), null);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper)
@@ -189,7 +189,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @VisibleForTesting
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
-                                    Function<ManagedLedgerFactoryImpl, EntryCacheManager> entryCacheManagerCreator)
+                                    @Nullable Function<ManagedLedgerFactoryImpl, EntryCacheManager>
+                                            entryCacheManagerCreator)
             throws Exception {
         this(metadataStore, __ -> CompletableFuture.completedFuture(bookKeeper), false,
                 new ManagedLedgerFactoryConfig(), NullStatsLogger.INSTANCE, OpenTelemetry.noop(),
@@ -209,8 +210,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     OpenTelemetry openTelemetry)
             throws Exception {
         this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, statsLogger, openTelemetry, factory -> new RangeEntryCacheManagerImpl(factory,
-                        factory.scheduledExecutor, openTelemetry));
+                config, statsLogger, openTelemetry, null);
     }
 
     private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
@@ -219,7 +219,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                      ManagedLedgerFactoryConfig config,
                                      StatsLogger statsLogger,
                                      OpenTelemetry openTelemetry,
-                                     Function<ManagedLedgerFactoryImpl, EntryCacheManager> entryCacheManagerCreator)
+                                     @Nullable Function<ManagedLedgerFactoryImpl, EntryCacheManager>
+                                             entryCacheManagerCreator)
             throws Exception {
         MetadataCompressionConfig compressionConfigForManagedLedgerInfo =
                 config.getCompressionConfigForManagedLedgerInfo();
@@ -242,7 +243,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 compressionConfigForManagedCursorInfo);
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        this.entryCacheManager = entryCacheManagerCreator.apply(this);
+        if (entryCacheManagerCreator == null) {
+            this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor, openTelemetry);
+        } else {
+            this.entryCacheManager = entryCacheManagerCreator.apply(this);
+        }
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
