@@ -500,7 +500,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
                     expectedException.add(t);
                     countDownLatch.countDown();
                 } finally {
-                    ledger.resetExceptionBeforeWrite();
+                    ledger.resetInterceptorException();
                 }
             } else {
                 try {
@@ -511,7 +511,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
                     expectedException.add(t);
                     countDownLatch.countDown();
                 } finally {
-                    ledger.resetExceptionBeforeWrite();
+                    ledger.resetInterceptorException();
                 }
             }
         }

@@ -134,7 +134,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
             // Fail the add operation if the managed ledger is in a state that prevents adding entries.
-            ManagedLedgerException exbw = ml.exceptionBeforeWrite;
+            ManagedLedgerException exbw = ml.interceptorException;
             if (exbw != null) {
                 ml.pendingAddEntries.remove(this);
                 this.failed(exbw);
@@ -153,7 +153,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                             .processPayloadBeforeLedgerWrite(this.getCtx(), duplicateBuffer);
                 } catch (Exception e) {
                     ManagedLedgerException mle = new ManagedLedgerException.ManagedLedgerInterceptException(e);
-                    ml.exceptionBeforeWrite = mle;
+                    ml.interceptorException = mle;
                     ml.pendingAddEntries.remove(this);
                     ReferenceCountUtil.safeRelease(duplicateBuffer);
                     log.error("[{}] Error processing payload before ledger write", ml.getName(), e);

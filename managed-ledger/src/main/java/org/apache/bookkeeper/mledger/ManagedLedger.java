@@ -421,9 +421,16 @@ public interface ManagedLedger {
     long getOffloadedSize();
 
     /**
-     * Reset Exception before write to null.
+     * Reset the exception that was thrown by the PayloadProcessor during the add entry operation to null.
+     * If one add entry operation failed due to the interceptor, it will fail all the incoming add entry operations,
+     * it's for keep the message ordering and consistency.
+     * <p>
+     * The method MUST be called after all the pendingAddOperations are completed (such as Topic un-fenced),
+     * otherwise it will cause the ML unable to write forever.
+     * <p>
+     * For downstream projects, if supports ML PayloadProcessor, it should impl the method. Otherwise, don't.
      */
-    default void resetExceptionBeforeWrite() {
+    default void resetInterceptorException() {
         // Default implementation does nothing
     }
 

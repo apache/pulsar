@@ -238,7 +238,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private volatile long lastOffloadSuccessTimestamp = 0;
     private volatile long lastOffloadFailureTimestamp = 0;
 
-    protected volatile ManagedLedgerException exceptionBeforeWrite = null;
+    protected volatile ManagedLedgerException interceptorException = null;
 
     private int minBacklogCursorsForCaching = 0;
     private int minBacklogEntriesForCaching = 1000;
@@ -4415,8 +4415,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void resetExceptionBeforeWrite() {
-        this.exceptionBeforeWrite = null;
+    public void resetInterceptorException() {
+        this.interceptorException = null;
     }
 
     @Override
