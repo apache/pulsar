@@ -827,6 +827,20 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void skipMessages(String topic, String subName, Map<String, String> messageIds) throws PulsarAdminException {
+        sync(() -> skipMessagesAsync(topic, subName, messageIds));
+    }
+
+    @Override
+    public CompletableFuture<Void> skipMessagesAsync(String topic, String subName, Map<String, String> messageIds) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(tn, "subscription", encodedSubName, "skip", "0");
+        messageIds = messageIds == null ? new HashMap<>() : messageIds;
+        return asyncPostRequest(path, Entity.entity(messageIds, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public void expireMessages(String topic, String subName, long expireTimeInSeconds) throws PulsarAdminException {
         sync(() -> expireMessagesAsync(topic, subName, expireTimeInSeconds));
     }
@@ -2817,25 +2831,6 @@ public class TopicsImpl extends BaseResource implements Topics {
                 return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);
             }
         });
-    }
-
-    @Override
-    public void cancelDelayedMessage(String topic, long ledgerId, long entryId,
-                                     List<String> subscriptionNames) throws PulsarAdminException {
-        sync(() -> cancelDelayedMessageAsync(topic, ledgerId, entryId, subscriptionNames));
-    }
-
-    @Override
-    public CompletableFuture<Void> cancelDelayedMessageAsync(String topic, long ledgerId, long entryId,
-                                                             List<String> subscriptionNames) {
-        TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "cancelDelayedMessage");
-        path = path.queryParam("ledgerId", ledgerId)
-                .queryParam("entryId", entryId);
-        if (subscriptionNames != null && !subscriptionNames.isEmpty()) {
-            path = path.queryParam("subscriptionNames", subscriptionNames.toArray());
-        }
-        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

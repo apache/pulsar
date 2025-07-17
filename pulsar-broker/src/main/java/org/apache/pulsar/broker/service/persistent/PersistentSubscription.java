@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -790,6 +791,35 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Void> skipMessages(Map<String, String> messageIds) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Skipping messages by messageIds, current backlog {}", topicName, subName,
+                    cursor.getNumberOfEntriesInBacklog(false));
+        }
+
+        if (Subscription.isCumulativeAckMode(getType())) {
+            return CompletableFuture.failedFuture(new NotAllowedException("Unsupported subscription type."));
+        }
+
+        List<Position> positions = new ArrayList<>();
+        for (Map.Entry<String, String> entry : messageIds.entrySet()) {
+            try {
+                long ledgerId = Long.parseLong(entry.getKey());
+                long entryId = Long.parseLong(entry.getValue());
+                Position position = PositionFactory.create(ledgerId, entryId);
+                positions.add(position);
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(new NotAllowedException("Invalid message ID."));
+            }
+        }
+
+        Map<String, Long> properties = Collections.emptyMap();
+        acknowledgeMessage(positions, AckType.Individual, properties);
+
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
@@ -1546,18 +1576,6 @@ public class PersistentSubscription extends AbstractSubscription {
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }
-    }
-
-    @Override
-    public CompletableFuture<Boolean> cancelDelayedMessage(long ledgerId, long entryId) {
-        if (Subscription.isCumulativeAckMode(getType())) {
-            return CompletableFuture.completedFuture(false);
-        }
-        Position position = PositionFactory.create(ledgerId, entryId);
-        List<Position> positions = Collections.singletonList(position);
-        Map<String, Long> properties = Collections.emptyMap();
-        acknowledgeMessage(positions, AckType.Individual, properties);
-        return CompletableFuture.completedFuture(true);
     }
 
     @VisibleForTesting

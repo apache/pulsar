@@ -1551,6 +1551,10 @@ public interface Topics {
      */
     CompletableFuture<Void> skipMessagesAsync(String topic, String subName, long numMessages);
 
+    void skipMessages(String topic, String subName, Map<String, String> messageIds) throws PulsarAdminException;
+
+    CompletableFuture<Void> skipMessagesAsync(String topic, String subName, Map<String, String> messageIds);
+
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription.
      *
@@ -4559,29 +4563,4 @@ public interface Topics {
         return createShadowTopicAsync(shadowTopic, sourceTopic, null);
     }
 
-    /**
-     * Cancel a delayed message on specified subscriptions (or all if none specified).
-     *
-     * @param topic The topic name
-     * @param ledgerId The ledger ID of the target delayed message
-     * @param entryId The entry ID of the target delayed message
-     * @param subscriptionNames List of subscription names to cancel on.
-     *                          If null or empty, applies to all subscriptions.
-     * @throws PulsarAdminException if the request fails
-     */
-    void cancelDelayedMessage(String topic, long ledgerId, long entryId,
-                              List<String> subscriptionNames) throws PulsarAdminException;
-
-    /**
-     * Cancel a delayed message on specified subscriptions (or all if none specified) asynchronously.
-     *
-     * @param topic The topic name
-     * @param ledgerId The ledger ID of the target delayed message
-     * @param entryId The entry ID of the target delayed message
-     * @param subscriptionNames List of subscription names to cancel on.
-     *                          If null or empty, applies to all subscriptions.
-     * @return a future that can be used to track the asynchronous operation
-     */
-    CompletableFuture<Void> cancelDelayedMessageAsync(String topic, long ledgerId, long entryId,
-                                                      List<String> subscriptionNames);
 }

@@ -1545,10 +1545,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "The number of messages to skip", defaultValue = "0")
             @PathParam("numMessages") int numMessages,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "The message ID to skip") Map<String, String> messageIds) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative);
+            internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative, messageIds);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -5013,52 +5014,6 @@ public class PersistentTopics extends PersistentTopicsBase {
                     handleTopicPolicyException("removeAutoSubscriptionCreation", ex, asyncResponse);
                     return null;
                 });
-    }
-
-    @POST
-    @Path("/{tenant}/{namespace}/{topic}/cancelDelayedMessage")
-    @ApiOperation(value = "Cancel a delayed message on specified subscriptions (or all if none specified).")
-    @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Operation successful"),
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
-            @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
-            @ApiResponse(code = 412, message = "Failed to cancel delayed message or invalid parameters"),
-            @ApiResponse(code = 500, message = "Internal server error")})
-    public void cancelDelayedMessage(
-            @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
-            @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Ledger ID of the target delayed message", required = true)
-            @QueryParam("ledgerId") long ledgerId,
-            @ApiParam(value = "Entry ID of the target delayed message", required = true)
-            @QueryParam("entryId") long entryId,
-            @ApiParam(value = "List of subscription names to cancel on (empty or null for all subscriptions)")
-            @QueryParam("subscriptionNames") List<String> subscriptionNames) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            if (ledgerId < 0 || entryId < 0) {
-                asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
-                        "ledgerId, entryId must be positive."));
-                return;
-            }
-            List<String> finalSubscriptionNames = (subscriptionNames == null || subscriptionNames.isEmpty())
-                    ? null : subscriptionNames;
-            internalCancelDelayedMessage(asyncResponse, ledgerId, entryId,
-                    finalSubscriptionNames, authoritative);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

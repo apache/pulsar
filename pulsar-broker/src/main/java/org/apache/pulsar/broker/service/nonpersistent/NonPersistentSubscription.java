@@ -250,6 +250,12 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Void> skipMessages(Map<String, String> messageIds) {
+        // No-op
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
         // No-op
         return CompletableFuture.completedFuture(null);

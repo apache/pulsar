@@ -26,7 +26,6 @@ import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -520,13 +519,11 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         final int cancelMessage = 50;
         MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
 
-        admin.topics().cancelDelayedMessage(
-                topic,
-                messageId.getLedgerId(),
-                messageId.getEntryId(),
-                Collections.singletonList(subName + "-1")
-                // Collections.emptyList()
-        );
+        Map<String,String> ackMessageIds = new HashMap<>();
+        ackMessageIds.put(String.valueOf(messageId.getLedgerId()), String.valueOf(messageId.getEntryId()));
+
+        admin.topics().skipMessages(topic + "-partition-0", subName + "-1", ackMessageIds);
+        admin.topics().skipMessages(topic + "-partition-1", subName + "-1", ackMessageIds);
 
         assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
         assertFalse((receivedMessages1.contains("msg-" + cancelMessage)

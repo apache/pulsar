@@ -34,7 +34,6 @@ public enum TopicOperation {
     SKIP,
     TERMINATE,
     UNLOAD,
-    CANCEL_DELAYED_MESSAGE,
 
     GRANT_PERMISSION,
     GET_PERMISSION,

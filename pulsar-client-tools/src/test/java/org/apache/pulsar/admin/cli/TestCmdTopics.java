@@ -39,7 +39,9 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.Lookup;
@@ -269,37 +271,19 @@ public class TestCmdTopics {
     }
 
     @Test
-    public void testCancelDelayedMessage() throws Exception {
+    public void testSkipMessages() throws Exception {
         String topic = "persistent://public/default/testCancelDelayed";
-        long ledgerId = 123L;
-        long entryId = 45L;
+        String ledgerId = "123";
+        String entryId = "45";
+        Map<String, String> messageIds = new HashMap<>();
+        messageIds.put(ledgerId, entryId);
 
-        // Test case 1: No specific subscriptions (should apply to all)
         cmdTopics.run(new String[]{
-                "cancel-delayed-message", topic,
-                "-l", String.valueOf(ledgerId),
-                "-e", String.valueOf(entryId),
+                "skip-messages", topic,
+                "-s", "test-sub",
+                "-m", ledgerId + "=" + entryId
         });
-        verify(mockTopics).cancelDelayedMessage(eq(topic), eq(ledgerId), eq(entryId), eq(new ArrayList<>()));
 
-        // Test case 2: Specific subscriptions
-        List<String> subs = Lists.newArrayList("sub1", "sub2");
-        cmdTopics.run(new String[]{
-                "cancel-delayed-message", topic,
-                "-l", String.valueOf(ledgerId),
-                "-e", String.valueOf(entryId),
-                "-s", "sub1", "-s", "sub2"
-        });
-        verify(mockTopics).cancelDelayedMessage(eq(topic), eq(ledgerId), eq(entryId), eq(subs));
-
-        // Test case 3: Single specific subscription
-        List<String> singleSub = Lists.newArrayList("sub-single");
-        cmdTopics.run(new String[]{
-                "cancel-delayed-message", topic,
-                "-l", String.valueOf(ledgerId),
-                "-e", String.valueOf(entryId),
-                "-s", "sub-single"
-        });
-        verify(mockTopics).cancelDelayedMessage(eq(topic), eq(ledgerId), eq(entryId), eq(singleSub));
+        verify(mockTopics).skipMessages(eq(topic), eq("test-sub"), eq(messageIds));
     }
 }
