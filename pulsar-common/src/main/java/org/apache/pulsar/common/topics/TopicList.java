@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.common.topics;
 
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.re2j.Pattern;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +48,7 @@ public class TopicList {
         Pattern topicsPattern = Pattern.compile(regex);
         return filterTopics(original, topicsPattern);
     }
+
     public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
 
 
@@ -69,13 +72,18 @@ public class TopicList {
     }
 
     public static String calculateHash(List<String> topics) {
-        return Hashing.crc32c().hashBytes(topics.stream()
-                .sorted()
-                .collect(Collectors.joining(","))
-                .getBytes(StandardCharsets.UTF_8)).toString();
+        Hasher hasher = Hashing.crc32c().newHasher();
+        String[] sortedTopics = topics.toArray(new String[topics.size()]);
+        Arrays.sort(sortedTopics);
+        for (int i = 0; i < sortedTopics.length; i++) {
+            hasher.putString(sortedTopics[i], StandardCharsets.UTF_8);
+            // Skip the delimiter for the last item so that the hash format is compatible with previous versions
+            if (i < sortedTopics.length - 1) {
+                hasher.putByte((byte) ',');
+            }
+        }
+        return hasher.hash().toString();
     }
-
-
 
     // get topics, which are contained in list1, and not in list2
     public static Set<String> minus(Collection<String> list1, Collection<String> list2) {
