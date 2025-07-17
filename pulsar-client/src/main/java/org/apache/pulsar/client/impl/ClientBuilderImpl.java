@@ -101,6 +101,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration,
+                                                          TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineInitDuration >= 0,
+                "serviceUrlQuarantineInitDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineInitDurationMs(unit.toMillis(serviceUrlQuarantineInitDuration));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration,
+                                                         TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineMaxDuration >= 0,
+                "serviceUrlQuarantineMaxDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineMaxDurationMs(unit.toMillis(serviceUrlQuarantineMaxDuration));
+        return this;
+    }
+
+    @Override
     public ClientBuilder listenerName(String listenerName) {
         checkArgument(StringUtils.isNotBlank(listenerName), "Param listenerName must not be blank.");
         conf.setListenerName(StringUtils.trim(listenerName));

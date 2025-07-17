@@ -71,6 +71,20 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @ApiModelProperty(
+            name = "serviceUrlQuarantineInitDurationMs",
+            value = "The initial duration (in milliseconds) to quarantine endpoints that fail to connect."
+                    + "A value of 0 means don't quarantine any endpoints even if they fail."
+    )
+    private long serviceUrlQuarantineInitDurationMs = 60000;
+
+    @ApiModelProperty(
+            name = "serviceUrlQuarantineMaxDurationMs",
+            value = "The max duration (in milliseconds) to quarantine endpoints that fail to connect."
+                    + "A value of 0 means don't quarantine any endpoints even if they fail."
+    )
+    private long serviceUrlQuarantineMaxDurationMs = TimeUnit.DAYS.toMillis(1);
+
+    @ApiModelProperty(
             name = "authentication",
             value = "Authentication settings of the client."
     )
