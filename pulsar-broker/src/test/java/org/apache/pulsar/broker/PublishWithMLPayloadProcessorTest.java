@@ -60,7 +60,7 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
         String topic = "persistent://public/default/testPublishWithoutDeduplication";
         admin.topics().createNonPartitionedTopic(topic);
         admin.topicPolicies().setDeduplicationStatus(topic, false);
-        publishAndVerify(topic);
+        publishAndVerify(topic, false);
     }
 
     @Test(timeOut = 30_000)
@@ -68,11 +68,11 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
         String topic = "persistent://public/default/testPublishWithDeduplication";
         admin.topics().createNonPartitionedTopic(topic);
         admin.topicPolicies().setDeduplicationStatus(topic, true);
-        publishAndVerify(topic);
+        publishAndVerify(topic, true);
     }
 
 
-    private void publishAndVerify(String topic) throws Exception {
+    private void publishAndVerify(String topic, boolean enableDeduplication) throws Exception {
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
 
@@ -95,18 +95,23 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
 
         List<String> messageContents = new ArrayList<>();
 
+        int messageCount = 0;
         for (;;) {
             var msg = consumer.receive(3, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
             String content = msg.getValue();
+            messageCount++;
             if (!messageContents.contains(content)) {
                 messageContents.add(content);
             }
             consumer.acknowledge(msg);
         }
 
+        if (enableDeduplication) {
+            Assert.assertEquals(messageCount, 10, "Expected 10 total messages");
+        }
         Assert.assertEquals(messageContents.size(), 10);
 
         for (int i = 0; i < 10; i++) {
