@@ -50,6 +50,11 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         additionalBrokersSetup();
         pulsarResourcesSetup();
+        additionalSetup();
+    }
+
+    protected void additionalSetup() throws Exception {
+        // override this method to add any additional setup logic
     }
 
     protected void pulsarResourcesSetup() throws PulsarAdminException {
@@ -91,7 +96,16 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
     @Override
     public final void cleanup() throws Exception {
         additionalBrokersCleanup();
+        try {
+            additionalCleanup();
+        } catch (Exception e) {
+            log.warn("Exception during additional cleanup", e);
+        }
         super.internalCleanup();
+    }
+
+    protected void additionalCleanup() throws Exception {
+        // override this method to add any additional cleanup logic
     }
 
     protected void additionalBrokersCleanup() {
