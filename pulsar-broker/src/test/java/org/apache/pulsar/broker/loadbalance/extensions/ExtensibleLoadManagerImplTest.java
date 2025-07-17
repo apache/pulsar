@@ -1678,27 +1678,27 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         }
 
 
-            primaryLoadManager.playFollower();
-            secondaryLoadManager.playFollower();
-            assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
-                    primaryLoadManager.getRole());
-            assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
-                    secondaryLoadManager.getRole());
+        primaryLoadManager.playFollower();
+        secondaryLoadManager.playFollower();
+        assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                primaryLoadManager.getRole());
+        assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                secondaryLoadManager.getRole());
 
 
-            primaryLoadManager.playLeader();
-            secondaryLoadManager.playLeader();
-            assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
-                    primaryLoadManager.getRole());
-            assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
-                    secondaryLoadManager.getRole());
+        primaryLoadManager.playLeader();
+        secondaryLoadManager.playLeader();
+        assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                primaryLoadManager.getRole());
+        assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                secondaryLoadManager.getRole());
 
 
     }
 
     @DataProvider(name = "noChannelOwnerMonitorHandler")
     public Object[][] noChannelOwnerMonitorHandler() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][]{{true}, {false}};
     }
 
     @Test(dataProvider = "noChannelOwnerMonitorHandler", timeOut = 30 * 1000, priority = 2101)
@@ -2199,7 +2199,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         String topic = "persistent://" + defaultTestNamespace + "/test-get-owned-service-units";
         admin.topics().createPartitionedTopic(topic, 1);
         NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).join();
-        CompletableFuture<Optional<BrokerLookupData>> owner = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build());
+        CompletableFuture<Optional<BrokerLookupData>> owner =
+                primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build());
         assertFalse(owner.join().isEmpty());
 
         BrokerLookupData brokerLookupData = owner.join().get();
