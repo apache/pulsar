@@ -787,8 +787,10 @@ public class PersistentTopicsBase extends AdminResource {
                         })
                 // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
                 ).thenCompose(ignore ->
-                        pulsar().getBrokerService().deleteSchema(topicName).exceptionally(ex -> null))
-                .thenCompose(__ -> getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        pulsar().getBrokerService().deleteSchema(topicName).exceptionally(ex -> null)
+                ).thenCompose(ignore ->
+                        pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(topicName).exceptionally(ex -> null)
+                ).thenCompose(__ -> getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                         .runWithMarkDeleteAsync(topicName, () -> namespaceResources()
                                 .getPartitionedTopicResources().deletePartitionedTopicAsync(topicName)))
                 .thenAccept(__ -> {
@@ -975,11 +977,13 @@ public class PersistentTopicsBase extends AdminResource {
                 TopicPolicies policies = op.orElseGet(TopicPolicies::new);
                 DelayedDeliveryPolicies delayedDeliveryPolicies = null;
                 if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
-                    delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                    DelayedDeliveryPolicies.Builder builder = DelayedDeliveryPolicies.builder()
                             .tickTime(policies.getDelayedDeliveryTickTimeMillis())
-                            .active(policies.getDelayedDeliveryEnabled())
-                            .maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis())
-                            .build();
+                            .active(policies.getDelayedDeliveryEnabled());
+                    if (policies.isDelayedDeliveryMaxDelayInMillisSet()) {
+                        builder.maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis());
+                    }
+                    delayedDeliveryPolicies = builder.build();
                 }
                 if (delayedDeliveryPolicies == null && applied) {
                     delayedDeliveryPolicies = getNamespacePolicies(namespaceName).delayed_delivery_policies;
@@ -4261,31 +4265,31 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalTriggerCompactionNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.COMPACT))
-                .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenAccept(topic -> {
-                    try {
-                        ((PersistentTopic) topic).triggerCompaction();
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.COMPACT))
+            .thenCompose(__ -> getTopicReferenceAsync(topicName))
+            .thenCompose(topic -> ((PersistentTopic) topic).triggerCompactionWithCheckHasMoreMessages()
+                .whenComplete((result, ex) -> {
+                    if (ex == null) {
                         asyncResponse.resume(Response.noContent().build());
-                    } catch (AlreadyRunningException e) {
-                        resumeAsyncResponseExceptionally(asyncResponse,
-                                new RestException(Status.CONFLICT, e.getMessage()));
-                        return;
-                    } catch (Exception e) {
-                        log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(),
-                                topicName, e);
-                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
                         return;
                     }
-                }).exceptionally(ex -> {
+                    ex = FutureUtil.unwrapCompletionException(ex);
+                    if (ex instanceof AlreadyRunningException) {
+                        resumeAsyncResponseExceptionally(asyncResponse,
+                            new RestException(Status.CONFLICT, ex.getMessage()));
+                    } else {
+                        log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(),
+                            topicName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(ex));
+                    }
+                })).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to trigger compaction for {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
-                }
-        );
+                });
     }
 
     protected CompletableFuture<LongRunningProcessStatus> internalCompactionStatusAsync(boolean authoritative) {
@@ -4988,7 +4992,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void handleTopicPolicyException(String methodName, Throwable thr, AsyncResponse asyncResponse) {
         Throwable cause = thr.getCause();
-        if (isNot307And404And400Exception(cause)) {
+        if (isNot307And4xxException(cause)) {
             log.error("[{}] Failed to perform {} on topic {}",
                     clientAppId(), methodName, topicName, cause);
         }
@@ -5490,5 +5494,133 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                             return null;
                         }));
+    }
+
+    protected CompletableFuture<MessageId> internalGetMessageIDByIndexAsync(Long index, boolean authoritative) {
+        if (!pulsar().getBrokerService().isBrokerEntryMetadataEnabled()) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "GetMessageIDByIndex is not allowed when broker entry metadata is disabled"));
+        }
+        if (index == null || index < 0) {
+            return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                    "Invalid message index: " + index));
+        }
+        int partitionIndex = topicName.getPartitionIndex();
+        CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES);
+        return future.thenCompose(__ -> {
+                    if (topicName.isGlobal()) {
+                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }).thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                                .thenAccept(topicMetadata -> {
+                                    if (topicMetadata.partitions > 0) {
+                                        log.warn("[{}] Not supported getMessageIdByIndex operation on "
+                                                        + "partitioned-topic {}", clientAppId(), topicName);
+                                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                                "GetMessageIDByIndex is not allowed on partitioned-topic");
+                                    }
+                                });
+                    }
+                }).thenCompose(ignore -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
+                    if (!(topic instanceof PersistentTopic persistentTopic)) {
+                        log.error("[{}] Get message id by index on a non-persistent topic {} is not allowed",
+                                clientAppId(), topicName);
+                        return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Get message id by index on a non-persistent topic is not allowed"));
+                    }
+                    ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+                    Position lastPosition = managedLedger.getLastConfirmedEntry();
+                    Position firstPosition = managedLedger.getFirstPosition();
+                    if (firstPosition == null || lastPosition == null || firstPosition.equals(lastPosition)) {
+                        return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                                "No messages found in topic " + topicName));
+                    }
+                    return findMessageIndexByPosition(
+                            PositionFactory.create(firstPosition.getLedgerId(), 0),
+                            managedLedger)
+                            .thenCompose(firstIndex -> {
+                                if (index < firstIndex) {
+                                    return CompletableFuture.completedFuture(PositionFactory.EARLIEST);
+                                } else {
+                                    return managedLedger.asyncFindPosition(entry -> {
+                                        try {
+                                            Long messageIndex = getIndexFromEntry(entry);
+                                            if (messageIndex == null) {
+                                                return false; // Skip messages without index
+                                            } else {
+                                                // If the message index is less than the requested index,
+                                                // we continue searching
+                                                return messageIndex < index;
+                                            }
+                                        } catch (Throwable e) {
+                                            log.error("Error deserialize message for message position find", e);
+                                            return false;
+                                        } finally {
+                                            entry.release();
+                                        }
+                                    });
+                                }
+                            }).thenCompose(position -> {
+                                if (position.compareTo(lastPosition) > 0) {
+                                    return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                                            "Message not found for index " + index));
+                                } else {
+                                    return CompletableFuture.completedFuture(position);
+                                }
+                            });
+                }).thenCompose(position -> CompletableFuture.completedFuture(
+                        new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex)));
+    }
+
+    protected CompletableFuture<Long> findMessageIndexByPosition(Position position, ManagedLedger managedLedger) {
+        CompletableFuture<Long> indexFuture = new CompletableFuture<>();
+        managedLedger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                try {
+                    Long index = getIndexFromEntry(entry);
+                    if (index == null) {
+                        indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                                "Broker entry metadata is not present in the message"));
+                    } else if (index < 0) {
+                        indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                                "Invalid message index: " + index));
+                    } else {
+                        indexFuture.complete(index);
+                    }
+                } catch (Throwable e) {
+                    indexFuture.completeExceptionally(new RestException(Status.INTERNAL_SERVER_ERROR,
+                            "Failed to get index from entry: " + e.getMessage()));
+                } finally {
+                    entry.release();
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("[{}] Failed to read position {} on topic {}",
+                        clientAppId(), position, topicName, exception);
+                indexFuture.completeExceptionally(exception);
+            }
+        }, null);
+        return indexFuture;
+    }
+
+
+    private static Long getIndexFromEntry(Entry entry) {
+        final var brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+            return brokerEntryMetadata.getIndex();
+        } else {
+            return null;
+        }
     }
 }

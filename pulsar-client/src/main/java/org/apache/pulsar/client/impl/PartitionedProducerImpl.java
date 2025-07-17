@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.Collection;
@@ -477,7 +476,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 // if last auto update not completed yet, do nothing.
                 if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
                     partitionsAutoUpdateFuture =
-                            topicsPartitionChangedListener.onTopicsExtended(ImmutableList.of(topic));
+                            topicsPartitionChangedListener.onTopicsExtended(List.of(topic));
                 }
             } catch (Throwable th) {
                 log.warn("Encountered error in partition auto update timer task for partition producer."

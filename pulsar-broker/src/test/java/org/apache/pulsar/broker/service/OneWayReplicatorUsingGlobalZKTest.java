@@ -187,6 +187,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     }
 
     @Test
+    @Override
+    public void testNonPersistentReplicatorQueueSize() throws Exception {
+        super.testNonPersistentReplicatorQueueSize();
+    }
+
+    @Test
     public void testRemoveCluster() throws Exception {
         // Initialize.
         final String ns1 = defaultTenant + "/" + "ns_73b1a31afce34671a5ddc48fe5ad7fc8";
@@ -228,5 +234,23 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Test(dataProvider = "enableDeduplication", enabled = false)
     public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
         super.testIncompatibleMultiVersionSchema(enableDeduplication);
+    }
+
+
+    @Test
+    public void testTopicPoliciesReplicationRule() throws Exception {
+        super.testTopicPoliciesReplicationRule();
+    }
+
+    @Override
+    @Test
+    public void testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished() throws Exception {
+        super.testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        super.testConcurrencyReplicationReadEntries();
     }
 }

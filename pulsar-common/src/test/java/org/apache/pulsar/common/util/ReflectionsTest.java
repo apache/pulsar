@@ -23,9 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
-
 import java.lang.reflect.InvocationTargetException;
-
 import org.testng.annotations.Test;
 
 /**
@@ -33,28 +31,28 @@ import org.testng.annotations.Test;
  */
 public class ReflectionsTest {
 
-    private interface bInterface {
+    private interface BInterface {
     }
 
-    private interface aInterface {
+    private interface AInterface {
     }
 
-    private static class aImplementation implements aInterface {
+    private static class AImplementation implements AInterface {
     }
 
-    private static class OneArgClass implements aInterface {
+    private static class OneArgClass implements AInterface {
 
         OneArgClass(int oneArg) {}
 
     }
 
-    private static class ThrowExceptionClass implements aInterface {
+    private static class ThrowExceptionClass implements AInterface {
         ThrowExceptionClass() {
             throw new RuntimeException("throw exception");
         }
     }
 
-    private static abstract class AbstractClass implements aInterface {
+    private abstract static class AbstractClass implements AInterface {
     }
 
     private final ClassLoader classLoader;
@@ -106,7 +104,7 @@ public class ReflectionsTest {
     @Test
     public void testCreateTypedInstanceClassNotFound() {
         try {
-            createInstance("notfound-class", aInterface.class, classLoader);
+            createInstance("notfound-class", AInterface.class, classLoader);
             fail("Should fail to load notfound class");
         } catch (RuntimeException re) {
             assertTrue(re.getCause() instanceof ClassNotFoundException);
@@ -116,7 +114,7 @@ public class ReflectionsTest {
     @Test
     public void testCreateTypedInstanceNoNoArgConstructor() {
         try {
-            createInstance(OneArgClass.class.getName(), aInterface.class, classLoader);
+            createInstance(OneArgClass.class.getName(), AInterface.class, classLoader);
             fail("Should fail to load class doesn't have no-arg constructor");
         } catch (RuntimeException re) {
             assertTrue(re.getCause() instanceof NoSuchMethodException);
@@ -126,7 +124,7 @@ public class ReflectionsTest {
     @Test
     public void testCreateTypedInstanceConstructorThrowsException() {
         try {
-            createInstance(ThrowExceptionClass.class.getName(), aInterface.class, classLoader);
+            createInstance(ThrowExceptionClass.class.getName(), AInterface.class, classLoader);
             fail("Should fail to load class whose constructor throws exceptions");
         } catch (RuntimeException re) {
             assertTrue(re.getCause() instanceof InvocationTargetException);
@@ -136,7 +134,7 @@ public class ReflectionsTest {
     @Test
     public void testCreateTypedInstanceAbstractClass() {
         try {
-            createInstance(AbstractClass.class.getName(), aInterface.class, classLoader);
+            createInstance(AbstractClass.class.getName(), AInterface.class, classLoader);
             fail("Should fail to load abstract class");
         } catch (RuntimeException re) {
             assertTrue(re.getCause() instanceof InstantiationException);
@@ -146,19 +144,19 @@ public class ReflectionsTest {
     @Test
     public void testCreateTypedInstanceUnassignableClass() {
         try {
-            createInstance(aImplementation.class.getName(), bInterface.class, classLoader);
+            createInstance(AImplementation.class.getName(), BInterface.class, classLoader);
             fail("Should fail to load a class that isn't assignable");
         } catch (RuntimeException re) {
             assertEquals(
-                aImplementation.class.getName() + " does not implement " + bInterface.class.getName(),
+                AImplementation.class.getName() + " does not implement " + BInterface.class.getName(),
                 re.getMessage());
         }
     }
 
     @Test
     public void testClassInJarImplementsIface() {
-        assertTrue(Reflections.classImplementsIface(aImplementation.class.getName(), aInterface.class));
-        assertFalse(Reflections.classImplementsIface(aImplementation.class.getName(), bInterface.class));
+        assertTrue(Reflections.classImplementsIface(AImplementation.class.getName(), AInterface.class));
+        assertFalse(Reflections.classImplementsIface(AImplementation.class.getName(), BInterface.class));
     }
 
     @Test

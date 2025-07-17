@@ -95,8 +95,9 @@ public class MessageDeduplication {
     }
 
     public static class MessageDupUnknownException extends RuntimeException {
-        public MessageDupUnknownException() {
-            super("Cannot determine whether the message is a duplicate at this time");
+        public MessageDupUnknownException(String topicName, String producerName) {
+            super(String.format("[%s][%s]Cannot determine whether the message is a duplicate at this time", topicName,
+                    producerName));
         }
     }
 
@@ -477,15 +478,12 @@ public class MessageDeduplication {
         }
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
-        MessageMetadata md = null;
         long chunkID = -1;
         long totalChunk = -1;
         if (publishContext.isChunked()) {
-            if (md == null) {
-                int readerIndex = headersAndPayload.readerIndex();
-                md = Commands.parseMessageMetadata(headersAndPayload);
-                headersAndPayload.readerIndex(readerIndex);
-            }
+            int readerIndex = headersAndPayload.readerIndex();
+            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.readerIndex(readerIndex);
             chunkID = md.getChunkId();
             totalChunk = md.getNumChunksFromMsg();
         }

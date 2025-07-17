@@ -638,14 +638,13 @@ public class LoadSimulationController extends CmdBase{
                     final List<String> commandArguments = arguments.commandArguments;
                     checkAppArgs(commandArguments.size() - 1, 1);
                     final String scriptName = commandArguments.get(1);
-                    final BufferedReader scriptReader = new BufferedReader(
-                            new InputStreamReader(new FileInputStream(Paths.get(scriptName).toFile())));
-                    String line = scriptReader.readLine();
-                    while (line != null) {
-                        read(line.split("\\s+"));
-                        line = scriptReader.readLine();
+                    try (BufferedReader scriptReader = new BufferedReader(
+                            new InputStreamReader(new FileInputStream(Paths.get(scriptName).toFile())))) {
+                        String line;
+                        while ((line = scriptReader.readLine()) != null) {
+                            read(line.split("\\s+"));
+                        }
                     }
-                    scriptReader.close();
                     break;
                 case "copy":
                     handleCopy(arguments);

@@ -23,23 +23,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
@@ -279,6 +274,7 @@ public class UtilsTest {
         RecordSchemaBuilder udtSchemaBuilder = SchemaBuilder.record("type1");
         udtSchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);
         udtSchemaBuilder.field("b").type(SchemaType.BOOLEAN).optional().defaultValue(null);
+        udtSchemaBuilder.field("c").type(SchemaType.BYTES).optional().defaultValue(null);
         udtSchemaBuilder.field("d").type(SchemaType.DOUBLE).optional().defaultValue(null);
         udtSchemaBuilder.field("f").type(SchemaType.FLOAT).optional().defaultValue(null);
         udtSchemaBuilder.field("i").type(SchemaType.INT32).optional().defaultValue(null);
@@ -293,8 +289,9 @@ public class UtilsTest {
                 .set("e", udtGenericSchema.newRecordBuilder()
                         .set("a", "a")
                         .set("b", true)
-                        .set("d", 1.0)
-                        .set("f", 1.0f)
+                        .set("c", ByteBuffer.wrap("10".getBytes(StandardCharsets.UTF_8)))
+                        .set("d", 0.5)
+                        .set("f", 0.25f)
                         .set("i", 1)
                         .set("l", 10L)
                         .build())
@@ -303,7 +300,7 @@ public class UtilsTest {
         Map<String, String> properties = new HashMap<>();
         properties.put("prop-key", "prop-value");
 
-        Record<GenericObject> genericObjectRecord = new Record<GenericObject>() {
+        Record<GenericObject> genericObjectRecord = new Record<>() {
             @Override
             public Optional<String> getTopicName() {
                 return Optional.of("data-ks1.table1");
@@ -321,7 +318,8 @@ public class UtilsTest {
 
             @Override
             public GenericObject getValue() {
-                return valueGenericRecord;
+                // Ensure the record in encoded amd decoded correctly
+                return valueSchema.decode(valueSchema.encode(valueGenericRecord));
             }
 
             @Override
@@ -339,7 +337,7 @@ public class UtilsTest {
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
         assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":{\"c\":\"1\","
-                + "\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}},"
+                + "\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"c\":\"MTA=\",\"d\":0.5,\"f\":0.25,\"i\":1,\"l\":10}},"
                 + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
     }
 
@@ -369,18 +367,15 @@ public class UtilsTest {
         valueSchemaBuilder.field("e", udtGenericSchema).type(schemaType).optional().defaultValue(null);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        byte[] bytes = "10".getBytes(StandardCharsets.UTF_8);
         GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
                 .set("c", "1")
                 .set("d", 1)
                 .set("e", udtGenericSchema.newRecordBuilder()
                         .set("a", "a")
                         .set("b", true)
-                        // There's a bug in json-flattener that doesn't handle byte[] fields correctly.
-                        // But since we use AUTO_CONSUME, we won't get byte[] fields for JSON schema anyway.
-                        .set("c", schemaType == SchemaType.AVRO ? bytes : Base64.getEncoder().encodeToString(bytes))
-                        .set("d", 1.0)
-                        .set("f", 1.0f)
+                        .set("c", ByteBuffer.wrap("10".getBytes(StandardCharsets.UTF_8)))
+                        .set("d", 0.5)
+                        .set("f", 0.25f)
                         .set("i", 1)
                         .set("l", 10L)
                         .build())
@@ -398,7 +393,7 @@ public class UtilsTest {
 
             @Override
             public Object getNativeObject() {
-                return keyValue;
+                return keyValueSchema.decode(keyValueSchema.encode(keyValue));
             }
         };
 
@@ -441,15 +436,15 @@ public class UtilsTest {
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
         assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
-                + "\"payload\":{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"c\":\"MTA=\",\"d\":1.0,"
-                + "\"f\":1.0,\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}},"
+                + "\"payload\":{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"c\":\"MTA=\",\"d\":0.5,"
+                + "\"f\":0.25,\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}},"
                 + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
 
         json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, true);
 
         assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload.value.c\":\"1\","
                 + "\"payload.value.d\":1,\"payload.value.e.a\":\"a\",\"payload.value.e.b\":true,"
-                + "\"payload.value.e.c\":\"MTA=\",\"payload.value.e.d\":1.0,\"payload.value.e.f\":1.0,"
+                + "\"payload.value.e.c\":\"MTA=\",\"payload.value.e.d\":0.5,\"payload.value.e.f\":0.25,"
                 + "\"payload.value.e.i\":1,\"payload.value.e.l\":10,\"payload.key.a\":\"1\",\"payload.key.b\":1,"
                 + "\"properties.prop-key\":\"prop-value\",\"eventTime\":1648502845803}");
     }
@@ -476,7 +471,7 @@ public class UtilsTest {
 
             @Override
             public Object getNativeObject() {
-                return keyValue;
+                return keyValueSchema.decode(keyValueSchema.encode(keyValue));
             }
         };
 

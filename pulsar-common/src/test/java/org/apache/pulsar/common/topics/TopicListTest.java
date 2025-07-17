@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.common.topics;
 
-import com.google.common.collect.Lists;
-import com.google.re2j.Pattern;
-import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Stream;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import com.google.re2j.Pattern;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
+import org.testng.annotations.Test;
 
 public class TopicListTest {
 
@@ -68,18 +67,18 @@ public class TopicListTest {
         Set<String> addedNames = TopicList.minus(newNames, oldNames);
         Set<String> removedNames = TopicList.minus(oldNames, newNames);
 
-        assertTrue(addedNames.size() == 2 &&
-                addedNames.contains(topicName5) &&
-                addedNames.contains(topicName6));
-        assertTrue(removedNames.size() == 2 &&
-                removedNames.contains(topicName1) &&
-                removedNames.contains(topicName2));
+        assertTrue(addedNames.size() == 2
+                && addedNames.contains(topicName5)
+                && addedNames.contains(topicName6));
+        assertTrue(removedNames.size() == 2
+                && removedNames.contains(topicName1)
+                && removedNames.contains(topicName2));
 
         // totally 2 different list, should return content of first lists.
         Set<String> addedNames2 = TopicList.minus(addedNames, removedNames);
-        assertTrue(addedNames2.size() == 2 &&
-                addedNames2.contains(topicName5) &&
-                addedNames2.contains(topicName6));
+        assertTrue(addedNames2.size() == 2
+                && addedNames2.contains(topicName5)
+                && addedNames2.contains(topicName6));
 
         // 2 same list, should return empty list.
         Set<String> addedNames3 = TopicList.minus(addedNames, addedNames);
@@ -102,10 +101,16 @@ public class TopicListTest {
         String hash1 = TopicList.calculateHash(Arrays.asList(topicName3, topicName2, topicName1));
         String hash2 = TopicList.calculateHash(Arrays.asList(topicName1, topicName3, topicName2));
         assertEquals(hash1, hash2, "Hash must not depend on order of topics in the list");
+        assertEquals(hash1, "90d4a04a", "Hash must be equal to the expected value");
 
         String hash3 = TopicList.calculateHash(Arrays.asList(topicName1, topicName2));
         assertNotEquals(hash1, hash3, "Different list must have different hashes");
 
+        String hash4 = TopicList.calculateHash(Arrays.asList(topicName1));
+        assertEquals(hash4, "0d0602ed", "Hash must be equal to the expected value");
+
+        String hash5 = TopicList.calculateHash(Collections.emptyList());
+        assertEquals(hash5, "00000000", "Hash of empty list must be 0");
     }
 
     @Test

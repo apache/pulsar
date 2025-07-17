@@ -22,9 +22,9 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_C
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_KEY_FILE_PATH;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CA_CERT_FILE_PATH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
@@ -36,9 +36,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -48,6 +54,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -443,7 +450,8 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
         Set<String> expected = new HashSet<>(clusters);
-        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getReplicationClusters());
+        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic)
+                .getReplicationClusters());
         assertEquals(act, expected);
     }
 
@@ -503,7 +511,64 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             assertTrue(topicOptional1.isPresent());
             PersistentTopic persistentTopic1 = (PersistentTopic) topicOptional1.get();
             assertTrue(persistentTopic1.getReplicators().isEmpty()
-                    || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
+                    || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName())
+                    .isConnected());
         });
+    }
+
+    protected void waitChangeEventsReplicated(String ns) {
+        String topicName = "persistent://" + ns + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        TopicName topicNameObj = TopicName.get(topicName);
+        Optional<PartitionedTopicMetadata> metadata = pulsar1.getPulsarResources().getNamespaceResources()
+                .getPartitionedTopicResources()
+                .getPartitionedTopicMetadataAsync(topicNameObj).join();
+        Function<Replicator, Boolean> ensureNoBacklog = new Function<Replicator, Boolean>() {
+
+            @Override
+            public Boolean apply(Replicator replicator) {
+                if (!replicator.getRemoteCluster().equals("c2")) {
+                    return true;
+                }
+                PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
+                Position lac = persistentReplicator.getCursor().getManagedLedger().getLastConfirmedEntry();
+                Position mdPos = persistentReplicator.getCursor().getMarkDeletedPosition();
+                return mdPos.compareTo(lac) >= 0;
+            }
+        };
+        if (metadata.isPresent()) {
+            for (int index = 0; index < metadata.get().partitions; index++) {
+                String partitionName = topicNameObj.getPartition(index).toString();
+                PersistentTopic persistentTopic =
+                        (PersistentTopic) pulsar1.getBrokerService().getTopic(partitionName, false).join().get();
+                persistentTopic.getReplicators().values().forEach(replicator -> {
+                    assertTrue(ensureNoBacklog.apply(replicator));
+                });
+            }
+        } else {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+            persistentTopic.getReplicators().values().forEach(replicator -> {
+                assertTrue(ensureNoBacklog.apply(replicator));
+            });
+        }
+    }
+
+    protected void waitForReplicationTaskFinish(String topicName) throws Exception {
+        PersistentTopic persistentTopic1 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(topicName, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
+        Position lac = ml.getLastConfirmedEntry();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
+        Awaitility.await().untilAsserted(() -> {
+            if (cursor.getName().startsWith("pulsar.repl")) {
+                assertTrue(cursor.getMarkDeletedPosition().compareTo(lac) >= 0);
+            }
+        });
+    }
+
+    protected GeoPersistentReplicator getReplicator(String topic) {
+        waitReplicatorStarted(topic);
+        return (GeoPersistentReplicator) pulsar1.getBrokerService().getTopic(topic, false).join().get()
+                .getReplicators().get(cluster2);
     }
 }

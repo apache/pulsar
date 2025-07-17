@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -25,14 +31,6 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.CompletableFuture;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit testing AbstractGenericSchema for non-avroBasedGenericSchema.
@@ -42,7 +40,8 @@ public class AbstractGenericSchemaTest {
 
     @Test
     public void testGenericProtobufNativeSchema() {
-        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema =
+                Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
         GenericSchema decodeSchema = GenericProtobufNativeSchema.of(encodeSchema.getSchemaInfo());
 
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
@@ -52,12 +51,14 @@ public class AbstractGenericSchemaTest {
     public void testAutoProtobufNativeSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        GenericSchema genericProtobufNativeSchema = GenericProtobufNativeSchema.of(Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class).getSchemaInfo());
+        GenericSchema genericProtobufNativeSchema = GenericProtobufNativeSchema.of(Schema.PROTOBUF_NATIVE(
+                org.apache.pulsar.client.schema.proto.Test.TestMessage.class).getSchemaInfo());
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(genericProtobufNativeSchema.getSchemaInfo()));
 
         // configure encode schema
-        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUF_NATIVE(
+                org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
         // configure decode schema
         AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
         decodeSchema.configureSchemaInfo("test-topic", "topic", encodeSchema.getSchemaInfo());
@@ -66,8 +67,9 @@ public class AbstractGenericSchemaTest {
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
-    private void testEncodeAndDecodeGenericRecord(Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema,
-                                                  Schema<GenericRecord> decodeSchema) {
+    private void testEncodeAndDecodeGenericRecord(
+            Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema,
+            Schema<GenericRecord> decodeSchema) {
         int numRecords = 10;
         for (int i = 0; i < numRecords; i++) {
             org.apache.pulsar.client.schema.proto.Test.TestMessage testMessage = newTestMessage(i);

@@ -36,7 +36,7 @@ public class PulsarGeoCluster {
     private final PulsarCluster[] clusters;
 
     /**
-     * Pulsar Cluster Spec
+     * Pulsar Cluster Spec.
      *
      * @param specs each pulsar cluster spec.
      * @return the built a pulsar cluster with geo replication

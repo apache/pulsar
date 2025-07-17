@@ -52,9 +52,9 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
 
     @Override
     public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
-                                                EventLoopGroup eventLoopGroup,
-                                                Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                                                Map<String, Object> properties) {
+                             EventLoopGroup eventLoopGroup,
+                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                             Map<String, Object> properties) {
         return CompletableFuture.completedFuture(mockedBk);
     }
 
