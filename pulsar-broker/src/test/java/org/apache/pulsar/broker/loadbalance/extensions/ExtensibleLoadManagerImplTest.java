@@ -1320,8 +1320,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertTrue(webServiceUrlBefore2.isPresent());
         assertEquals(webServiceUrlBefore2.get().toString(), webServiceUrlBefore1.get().toString());
 
-        String syncerTyp = serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName()) ?
-                "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
+        String syncerTyp = serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName())
+                ? "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
         pulsar.getAdminClient().brokers()
                 .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer", syncerTyp);
         Awaitility.waitAtMost(10, TimeUnit.SECONDS)
