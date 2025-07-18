@@ -405,7 +405,15 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
     }
 
     public T get(String key) {
-        return data.get(key);
+
+        var cached = cache.getIfCached(getPath(key));
+        // Added this logging to print warn any discrepancy between cache and tableview
+        var val = immutableData.get(key);
+        if (!Objects.equals(cached.orElse(null), val)) {
+            log.warn("cache and tableview are out of sync on item key={} value={} cached={}. Prolonged inconsistency "
+                    + "may require broker restart to mitigate the issue.", key, val, cached);
+        }
+        return val;
     }
 
     public CompletableFuture<Void> put(String key, T value) {
