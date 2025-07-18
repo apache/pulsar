@@ -49,7 +49,7 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(singleThreaded = true)
     void testGetMetricsByAuthenticate() throws Exception {
         conf.setAuthenticateMetricsEndpoint(true);
         super.internalSetup();
@@ -59,7 +59,7 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     }
 
-    @Test
+    @Test(singleThreaded = true)
     void testGetMetricsByDefault() throws Exception {
         super.internalSetup();
         @Cleanup
