@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -1929,4 +1930,13 @@ public interface TopicPolicies {
      * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given topic asynchronously.
      */
     CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied);
+
+    /**
+     * Set the replication clusters for the topic.
+     */
+    CompletableFuture<Void> setReplicationClusters(String topic, List<String> clusterIds);
+
+    Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException;
+
+    void removeReplicationClusters(String topic) throws PulsarAdminException;
 }
