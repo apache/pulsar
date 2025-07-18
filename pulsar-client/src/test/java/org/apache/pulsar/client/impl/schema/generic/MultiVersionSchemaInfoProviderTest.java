@@ -49,7 +49,7 @@ public class MultiVersionSchemaInfoProviderTest {
         when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.getLookup()).thenReturn(mock(LookupService.class));
         schemaProvider = new MultiVersionSchemaInfoProvider(
-                TopicName.get("persistent://public/default/my-topic"), client);
+                TopicName.get("persistent://public/default/my-topic"), client, null);
     }
 
     @Test

@@ -429,6 +429,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     private Map<String, String> lookupProperties;
 
+    private Map<String, String> schemaProperties;
+
     private transient OpenTelemetry openTelemetry;
 
     /**
@@ -502,4 +504,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     public Map<String, String> getLookupProperties() {
         return (lookupProperties == null) ? Collections.emptyMap() : Collections.unmodifiableMap(lookupProperties);
     }
+
+    public void setSchemaProperties(Map<String, String> schemaProperties) {
+        this.schemaProperties = Collections.unmodifiableMap(schemaProperties);
+    }
+
+    public Map<String, String> getSchemaProperties() {
+        return (schemaProperties == null) ? Collections.emptyMap() : schemaProperties;
+    }
+
 }
