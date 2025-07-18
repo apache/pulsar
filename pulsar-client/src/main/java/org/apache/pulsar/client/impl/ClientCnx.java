@@ -1508,6 +1508,9 @@ public class ClientCnx extends PulsarHandler {
         if (!transactionMetaStoreHandlers.isEmpty()) {
             return false;
         }
+        if (!topicListWatchers.isEmpty()) {
+            return false;
+        }
         return true;
     }
 }
