@@ -20,6 +20,8 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
@@ -54,15 +55,15 @@ public class PerformanceBaseArgumentsTest {
         args.parse(new String[]{});
 
 
-        Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
-        Assert.assertEquals(args.authPluginClassName,
+        assertEquals(args.serviceURL, "https://my-pulsar:8443/");
+        assertEquals(args.authPluginClassName,
                 "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
-        Assert.assertEquals(args.authParams, "myparams");
-        Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
-        Assert.assertTrue(args.tlsAllowInsecureConnection);
-        Assert.assertTrue(args.tlsHostnameVerificationEnable);
-        Assert.assertEquals(args.proxyServiceURL, "https://my-proxy-pulsar:4443/");
-        Assert.assertEquals(args.proxyProtocol, SNI);
+        assertEquals(args.authParams, "myparams");
+        assertEquals(args.tlsTrustCertsFilePath, "./path");
+        assertTrue(args.tlsAllowInsecureConnection);
+        assertTrue(args.tlsHostnameVerificationEnable);
+        assertEquals(args.proxyServiceURL, "https://my-proxy-pulsar:4443/");
+        assertEquals(args.proxyProtocol, SNI);
     }
 
     @Test
@@ -103,13 +104,13 @@ public class PerformanceBaseArgumentsTest {
             args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
             args.parse(new String[]{});
 
-            Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
-            Assert.assertEquals(args.authPluginClassName,
+            assertEquals(args.serviceURL, "https://my-pulsar:8443/");
+            assertEquals(args.authPluginClassName,
                     "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
-            Assert.assertEquals(args.authParams, "myparams");
-            Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
-            Assert.assertTrue(args.tlsAllowInsecureConnection);
-            Assert.assertTrue(args.tlsHostnameVerificationEnable);
+            assertEquals(args.authParams, "myparams");
+            assertEquals(args.tlsTrustCertsFilePath, "./path");
+            assertTrue(args.tlsAllowInsecureConnection);
+            assertTrue(args.tlsHostnameVerificationEnable);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -162,7 +163,7 @@ public class PerformanceBaseArgumentsTest {
             } catch (CommandLine.ParameterException e){
                 calledVar2.set(true);
             }
-            Assert.assertTrue(calledVar2.get());
+            assertTrue(calledVar2.get());
         } catch (IOException e) {
             e.printStackTrace();
             fail("Error while updating/reading config file");
@@ -253,4 +254,99 @@ public class PerformanceBaseArgumentsTest {
             assertEquals(baseArgument.memoryLimit, 0L);
         }
     }
+
+    @Test
+    public void testReadConfigFileWithUseKeyStoreTlsAndNoTrustStorePath() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
+            @Override
+            public void run() throws Exception {
+
+            }
+        };
+
+        String confFile = "./perf_client_keystore_invalid.conf";
+
+        File tempConfigFile = new File(confFile);
+        if (tempConfigFile.exists()) {
+            tempConfigFile.delete();
+        }
+        try {
+            Properties props = new Properties();
+
+            Map<String, String> configs = Map.of("brokerServiceUrl", "https://my-pulsar:8443/",
+                    "authPlugin", "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+                    "authParams", "myparams",
+                    "useKeyStoreTls", "true"
+            );
+            props.putAll(configs);
+            FileOutputStream out = new FileOutputStream(tempConfigFile);
+            props.store(out, "properties file");
+            out.close();
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            args.parse(new String[]{});
+            assertThrows(CommandLine.ParameterException.class, args::validate);
+        } catch (IOException e) {
+            fail("Error while updating/reading config file");
+        } finally {
+            tempConfigFile.delete();
+        }
+    }
+
+    @Test
+    public void testReadConfigFileWithUseKeyStoreTlsAndTrustStorePath() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
+            @Override
+            public void run() throws Exception {
+
+            }
+        };
+
+        String confFile = "./perf_client_keystore.conf";
+
+        File tempConfigFile = new File(confFile);
+        if (tempConfigFile.exists()) {
+            tempConfigFile.delete();
+        }
+        try {
+            Properties props = new Properties();
+
+            Map<String, String> configs = Map.of("brokerServiceUrl", "https://my-pulsar:8443/",
+                    "authPlugin", "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+                    "authParams", "myparams",
+                    "useKeyStoreTls", "true",
+                    "tlsTrustStorePath", "./path",
+                    "tlsTrustStoreType", "PKCS12",
+                    "tlsTrustStorePassword", "changeme",
+                    "tlsKeyStorePath", "./path"
+            );
+            props.putAll(configs);
+            FileOutputStream out = new FileOutputStream(tempConfigFile);
+            props.store(out, "properties file");
+            out.close();
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            args.parse(new String[]{});
+            args.validate();
+            assertTrue(args.useKeyStoreTls);
+            assertEquals("PKCS12", args.tlsTrustStoreType);
+            assertEquals("./path", args.tlsTrustStorePath);
+            assertEquals("changeme", args.tlsTrustStorePassword);
+            assertEquals("JKS", args.tlsKeyStoreType);
+            assertEquals("./path", args.tlsKeyStorePath);
+            assertEquals("", args.tlsKeyStorePassword);
+
+        } catch (IOException e) {
+            fail("Error while updating/reading config file");
+        } finally {
+            tempConfigFile.delete();
+        }
+    }
+
 }
