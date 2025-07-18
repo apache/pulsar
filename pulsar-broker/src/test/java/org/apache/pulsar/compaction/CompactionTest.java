@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -2153,7 +2154,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 Thread.sleep(500);
             }
         }).when(subscription).acknowledgeMessage(Mockito.any(), Mockito.eq(
-                CommandAck.AckType.Cumulative), Mockito.any());
+                CommandAck.AckType.Cumulative), Mockito.any(), any(), anyBoolean());
 
         // trigger compaction
         admin.topics().triggerCompaction(topicName);
