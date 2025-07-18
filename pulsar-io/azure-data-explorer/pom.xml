@@ -32,7 +32,7 @@
     <name>Pulsar IO :: AzureDataExplorer</name>
 
     <properties>
-        <kusto.sdk.version>5.0.4</kusto.sdk.version>
+        <kusto.sdk.version>5.2.0</kusto.sdk.version>
     </properties>
     <dependencies>
         <dependency>
