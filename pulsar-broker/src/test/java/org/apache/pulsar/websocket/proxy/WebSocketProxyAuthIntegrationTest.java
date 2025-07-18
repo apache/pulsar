@@ -57,10 +57,15 @@ import org.testng.annotations.Test;
  * WebSocket connections to work properly through a proxy when both authentication
  * and authorization are enabled, using real JWT tokens for different roles.
  *
- * The test uses three different JWT tokens:
+ * The test uses four different JWT tokens:
  * - ADMIN_TOKEN: Used by admin client and broker's internal client for setup operations
  * - PROXY_TOKEN: Used by WebSocket proxy's internal client to connect to broker
  * - CLIENT_TOKEN: Used by WebSocket clients to authenticate to the proxy
+ * - UNAUTHORIZED_TOKEN: Used to test that unauthorized tokens are properly rejected
+ *
+ * Test coverage:
+ * 1. testWebSocketProxyProduceConsumeWithAuthorization: Positive test with authorized tokens
+ * 2. testWebSocketProxyWithUnauthorizedToken: Negative test with unauthorized tokens
  */
 @Test(groups = "websocket")
 public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
@@ -73,6 +78,8 @@ public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
             Optional.empty());
     private static final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.empty());
     private static final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
+    private static final String UNAUTHORIZED_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "unauthorized_user",
+            Optional.empty());
 
     private ProxyServer proxyServer;
     private WebSocketService service;
@@ -274,6 +281,92 @@ public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
                 }
             } catch (Exception e) {
                 log.warn("Error stopping WebSocket clients in finally block: {}", e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Test WebSocket connections with unauthorized token should fail.
+     * This verifies that the authorization system correctly rejects tokens without proper permissions.
+     */
+    @Test(timeOut = 30000)
+    public void testWebSocketProxyWithUnauthorizedToken() throws Exception {
+        final String namespaceName = "my-property/my-ns";
+        final String topic = namespaceName + "/my-websocket-topic";
+
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/consumer/persistent/" + topic + "/my-sub-unauthorized";
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/" + topic;
+
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient unauthorizedConsumeClient = null;
+        WebSocketClient unauthorizedProduceClient = null;
+
+        try {
+            // Test unauthorized consumer connection
+            unauthorizedConsumeClient = new WebSocketClient();
+            SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+            unauthorizedConsumeClient.start();
+            
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            // Use UNAUTHORIZED_TOKEN which doesn't have permissions
+            consumeRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
+            Future<Session> consumerFuture = unauthorizedConsumeClient.connect(consumeSocket, consumeUri,
+                    consumeRequest);
+            
+            log.info("Attempting to connect consumer with unauthorized token to: {}", consumeUri);
+            
+            try {
+                Session consumerSession = consumerFuture.get(10, TimeUnit.SECONDS);
+                // If we reach here, the connection succeeded when it should have failed
+                if (consumerSession.isOpen()) {
+                    Assert.fail("Consumer connection should have been rejected due to lack of permissions");
+                }
+            } catch (Exception e) {
+                // Expected: Connection should fail due to authorization
+                log.info("Consumer connection correctly failed with unauthorized token: {}", e.getMessage());
+            }
+
+            // Test unauthorized producer connection
+            unauthorizedProduceClient = new WebSocketClient();
+            SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+            unauthorizedProduceClient.start();
+            
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            // Use UNAUTHORIZED_TOKEN which doesn't have permissions
+            produceRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
+            Future<Session> producerFuture = unauthorizedProduceClient.connect(produceSocket, produceUri,
+                    produceRequest);
+            
+            log.info("Attempting to connect producer with unauthorized token to: {}", produceUri);
+            
+            try {
+                Session producerSession = producerFuture.get(10, TimeUnit.SECONDS);
+                // If we reach here, the connection succeeded when it should have failed
+                if (producerSession.isOpen()) {
+                    Assert.fail("Producer connection should have been rejected due to lack of permissions");
+                }
+            } catch (Exception e) {
+                // Expected: Connection should fail due to authorization
+                log.info("Producer connection correctly failed with unauthorized token: {}", e.getMessage());
+            }
+
+            log.info("Test passed: Unauthorized tokens are correctly rejected by WebSocket proxy");
+
+        } finally {
+            // Clean up connections
+            try {
+                if (unauthorizedConsumeClient != null && unauthorizedConsumeClient.isStarted()) {
+                    unauthorizedConsumeClient.stop();
+                }
+                if (unauthorizedProduceClient != null && unauthorizedProduceClient.isStarted()) {
+                    unauthorizedProduceClient.stop();
+                }
+            } catch (Exception e) {
+                log.warn("Error stopping unauthorized WebSocket clients in finally block: {}", e.getMessage());
             }
         }
     }
