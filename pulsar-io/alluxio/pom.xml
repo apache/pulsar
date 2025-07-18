@@ -29,7 +29,7 @@
     </parent>
 
     <properties>
-        <alluxio.version>2.9.3</alluxio.version>
+        <alluxio.version>2.9.4</alluxio.version>
         <metrics.version>4.1.11</metrics.version>
         <grpc.version>1.37.0</grpc.version>
         <netty.version>4.1.100.Final</netty.version>
