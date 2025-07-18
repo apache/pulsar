@@ -199,14 +199,20 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         log.warn(
                 "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
                 subscription, consumerName);
-        // close connection
-        closeAsync().handle((ok, e) -> {
-            // notify callback with failure result
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        internalPinnedExecutor.execute(() -> {
             notifyPendingReceivedCallback(null,
                     new PulsarClientException.InvalidMessageException(
                             format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
                                     subscription, consumerName)));
-            return null;
+            future.complete(null);
+        });
+
+        // close connection
+        future.whenComplete((ok, e) -> {
+            closeAsync();
         });
     }
 
