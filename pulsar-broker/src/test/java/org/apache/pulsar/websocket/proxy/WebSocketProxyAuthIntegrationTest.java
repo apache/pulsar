@@ -310,15 +310,15 @@ public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
             unauthorizedConsumeClient = new WebSocketClient();
             SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
             unauthorizedConsumeClient.start();
-            
+
             ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
             // Use UNAUTHORIZED_TOKEN which doesn't have permissions
             consumeRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
             Future<Session> consumerFuture = unauthorizedConsumeClient.connect(consumeSocket, consumeUri,
                     consumeRequest);
-            
+
             log.info("Attempting to connect consumer with unauthorized token to: {}", consumeUri);
-            
+
             try {
                 Session consumerSession = consumerFuture.get(10, TimeUnit.SECONDS);
                 // If we reach here, the connection succeeded when it should have failed
@@ -334,15 +334,15 @@ public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
             unauthorizedProduceClient = new WebSocketClient();
             SimpleProducerSocket produceSocket = new SimpleProducerSocket();
             unauthorizedProduceClient.start();
-            
+
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             // Use UNAUTHORIZED_TOKEN which doesn't have permissions
             produceRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
             Future<Session> producerFuture = unauthorizedProduceClient.connect(produceSocket, produceUri,
                     produceRequest);
-            
+
             log.info("Attempting to connect producer with unauthorized token to: {}", produceUri);
-            
+
             try {
                 Session producerSession = producerFuture.get(10, TimeUnit.SECONDS);
                 // If we reach here, the connection succeeded when it should have failed
