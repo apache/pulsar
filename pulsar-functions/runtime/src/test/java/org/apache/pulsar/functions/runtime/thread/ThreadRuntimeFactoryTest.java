@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -110,13 +111,13 @@ public class ThreadRuntimeFactoryTest {
 
             ThreadRuntimeFactoryConfig threadRuntimeFactoryConfig = new ThreadRuntimeFactoryConfig();
             threadRuntimeFactoryConfig.setThreadGroupName("foo");
-            ThreadRuntimeFactoryConfig.MemoryLimit memoryLimit = new ThreadRuntimeFactoryConfig.MemoryLimit();
+            MemoryLimit memoryLimit = new MemoryLimit();
             if (percent != null) {
                 memoryLimit.setPercentOfMaxDirectMemory(percent);
             }
 
             if (absolute != null) {
-                memoryLimit.setAbsoluteValue(absolute);
+                memoryLimit.setLimitInBytes(absolute);
             }
             threadRuntimeFactoryConfig.setPulsarClientMemoryLimit(memoryLimit);
 
