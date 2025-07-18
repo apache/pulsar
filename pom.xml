@@ -187,7 +187,7 @@ flexible messaging model and an intuitive client API.</description>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
-    <sqlite-jdbc.version>3.42.0.0</sqlite-jdbc.version>
+    <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.5.5</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
@@ -196,11 +196,11 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
-    <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
+    <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
     <trino.version>368</trino.version>
     <debezium.version>2.6.1.Final</debezium.version>
     <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.30</debezium.mysql.version>
+    <debezium.mysql.version>8.0.33</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
