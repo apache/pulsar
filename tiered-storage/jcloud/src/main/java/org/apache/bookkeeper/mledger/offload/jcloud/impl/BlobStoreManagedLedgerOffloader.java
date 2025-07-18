@@ -248,6 +248,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 int partId = 1;
                 long start = System.nanoTime();
                 long entryBytesWritten = 0;
+                long startOffloadTime = System.currentTimeMillis();
+                long ledgerCreateTime = readHandle.getLedgerMetadata().getCtime();
+                long ledgerOffloadLatencyTime = startOffloadTime - ledgerCreateTime;
+                this.offloaderStats.recordOffloadDataLatency(topicName, ledgerOffloadLatencyTime,
+                        TimeUnit.MILLISECONDS);
                 while (startEntry <= readHandle.getLastAddConfirmed()) {
                     int blockSize = BlockAwareSegmentInputStreamImpl
                         .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
