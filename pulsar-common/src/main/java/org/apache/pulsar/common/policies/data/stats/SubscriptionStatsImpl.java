@@ -71,8 +71,11 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
     public boolean blockedSubscriptionOnUnackedMsgs;
 
-    /** Number of delayed messages currently being tracked. */
+    /** Number of delayed messages. */
     public long msgDelayed;
+
+    /** Number of delayed messages currently being tracked. */
+    public long msgDelayedInMemory;
 
     /** Number of messages registered for replay. */
     public long msgInReplay;
