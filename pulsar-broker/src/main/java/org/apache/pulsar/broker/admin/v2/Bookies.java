@@ -84,7 +84,10 @@ public class Bookies extends AdminResource {
     public BookiesClusterInfo getAllBookies() throws Exception {
         validateSuperUserAccess();
 
-        BookKeeper bookKeeper = bookKeeper();
+        BookKeeper bookKeeper = pulsar().getOptionalBookKeeperClient().orElse(null);
+        if (bookKeeper == null) {
+            return BookiesClusterInfo.builder().bookies(List.of()).build();
+        }
         MetadataClientDriver metadataClientDriver = bookKeeper.getMetadataClientDriver();
         RegistrationClient registrationClient = metadataClientDriver.getRegistrationClient();
 
