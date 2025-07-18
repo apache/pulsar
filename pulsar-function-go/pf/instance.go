@@ -186,6 +186,7 @@ CLOSE:
 			}
 
 			gi.stats.processTimeEnd()
+			// SUGGESTION 1: make this a goroutine with semaphore and pass in waitgroup
 			gi.processResult(msgInput, output)
 		case <-idleTimer.C:
 			close(channel)
@@ -424,6 +425,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 						gi.nackInputMessage(msgInput)
 					}
 					gi.stats.incrTotalSysExceptions(err)
+					// SUGGESTION 2: convert this into a non-fatal error log
 					log.Fatal(err)
 				}
 				// Otherwise the message succeeded. If the SDK is entrusted with responding and we are using
