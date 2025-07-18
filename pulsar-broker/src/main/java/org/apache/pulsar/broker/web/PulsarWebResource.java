@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.web;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
@@ -884,9 +885,19 @@ public abstract class PulsarWebResource {
     }
 
     public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
+                                                                                           TopicName topicName) {
+        if (isSystemTopic(topicName)) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject(), false);
+        }
+    }
+
+    public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
                                                                                            NamespaceName namespace) {
         return checkLocalOrGetPeerReplicationCluster(pulsarService, namespace, false);
     }
+
     public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
                                                                                      NamespaceName namespace,
                                                                                      boolean allowDeletedNamespace) {
