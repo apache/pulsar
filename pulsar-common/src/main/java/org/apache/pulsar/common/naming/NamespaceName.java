@@ -18,15 +18,10 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.util.StringInterner;
 
 /**
  * Parser of a value from the namespace field provided in configuration.
@@ -39,23 +34,26 @@ public class NamespaceName implements ServiceUnitId {
     private final String cluster;
     private final String localName;
 
-    private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
-                @Override
-                public NamespaceName load(String name) throws Exception {
-                    return new NamespaceName(name);
-                }
-            });
+    public static void invalidateCache() {
+        NamespaceNameCache.INSTANCE.invalidateCache();
+    }
 
     public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
 
     public static NamespaceName get(String tenant, String namespace) {
-        validateNamespaceName(tenant, namespace);
+        if ((tenant == null || tenant.isEmpty()) || (namespace == null || namespace.isEmpty())) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid namespace format. namespace: %s/%s", tenant, namespace));
+        }
         return get(tenant + '/' + namespace);
     }
 
     public static NamespaceName get(String tenant, String cluster, String namespace) {
-        validateNamespaceName(tenant, cluster, namespace);
+        if ((tenant == null || tenant.isEmpty()) || (cluster == null || cluster.isEmpty())
+                || (namespace == null || namespace.isEmpty())) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace));
+        }
         return get(tenant + '/' + cluster + '/' + namespace);
     }
 
@@ -63,17 +61,11 @@ public class NamespaceName implements ServiceUnitId {
         if (namespace == null || namespace.isEmpty()) {
             throw new IllegalArgumentException("Invalid null namespace: " + namespace);
         }
-        try {
-            return cache.get(namespace);
-        } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        } catch (UncheckedExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        }
+        return NamespaceNameCache.INSTANCE.get(namespace);
     }
 
     public static Optional<NamespaceName> getIfValid(String namespace) {
-        NamespaceName ns = cache.getIfPresent(namespace);
+        NamespaceName ns = NamespaceNameCache.INSTANCE.getIfPresent(namespace);
         if (ns != null) {
             return Optional.of(ns);
         }
@@ -91,7 +83,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-    private NamespaceName(String namespace) {
+    NamespaceName(String namespace) {
         // Verify it's a proper namespace
         // The namespace name is composed of <tenant>/<namespace>
         // or in the legacy format with the cluster name:
@@ -103,16 +95,16 @@ public class NamespaceName implements ServiceUnitId {
                 // New style namespace : <tenant>/<namespace>
                 validateNamespaceName(parts[0], parts[1]);
 
-                tenant = parts[0];
+                tenant = StringInterner.intern(parts[0]);
                 cluster = null;
-                localName = parts[1];
+                localName = StringInterner.intern(parts[1]);
             } else if (parts.length == 3) {
                 // Old style namespace: <tenant>/<cluster>/<namespace>
                 validateNamespaceName(parts[0], parts[1], parts[2]);
 
-                tenant = parts[0];
-                cluster = parts[1];
-                localName = parts[2];
+                tenant = StringInterner.intern(parts[0]);
+                cluster = StringInterner.intern(parts[1]);
+                localName = StringInterner.intern(parts[2]);
             } else {
                 throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace);
             }
@@ -121,7 +113,7 @@ public class NamespaceName implements ServiceUnitId {
                     + " expected <tenant>/<namespace> or <tenant>/<cluster>/<namespace> "
                     + "but got: " + namespace, e);
         }
-        this.namespace = namespace;
+        this.namespace = StringInterner.intern(namespace);
     }
 
     public String getTenant() {
