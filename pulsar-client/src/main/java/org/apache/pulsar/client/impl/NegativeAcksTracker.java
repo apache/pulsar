@@ -30,6 +30,7 @@ import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
 import java.io.Closeable;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -60,6 +61,8 @@ class NegativeAcksTracker implements Closeable {
     private static final long MIN_NACK_DELAY_MS = 100;
     private static final int DUMMY_PARTITION_INDEX = -2;
 
+    private ConcurrentHashMap<Long, Set<MessageId>> pendingDelayedNacks;
+
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
         this.timer = consumer.getClient().timer();
@@ -67,11 +70,20 @@ class NegativeAcksTracker implements Closeable {
                 MIN_NACK_DELAY_MS);
         this.negativeAckRedeliveryBackoff = conf.getNegativeAckRedeliveryBackoff();
         this.negativeAckPrecisionBitCnt = conf.getNegativeAckPrecisionBitCnt();
+        this.pendingDelayedNacks = new ConcurrentHashMap<>();
     }
 
     private void triggerRedelivery(Timeout t) {
         Set<MessageId> messagesToRedeliver = new HashSet<>();
         synchronized (this) {
+            if (nackedMessages == null && pendingDelayedNacks.isEmpty()) {
+                this.timeout = null;
+                return;
+            } else if (nackedMessages == null && !pendingDelayedNacks.isEmpty()) {
+                flushDelayedNackRequests();
+                return;
+            }
+
             if (nackedMessages.isEmpty()) {
                 this.timeout = null;
                 return;
@@ -119,6 +131,8 @@ class NegativeAcksTracker implements Closeable {
             } else {
                 this.timeout = null;
             }
+
+            flushDelayedNackRequests();
         }
 
         // release the lock of NegativeAcksTracker before calling consumer.redeliverUnacknowledgedMessages,
@@ -166,6 +180,34 @@ class NegativeAcksTracker implements Closeable {
         }
     }
 
+    public synchronized void add(MessageId messageId, long delay, TimeUnit unit) {
+        if (delay <= 0) {
+            add(messageId, 0);
+            return;
+        }
+        long delayAtTime = System.currentTimeMillis() + unit.toMillis(delay);
+        pendingDelayedNacks.computeIfAbsent(delayAtTime, k -> ConcurrentHashMap.newKeySet()).add(messageId);
+
+        if (this.timeout == null) {
+            // TODO: Will affect negativeAckRedeliveryBackoff. To be optimized.
+            this.timeout = timer.newTimeout(this::triggerRedelivery, nackDelayMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private synchronized void flushDelayedNackRequests() {
+        if (pendingDelayedNacks.isEmpty()) {
+            return;
+        }
+
+        pendingDelayedNacks.forEach((delayAtTime, msgIdsSet) -> {
+            if (!msgIdsSet.isEmpty()) {
+                consumer.redeliverUnacknowledgedMessages(msgIdsSet, delayAtTime);
+            }
+        });
+
+        pendingDelayedNacks.clear();
+    }
+
     /**
      * Discard the batch index and partition index from the message id.
      *
@@ -200,6 +242,11 @@ class NegativeAcksTracker implements Closeable {
         if (nackedMessages != null) {
             nackedMessages.clear();
             nackedMessages = null;
+        }
+
+        if (pendingDelayedNacks != null) {
+            pendingDelayedNacks.clear();
+            pendingDelayedNacks = null;
         }
     }
 }

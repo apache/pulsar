@@ -538,6 +538,11 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions, long delayAtTime) {
+        // No-op
+    }
+
+    @Override
     public void addUnAckedMessages(int unAckMessages) {
         // No-op
     }
