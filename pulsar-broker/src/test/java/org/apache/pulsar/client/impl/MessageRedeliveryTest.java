@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -321,6 +322,70 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(message);
         assertEquals(message.getValue(), test3);
+    }
+
+    @Test
+    public void testRedeliveryBrokerIgnoreSmallerEpoch() throws Exception{
+        final String topic = "testRedeliveryBrokerAbortSmallerEpoch";
+        final String subName = "my-sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe());
+
+        consumer.redeliverUnacknowledgedMessages();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(
+                "persistent://public/default/testRedeliveryBrokerAbortSmallerEpoch", false).get().get();
+        Awaitility.await().until(() -> persistentTopic.getSubscription(subName).getDispatcher()
+                .getConsumers().get(0).getConsumerEpoch() == 1);
+        consumer.setConsumerEpoch(-1);
+        producer.send("Hello Pulsar!");
+
+        // ignore this redeliver request
+        consumer.redeliverUnacknowledgedMessages();
+        consumer.receive();
+        assertEquals(consumer.getConsumerEpoch(), 0);
+        assertEquals(persistentTopic.getSubscription(subName).getDispatcher()
+                .getConsumers().get(0).getConsumerEpoch(), 1);
+    }
+
+    @Test
+    public void testRedeliveryCommandDontCheckClientConnectionState() throws Exception{
+        final String topic = "testRedeliveryCommandDontCheckClientConnectionState";
+        final String subName = "my-sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe());
+
+        assertEquals(consumer.getState(), HandlerState.State.Ready);
+        consumer.setState(HandlerState.State.Connecting);
+        producer.send("Hello Pulsar!");
+        consumer.receive();
+        consumer.redeliverUnacknowledgedMessages();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic,
+                false).get().get();
+        Awaitility.await().until(() -> persistentTopic.getSubscription(subName).getDispatcher()
+                .getConsumers().get(0).getConsumerEpoch() == 1);
+
+        // redeliver success, consumer also can receive message again
+        consumer.receive();
     }
 
     @Test(dataProvider = "enableBatch")
