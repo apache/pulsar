@@ -48,13 +48,6 @@ public interface TopicCompactionService extends AutoCloseable {
     CompletableFuture<List<Entry>> readCompactedEntries(@NonNull Position startPosition, int numberOfEntriesToRead);
 
     /**
-     * Read the last compacted entry from the TopicCompactionService.
-     *
-     * @return a future that will be completed with the compacted last entry, this entry can be null.
-     */
-    CompletableFuture<Entry> readLastCompactedEntry();
-
-    /**
      * Get the last compacted position from the TopicCompactionService.
      *
      * @return a future that will be completed with the last compacted position, this position can be null.
@@ -67,14 +60,27 @@ public interface TopicCompactionService extends AutoCloseable {
     * @param publishTime  the publish time of entry.
     * @return the first entry metadata that greater or equal to target publishTime, this entry can be null.
     */
-    CompletableFuture<Entry> findEntryByPublishTime(long publishTime);
+    CompletableFuture<Position> findEntryByPublishTime(long publishTime);
 
     /**
-    * Find the first entry that greater or equal to target entryIndex,
-    * if an entry that broker entry metadata is missed, then it will be skipped and find the next match entry.
-    *
-    * @param entryIndex  the index of entry.
-    * @return the first entry that greater or equal to target entryIndex, this entry can be null.
-    */
-    CompletableFuture<Entry> findEntryByEntryIndex(long entryIndex);
+     * Retrieve the position of the last message before compaction.
+     *
+     * @return A future that completes with the position of the last message before compaction, or
+     *         {@link MessagePosition#EARLIEST} if no such message exists.
+     */
+    CompletableFuture<MessagePosition> getLastMessagePosition();
+
+    /**
+     * Represents the position of a message.
+     * <p>
+     * The `ledgerId` and `entryId` together specify the exact entry to which the message belongs. For batched messages,
+     * the `batchIndex` field indicates the index of the message within the batch. If the message is not part of a
+     * batch, the `batchIndex` field is set to -1. The `publishTime` field corresponds to the publishing time of the
+     * entry's metadata, providing a timestamp for when the entry was published.
+     * </p>
+     */
+    record MessagePosition(long ledgerId, long entryId, int batchIndex, long publishTime) {
+
+        public static final MessagePosition EARLIEST = new MessagePosition(-1L, -1L, 0, 0);
+    }
 }

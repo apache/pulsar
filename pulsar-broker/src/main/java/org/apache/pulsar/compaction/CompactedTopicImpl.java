@@ -345,18 +345,23 @@ public class CompactedTopicImpl implements CompactedTopic {
         var compactedTopicContextFuture = this.getCompactedTopicContextFuture();
 
         if (compactedTopicContextFuture == null) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(new IllegalStateException(
+                    "CompactedTopicContext is not initialized"));
         }
         return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
             LedgerHandle lh = compactedTopicContext.getLedger();
             CompletableFuture<Long> promise = new CompletableFuture<>();
             findFirstMatchIndexLoop(predicate, 0L, lh.getLastAddConfirmed(), promise, null, lh);
-            return promise.thenCompose(index -> {
-                if (index == null) {
-                    return CompletableFuture.completedFuture(null);
+            return promise.thenCompose(index -> readEntries(lh, index, index).thenApply(entries -> {
+                if (entries.size() != 1) {
+                    for (final var entry : entries) {
+                        entry.release();
+                    }
+                    throw new IllegalStateException("Read " + entries.size() + " entries from the compacted ledger "
+                            + lh + " entry " + index);
                 }
-                return readEntries(lh, index, index).thenApply(entries -> entries.get(0));
-            });
+                return entries.get(0);
+            }));
         });
     }
     private static void findFirstMatchIndexLoop(final Predicate<Entry> predicate,

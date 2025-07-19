@@ -2837,31 +2837,16 @@ public class PersistentTopicsBase extends AdminResource {
                         "Get message ID by timestamp on a non-persistent topic is not allowed");
                 }
                 final PersistentTopic persistentTopic = (PersistentTopic) topic;
+                final var compactionService = persistentTopic.getTopicCompactionService();
 
-                return persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenCompose(lastEntry -> {
-                    if (lastEntry == null) {
-                        return findMessageIdByPublishTime(timestamp, persistentTopic.getManagedLedger());
-                    }
-                    MessageMetadata metadata;
-                    Position position = lastEntry.getPosition();
-                    try {
-                        metadata = Commands.parseMessageMetadata(lastEntry.getDataBuffer());
-                    } finally {
-                        lastEntry.release();
-                    }
-                    if (timestamp == metadata.getPublishTime()) {
-                        return CompletableFuture.completedFuture(new MessageIdImpl(position.getLedgerId(),
-                                position.getEntryId(), topicName.getPartitionIndex()));
-                    } else if (timestamp < metadata.getPublishTime()) {
+                return compactionService.getLastMessagePosition().thenCompose(messagePosition -> {
+                    if (timestamp == messagePosition.publishTime()) {
+                        return CompletableFuture.completedFuture(new MessageIdImpl(messagePosition.ledgerId(),
+                                messagePosition.entryId(), topicName.getPartitionIndex()));
+                    } else if (timestamp < messagePosition.publishTime()) {
                         return persistentTopic.getTopicCompactionService().findEntryByPublishTime(timestamp)
-                                .thenApply(compactedEntry -> {
-                                    try {
-                                        return new MessageIdImpl(compactedEntry.getLedgerId(),
-                                                compactedEntry.getEntryId(), topicName.getPartitionIndex());
-                                    } finally {
-                                        compactedEntry.release();
-                                    }
-                                });
+                                .thenApply(__ -> new MessageIdImpl(__.getLedgerId(), __.getEntryId(),
+                                        topicName.getPartitionIndex()));
                     } else {
                         return findMessageIdByPublishTime(timestamp, persistentTopic.getManagedLedger());
                     }
