@@ -197,7 +197,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         String subName = "regex-sub-proxy-parser-test-" + System.currentTimeMillis();
 
         // make sure regex subscription
-        String regexSubscriptionPattern = "persistent://sample/test/local/topic.*";
+        String regexSubscriptionPattern = "persistent://sample/test/topic.*";
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
                 .topicsPattern(regexSubscriptionPattern)
