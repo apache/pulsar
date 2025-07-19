@@ -71,6 +71,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -95,6 +96,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
@@ -116,6 +119,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -128,6 +132,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+    @AfterMethod
+    public void afterMethod() {
+        setEntryCacheCreator(null);
+    }
 
     @Test
     public void testCloseCursor() throws Exception {
@@ -5259,6 +5267,36 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(executedCallbackTimes.get(), 1);
         // cleanup.
         ml.delete();
+    }
+
+    @Test(timeOut = 10000)
+    public void testReadNoEntries() throws Exception {
+        final var firstRead = new AtomicBoolean(true);
+        setEntryCacheCreator(ml -> new RangeEntryCacheImpl((RangeEntryCacheManagerImpl) factory.getEntryCacheManager(),
+                ml, factory.getConfig().isCopyEntriesInCache()) {
+
+            @Override
+            protected CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh, long firstEntry, long lastEntry,
+                                                                         boolean shouldCacheEntry) {
+                if (firstRead.compareAndSet(true, false)) {
+                    return CompletableFuture.completedFuture(List.of());
+                }
+                return super.readFromStorage(lh, firstEntry, lastEntry, shouldCacheEntry);
+            }
+        });
+        final var ml = factory.open("testReadNoEntries");
+        final var cursor = ml.openCursor("cursor");
+        cursor.setInactive(); // disable caching when adding entries
+        for (int i = 0; i < 10; i++) {
+            ml.addEntry(("msg-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+        final var entries = cursor.readEntries(10);
+        assertEquals(entries.stream().map(e -> {
+            final var buffer = e.getDataBuffer();
+            final var bytes = new byte[buffer.readableBytes()];
+            buffer.readBytes(bytes);
+            return new String(bytes, StandardCharsets.UTF_8);
+        }).toList(), IntStream.range(0, 10).mapToObj(i -> "msg-" + i).toList());
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
