@@ -32,7 +32,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 @Slf4j
 public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
