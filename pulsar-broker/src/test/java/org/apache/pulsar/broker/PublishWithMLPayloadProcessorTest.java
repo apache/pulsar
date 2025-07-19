@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
@@ -54,7 +55,7 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
     }
 
 
-//    @Test(timeOut = 30_000)
+    @Test(timeOut = 30_000)
     public void testPublishWithoutDeduplication() throws Exception {
         String topic = "persistent://public/default/testPublishWithoutDeduplication";
         admin.topics().createNonPartitionedTopic(topic);
@@ -62,7 +63,7 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
         publishAndVerify(topic, false);
     }
 
-//    @Test(timeOut = 30_000)
+    @Test(timeOut = 30_000)
     public void testPublishWithDeduplication() throws Exception {
         String topic = "persistent://public/default/testPublishWithDeduplication";
         admin.topics().createNonPartitionedTopic(topic);

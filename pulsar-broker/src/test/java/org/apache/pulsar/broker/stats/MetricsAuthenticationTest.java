@@ -49,7 +49,7 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test(singleThreaded = true)
+    @Test
     void testGetMetricsByAuthenticate() throws Exception {
         conf.setAuthenticateMetricsEndpoint(true);
         super.internalSetup();
@@ -59,8 +59,9 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     }
 
-    @Test(singleThreaded = true)
+    @Test
     void testGetMetricsByDefault() throws Exception {
+        conf.setAuthenticateMetricsEndpoint(false);
         super.internalSetup();
         @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
