@@ -489,6 +489,8 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         shouldFail.readBytes(shouldFailBytes);
         byte[] shouldSucceedBytes = new byte[shouldSucceed.readableBytes()];
         shouldSucceed.readBytes(shouldSucceedBytes);
+        shouldSucceed.release();
+        shouldFail.release();
 
         for (int i = 0; i < count; i++) {
             if (i % 2 == 0) {

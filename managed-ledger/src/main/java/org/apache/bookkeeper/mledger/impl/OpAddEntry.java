@@ -138,7 +138,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             if (exbw != null) {
                 ml.pendingAddEntries.remove(this);
                 this.failed(exbw);
-                ReferenceCountUtil.safeRelease(data);
+                ReferenceCountUtil.safeRelease(duplicateBuffer);
                 // Don't recycle the object here, see: https://lists.apache.org/thread/po08w0tkhc7q8gc5khpdft6stxnr1v2y
                 return;
             }
