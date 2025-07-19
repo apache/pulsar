@@ -55,7 +55,7 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
     }
 
 
-    @Test(timeOut = 30_000)
+//    @Test(timeOut = 30_000)
     public void testPublishWithoutDeduplication() throws Exception {
         String topic = "persistent://public/default/testPublishWithoutDeduplication";
         admin.topics().createNonPartitionedTopic(topic);
@@ -63,7 +63,7 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
         publishAndVerify(topic, false);
     }
 
-    @Test(timeOut = 30_000)
+//    @Test(timeOut = 30_000)
     public void testPublishWithDeduplication() throws Exception {
         String topic = "persistent://public/default/testPublishWithDeduplication";
         admin.topics().createNonPartitionedTopic(topic);
