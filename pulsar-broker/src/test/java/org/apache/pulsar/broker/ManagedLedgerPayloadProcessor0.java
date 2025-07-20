@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 
@@ -41,7 +42,10 @@ public class ManagedLedgerPayloadProcessor0 implements ManagedLedgerPayloadProce
                     }
                     throw new RuntimeException("Failed to process input payload");
                 }
-                return inputPayload.retainedDuplicate();
+                byte[] bytes = new byte[inputPayload.readableBytes()];
+                inputPayload.readBytes(bytes);
+                inputPayload.release();
+                return Unpooled.wrappedBuffer(bytes, 0, bytes.length).retainedDuplicate();
             }
 
             @Override
