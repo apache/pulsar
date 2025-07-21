@@ -406,7 +406,7 @@ public class FutureUtil {
         try {
             return future.get();
         } catch (InterruptedException e) {
-            future.thenAccept(closeCallback);
+            future.thenAccept(cleanupAction);
             throw e;
         }
     }
