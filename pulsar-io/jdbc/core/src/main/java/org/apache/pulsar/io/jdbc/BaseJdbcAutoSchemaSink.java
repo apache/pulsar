@@ -86,7 +86,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
      *     statement.setNull(index, java.sql.Types.ARRAY);
      *     return;
      * }
-     * 
+     *
      * Object[] elements = convertToObjectArray(arrayValue);
      * String postgresType = mapToPostgresType(targetSqlType);
      * Array pgArray = connection.createArrayOf(postgresType, elements);
@@ -94,9 +94,9 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
      * }</pre>
      * </p>
      *
-     * @param statement the PreparedStatement to bind the array value to
-     * @param index the parameter index (1-based) in the PreparedStatement
-     * @param arrayValue the array value to be bound, typically a {@code GenericData.Array} or {@code Object[]}
+     * @param statement     the PreparedStatement to bind the array value to
+     * @param index         the parameter index (1-based) in the PreparedStatement
+     * @param arrayValue    the array value to be bound, typically a {@code GenericData.Array} or {@code Object[]}
      * @param targetSqlType the target SQL type name for the array column (e.g., "integer", "text", "_int4")
      * @throws Exception if array conversion or binding fails, including:
      *                   <ul>
@@ -109,7 +109,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
      * @see java.sql.Connection#createArrayOf(String, Object[])
      */
     protected abstract void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
-                                           String targetSqlType) throws Exception;
+                                             String targetSqlType) throws Exception;
 
     @Override
     public void bindValue(PreparedStatement statement, Mutation mutation) throws Exception {
@@ -261,16 +261,16 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
      * <pre>{@code
      * // Setting a primitive value
      * setColumnValue(statement, 1, 42, "integer");
-     * 
+     *
      * // Setting an array value (requires database-specific implementation)
      * GenericData.Array<Integer> intArray = ...;
      * setColumnValue(statement, 2, intArray, "integer");
      * }</pre>
      * </p>
      *
-     * @param statement the PreparedStatement to bind the value to
-     * @param index the parameter index (1-based) in the PreparedStatement
-     * @param value the value to be bound (null values are handled automatically)
+     * @param statement     the PreparedStatement to bind the value to
+     * @param index         the parameter index (1-based) in the PreparedStatement
+     * @param value         the value to be bound (null values are handled automatically)
      * @param targetSqlType the target SQL type name for the column, required for array types
      * @throws Exception if value binding fails, including:
      *                   <ul>
@@ -327,8 +327,8 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
      * without the targetSqlType parameter. Arrays will not be supported when using this method.
      *
      * @param statement the PreparedStatement to bind the value to
-     * @param index the parameter index (1-based) in the PreparedStatement
-     * @param value the value to be bound
+     * @param index     the parameter index (1-based) in the PreparedStatement
+     * @param value     the value to be bound
      * @throws Exception if value binding fails or if an array is encountered (arrays require targetSqlType)
      */
     protected void setColumnValue(PreparedStatement statement, int index, Object value) throws Exception {
@@ -364,8 +364,8 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
     }
 
     private static void fillKeyValueSchemaData(org.apache.pulsar.client.api.Schema<GenericObject> schema,
-                                        GenericObject record,
-                                        Map<String, Object> data) {
+                                               GenericObject record,
+                                               Map<String, Object> data) {
         if (record == null) {
             return;
         }
@@ -423,7 +423,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
      * // Convert a simple integer field
      * Schema intSchema = Schema.create(Schema.Type.INT);
      * Object result = convertAvroField(42, intSchema); // Returns Integer(42)
-     * 
+     *
      * // Convert an array field
      * Schema arraySchema = Schema.createArray(Schema.create(Schema.Type.STRING));
      * GenericData.Array<String> avroArray = ...;
@@ -432,9 +432,9 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
      * </p>
      *
      * @param avroValue the Avro value to convert (may be null)
-     * @param schema the Avro schema describing the value's type
+     * @param schema    the Avro schema describing the value's type
      * @return the converted Java object, or null if avroValue is null
-     * @throws IllegalArgumentException if the avroValue doesn't match the expected schema type
+     * @throws IllegalArgumentException      if the avroValue doesn't match the expected schema type
      * @throws UnsupportedOperationException if the schema type is not supported
      * @see org.apache.avro.Schema.Type
      * @see org.apache.avro.generic.GenericData.Array
