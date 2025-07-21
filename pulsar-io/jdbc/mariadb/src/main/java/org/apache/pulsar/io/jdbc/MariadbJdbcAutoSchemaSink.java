@@ -73,7 +73,7 @@ public class MariadbJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
     @Override
     protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue, String targetSqlType)
             throws Exception {
-        throw new UnsupportedOperationException("Array types are not supported by MariaDB JDBC sink. " +
-                "Consider using PostgreSQL JDBC sink for array support.");
+        throw new UnsupportedOperationException("Array types are not supported by MariaDB JDBC sink. "
+                + "Consider using PostgreSQL JDBC sink for array support.");
     }
 }
