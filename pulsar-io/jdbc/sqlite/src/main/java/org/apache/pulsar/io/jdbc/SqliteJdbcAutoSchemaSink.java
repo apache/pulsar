@@ -26,10 +26,10 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 @Connector(
-    name = "jdbc-sqlite",
-    type = IOType.SINK,
-    help = "A simple JDBC sink for SQLite that writes pulsar messages to a database table",
-    configClass = JdbcSinkConfig.class
+        name = "jdbc-sqlite",
+        type = IOType.SINK,
+        help = "A simple JDBC sink for SQLite that writes pulsar messages to a database table",
+        configClass = JdbcSinkConfig.class
 )
 public class SqliteJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 
@@ -70,15 +70,16 @@ public class SqliteJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
      * </ul>
      * </p>
      *
-     * @param statement the PreparedStatement (not used)
-     * @param index the parameter index (not used)
-     * @param arrayValue the array value (not used)
+     * @param statement     the PreparedStatement (not used)
+     * @param index         the parameter index (not used)
+     * @param arrayValue    the array value (not used)
      * @param targetSqlType the target SQL type (not used)
      * @throws UnsupportedOperationException always thrown as SQLite doesn't support arrays
      */
     @Override
-    protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue, String targetSqlType) throws Exception {
-        throw new UnsupportedOperationException("Array types are not supported by SQLite JDBC sink. " +
-                "Consider using PostgreSQL JDBC sink for array support.");
+    protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue, String targetSqlType)
+            throws Exception {
+        throw new UnsupportedOperationException("Array types are not supported by SQLite JDBC sink. "
+                + "Consider using PostgreSQL JDBC sink for array support.");
     }
 }

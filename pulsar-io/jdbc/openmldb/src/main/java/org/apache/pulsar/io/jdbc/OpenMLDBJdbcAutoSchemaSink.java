@@ -48,15 +48,16 @@ public class OpenMLDBJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
      * </ul>
      * </p>
      *
-     * @param statement the PreparedStatement (not used)
-     * @param index the parameter index (not used)
-     * @param arrayValue the array value (not used)
+     * @param statement     the PreparedStatement (not used)
+     * @param index         the parameter index (not used)
+     * @param arrayValue    the array value (not used)
      * @param targetSqlType the target SQL type (not used)
      * @throws UnsupportedOperationException always thrown as OpenMLDB doesn't support arrays
      */
     @Override
-    protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue, String targetSqlType) throws Exception {
-        throw new UnsupportedOperationException("Array types are not supported by OpenMLDB JDBC sink. " +
-                "Consider using PostgreSQL JDBC sink for array support.");
+    protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue, String targetSqlType)
+            throws Exception {
+        throw new UnsupportedOperationException("Array types are not supported by OpenMLDB JDBC sink. "
+                + "Consider using PostgreSQL JDBC sink for array support.");
     }
 }
