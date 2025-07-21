@@ -28,9 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.io.core.SourceContext;
-import software.amazon.kinesis.exceptions.InvalidStateException;
 import software.amazon.kinesis.exceptions.KinesisClientLibDependencyException;
-import software.amazon.kinesis.exceptions.ShutdownException;
 import software.amazon.kinesis.exceptions.ThrottlingException;
 import software.amazon.kinesis.lifecycle.events.InitializationInput;
 import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
@@ -82,10 +80,6 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
             log.info("Successfully checkpointed shard {} at {}", kinesisShardId, checkpoint);
             isCheckpointing.set(false);
             checkpointExecutor.schedule(this::triggerCheckpoint, checkpointInterval, TimeUnit.MILLISECONDS);
-        } catch (ShutdownException | InvalidStateException e) {
-            log.error("Caught a non-retryable exception for shard {} during checkpoint at {}. Terminating.",
-                    kinesisShardId, checkpoint, e);
-            sourceContext.fatal(e);
         } catch (ThrottlingException | KinesisClientLibDependencyException e) {
             if (attempt >= numRetries) {
                 log.error("Checkpoint for shard {} failed after {} attempts at {}. Terminating.",
@@ -97,6 +91,10 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
                 checkpointExecutor.schedule(() -> tryCheckpointWithRetry(checkpointer, checkpoint, attempt + 1),
                         backoffTime, TimeUnit.MILLISECONDS);
             }
+        } catch (Exception e) {
+            log.error("Caught a non-retryable exception for shard {} during checkpoint at {}. Terminating.",
+                    kinesisShardId, checkpoint, e);
+            sourceContext.fatal(e);
         }
     }
 
@@ -122,17 +120,21 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
     }
 
     private void triggerCheckpoint() {
-        if (isCheckpointing.compareAndSet(false, true)) {
-            final RecordProcessorCheckpointer checkpointer = checkpointerRef.get();
-            final CheckpointSequenceNumber currentCheckpoint = this.sequenceNumberNeedToCheckpoint;
-
-            if (checkpointer != null && currentCheckpoint != null && !currentCheckpoint.equals(
-                    lastCheckpointSequenceNumber)) {
-                tryCheckpointWithRetry(checkpointer, currentCheckpoint, 1);
-            } else {
-                isCheckpointing.set(false);
-                checkpointExecutor.schedule(this::triggerCheckpoint, checkpointInterval, TimeUnit.MILLISECONDS);
+        try {
+            if (isCheckpointing.compareAndSet(false, true)) {
+                final RecordProcessorCheckpointer checkpointer = checkpointerRef.get();
+                final CheckpointSequenceNumber currentCheckpoint = this.sequenceNumberNeedToCheckpoint;
+                if (checkpointer != null && currentCheckpoint != null && !currentCheckpoint.equals(
+                        lastCheckpointSequenceNumber)) {
+                    tryCheckpointWithRetry(checkpointer, currentCheckpoint, 1);
+                } else {
+                    isCheckpointing.set(false);
+                    checkpointExecutor.schedule(this::triggerCheckpoint, checkpointInterval, TimeUnit.MILLISECONDS);
+                }
             }
+        } catch (Exception e) {
+            log.error("Error while triggering checkpoint for shard {}. Terminating.", kinesisShardId, e);
+            sourceContext.fatal(e);
         }
     }
 
@@ -143,17 +145,16 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
         long millisBehindLatest = processRecordsInput.millisBehindLatest();
 
         for (KinesisClientRecord record : processRecordsInput.records()) {
+            log.debug("Add record with sequence number {}:{} to queue for shard {}.",
+                    record.sequenceNumber(), record.subSequenceNumber(), kinesisShardId);
             try {
-                log.debug("Add record with sequence number {}:{} to queue for shard {}.",
-                        record.sequenceNumber(), record.subSequenceNumber(), kinesisShardId);
-                numRecordsInFlight.incrementAndGet();
                 queue.put(new KinesisRecord(record, this.kinesisShardId, millisBehindLatest,
                         propertiesToInclude, this));
             } catch (Exception e) {
-                numRecordsInFlight.decrementAndGet();
                 log.error("Unable to create and queue KinesisRecord for shard {}.", kinesisShardId, e);
                 sourceContext.fatal(e);
             }
+            numRecordsInFlight.incrementAndGet();
         }
     }
 
