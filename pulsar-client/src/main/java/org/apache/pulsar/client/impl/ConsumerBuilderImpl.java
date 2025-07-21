@@ -71,7 +71,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private ConsumerConfigurationData<T> conf;
     private final Schema<T> schema;
     private List<ConsumerInterceptor<T>> interceptorList;
-    private volatile boolean interruptedBeforeConsumerCreation;
 
     private static final long MIN_ACK_TIMEOUT_MILLIS = 1000;
     private static final long MIN_TICK_TIME_MILLIS = 100;
@@ -101,31 +100,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public Consumer<T> subscribe() throws PulsarClientException {
-        CompletableFuture<Consumer<T>> future = new CompletableFuture<>();
         try {
-            subscribeAsync().whenComplete((c, e) -> {
-                if (e != null) {
-                    // If the subscription fails, there is no need to close the consumer here,
-                    // as it will be handled in the subscribeAsync method.
-                    future.completeExceptionally(e);
-                    return;
-                }
-                if (interruptedBeforeConsumerCreation) {
-                    c.closeAsync().exceptionally(closeEx -> {
-                        log.error("Failed to close consumer after interruption", closeEx.getCause());
-                        return null;
-                    });
-                    future.completeExceptionally(new PulsarClientException(
-                            "Subscription was interrupted before the consumer could be fully created"));
-                } else {
-                    future.complete(c);
-                }
-            });
-            return future.get();
-        } catch (InterruptedException e) {
-            interruptedBeforeConsumerCreation = true;
-            Thread.currentThread().interrupt();
-            throw PulsarClientException.unwrap(e);
+            return FutureUtil.wait(subscribeAsync(), Consumer::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }

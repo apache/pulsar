@@ -35,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -380,5 +381,20 @@ public class FutureUtil {
                     completableFuture.completeExceptionally(throwable);
                     return null;
                 });
+    }
+
+    /**
+     * When calling {@link CompletableFuture#get()} on a future, it could throw a {@link InterruptedException} when
+     * the thread is interrupted. However, the asynchronous task might not be interrupted and the result could be
+     * created successfully eventually. In this case, we might need to close the result.
+     */
+    public static <T> T wait(CompletableFuture<T> future, Consumer<T> closeCallback)
+            throws InterruptedException, ExecutionException {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            future.thenAccept(closeCallback);
+            throw e;
+        }
     }
 }
