@@ -23,10 +23,10 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 @Connector(
-    name = "jdbc-clickhouse",
-    type = IOType.SINK,
-    help = "A simple JDBC sink for ClickHouse that writes pulsar messages to a database table",
-    configClass = JdbcSinkConfig.class
+        name = "jdbc-clickhouse",
+        type = IOType.SINK,
+        help = "A simple JDBC sink for ClickHouse that writes pulsar messages to a database table",
+        configClass = JdbcSinkConfig.class
 )
 public class ClickHouseJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 
@@ -53,14 +53,15 @@ public class ClickHouseJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
      * using the ClickHouse JDBC driver's array handling capabilities.
      * </p>
      *
-     * @param statement the PreparedStatement (not used)
-     * @param index the parameter index (not used)
-     * @param arrayValue the array value (not used)
+     * @param statement     the PreparedStatement (not used)
+     * @param index         the parameter index (not used)
+     * @param arrayValue    the array value (not used)
      * @param targetSqlType the target SQL type (not used)
      * @throws UnsupportedOperationException always thrown as ClickHouse array support is not implemented
      */
     @Override
-    protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue, String targetSqlType) throws Exception {
+    protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue, String targetSqlType)
+            throws Exception {
         throw new UnsupportedOperationException("Array types are not supported by ClickHouse JDBC sink. " +
                 "Consider using PostgreSQL JDBC sink for array support.");
     }
