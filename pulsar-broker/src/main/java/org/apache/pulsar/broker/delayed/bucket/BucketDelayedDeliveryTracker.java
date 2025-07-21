@@ -641,7 +641,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             long ledgerId = sharedBucketPriorityQueue.peekN2();
             long entryId = sharedBucketPriorityQueue.peekN3();
 
-            ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(new SnapshotKey(ledgerId, entryId));
+            SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
+
+            ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(snapshotKey);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
                 // All message of current snapshot segment are scheduled, try load next snapshot segment
                 if (bucket.merging) {
@@ -667,7 +669,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 CompletableFuture<Void> loadFuture = pendingLoad = bucket.asyncLoadNextBucketSnapshotEntry()
                         .thenAccept(indexList -> {
                     synchronized (BucketDelayedDeliveryTracker.this) {
-                        this.snapshotSegmentLastIndexMap.remove(new SnapshotKey(ledgerId, entryId));
+                        this.snapshotSegmentLastIndexMap.remove(snapshotKey);
                         if (CollectionUtils.isEmpty(indexList)) {
                             immutableBuckets.asMapOfRanges()
                                     .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
