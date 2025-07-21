@@ -786,16 +786,21 @@ public class ClientCnx extends PulsarHandler {
         long producerId = sendError.getProducerId();
         long sequenceId = sendError.getSequenceId();
 
+        ProducerImpl<?> producer = producers.get(producerId);
+        if (producer == null) {
+            log.warn("{} Producer with id {} not found while handling send error", ctx.channel(), producerId);
+            return;
+        }
+
         switch (sendError.getError()) {
         case ChecksumError:
-            producers.get(producerId).recoverChecksumError(this, sequenceId);
+            producer.recoverChecksumError(this, sequenceId);
             break;
-
         case TopicTerminatedError:
-            producers.get(producerId).terminated(this);
+            producer.terminated(this);
             break;
         case NotAllowedError:
-            producers.get(producerId).recoverNotAllowedError(sequenceId, sendError.getMessage());
+            producer.recoverNotAllowedError(sequenceId, sendError.getMessage());
             break;
 
         default:
