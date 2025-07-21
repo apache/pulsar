@@ -44,8 +44,6 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
                 Collections.singleton(ManagedLedgerPayloadProcessor0.class.getName()));
         super.internalSetup();
         super.producerBaseSetup();
-        // Add delay is for testing an OpAddEntry can be finished before the previous one.
-        pulsarTestContext.getMockBookKeeper().addEntryDelay(500, TimeUnit.MILLISECONDS);
     }
 
     @BeforeClass(alwaysRun = true)
