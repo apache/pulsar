@@ -384,11 +384,24 @@ public class FutureUtil {
     }
 
     /**
-     * When calling {@link CompletableFuture#get()} on a future, it could throw a {@link InterruptedException} when
-     * the thread is interrupted. However, the asynchronous task might not be interrupted and the result could be
-     * created successfully eventually. In this case, we might need to close the result.
+     * Blocks to get the result of a CompletableFuture, while ensuring resources are cleaned up
+     * if the wait is interrupted.
+     * <p>
+     * If the current thread is interrupted while waiting, this method registers a cleanup action
+     * to be executed when the future eventually completes. This prevents resource leaks that
+     * could otherwise occur when an interruption happens but the underlying asynchronous task
+     * finishes successfully later. After registering the action, it re-throws the
+     * {@link InterruptedException}.
+     *
+     * @param future         The CompletableFuture to wait for.
+     * @param cleanupAction  A consumer that performs a cleanup action (e.g., closing a resource)
+     * on the result if the wait is interrupted.
+     * @param <T>            The type of the future's result.
+     * @return The computed result from the future.
+     * @throws InterruptedException if the current thread was interrupted while waiting.
+     * @throws ExecutionException   if the future completed exceptionally.
      */
-    public static <T> T wait(CompletableFuture<T> future, Consumer<T> closeCallback)
+    public static <T> T getAndCleanupOnInterrupt(CompletableFuture<T> future, Consumer<T> cleanupAction)
             throws InterruptedException, ExecutionException {
         try {
             return future.get();
