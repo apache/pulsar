@@ -58,7 +58,7 @@ public class BaseJdbcAutoSchemaSinkTest {
     public void testConvertAvroInt() {
         Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MIN_VALUE,
                 createFieldAndGetSchema((builder) ->
-                builder.name("field").type().intType().noDefault()));
+                        builder.name("field").type().intType().noDefault()));
         Assert.assertEquals(converted, Integer.MIN_VALUE);
     }
 
@@ -94,7 +94,7 @@ public class BaseJdbcAutoSchemaSinkTest {
     public void testConvertAvroDouble() {
         Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Double.MIN_VALUE,
                 createFieldAndGetSchema((builder) ->
-                builder.name("field").type().doubleType().noDefault()));
+                        builder.name("field").type().doubleType().noDefault()));
         Assert.assertEquals(converted, Double.MIN_VALUE);
     }
 
@@ -103,7 +103,7 @@ public class BaseJdbcAutoSchemaSinkTest {
     public void testConvertAvroUnion() {
         Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MAX_VALUE,
                 createFieldAndGetSchema((builder) ->
-                builder.name("field").type().unionOf().intType().endUnion().noDefault()));
+                        builder.name("field").type().unionOf().intType().endUnion().noDefault()));
         Assert.assertEquals(converted, Integer.MAX_VALUE);
     }
 
@@ -120,6 +120,7 @@ public class BaseJdbcAutoSchemaSinkTest {
         BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
                 builder.name("field").type().fixed("fix").size(16).noDefault()));
     }
+
     @Test(expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesRecord() {
@@ -213,7 +214,7 @@ public class BaseJdbcAutoSchemaSinkTest {
         BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {
             @Override
             protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
-                                           String targetSqlType) throws Exception {
+                                            String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
         };
@@ -240,7 +241,7 @@ public class BaseJdbcAutoSchemaSinkTest {
         BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {
             @Override
             protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
-                                           String targetSqlType) throws Exception {
+                                            String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
         };
@@ -289,43 +290,43 @@ public class BaseJdbcAutoSchemaSinkTest {
         BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {
             @Override
             protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
-                                           String targetSqlType) throws Exception {
+                                            String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
         };
 
         // Test all primitive type conversions still work
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField("test", 
-            createFieldAndGetSchema(builder -> builder.name("field").type().stringType().noDefault())), "test");
-        
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(42, 
-            createFieldAndGetSchema(builder -> builder.name("field").type().intType().noDefault())), 42);
-        
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(true, 
-            createFieldAndGetSchema(builder -> builder.name("field").type().booleanType().noDefault())), true);
-        
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(3.14, 
-            createFieldAndGetSchema(builder -> builder.name("field").type().doubleType().noDefault())), 3.14);
-        
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(2.5f, 
-            createFieldAndGetSchema(builder -> builder.name("field").type().floatType().noDefault())), 2.5f);
-        
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(100L, 
-            createFieldAndGetSchema(builder -> builder.name("field").type().longType().noDefault())), 100L);
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField("test",
+                createFieldAndGetSchema(builder -> builder.name("field").type().stringType().noDefault())), "test");
+
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(42,
+                createFieldAndGetSchema(builder -> builder.name("field").type().intType().noDefault())), 42);
+
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(true,
+                createFieldAndGetSchema(builder -> builder.name("field").type().booleanType().noDefault())), true);
+
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(3.14,
+                createFieldAndGetSchema(builder -> builder.name("field").type().doubleType().noDefault())), 3.14);
+
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(2.5f,
+                createFieldAndGetSchema(builder -> builder.name("field").type().floatType().noDefault())), 2.5f);
+
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(100L,
+                createFieldAndGetSchema(builder -> builder.name("field").type().longType().noDefault())), 100L);
 
         // Test null handling still works
-        Assert.assertNull(BaseJdbcAutoSchemaSink.convertAvroField(null, 
-            createFieldAndGetSchema(builder -> builder.name("field").type().stringType().noDefault())));
+        Assert.assertNull(BaseJdbcAutoSchemaSink.convertAvroField(null,
+                createFieldAndGetSchema(builder -> builder.name("field").type().stringType().noDefault())));
 
         // Test enum handling still works
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField("OPTION1", 
-            createFieldAndGetSchema(builder -> builder.name("field").type()
-                .enumeration("TestEnum").symbols("OPTION1", "OPTION2").noDefault())), "OPTION1");
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField("OPTION1",
+                createFieldAndGetSchema(builder -> builder.name("field").type()
+                        .enumeration("TestEnum").symbols("OPTION1", "OPTION2").noDefault())), "OPTION1");
 
         // Test union handling still works
-        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(123, 
-            createFieldAndGetSchema(builder -> builder.name("field").type()
-                .unionOf().intType().endUnion().noDefault())), 123);
+        Assert.assertEquals(BaseJdbcAutoSchemaSink.convertAvroField(123,
+                createFieldAndGetSchema(builder -> builder.name("field").type()
+                        .unionOf().intType().endUnion().noDefault())), 123);
     }
 
     @Test
@@ -333,19 +334,19 @@ public class BaseJdbcAutoSchemaSinkTest {
         BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {
             @Override
             protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
-                                           String targetSqlType) throws Exception {
+                                            String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
         };
 
         PreparedStatement mockStatement = mock(PreparedStatement.class);
-        
+
         // Test that the old setColumnValue method still works for non-array values
         baseJdbcAutoSchemaSink.setColumnValue(mockStatement, 1, "test string");
         baseJdbcAutoSchemaSink.setColumnValue(mockStatement, 2, 42);
         baseJdbcAutoSchemaSink.setColumnValue(mockStatement, 3, true);
         baseJdbcAutoSchemaSink.setColumnValue(mockStatement, 4, null);
-        
+
         // Verify the calls were made
         verify(mockStatement).setString(1, "test string");
         verify(mockStatement).setInt(2, 42);
@@ -359,17 +360,17 @@ public class BaseJdbcAutoSchemaSinkTest {
         BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {
             @Override
             protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
-                                           String targetSqlType) throws Exception {
+                                            String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
         };
 
         PreparedStatement mockStatement = mock(PreparedStatement.class);
-        Schema arraySchema = createFieldAndGetSchema(builder -> 
-            builder.name("field").type().array().items().stringType().noDefault());
+        Schema arraySchema = createFieldAndGetSchema(builder ->
+                builder.name("field").type().array().items().stringType().noDefault());
         GenericData.Array<String> testArray = new GenericData.Array<>(1, arraySchema);
         testArray.add("test");
-        
+
         // This should throw an exception because arrays require targetSqlType
         baseJdbcAutoSchemaSink.setColumnValue(mockStatement, 1, testArray);
     }
