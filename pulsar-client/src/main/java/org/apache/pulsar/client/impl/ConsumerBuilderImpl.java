@@ -101,7 +101,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public Consumer<T> subscribe() throws PulsarClientException {
         try {
-            return FutureUtil.wait(subscribeAsync(), Consumer::closeAsync);
+            return FutureUtil.getAndCleanupOnInterrupt(subscribeAsync(), Consumer::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
