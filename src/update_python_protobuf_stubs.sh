@@ -43,3 +43,6 @@ python -m grpc_tools.protoc \
     --python_out=pulsar-functions/instance/src/main/python \
     --grpc_python_out=pulsar-functions/instance/src/main/python \
     pulsar-functions/proto/src/main/proto/InstanceCommunication.proto
+
+# clean up the temporary virtual environment
+rm -rf $tempvenv
