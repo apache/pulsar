@@ -107,7 +107,9 @@ RUN apk upgrade --no-cache
 # Python dependencies
 ARG PULSAR_CLIENT_PYTHON_VERSION
 RUN pip3 install --break-system-packages --no-cache-dir \
-    --only-binary grpcio \
+    --only-binary \
+    grpcio==1.73.1 \
+    protobuf==6.31.1 \
     pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION} \
     kazoo
 
