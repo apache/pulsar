@@ -190,7 +190,7 @@ public class PostgresArraySupportTest {
         // Test various PostgreSQL type name mappings
         String[] testCases = {
             "int4", "integer",
-            "_int4", "integer", 
+            "_int4", "integer",
             "int8", "bigint",
             "_int8", "bigint",
             "text", "text",

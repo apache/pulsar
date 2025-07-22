@@ -604,12 +604,12 @@ public class PostgresArrayTestUtils {
                 }
 
                 // Verify each array field
-                return verifyIntegerArray(rs.getArray("int_array"), expectedIntArray) &&
-                       verifyStringArray(rs.getArray("text_array"), expectedTextArray) &&
-                       verifyBooleanArray(rs.getArray("boolean_array"), expectedBooleanArray) &&
-                       verifyDoubleArray(rs.getArray("numeric_array"), expectedNumericArray) &&
-                       verifyFloatArray(rs.getArray("real_array"), expectedRealArray) &&
-                       verifyLongArray(rs.getArray("bigint_array"), expectedBigintArray) &&
+                return verifyIntegerArray(rs.getArray("int_array"), expectedIntArray)
+                       && verifyStringArray(rs.getArray("text_array"), expectedTextArray)
+                       && verifyBooleanArray(rs.getArray("boolean_array"), expectedBooleanArray)
+                       && verifyDoubleArray(rs.getArray("numeric_array"), expectedNumericArray)
+                       && verifyFloatArray(rs.getArray("real_array"), expectedRealArray)
+                       && verifyLongArray(rs.getArray("bigint_array"), expectedBigintArray)
                        expectedMixedData.equals(rs.getString("mixed_data"));
             }
         }
@@ -652,57 +652,74 @@ public class PostgresArrayTestUtils {
     }
 
     // ========== Array Verification Helper Methods ==========
-
     private static boolean verifyIntegerArray(Array sqlArray, Integer[] expected) throws SQLException {
-        if (sqlArray == null && expected == null) return true;
-        if (sqlArray == null || expected == null) return false;
-
+        if (sqlArray == null && expected == null) {
+            return true;
+        }
+        if (sqlArray == null || expected == null) {
+            return false;
+        }
         Integer[] actual = (Integer[]) sqlArray.getArray();
         return Arrays.deepEquals(actual, expected);
     }
 
     private static boolean verifyStringArray(Array sqlArray, String[] expected) throws SQLException {
-        if (sqlArray == null && expected == null) return true;
-        if (sqlArray == null || expected == null) return false;
-
+        if (sqlArray == null && expected == null) {
+            return true;
+        }
+        if (sqlArray == null || expected == null) {
+            return false;
+        }
         String[] actual = (String[]) sqlArray.getArray();
         return Arrays.deepEquals(actual, expected);
     }
 
     private static boolean verifyBooleanArray(Array sqlArray, Boolean[] expected) throws SQLException {
-        if (sqlArray == null && expected == null) return true;
-        if (sqlArray == null || expected == null) return false;
-
+        if (sqlArray == null && expected == null) {
+            return true;
+        }
+        if (sqlArray == null || expected == null) {
+            return false;
+        }
         Boolean[] actual = (Boolean[]) sqlArray.getArray();
         return Arrays.deepEquals(actual, expected);
     }
 
     private static boolean verifyDoubleArray(Array sqlArray, Double[] expected) throws SQLException {
-        if (sqlArray == null && expected == null) return true;
-        if (sqlArray == null || expected == null) return false;
-
+        if (sqlArray == null && expected == null)
+        {
+            return true;
+        }
+        if (sqlArray == null || expected == null) {
+            return false;
+        }
         Double[] actual = (Double[]) sqlArray.getArray();
         return Arrays.deepEquals(actual, expected);
     }
 
     private static boolean verifyFloatArray(Array sqlArray, Float[] expected) throws SQLException {
-        if (sqlArray == null && expected == null) return true;
-        if (sqlArray == null || expected == null) return false;
-
+        if (sqlArray == null && expected == null) {
+            return true;
+        }
+        if (sqlArray == null || expected == null) {
+            return false;
+        }
         Float[] actual = (Float[]) sqlArray.getArray();
         return Arrays.deepEquals(actual, expected);
     }
 
     private static boolean verifyLongArray(Array sqlArray, Long[] expected) throws SQLException {
-        if (sqlArray == null && expected == null) return true;
-        if (sqlArray == null || expected == null) return false;
-
+        if (sqlArray == null && expected == null) {
+            return true;
+        }
+        if (sqlArray == null || expected == null) {
+            return false;
+        }
         Long[] actual = (Long[]) sqlArray.getArray();
         return Arrays.deepEquals(actual, expected);
     }
 
     // ========== Batch Test Data Generation ==========
-
     /**
      * Generates a list of test records with various array configurations.
      *
