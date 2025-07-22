@@ -98,7 +98,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Creates test scenarios for successful array operations.
-     * 
      * @return list of test scenarios that should succeed
      */
     public static List<TestScenario> createSuccessfulArrayScenarios() {
@@ -172,7 +171,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Creates test scenarios for array type mismatch errors.
-     * 
      * @return list of array type mismatch test data
      */
     public static List<ArrayTypeMismatchData> createTypeMismatchScenarios() {
@@ -232,7 +230,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Creates test data for unsupported array types.
-     * 
      * @return map of unsupported type names to expected error messages
      */
     public static Map<String, String> createUnsupportedTypeScenarios() {
@@ -251,7 +248,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Creates test data for edge cases and boundary conditions.
-     * 
      * @return list of edge case test scenarios
      */
     public static List<TestScenario> createEdgeCaseScenarios() {
@@ -300,7 +296,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Creates test data for performance testing with various array sizes.
-     * 
      * @return list of performance test records
      */
     public static List<GenericRecord> createPerformanceTestData() {
@@ -316,7 +311,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Creates test data for concurrent testing scenarios.
-     * 
      * @param recordCount number of records to create
      * @return list of records for concurrent testing
      */
@@ -473,7 +467,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Validates that a test scenario contains expected data.
-     * 
      * @param scenario test scenario to validate
      * @return true if scenario is valid
      */
@@ -495,7 +488,6 @@ public class PostgresArrayTestDataFactory {
 
     /**
      * Gets a summary of all available test scenarios.
-     * 
      * @return map of scenario categories to scenario counts
      */
     public static Map<String, Integer> getTestScenarioSummary() {

@@ -170,13 +170,13 @@ public class PostgresArrayTestUtilitiesTest {
 
     @Test
     public void testSuccessfulArrayScenarios() {
-        List<PostgresArrayTestDataFactory.TestScenario> scenarios = 
+        List<PostgresArrayTestDataFactory.TestScenario> scenarios =
             PostgresArrayTestDataFactory.createSuccessfulArrayScenarios();
         assertNotNull(scenarios, "Scenarios should not be null");
         assertTrue(scenarios.size() > 0, "Should have at least one scenario");
         // Verify each scenario is valid
         for (PostgresArrayTestDataFactory.TestScenario scenario : scenarios) {
-            assertTrue(PostgresArrayTestDataFactory.validateTestScenario(scenario), 
+            assertTrue(PostgresArrayTestDataFactory.validateTestScenario(scenario),
                 "Scenario should be valid: " + scenario.getName());
             assertTrue(scenario.shouldSucceed(), "Success scenarios should be marked as successful");
         }
@@ -184,7 +184,7 @@ public class PostgresArrayTestUtilitiesTest {
 
     @Test
     public void testTypeMismatchScenarios() {
-        List<PostgresArrayTestDataFactory.ArrayTypeMismatchData> scenarios = 
+        List<PostgresArrayTestDataFactory.ArrayTypeMismatchData> scenarios =
             PostgresArrayTestDataFactory.createTypeMismatchScenarios();
         assertNotNull(scenarios, "Type mismatch scenarios should not be null");
         assertTrue(scenarios.size() > 0, "Should have at least one type mismatch scenario");
@@ -210,13 +210,13 @@ public class PostgresArrayTestUtilitiesTest {
 
     @Test
     public void testEdgeCaseScenarios() {
-        List<PostgresArrayTestDataFactory.TestScenario> scenarios = 
+        List<PostgresArrayTestDataFactory.TestScenario> scenarios =
             PostgresArrayTestDataFactory.createEdgeCaseScenarios();
         assertNotNull(scenarios, "Edge case scenarios should not be null");
         assertTrue(scenarios.size() > 0, "Should have at least one edge case scenario");
         // Verify each scenario is valid
         for (PostgresArrayTestDataFactory.TestScenario scenario : scenarios) {
-            assertTrue(PostgresArrayTestDataFactory.validateTestScenario(scenario), 
+            assertTrue(PostgresArrayTestDataFactory.validateTestScenario(scenario),
                 "Edge case scenario should be valid: " + scenario.getName());
         }
     }
@@ -271,7 +271,7 @@ public class PostgresArrayTestUtilitiesTest {
         assertTrue(PostgresArrayTestConfig.validateTestConfig(config), "Default config should be valid");
         assertEquals(config.getTableName(), PostgresArrayTestConfig.COMPREHENSIVE_TABLE_NAME,
             "Table name should match comprehensive table name");
-        assertEquals(config.getInsertMode(), JdbcSinkConfig.InsertMode.UPSERT, 
+        assertEquals(config.getInsertMode(), JdbcSinkConfig.InsertMode.UPSERT,
             "Insert mode should be UPSERT");
     }
 
@@ -279,7 +279,7 @@ public class PostgresArrayTestUtilitiesTest {
     public void testInsertModeTestConfig() {
         JdbcSinkConfig config = PostgresArrayTestConfig.createInsertModeTestConfig();
         assertNotNull(config, "Insert mode config should not be null");
-        assertEquals(config.getInsertMode(), JdbcSinkConfig.InsertMode.INSERT, 
+        assertEquals(config.getInsertMode(), JdbcSinkConfig.InsertMode.INSERT,
             "Insert mode should be INSERT");
     }
 
@@ -287,7 +287,7 @@ public class PostgresArrayTestUtilitiesTest {
     public void testUpsertModeTestConfig() {
         JdbcSinkConfig config = PostgresArrayTestConfig.createUpsertModeTestConfig();
         assertNotNull(config, "Upsert mode config should not be null");
-        assertEquals(config.getInsertMode(), JdbcSinkConfig.InsertMode.UPSERT, 
+        assertEquals(config.getInsertMode(), JdbcSinkConfig.InsertMode.UPSERT,
             "Insert mode should be UPSERT");
     }
 
@@ -303,7 +303,7 @@ public class PostgresArrayTestUtilitiesTest {
     public void testPerformanceTestConfig() {
         JdbcSinkConfig config = PostgresArrayTestConfig.createPerformanceTestConfig();
         assertNotNull(config, "Performance config should not be null");
-        assertEquals(config.getTableName(), PostgresArrayTestConfig.PERFORMANCE_TABLE_NAME, 
+        assertEquals(config.getTableName(), PostgresArrayTestConfig.PERFORMANCE_TABLE_NAME,
             "Table name should match performance table name");
         assertTrue(config.getBatchSize() > 1, "Performance config should have batch size > 1");
     }

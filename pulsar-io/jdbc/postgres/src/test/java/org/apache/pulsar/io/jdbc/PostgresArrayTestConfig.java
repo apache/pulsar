@@ -121,7 +121,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a default test configuration for comprehensive array testing.
-     * 
      * @return JdbcSinkConfig configured for array testing
      */
     public static JdbcSinkConfig createDefaultArrayTestConfig() {
@@ -132,7 +131,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test configuration for INSERT mode testing.
-     * 
      * @return JdbcSinkConfig configured for INSERT mode
      */
     public static JdbcSinkConfig createInsertModeTestConfig() {
@@ -144,7 +142,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test configuration for UPSERT mode testing.
-     * 
      * @return JdbcSinkConfig configured for UPSERT mode
      */
     public static JdbcSinkConfig createUpsertModeTestConfig() {
@@ -156,7 +153,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test configuration for UPDATE mode testing.
-     * 
      * @return JdbcSinkConfig configured for UPDATE mode
      */
     public static JdbcSinkConfig createUpdateModeTestConfig() {
@@ -168,7 +164,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test configuration for batch processing testing.
-     * 
      * @param batchSize size of batches to process
      * @return JdbcSinkConfig configured for batch processing
      */
@@ -181,7 +176,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test configuration for performance testing.
-     * 
      * @return JdbcSinkConfig configured for performance testing
      */
     public static JdbcSinkConfig createPerformanceTestConfig() {
@@ -193,7 +187,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test configuration for single array type testing.
-     * 
      * @param arrayColumnName name of the array column
      * @return JdbcSinkConfig configured for single array testing
      */
@@ -208,7 +201,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test database connection using default configuration.
-     * 
      * @return database connection
      * @throws SQLException if connection fails
      */
@@ -218,7 +210,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test database connection with custom parameters.
-     * 
      * @param jdbcUrl JDBC URL
      * @param username database username
      * @param password database password
@@ -237,7 +228,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates a test database connection with connection pooling disabled.
-     * 
      * @return database connection
      * @throws SQLException if connection fails
      */
@@ -255,7 +245,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Configures a PostgresJdbcAutoSchemaSink with the given configuration.
-     * 
      * @param sink sink instance to configure
      * @param config configuration to apply
      * @throws Exception if configuration fails
@@ -269,7 +258,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Configures a PostgresJdbcAutoSchemaSink with a test database connection.
-     * 
      * @param sink sink instance to configure
      * @param connection database connection to use
      * @throws Exception if configuration fails
@@ -284,7 +272,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates and configures a PostgresJdbcAutoSchemaSink for testing.
-     * 
      * @param config sink configuration
      * @return configured sink instance
      * @throws Exception if configuration fails
@@ -297,7 +284,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Creates and configures a PostgresJdbcAutoSchemaSink with a test connection.
-     * 
      * @param config sink configuration
      * @param connection database connection
      * @return configured sink instance
@@ -315,7 +301,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Sets up a complete test environment with database tables.
-     * 
      * @param connection database connection
      * @throws SQLException if setup fails
      */
@@ -335,7 +320,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Cleans up the test environment by dropping all test tables.
-     * 
      * @param connection database connection
      * @throws SQLException if cleanup fails
      */
@@ -367,7 +351,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Clears data from all test tables.
-     * 
      * @param connection database connection
      * @throws SQLException if clearing fails
      */
@@ -390,7 +373,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Validates that a test configuration is properly set up.
-     * 
      * @param config configuration to validate
      * @return true if configuration is valid
      */
@@ -412,7 +394,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Gets a summary of test configuration settings.
-     * 
      * @param config configuration to summarize
      * @return map of configuration properties
      */
@@ -432,7 +413,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Checks if the test database is available and accessible.
-     * 
      * @return true if database is available
      */
     public static boolean isTestDatabaseAvailable() {
@@ -445,7 +425,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Gets the PostgreSQL version of the test database.
-     * 
      * @return PostgreSQL version string
      * @throws SQLException if version check fails
      */
@@ -457,7 +436,6 @@ public class PostgresArrayTestConfig {
 
     /**
      * Checks if the test database supports array types.
-     * 
      * @return true if array types are supported
      * @throws SQLException if check fails
      */
