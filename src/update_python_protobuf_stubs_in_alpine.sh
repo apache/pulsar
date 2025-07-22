@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
 # Create an inline docker container with alpine:3.21 base image and mount the current directory to it as the
