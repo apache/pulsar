@@ -18,19 +18,29 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.io.core.SourceContext;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import software.amazon.awssdk.services.kinesis.model.EncryptionType;
+import software.amazon.kinesis.lifecycle.events.InitializationInput;
 import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
+import software.amazon.kinesis.lifecycle.events.ShardEndedInput;
+import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
 import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
@@ -41,6 +51,8 @@ public class KinesisRecordProcessorTest {
     private LinkedBlockingQueue<KinesisRecord> queue;
     private KinesisRecordProcessor recordProcessor;
     private RecordProcessorCheckpointer checkpointer;
+    private ScheduledExecutorService checkpointExecutor;
+    private ArgumentCaptor<Runnable> scheduledTaskCaptor;
 
     @BeforeMethod
     public void setup() {
@@ -48,90 +60,111 @@ public class KinesisRecordProcessorTest {
         sourceContext = Mockito.mock(SourceContext.class);
         queue = new LinkedBlockingQueue<>();
         checkpointer = Mockito.mock(RecordProcessorCheckpointer.class);
+        checkpointExecutor = Mockito.mock(ScheduledExecutorService.class);
+        scheduledTaskCaptor = ArgumentCaptor.forClass(Runnable.class);
 
-        // Configure the mock config for the processor
-        when(config.getCheckpointInterval()).thenReturn(100L);
+        when(config.getCheckpointInterval()).thenReturn(60000L);
         when(config.getNumRetries()).thenReturn(1);
-        when(config.getBackoffTime()).thenReturn(10L);
+        when(config.getBackoffTime()).thenReturn(100L);
         when(config.getPropertiesToInclude()).thenReturn(Collections.emptySet());
 
-        recordProcessor = new KinesisRecordProcessor(queue, config, sourceContext);
+        recordProcessor = new KinesisRecordProcessor(queue, config, sourceContext, checkpointExecutor);
     }
 
     @Test
-    public void testCheckpointAfterAck() throws Exception {
-        // --- Setup: Prepare mock inputs ---
-        String seqNum1 = "seq-1";
-        String seqNum2 = "seq-2";
-        KinesisClientRecord kcr1 = createMockKinesisRecord(seqNum1);
-        KinesisClientRecord kcr2 = createMockKinesisRecord(seqNum2);
-        ProcessRecordsInput processRecordsInput = createMockProcessRecordsInput(kcr1, kcr2);
+    public void testScheduledCheckpointAfterAck() throws Exception {
+        // Arrange: Initialize the processor, which schedules the first checkpoint task.
+        recordProcessor.initialize(createMockInitializationInput());
+        verify(checkpointExecutor).schedule(scheduledTaskCaptor.capture(), anyLong(), any(TimeUnit.class));
+        Runnable scheduledCheckpointTask = scheduledTaskCaptor.getValue();
 
-        // --- Action 1: Process records ---
+        // Act: Process a record and ack it.
+        ProcessRecordsInput processRecordsInput = createMockProcessRecordsInput(
+                createMockKinesisRecord("seq-1", 0L));
         recordProcessor.processRecords(processRecordsInput);
+        KinesisRecord recordFromQueue = queue.take();
+        recordFromQueue.ack();
 
-        // --- Assert 1: Records are in the queue ---
-        assertEquals(queue.size(), 2);
+        // Simulate the scheduler firing the checkpoint task.
+        scheduledCheckpointTask.run();
 
-        // --- Action 2: Simulate source reading and acking the first record ---
-        KinesisRecord recordFromQueue1 = queue.take();
-        recordFromQueue1.ack(); // This updates sequenceNumberToCheckpoint in the processor
-
-        // --- Action 3: Advance time and trigger checkpoint logic ---
-        Thread.sleep(config.getCheckpointInterval() + 50);
-        recordProcessor.processRecords(createMockProcessRecordsInput()); // Empty input to trigger checkpoint
-
-        // --- Assert 3: Verify checkpoint was called with the correct sequence number ---
-        Mockito.verify(checkpointer, Mockito.times(1)).checkpoint(seqNum1);
-
-        // --- Action 4: Ack the second record ---
-        KinesisRecord recordFromQueue2 = queue.take();
-        recordFromQueue2.ack();
-
-        // --- Action 5: Trigger checkpoint again ---
-        Thread.sleep(config.getCheckpointInterval() + 50);
-        recordProcessor.processRecords(createMockProcessRecordsInput());
-
-        // --- Assert 5: Verify checkpoint was called with the new, correct sequence number ---
-        Mockito.verify(checkpointer, Mockito.times(1)).checkpoint(seqNum2);
+        // Assert: Verify the checkpoint was called with the correct sequence and sub-sequence numbers.
+        verify(checkpointer, times(1)).checkpoint("seq-1", 0L);
     }
 
     @Test
-    public void testNoCheckpointWithoutAck() throws Exception {
-        // --- Setup ---
-        String seqNum1 = "seq-1";
-        KinesisClientRecord kcr1 = createMockKinesisRecord(seqNum1);
-        ProcessRecordsInput processRecordsInput = createMockProcessRecordsInput(kcr1);
-
-        // --- Action 1: Process a record ---
-        recordProcessor.processRecords(processRecordsInput);
-        assertEquals(queue.size(), 1);
-        queue.take(); // Simulate reading but not acking
-
-        // --- Action 2: Advance time and trigger checkpoint logic ---
-        Thread.sleep(config.getCheckpointInterval() + 50);
+    public void testCheckpointLogicOnlyAdvancesForward() throws Exception {
+        // Arrange
+        recordProcessor.initialize(createMockInitializationInput());
+        verify(checkpointExecutor, Mockito.times(1))
+                .schedule(scheduledTaskCaptor.capture(), anyLong(), any(TimeUnit.class));
+        Runnable scheduledCheckpointTask = scheduledTaskCaptor.getValue();
+        ProcessRecordsInput processRecordsInput = createMockProcessRecordsInput(checkpointer);
         recordProcessor.processRecords(processRecordsInput);
 
-        // --- Assert 2: Verify checkpoint was NEVER called because no record was acked ---
-        Mockito.verify(checkpointer, Mockito.never()).checkpoint(Mockito.anyString());
+        // Act & Assert 1: Ack a later sub-sequence number first.
+        recordProcessor.updateSequenceNumberToCheckpoint("seq-1", 5L);
+        scheduledCheckpointTask.run();
+        verify(checkpointer, times(1)).checkpoint("seq-1", 5L);
+
+        // Act & Assert 2: Ack an earlier (out-of-order) sub-sequence number.
+        // The checkpointToCommit is now older than lastSuccessfullyCheckpointed.
+        recordProcessor.updateSequenceNumberToCheckpoint("seq-1", 3L);
+        scheduledCheckpointTask.run();
+        // Verify checkpoint was NOT called again, because the position is not new.
+        verify(checkpointer, times(1)).checkpoint("seq-1", 5L);
+
+        // Act & Assert 3: Ack a new, even later sub-sequence number.
+        recordProcessor.updateSequenceNumberToCheckpoint("seq-1", 7L);
+        scheduledCheckpointTask.run();
+        // Verify checkpoint is now called with the new, advanced position.
+        verify(checkpointer, times(1)).checkpoint("seq-1", 7L);
     }
 
-    @Test
-    public void testFailTriggersFatal() throws Exception {
-        KinesisClientRecord kcr1 = createMockKinesisRecord("seq-fail");
-        ProcessRecordsInput processRecordsInput = createMockProcessRecordsInput(kcr1);
+    @Test(timeOut = 3000)
+    public void testShardEndedTimeoutPathPerformsBestEffortCheckpoint() throws Exception {
+        // Arrange: Process two records, but only ack one.
+        recordProcessor.processRecords(createMockProcessRecordsInput(
+                createMockKinesisRecord("seq-A", 0L),
+                createMockKinesisRecord("seq-B", 1L)
+        ));
+        queue.take().ack(); // Ack "seq-A", leaves "seq-B" in-flight
+        // Do not take/ack the second record.
 
-        recordProcessor.processRecords(processRecordsInput);
-        KinesisRecord recordToFail = queue.take();
-        recordToFail.fail();
+        RecordProcessorCheckpointer shardEndCheckpointer = Mockito.mock(RecordProcessorCheckpointer.class);
+        ShardEndedInput shardEndedInput = createMockShardEndedInput(shardEndCheckpointer);
 
-        Mockito.verify(sourceContext, Mockito.times(1)).fatal(Mockito.any(Exception.class));
+        // Act: Call shardEnded. This should block for 10 seconds then time out.
+        recordProcessor.shardEnded(shardEndedInput);
+
+        // Assert: After timeout, a best-effort checkpoint should be made with the last ack'd sequence number.
+        verify(shardEndCheckpointer, times(1)).checkpoint("seq-A", 0L);
+        verify(shardEndCheckpointer, never()).checkpoint();
     }
 
-    private KinesisClientRecord createMockKinesisRecord(String sequenceNumber) {
+    @Test(timeOut = 3000)
+    public void testShutdownRequestedWaitsAndPerformsBestEffortCheckpoint() throws Exception {
+        // Arrange: Process two records, only ack one.
+        recordProcessor.processRecords(createMockProcessRecordsInput(
+                createMockKinesisRecord("seq-shutdown-1", 0L),
+                createMockKinesisRecord("seq-shutdown-2", 1L)
+        ));
+        queue.take().ack();
+
+        RecordProcessorCheckpointer shutdownCheckpointer = Mockito.mock(RecordProcessorCheckpointer.class);
+        ShutdownRequestedInput shutdownInput = createMockShutdownRequestedInput(shutdownCheckpointer);
+
+        recordProcessor.shutdownRequested(shutdownInput);
+
+        // Assert: A best-effort checkpoint is made with the last ack'd sequence number.
+        verify(shutdownCheckpointer, times(1)).checkpoint("seq-shutdown-1", 0L);
+    }
+
+    private KinesisClientRecord createMockKinesisRecord(String sequenceNumber, long subSequenceNumber) {
         KinesisClientRecord mockRecord = Mockito.mock(KinesisClientRecord.class);
         when(mockRecord.partitionKey()).thenReturn("test-key");
         when(mockRecord.sequenceNumber()).thenReturn(sequenceNumber);
+        when(mockRecord.subSequenceNumber()).thenReturn(subSequenceNumber);
         when(mockRecord.approximateArrivalTimestamp()).thenReturn(Instant.now());
         when(mockRecord.encryptionType()).thenReturn(EncryptionType.NONE);
         when(mockRecord.data()).thenReturn(ByteBuffer.wrap("data".getBytes()));
@@ -139,8 +172,29 @@ public class KinesisRecordProcessorTest {
     }
 
     private ProcessRecordsInput createMockProcessRecordsInput(KinesisClientRecord... records) {
+        return createMockProcessRecordsInput(this.checkpointer, records);
+    }
+
+    private ProcessRecordsInput createMockProcessRecordsInput(RecordProcessorCheckpointer checkpointer,
+                                                              KinesisClientRecord... records) {
         ProcessRecordsInput input = Mockito.mock(ProcessRecordsInput.class);
         when(input.records()).thenReturn(Arrays.asList(records));
+        when(input.checkpointer()).thenReturn(checkpointer);
+        return input;
+    }
+
+    private InitializationInput createMockInitializationInput() {
+        return Mockito.mock(InitializationInput.class);
+    }
+
+    private ShardEndedInput createMockShardEndedInput(RecordProcessorCheckpointer checkpointer) {
+        ShardEndedInput input = Mockito.mock(ShardEndedInput.class);
+        when(input.checkpointer()).thenReturn(checkpointer);
+        return input;
+    }
+
+    private ShutdownRequestedInput createMockShutdownRequestedInput(RecordProcessorCheckpointer checkpointer) {
+        ShutdownRequestedInput input = Mockito.mock(ShutdownRequestedInput.class);
         when(input.checkpointer()).thenReturn(checkpointer);
         return input;
     }
