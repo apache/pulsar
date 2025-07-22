@@ -132,7 +132,7 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
                     checkpointExecutor.schedule(this::triggerCheckpoint, checkpointInterval, TimeUnit.MILLISECONDS);
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Error while triggering checkpoint for shard {}. Terminating.", kinesisShardId, e);
             sourceContext.fatal(e);
         }
