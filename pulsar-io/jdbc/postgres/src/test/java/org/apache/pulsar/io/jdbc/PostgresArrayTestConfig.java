@@ -232,7 +232,6 @@ public class PostgresArrayTestConfig {
         props.setProperty("password", password);
         props.setProperty("ssl", "false");
         props.setProperty("ApplicationName", "PostgresArrayTest");
-        
         return DriverManager.getConnection(jdbcUrl, props);
     }
 
@@ -249,7 +248,6 @@ public class PostgresArrayTestConfig {
         props.setProperty("ssl", "false");
         props.setProperty("ApplicationName", "PostgresArrayTest");
         props.setProperty("prepareThreshold", "0"); // Disable prepared statement caching
-        
         return DriverManager.getConnection(DEFAULT_JDBC_URL, props);
     }
 
@@ -326,7 +324,6 @@ public class PostgresArrayTestConfig {
         PostgresArrayTestUtils.createPostgresArrayTestTable(connection, COMPREHENSIVE_TABLE_NAME);
         PostgresArrayTestUtils.createPostgresArrayTestTable(connection, PERFORMANCE_TABLE_NAME);
         PostgresArrayTestUtils.createPostgresArrayTestTable(connection, EDGE_CASE_TABLE_NAME);
-        
         // Create single array test tables for each type
         PostgresArrayTestUtils.createSingleArrayTestTable(connection, "int_array_test", "test_array", "INTEGER[]");
         PostgresArrayTestUtils.createSingleArrayTestTable(connection, "text_array_test", "test_array", "TEXT[]");
@@ -359,7 +356,6 @@ public class PostgresArrayTestConfig {
             "update_array_test",
             "batch_array_test"
         };
-        
         for (String tableName : tableNames) {
             try {
                 PostgresArrayTestUtils.dropTestTable(connection, tableName);
@@ -381,7 +377,6 @@ public class PostgresArrayTestConfig {
             PERFORMANCE_TABLE_NAME,
             EDGE_CASE_TABLE_NAME
         };
-        
         for (String tableName : tableNames) {
             try {
                 PostgresArrayTestUtils.clearTestTable(connection, tableName);
@@ -423,7 +418,6 @@ public class PostgresArrayTestConfig {
      */
     public static Map<String, String> getConfigSummary(JdbcSinkConfig config) {
         Map<String, String> summary = new HashMap<>();
-        
         summary.put("jdbcUrl", config.getJdbcUrl());
         summary.put("username", config.getUserName());
         summary.put("tableName", config.getTableName());
@@ -431,7 +425,6 @@ public class PostgresArrayTestConfig {
         summary.put("nonKeyColumns", config.getNonKey());
         summary.put("insertMode", config.getInsertMode().toString());
         summary.put("batchSize", String.valueOf(config.getBatchSize()));
-        
         return summary;
     }
 

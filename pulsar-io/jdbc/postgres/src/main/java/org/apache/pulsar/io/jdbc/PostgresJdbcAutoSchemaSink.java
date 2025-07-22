@@ -503,8 +503,8 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                 }
                 break;
             case "numeric":
-                if (!(elementClass == Double.class || elementClass == Float.class ||
-                        elementClass == Integer.class || elementClass == Long.class)) {
+                if (!(elementClass == Double.class || elementClass == Float.class
+                        || elementClass == Integer.class || elementClass == Long.class)) {
                     throw new IllegalArgumentException(
                             "expected numeric type (Double, Float, Integer, or Long) for PostgreSQL numeric[] column,"
                                     + " got "
@@ -528,8 +528,9 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                 }
                 break;
             case "timestamp":
-                if (!(elementClass == java.sql.Timestamp.class || elementClass == java.util.Date.class ||
-                        elementClass == java.time.LocalDateTime.class || elementClass == java.time.Instant.class)) {
+                if (!(elementClass == java.sql.Timestamp.class || elementClass == java.util.Date.class
+                        || elementClass == java.time.LocalDateTime.class
+                        || elementClass == java.time.Instant.class)) {
                     throw new IllegalArgumentException(
                             "expected timestamp type (Timestamp, Date, LocalDateTime, or Instant) for PostgreSQL "
                                     + "timestamp[] column, got "

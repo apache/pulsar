@@ -500,13 +500,11 @@ public class PostgresArrayTestDataFactory {
      */
     public static Map<String, Integer> getTestScenarioSummary() {
         Map<String, Integer> summary = new HashMap<>();
-        
         summary.put("successful_scenarios", createSuccessfulArrayScenarios().size());
         summary.put("type_mismatch_scenarios", createTypeMismatchScenarios().size());
         summary.put("unsupported_type_scenarios", createUnsupportedTypeScenarios().size());
         summary.put("edge_case_scenarios", createEdgeCaseScenarios().size());
         summary.put("performance_test_records", createPerformanceTestData().size());
-        
         return summary;
     }
 }
