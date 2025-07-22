@@ -686,8 +686,7 @@ public class PostgresArrayTestUtils {
     }
 
     private static boolean verifyDoubleArray(Array sqlArray, Double[] expected) throws SQLException {
-        if (sqlArray == null && expected == null)
-        {
+        if (sqlArray == null && expected == null) {
             return true;
         }
         if (sqlArray == null || expected == null) {
