@@ -433,11 +433,17 @@ public class PostgresArraySupportTest {
         when(mockStatement.setArray(ArgumentMatchers.anyInt(), ArgumentMatchers.any(Array.class)))
             .thenThrow(new SQLException("Mock setArray failure"));
         Integer[] intArray = {1, 2, 3};
+        boolean exceptionThrown = false;
         try {
             sink.handleArrayValue(mockStatement, 1, intArray, "integer");
-            Assert.fail("Expected SQLException");
         } catch (SQLException exception) {
+            exceptionThrown = true;
             Assert.assertTrue(exception.getMessage().contains("Mock setArray failure"));
+        } catch (Exception e) {
+            Assert.fail("Unexpected exception type: " + e.getClass().getName());
+        }
+        if (!exceptionThrown) {
+            Assert.fail("Expected SQLException");
         }
     }
 
@@ -446,12 +452,18 @@ public class PostgresArraySupportTest {
         // Mock SQLException during setNull
         when(mockStatement.setNull(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt()))
             .thenThrow(new SQLException("Mock setNull failure"));
+        boolean exceptionThrown = false;
         try {
             sink.handleArrayValue(mockStatement, 1, null, "integer");
-            Assert.fail("Expected SQLException");
         } catch (SQLException exception) {
+            exceptionThrown = true;
             Assert.assertTrue(exception.getMessage().contains("Failed to set array column to NULL"));
             Assert.assertTrue(exception.getMessage().contains("Mock setNull failure"));
+        } catch (Exception e) {
+            Assert.fail("Unexpected exception type: " + e.getClass().getName());
+        }
+        if (!exceptionThrown) {
+            Assert.fail("Expected SQLException");
         }
     }
 
