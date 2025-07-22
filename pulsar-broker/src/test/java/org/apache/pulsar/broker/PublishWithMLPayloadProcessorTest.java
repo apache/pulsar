@@ -45,6 +45,8 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
                 Collections.singleton(ManagedLedgerPayloadProcessor0.class.getName()));
         super.internalSetup();
         super.producerBaseSetup();
+        admin.tenants().createTenant("my-test-tenant", createDefaultTenantInfo());
+        admin.namespaces().createNamespace("my-test-tenant/my-test-ns");
     }
 
     @BeforeClass(alwaysRun = true)
@@ -56,18 +58,26 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30_000)
     public void testPublishWithoutDeduplication() throws Exception {
-        String topic = "persistent://public/default/testPublishWithoutDeduplication";
+        String topic = "persistent://my-test-tenant/my-test-ns/testPublishWithoutDeduplication";
         admin.topics().createNonPartitionedTopic(topic);
-        admin.topicPolicies().setDeduplicationStatus(topic, false);
-        publishAndVerify(topic, false);
+        try {
+            admin.topicPolicies().setDeduplicationStatus(topic, false);
+            publishAndVerify(topic, false);
+        } finally {
+            admin.topics().delete(topic);
+        }
     }
 
     @Test(timeOut = 30_000)
     public void testPublishWithDeduplication() throws Exception {
-        String topic = "persistent://public/default/testPublishWithDeduplication";
+        String topic = "persistent://my-test-tenant/my-test-ns/testPublishWithDeduplication";
         admin.topics().createNonPartitionedTopic(topic);
-        admin.topicPolicies().setDeduplicationStatus(topic, true);
-        publishAndVerify(topic, true);
+        try {
+            admin.topicPolicies().setDeduplicationStatus(topic, true);
+            publishAndVerify(topic, true);
+        } finally {
+            admin.topics().delete(topic);
+        }
     }
 
 
