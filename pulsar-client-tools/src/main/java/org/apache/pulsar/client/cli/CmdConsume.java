@@ -122,7 +122,7 @@ public class CmdConsume extends AbstractCmdConsume {
     private long startTimestamp = 0L;
 
     @Option(names = { "-etp", "--end-timestamp" }, description = "End timestamp for consuming messages")
-    private long endTimestamp = 0L;
+    private long endTimestamp = Long.MAX_VALUE;
 
     public CmdConsume() {
         // Do nothing
@@ -219,7 +219,7 @@ public class CmdConsume extends AbstractCmdConsume {
                         LOG.debug("No message to consume after waiting for 5 seconds.");
                     } else {
                         try {
-                            if (endTimestamp > 0L && msg.getPublishTime() > endTimestamp) {
+                            if (msg.getPublishTime() > endTimestamp) {
                                 break;
                             }
                             numMessagesConsumed += 1;
