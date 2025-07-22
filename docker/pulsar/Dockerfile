@@ -88,7 +88,6 @@ RUN apk add --no-cache \
             bash \
             python3 \
             py3-pip \
-            py3-grpcio \
             py3-yaml \
             gcompat \
             libgcc \
