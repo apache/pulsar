@@ -131,7 +131,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         synchronized (this) {
             setClientCnx(cnx);
             BaseCommand watchRequest = Commands.newWatchTopicList(requestId, watcherId, namespace.toString(),
-                            topicsPattern.pattern(), topicsHash);
+                            topicsPattern.inputPattern(), topicsHash);
 
             cnx.newWatchTopicList(watchRequest, requestId)
 

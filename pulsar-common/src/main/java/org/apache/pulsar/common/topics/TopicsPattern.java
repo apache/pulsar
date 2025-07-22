@@ -49,11 +49,13 @@ public interface TopicsPattern {
     boolean matches(String topicNameWithoutDomainSchemePrefix);
 
     /**
-     * Returns the regex pattern used by this TopicsPattern.
+     * Returns the original regex pattern used by this TopicsPattern passed as input.
+     * The internal implementation modifies the pattern to remove the possible topic domain scheme
+     * (e.g., "persistent://") since in matching the topic name, the domain scheme is ignored.
      *
      * @return the regex pattern as a string
      */
-    String pattern();
+    String inputPattern();
 
     /**
      * Returns the namespace associated with this TopicsPattern.
@@ -62,7 +64,7 @@ public interface TopicsPattern {
      * @return the NamespaceName associated with this TopicsPattern
      */
     default NamespaceName namespace() {
-        return TopicName.get(pattern()).getNamespaceObject();
+        return TopicName.get(inputPattern()).getNamespaceObject();
     }
 
     /**
@@ -77,6 +79,6 @@ public interface TopicsPattern {
         // By default, return the pattern itself since it is sufficient for a topic lookup.
         // Currently Pulsar doesn't limit the characters used in the topic name part of the pattern, but this would
         // be a good place to apply any sanitization if needed in the future.
-        return pattern();
+        return inputPattern();
     }
 }

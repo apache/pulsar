@@ -21,10 +21,12 @@ package org.apache.pulsar.common.topics;
 import com.google.re2j.Pattern;
 
 class RE2JTopicsPattern implements TopicsPattern {
+    private final String inputPattern;
     private final Pattern pattern;
 
-    public RE2JTopicsPattern(String regex) {
-        this.pattern = Pattern.compile(regex);
+    public RE2JTopicsPattern(String inputPattern, String regexWithoutTopicDomainScheme) {
+        this.inputPattern = inputPattern;
+        this.pattern = Pattern.compile(regexWithoutTopicDomainScheme);
     }
 
     @Override
@@ -33,7 +35,7 @@ class RE2JTopicsPattern implements TopicsPattern {
     }
 
     @Override
-    public String pattern() {
-        return pattern.pattern();
+    public String inputPattern() {
+        return inputPattern;
     }
 }

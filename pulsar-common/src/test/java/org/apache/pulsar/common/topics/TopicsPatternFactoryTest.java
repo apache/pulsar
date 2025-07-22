@@ -34,12 +34,13 @@ public class TopicsPatternFactoryTest {
     public void testCreateWithJdkPattern() {
         Pattern jdkPattern = Pattern.compile(DEFAULT_TOPICS_PATTERN);
         TopicsPattern topicsPattern = TopicsPatternFactory.create(jdkPattern);
-        assertTopicsPattern(topicsPattern);
+        assertTopicsPattern(topicsPattern, false);
     }
 
-    private static void assertTopicsPattern(TopicsPattern topicsPattern) {
+    private static void assertTopicsPattern(TopicsPattern topicsPattern, boolean inputIncludesDomainScheme) {
         assertNotNull(topicsPattern);
-        assertEquals(topicsPattern.pattern(), "tenant/namespace/test-topic-.*");
+        assertEquals(topicsPattern.inputPattern(),
+                inputIncludesDomainScheme ? DEFAULT_TOPICS_PATTERN_WITH_DOMAIN : DEFAULT_TOPICS_PATTERN);
         assertTopicsPatternMatches(topicsPattern);
     }
 
@@ -53,35 +54,35 @@ public class TopicsPatternFactoryTest {
     public void testCreateWithJdkPatternContainingTopicDomainScheme() {
         Pattern jdkPattern = Pattern.compile(DEFAULT_TOPICS_PATTERN_WITH_DOMAIN);
         TopicsPattern topicsPattern = TopicsPatternFactory.create(jdkPattern);
-        assertTopicsPattern(topicsPattern);
+        assertTopicsPattern(topicsPattern, true);
     }
 
     @Test
     public void testCreateWithStringAndRE2JImplementation() {
         TopicsPattern topicsPattern = TopicsPatternFactory.create(DEFAULT_TOPICS_PATTERN,
                 TopicsPattern.RegexImplementation.RE2J);
-        assertTopicsPattern(topicsPattern);
+        assertTopicsPattern(topicsPattern, false);
     }
 
     @Test
     public void testCreateWithStringAndJDKImplementation() {
         TopicsPattern topicsPattern = TopicsPatternFactory.create(DEFAULT_TOPICS_PATTERN,
                 TopicsPattern.RegexImplementation.JDK);
-        assertTopicsPattern(topicsPattern);
+        assertTopicsPattern(topicsPattern, false);
     }
 
     @Test
     public void testCreateWithStringAndRE2JWithJDKFallbackImplementation() {
         TopicsPattern topicsPattern = TopicsPatternFactory.create(DEFAULT_TOPICS_PATTERN,
                 TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK);
-        assertTopicsPattern(topicsPattern);
+        assertTopicsPattern(topicsPattern, false);
     }
 
     @Test
     public void testCreateWithStringContainingTopicDomainScheme() {
         TopicsPattern topicsPattern = TopicsPatternFactory.create(DEFAULT_TOPICS_PATTERN_WITH_DOMAIN,
                 TopicsPattern.RegexImplementation.JDK);
-        assertTopicsPattern(topicsPattern);
+        assertTopicsPattern(topicsPattern, true);
     }
 
     @Test

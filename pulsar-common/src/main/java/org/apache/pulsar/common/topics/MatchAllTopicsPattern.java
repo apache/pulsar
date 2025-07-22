@@ -32,7 +32,7 @@ class MatchAllTopicsPattern implements TopicsPattern {
     }
 
     @Override
-    public String pattern() {
+    public String inputPattern() {
         return ALL_TOPICS_PATTERN;
     }
 }

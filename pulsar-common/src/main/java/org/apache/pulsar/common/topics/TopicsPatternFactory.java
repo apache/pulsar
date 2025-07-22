@@ -22,7 +22,6 @@ import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
-
 /**
  * Factory class for creating instances of TopicsPattern based on different regex implementations.
  * It supports JDK regex, RE2J regex, and a fallback mechanism for RE2J with JDK.
@@ -49,7 +48,8 @@ public class TopicsPatternFactory {
         } else {
             // If the regex pattern contains the topic domain scheme, we remove it and create a TopicsPattern
             // using RE2J_WITH_JDK_FALLBACK
-            return internalCreate(removedTopicDomainScheme, TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK);
+            return internalCreate(currentRegex, removedTopicDomainScheme,
+                    TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK);
         }
     }
 
@@ -63,7 +63,7 @@ public class TopicsPatternFactory {
      * @return a TopicsPattern instance
      */
     public static TopicsPattern create(String regex, TopicsPattern.RegexImplementation implementation) {
-        return internalCreate(TopicList.removeTopicDomainScheme(regex), implementation);
+        return internalCreate(regex, TopicList.removeTopicDomainScheme(regex), implementation);
     }
 
     /**
@@ -75,24 +75,26 @@ public class TopicsPatternFactory {
         return MatchAllTopicsPattern.INSTANCE;
     }
 
-    private static TopicsPattern internalCreate(String regex, TopicsPattern.RegexImplementation implementation) {
-        if (TopicList.ALL_TOPICS_PATTERN.equals(regex)) {
+    private static TopicsPattern internalCreate(String inputPattern, String regexWithoutTopicDomainScheme,
+                                                TopicsPattern.RegexImplementation implementation) {
+        if (TopicList.ALL_TOPICS_PATTERN.equals(regexWithoutTopicDomainScheme)) {
             return matchAll();
         }
         switch (implementation) {
             case RE2J:
-                return new RE2JTopicsPattern(regex);
+                return new RE2JTopicsPattern(inputPattern, regexWithoutTopicDomainScheme);
             case JDK:
-                return new JDKTopicsPattern(regex);
+                return new JDKTopicsPattern(inputPattern, regexWithoutTopicDomainScheme);
             case RE2J_WITH_JDK_FALLBACK:
                 try {
-                    return new RE2JTopicsPattern(regex);
+                    return new RE2JTopicsPattern(inputPattern, regexWithoutTopicDomainScheme);
                 } catch (com.google.re2j.PatternSyntaxException e) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Failed to compile regex pattern '{}' with RE2J, fallback to JDK", regex, e);
+                        log.debug("Failed to compile regex pattern '{}' with RE2J, fallback to JDK",
+                                regexWithoutTopicDomainScheme, e);
                     }
                     // Fallback to JDK implementation if RE2J fails
-                    return new JDKTopicsPattern(regex);
+                    return new JDKTopicsPattern(inputPattern, regexWithoutTopicDomainScheme);
                 }
             default:
                 throw new IllegalArgumentException("Unknown RegexImplementation: " + implementation);

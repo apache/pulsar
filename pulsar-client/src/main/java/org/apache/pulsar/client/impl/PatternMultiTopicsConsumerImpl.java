@@ -126,7 +126,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     }
 
     CompletableFuture<Void> recheckTopicsChange() {
-        String pattern = topicsPattern.pattern();
+        String pattern = topicsPattern.inputPattern();
         final int epoch = recheckPatternEpoch.incrementAndGet();
         return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {

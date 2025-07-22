@@ -21,14 +21,17 @@ package org.apache.pulsar.common.topics;
 import java.util.regex.Pattern;
 
 class JDKTopicsPattern implements TopicsPattern {
+    private final String inputPattern;
     private final Pattern pattern;
 
-    public JDKTopicsPattern(String regex) {
-        this.pattern = Pattern.compile(regex);
+    public JDKTopicsPattern(String inputPattern, String regexWithoutTopicDomainScheme) {
+        this.inputPattern = inputPattern;
+        this.pattern = Pattern.compile(regexWithoutTopicDomainScheme);
     }
 
     public JDKTopicsPattern(Pattern pattern) {
         this.pattern = pattern;
+        this.inputPattern = pattern.pattern();
     }
 
     @Override
@@ -37,7 +40,7 @@ class JDKTopicsPattern implements TopicsPattern {
     }
 
     @Override
-    public String pattern() {
-        return pattern.pattern();
+    public String inputPattern() {
+        return inputPattern;
     }
 }
