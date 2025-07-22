@@ -118,6 +118,12 @@ public class CmdConsume extends AbstractCmdConsume {
     @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
     private boolean printMetadata = false;
 
+    @Option(names = { "-stp", "--start-timestamp" }, description = "Start timestamp for consuming messages")
+    private long startTimestamp = 0L;
+
+    @Option(names = { "-etp", "--end-timestamp" }, description = "End timestamp for consuming messages")
+    private long endTimestamp = Long.MAX_VALUE;
+
     public CmdConsume() {
         // Do nothing
         super();
@@ -138,6 +144,18 @@ public class CmdConsume extends AbstractCmdConsume {
         if (this.numMessagesToConsume < 0) {
             throw new CommandLine.ParameterException(commandSpec.commandLine(),
                     "Number of messages should be zero or positive.");
+        }
+        if (this.startTimestamp < 0) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "start timestamp should be positive.");
+        }
+        if (this.endTimestamp < 0) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "end timestamp should be positive.");
+        }
+        if (this.endTimestamp < startTimestamp) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "end timestamp should larger than start timestamp.");
         }
 
         if (this.serviceURL.startsWith("ws")) {
@@ -188,17 +206,22 @@ public class CmdConsume extends AbstractCmdConsume {
             }
 
             try (Consumer<?> consumer = builder.subscribe();) {
+                if (startTimestamp > 0L) {
+                    consumer.seek(startTimestamp);
+                }
                 RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
                 while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                     if (limiter != null) {
                         limiter.acquire();
                     }
-
                     Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
                     if (msg == null) {
                         LOG.debug("No message to consume after waiting for 5 seconds.");
                     } else {
                         try {
+                            if (msg.getPublishTime() > endTimestamp) {
+                                break;
+                            }
                             numMessagesConsumed += 1;
                             if (!hideContent) {
                                 System.out.println(MESSAGE_BOUNDARY);
