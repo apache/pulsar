@@ -35,6 +35,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -152,7 +153,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
     }
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws IOException {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
         this.sinkContext = sinkContext;
@@ -163,7 +164,8 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
                       "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
-        KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration();
+        KinesisProducerConfiguration kinesisConfig = KinesisSinkConfig
+                .loadExtraKinesisProducerConfig(kinesisSinkConfig.getExtraKinesisProducerConfig());
         kinesisConfig.setKinesisEndpoint(kinesisSinkConfig.getAwsEndpoint());
         if (kinesisSinkConfig.getAwsEndpointPort() != null) {
             kinesisConfig.setKinesisPort(kinesisSinkConfig.getAwsEndpointPort());
@@ -176,8 +178,18 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
         }
         kinesisConfig.setRegion(kinesisSinkConfig.getAwsRegion());
         kinesisConfig.setThreadingModel(ThreadingModel.POOLED);
-        kinesisConfig.setThreadPoolSize(4);
-        kinesisConfig.setCollectionMaxCount(1);
+        if (kinesisConfig.getThreadPoolSize() == 0) {
+            kinesisConfig.setThreadPoolSize(4);
+        }
+        kinesisConfig.setCollectionMaxCount(kinesisSinkConfig.getCollectionMaxCount());
+        kinesisConfig.setCollectionMaxSize(kinesisSinkConfig.getCollectionMaxSize());
+        kinesisConfig.setConnectTimeout(kinesisSinkConfig.getConnectTimeout());
+        kinesisConfig.setCredentialsRefreshDelay(kinesisSinkConfig.getCredentialsRefreshDelay());
+        kinesisConfig.setMaxConnections(kinesisSinkConfig.getMaxConnections());
+        kinesisConfig.setMinConnections(kinesisSinkConfig.getMinConnections());
+        kinesisConfig.setRateLimit(kinesisSinkConfig.getRateLimit());
+        kinesisConfig.setRecordTtl(kinesisSinkConfig.getRecordTtl());
+        kinesisConfig.setRequestTimeout(kinesisSinkConfig.getRequestTimeout());
         if (kinesisSinkConfig.getSkipCertificateValidation() != null
                 && kinesisSinkConfig.getSkipCertificateValidation()) {
             kinesisConfig.setVerifyCertificate(false);
