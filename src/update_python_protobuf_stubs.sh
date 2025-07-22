@@ -27,7 +27,7 @@ python3 -m venv $tempvenv
 source $tempvenv/bin/activate
 
 # install the required packages for protobuf and grpc
-python3 -m pip install grpcio-tools
+python3 -m pip install grpcio-tools==1.73.1
 
 cd $SCRIPT_DIR/..
 echo "Generating Python gRPC and Protobuf stubs from the .proto files..."
