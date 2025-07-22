@@ -610,7 +610,7 @@ public class PostgresArrayTestUtils {
                        && verifyDoubleArray(rs.getArray("numeric_array"), expectedNumericArray)
                        && verifyFloatArray(rs.getArray("real_array"), expectedRealArray)
                        && verifyLongArray(rs.getArray("bigint_array"), expectedBigintArray)
-                       expectedMixedData.equals(rs.getString("mixed_data"));
+                       && expectedMixedData.equals(rs.getString("mixed_data"));
             }
         }
     }
