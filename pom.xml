@@ -1996,6 +1996,8 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
+                <exclude>**/*_pb2.py</exclude>
+                <exclude>**/*_pb2_grpc.py</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -2149,6 +2151,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.dylib</exclude>
             <exclude>**/*.patch</exclude>
             <exclude>src/test/resources/*.txt</exclude>
+            <exclude>**/*_pb2.py</exclude>
+            <exclude>**/*_pb2_grpc.py</exclude>
           </excludes>
         </configuration>
       </plugin>
