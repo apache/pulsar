@@ -61,7 +61,6 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void testGetMetricsByDefault() throws Exception {
-        conf.setAuthenticateMetricsEndpoint(false);
         super.internalSetup();
         @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
