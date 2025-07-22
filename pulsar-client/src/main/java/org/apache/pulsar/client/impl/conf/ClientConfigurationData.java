@@ -98,6 +98,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private Map<String, String> authParamMap;
 
     @ApiModelProperty(
+            name = "originalPrincipal",
+            value = "Original principal for proxy authentication scenarios."
+    )
+    private String originalPrincipal;
+
+    @ApiModelProperty(
             name = "operationTimeoutMs",
             value = "Client operation timeout (in milliseconds)."
     )

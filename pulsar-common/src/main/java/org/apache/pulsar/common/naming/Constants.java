@@ -25,5 +25,7 @@ public class Constants {
 
     public static final String GLOBAL_CLUSTER = "global";
 
+    public static final String WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE = "__websocket_dummy_original_principle";
+
     private Constants() {}
 }

@@ -149,6 +149,11 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    public ClientBuilderImpl originalPrincipal(String originalPrincipal) {
+        conf.setOriginalPrincipal(originalPrincipal);
+        return this;
+    }
+
     private void setAuthenticationFromPropsIfAvailable(ClientConfigurationData clientConfig) {
         String authPluginClass = clientConfig.getAuthPluginClassName();
         String authParams = clientConfig.getAuthParams();

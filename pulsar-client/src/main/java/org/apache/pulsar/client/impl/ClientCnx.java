@@ -202,6 +202,7 @@ public class ClientCnx extends PulsarHandler {
     private long lastDisconnectedTimestamp;
 
     private final String clientVersion;
+    protected final String originalPrincipal;
 
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -267,6 +268,7 @@ public class ClientCnx extends PulsarHandler {
         this.idleState = new ClientCnxIdleState(this);
         this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
                 + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
+        this.originalPrincipal = conf.getOriginalPrincipal();
         this.connectionsOpenedCounter =
                 instrumentProvider.newCounter("pulsar.client.connection.opened", Unit.Connections,
                         "The number of connections opened", null, Attributes.empty());
@@ -316,7 +318,7 @@ public class ClientCnx extends PulsarHandler {
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                clientVersion, proxyToTargetBrokerAddress, null, null, null);
+                clientVersion, proxyToTargetBrokerAddress, originalPrincipal, null, null);
     }
 
     @Override

@@ -4348,7 +4348,7 @@ public class PersistentTopicsBase extends AdminResource {
             AuthenticationDataSource authenticationData, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         CompletableFuture<Void> authorizationFuture = new CompletableFuture<>();
-        checkAuthorizationAsync(pulsar, topicName, clientAppId, authenticationData)
+        checkAuthorizationAsync(pulsar, topicName, clientAppId, originalPrincipal, authenticationData)
                 .thenRun(() -> authorizationFuture.complete(null))
                 .exceptionally(e -> {
                     Throwable throwable = FutureUtil.unwrapCompletionException(e);
