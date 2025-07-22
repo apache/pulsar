@@ -204,7 +204,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         assertTrue(consumer.getTopic().startsWith(PatternMultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
         // 4. verify consumer
-        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().inputPattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 

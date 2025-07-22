@@ -35,31 +35,33 @@ import org.apache.pulsar.common.naming.TopicName;
 
 @UtilityClass
 public class TopicList {
-
     public static final String ALL_TOPICS_PATTERN = ".*";
 
     private static final String SCHEME_SEPARATOR = "://";
 
     private static final Pattern SCHEME_SEPARATOR_PATTERN = Pattern.compile(Pattern.quote(SCHEME_SEPARATOR));
 
-    // get topics that match 'topicsPattern' from original topics list
-    // return result should contain only topic names, without partition part
-    public static List<String> filterTopics(List<String> original, String regex) {
-        Pattern topicsPattern = Pattern.compile(regex);
-        return filterTopics(original, topicsPattern);
+    public static List<String> filterTopics(List<String> original, java.util.regex.Pattern jdkPattern) {
+        return filterTopics(original, TopicsPatternFactory.create(jdkPattern));
     }
 
-    public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
+    // get topics that match 'topicsPattern' from original topics list
+    // return result should contain only topic names, without partition part
+    public static List<String> filterTopics(List<String> original, String regex,
+                                            TopicsPattern.RegexImplementation topicsPatternImplementation) {
+        return filterTopics(original, TopicsPatternFactory.create(regex, topicsPatternImplementation));
+    }
 
-
-        final Pattern shortenedTopicsPattern = Pattern.compile(removeTopicDomainScheme(topicsPattern.toString()));
-
+    /**
+     * Filter topics using a TopicListPattern instance.
+     */
+    public static List<String> filterTopics(List<String> original, TopicsPattern topicsPattern) {
         return original.stream()
                 .map(TopicName::get)
                 .filter(topicName -> {
                     String partitionedTopicName = topicName.getPartitionedTopicName();
                     String removedScheme = SCHEME_SEPARATOR_PATTERN.split(partitionedTopicName)[1];
-                    return shortenedTopicsPattern.matcher(removedScheme).matches();
+                    return topicsPattern.matches(removedScheme);
                 })
                 .map(TopicName::toString)
                 .collect(Collectors.toList());
@@ -108,6 +110,6 @@ public class TopicList {
         } else {
             throw new IllegalArgumentException("Does not support topic domain: " + prefix);
         }
-        return String.format("%s%s", prefix, removedTopicDomain);
+        return prefix + removedTopicDomain;
     }
 }

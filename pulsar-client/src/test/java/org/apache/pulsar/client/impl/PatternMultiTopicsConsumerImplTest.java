@@ -24,12 +24,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
-import com.google.re2j.Pattern;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -52,7 +53,7 @@ public class PatternMultiTopicsConsumerImplTest {
     @Test
     public void testChangedUnfilteredResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
-                Pattern.compile("tenant/my-ns/name-.*"),
+                TopicsPatternFactory.create(Pattern.compile("tenant/my-ns/name-.*")),
                 mockTopicsHashSetter,
                 new GetTopicsResult(Arrays.asList(
                         "persistent://tenant/my-ns/name-1",
@@ -71,7 +72,7 @@ public class PatternMultiTopicsConsumerImplTest {
     @Test
     public void testChangedFilteredResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
-                Pattern.compile("tenant/my-ns/name-.*"),
+                TopicsPatternFactory.create(Pattern.compile("tenant/my-ns/name-.*")),
                 mockTopicsHashSetter,
                 new GetTopicsResult(Arrays.asList(
                         "persistent://tenant/my-ns/name-0",
@@ -90,7 +91,7 @@ public class PatternMultiTopicsConsumerImplTest {
     @Test
     public void testUnchangedResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
-                Pattern.compile("tenant/my-ns/name-.*"),
+                TopicsPatternFactory.create(Pattern.compile("tenant/my-ns/name-.*")),
                 mockTopicsHashSetter,
                 new GetTopicsResult(Arrays.asList(
                         "persistent://tenant/my-ns/name-0",

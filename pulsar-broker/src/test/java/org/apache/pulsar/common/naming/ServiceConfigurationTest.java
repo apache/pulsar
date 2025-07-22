@@ -44,6 +44,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
@@ -412,5 +413,23 @@ public class ServiceConfigurationTest {
         conf = PulsarConfigurationLoader.create(new ByteArrayInputStream(confFile.getBytes()),
                 ServiceConfiguration.class);
         assertEquals(conf.lookupProperties(), Map.of("lookup.key2", "value2"));
+    }
+
+    @Test
+    public void testTopicsPatternRegexImplementationOptions() throws IOException {
+        ServiceConfiguration conf = loadConfString("topicsPatternRegexImplementation=RE2J_WITH_JDK_FALLBACK");
+        assertEquals(conf.getTopicsPatternRegexImplementation(),
+                TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK);
+        conf = loadConfString("topicsPatternRegexImplementation=JDK");
+        assertEquals(conf.getTopicsPatternRegexImplementation(),
+                TopicsPattern.RegexImplementation.JDK);
+        conf = loadConfString("topicsPatternRegexImplementation=RE2J");
+        assertEquals(conf.getTopicsPatternRegexImplementation(),
+                TopicsPattern.RegexImplementation.RE2J);
+    }
+
+    private static ServiceConfiguration loadConfString(String confString) throws IOException {
+        return PulsarConfigurationLoader.create(new ByteArrayInputStream(confString.getBytes(StandardCharsets.UTF_8)),
+                ServiceConfiguration.class);
     }
 }
