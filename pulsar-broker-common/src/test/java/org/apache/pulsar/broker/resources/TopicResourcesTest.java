@@ -114,4 +114,13 @@ public class TopicResourcesTest {
         verifyNoMoreInteractions(listener);
     }
 
+    @Test
+    public void testListenerInvokedWithDecodedTopicName() {
+        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
+        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic%3Atest"));
+        verify(listener).accept("persistent://tenant/namespace/topic:test", NotificationType.Created);
+    }
+
 }
