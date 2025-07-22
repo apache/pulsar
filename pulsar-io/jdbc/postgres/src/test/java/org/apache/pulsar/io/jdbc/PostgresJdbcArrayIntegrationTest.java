@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -380,7 +381,11 @@ public class PostgresJdbcArrayIntegrationTest {
 
             @Override
             public GenericObject getValue() {
-                return new GenericAvroRecord(null, avroSchema, avroRecord);
+                List<org.apache.pulsar.client.api.schema.Field> fields = avroSchema.getFields()
+                        .stream()
+                        .map(f -> new org.apache.pulsar.client.api.schema.Field(f.name(), f.pos()))
+                        .collect(Collectors.toList());
+                return new GenericAvroRecord(null, avroSchema, fields, avroRecord);
             }
         };
 
