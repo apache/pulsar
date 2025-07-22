@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.io.jdbc;
 
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import java.lang.reflect.Field;
 import java.sql.Array;
 import java.sql.Connection;
@@ -32,7 +31,6 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -63,7 +61,8 @@ public class PostgresArraySupportTest {
         PostgresArrayTestConfig.configureSinkWithConnection(sink, mockConnection);
         
         // Mock connection.createArrayOf to return our mock array
-        when(mockConnection.createArrayOf(ArgumentMatchers.anyString(), ArgumentMatchers.any(Object[].class))).thenReturn(mockArray);
+        when(mockConnection.createArrayOf(ArgumentMatchers.anyString(),
+                ArgumentMatchers.any(Object[].class))).thenReturn(mockArray);
     }
 
     // Test supported array type conversions
@@ -238,7 +237,8 @@ public class PostgresArraySupportTest {
             
             // Reset mock for each test
             mockConnection = mock(Connection.class);
-            when(mockConnection.createArrayOf(ArgumentMatchers.anyString(), ArgumentMatchers.any(Object[].class))).thenReturn(mockArray);
+            when(mockConnection.createArrayOf(ArgumentMatchers.anyString(),
+                    ArgumentMatchers.any(Object[].class))).thenReturn(mockArray);
             
             Field connectionField = JdbcAbstractSink.class.getDeclaredField("connection");
             connectionField.setAccessible(true);

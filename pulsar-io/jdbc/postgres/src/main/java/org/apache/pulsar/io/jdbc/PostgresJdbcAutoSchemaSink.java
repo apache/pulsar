@@ -145,18 +145,18 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
             statement.setArray(index, postgresArray);
         } catch (IllegalArgumentException e) {
             // Re-throw validation errors with additional context
-            throw new IllegalArgumentException("Array type validation failed for column at index " + index +
-                    " with target type '" + targetSqlType + "': " + e.getMessage(), e);
+            throw new IllegalArgumentException("Array type validation failed for column at index " + index
+                    + " with target type '" + targetSqlType + "': " + e.getMessage(), e);
         } catch (SQLException e) {
             // Wrap JDBC array creation failures with contextual information
-            throw new SQLException("Failed to create PostgreSQL array for column at index " + index +
-                    " with target type '" + targetSqlType + "'. " +
-                    "Ensure the target column type supports arrays and the data types are compatible. " +
-                    "Original error: " + e.getMessage(), e.getSQLState(), e.getErrorCode(), e);
+            throw new SQLException("Failed to create PostgreSQL array for column at index " + index
+                    + " with target type '" + targetSqlType + "'. "
+                    + "Ensure the target column type supports arrays and the data types are compatible. "
+                    + "Original error: " + e.getMessage(), e.getSQLState(), e.getErrorCode(), e);
         } catch (Exception e) {
             // Wrap any other unexpected errors with context
-            throw new Exception("Unexpected error during array conversion for column at index " + index +
-                    " with target type '" + targetSqlType + "': " + e.getMessage(), e);
+            throw new Exception("Unexpected error during array conversion for column at index " + index
+                    + " with target type '" + targetSqlType + "': " + e.getMessage(), e);
         }
     }
 
@@ -223,8 +223,8 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
         } else if (arrayValue instanceof Object[]) {
             elements = (Object[]) arrayValue;
         } else {
-            throw new IllegalArgumentException("Unsupported array type: " + arrayValue.getClass().getName() +
-                    ". Expected GenericData.Array or Object[] for column at index " + columnIndex);
+            throw new IllegalArgumentException("Unsupported array type: " + arrayValue.getClass().getName()
+                    + ". Expected GenericData.Array or Object[] for column at index " + columnIndex);
         }
 
         // Infer PostgreSQL array type from target SQL type (this may throw IllegalArgumentException for unsupported
@@ -233,8 +233,8 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
         try {
             postgresArrayType = inferPostgresArrayType(targetSqlType);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported array element type for column at index " + columnIndex +
-                    ": " + e.getMessage());
+            throw new IllegalArgumentException("Unsupported array element type for column at index " + columnIndex
+                    + ": " + e.getMessage());
         }
 
         // Handle empty arrays - they are valid for any array type
@@ -242,8 +242,8 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
             try {
                 return getConnection().createArrayOf(postgresArrayType, elements);
             } catch (SQLException e) {
-                throw new SQLException("Failed to create empty PostgreSQL array of type '" + postgresArrayType +
-                        "' for column at index " + columnIndex + ": " + e.getMessage(), e);
+                throw new SQLException("Failed to create empty PostgreSQL array of type '" + postgresArrayType
+                        + "' for column at index " + columnIndex + ": " + e.getMessage(), e);
             }
         }
 
@@ -251,18 +251,18 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
         try {
             validateArrayElements(elements, postgresArrayType, columnIndex);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Array element type mismatch for column at index " + columnIndex +
-                    ": " + e.getMessage());
+            throw new IllegalArgumentException("Array element type mismatch for column at index " + columnIndex
+                    + ": " + e.getMessage());
         }
 
         // Create the PostgreSQL array
         try {
             return getConnection().createArrayOf(postgresArrayType, elements);
         } catch (SQLException e) {
-            throw new SQLException("Failed to create PostgreSQL array of type '" + postgresArrayType +
-                    "' for column at index " + columnIndex + ". " +
-                    "This may indicate a data type mismatch or database connectivity issue. " +
-                    "Original error: " + e.getMessage(), e);
+            throw new SQLException("Failed to create PostgreSQL array of type '" + postgresArrayType
+                    + "' for column at index " + columnIndex + ". "
+                    + "This may indicate a data type mismatch or database connectivity issue. "
+                    + "Original error: " + e.getMessage(), e);
         }
     }
 
@@ -365,11 +365,11 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
             default:
                 // Provide actionable error message with supported types
                 throw new IllegalArgumentException(
-                        "Unsupported PostgreSQL array element type: '" + targetSqlType + "'. " +
-                                "Supported types are: INTEGER/INT4, BIGINT/INT8, TEXT/VARCHAR/CHAR, " +
-                                "BOOLEAN/BOOL, NUMERIC/DECIMAL, REAL/FLOAT4, DOUBLE/FLOAT8, " +
-                                "TIMESTAMP/TIMESTAMPTZ. " +
-                                "Please ensure your PostgreSQL table column is defined with one of these supported "
+                        "Unsupported PostgreSQL array element type: '" + targetSqlType + "'. "
+                                + "Supported types are: INTEGER/INT4, BIGINT/INT8, TEXT/VARCHAR/CHAR, "
+                                + "BOOLEAN/BOOL, NUMERIC/DECIMAL, REAL/FLOAT4, DOUBLE/FLOAT8, "
+                                + "TIMESTAMP/TIMESTAMPTZ. "
+                                + "Please ensure your PostgreSQL table column is defined with one of these supported "
                                 + "array types.");
         }
     }
@@ -466,40 +466,40 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
         // Validate all non-null elements have consistent types
         for (int i = sampleIndex + 1; i < elements.length; i++) {
             if (elements[i] != null && !elements[i].getClass().equals(elementClass)) {
-                throw new IllegalArgumentException("Inconsistent array element types: found " +
-                        elementClass.getSimpleName() + " at index " + sampleIndex +
-                        " and " + elements[i].getClass().getSimpleName() + " at index " + i +
-                        ". All non-null array elements must have the same type.");
+                throw new IllegalArgumentException("Inconsistent array element types: found "
+                        + elementClass.getSimpleName() + " at index " + sampleIndex
+                        + " and " + elements[i].getClass().getSimpleName() + " at index " + i
+                        + ". All non-null array elements must have the same type.");
             }
         }
 
         switch (postgresArrayType) {
             case "integer":
                 if (!(elementClass == Integer.class)) {
-                    throw new IllegalArgumentException("expected Integer for PostgreSQL integer[] column, got " +
-                            elementClass.getSimpleName() + ". " +
-                            "Ensure your Avro schema uses 'int' type for integer array elements.");
+                    throw new IllegalArgumentException("expected Integer for PostgreSQL integer[] column, got "
+                            + elementClass.getSimpleName() + ". "
+                            + "Ensure your Avro schema uses 'int' type for integer array elements.");
                 }
                 break;
             case "bigint":
                 if (!(elementClass == Long.class)) {
-                    throw new IllegalArgumentException("expected Long for PostgreSQL bigint[] column, got " +
-                            elementClass.getSimpleName() + ". " +
-                            "Ensure your Avro schema uses 'long' type for bigint array elements.");
+                    throw new IllegalArgumentException("expected Long for PostgreSQL bigint[] column, got "
+                            + elementClass.getSimpleName() + ". "
+                            + "Ensure your Avro schema uses 'long' type for bigint array elements.");
                 }
                 break;
             case "text":
                 if (!(elementClass == String.class)) {
-                    throw new IllegalArgumentException("expected String for PostgreSQL text[] column, got " +
-                            elementClass.getSimpleName() + ". " +
-                            "Ensure your Avro schema uses 'string' type for text array elements.");
+                    throw new IllegalArgumentException("expected String for PostgreSQL text[] column, got "
+                            + elementClass.getSimpleName() + ". "
+                            + "Ensure your Avro schema uses 'string' type for text array elements.");
                 }
                 break;
             case "boolean":
                 if (!(elementClass == Boolean.class)) {
-                    throw new IllegalArgumentException("expected Boolean for PostgreSQL boolean[] column, got " +
-                            elementClass.getSimpleName() + ". " +
-                            "Ensure your Avro schema uses 'boolean' type for boolean array elements.");
+                    throw new IllegalArgumentException("expected Boolean for PostgreSQL boolean[] column, got "
+                            + elementClass.getSimpleName() + ". "
+                            + "Ensure your Avro schema uses 'boolean' type for boolean array elements.");
                 }
                 break;
             case "numeric":
@@ -508,24 +508,23 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                     throw new IllegalArgumentException(
                             "expected numeric type (Double, Float, Integer, or Long) for PostgreSQL numeric[] column,"
                                     + " got "
-                                    +
-                                    elementClass.getSimpleName() + ". " +
-                                    "Ensure your Avro schema uses 'double', 'float', 'int', or 'long' type for "
+                                    + elementClass.getSimpleName() + ". "
+                                    + "Ensure your Avro schema uses 'double', 'float', 'int', or 'long' type for "
                                     + "numeric array elements.");
                 }
                 break;
             case "real":
                 if (!(elementClass == Float.class)) {
-                    throw new IllegalArgumentException("expected Float for PostgreSQL real[] column, got " +
-                            elementClass.getSimpleName() + ". " +
-                            "Ensure your Avro schema uses 'float' type for real array elements.");
+                    throw new IllegalArgumentException("expected Float for PostgreSQL real[] column, got "
+                            + elementClass.getSimpleName() + ". "
+                            + "Ensure your Avro schema uses 'float' type for real array elements.");
                 }
                 break;
             case "float8":
                 if (!(elementClass == Double.class)) {
-                    throw new IllegalArgumentException("expected Double for PostgreSQL float8[] column, got " +
-                            elementClass.getSimpleName() + ". " +
-                            "Ensure your Avro schema uses 'double' type for float8 array elements.");
+                    throw new IllegalArgumentException("expected Double for PostgreSQL float8[] column, got "
+                            + elementClass.getSimpleName() + ". "
+                            + "Ensure your Avro schema uses 'double' type for float8 array elements.");
                 }
                 break;
             case "timestamp":
@@ -534,17 +533,16 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                     throw new IllegalArgumentException(
                             "expected timestamp type (Timestamp, Date, LocalDateTime, or Instant) for PostgreSQL "
                                     + "timestamp[] column, got "
-                                    +
-                                    elementClass.getSimpleName() + ". " +
-                                    "Ensure your Avro schema uses appropriate timestamp type for timestamp array "
+                                    + elementClass.getSimpleName() + ". "
+                                    + "Ensure your Avro schema uses appropriate timestamp type for timestamp array "
                                     + "elements.");
                 }
                 break;
             default:
                 // This should not happen if inferPostgresArrayType() is working correctly
                 throw new IllegalArgumentException(
-                        "Internal error: Unknown PostgreSQL array type for validation: " + postgresArrayType +
-                                ". This indicates a bug in the array type inference logic.");
+                        "Internal error: Unknown PostgreSQL array type for validation: " + postgresArrayType
+                                + ". This indicates a bug in the array type inference logic.");
         }
     }
 }

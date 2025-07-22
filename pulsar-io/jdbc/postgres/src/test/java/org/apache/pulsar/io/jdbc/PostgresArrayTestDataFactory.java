@@ -19,11 +19,9 @@
 package org.apache.pulsar.io.jdbc;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -45,7 +43,7 @@ public class PostgresArrayTestDataFactory {
         private final boolean shouldSucceed;
         private final String expectedErrorMessage;
 
-        public TestScenario(String name, String description, GenericRecord record, 
+        public TestScenario(String name, String description, GenericRecord record,
                           boolean shouldSucceed, String expectedErrorMessage) {
             this.name = name;
             this.description = description;
@@ -54,11 +52,21 @@ public class PostgresArrayTestDataFactory {
             this.expectedErrorMessage = expectedErrorMessage;
         }
 
-        public String getName() { return name; }
-        public String getDescription() { return description; }
-        public GenericRecord getRecord() { return record; }
-        public boolean shouldSucceed() { return shouldSucceed; }
-        public String getExpectedErrorMessage() { return expectedErrorMessage; }
+        public String getName() {
+            return name;
+        }
+        public String getDescription() {
+            return description;
+        }
+        public GenericRecord getRecord() {
+            return record;
+        }
+        public boolean shouldSucceed() {
+            return shouldSucceed;
+        }
+        public String getExpectedErrorMessage() {
+            return expectedErrorMessage;
+        }
     }
 
     /**
@@ -75,9 +83,15 @@ public class PostgresArrayTestDataFactory {
             this.expectedErrorFragment = expectedErrorFragment;
         }
 
-        public Object[] getArrayData() { return arrayData; }
-        public String getTargetType() { return targetType; }
-        public String getExpectedErrorFragment() { return expectedErrorFragment; }
+        public Object[] getArrayData() {
+            return arrayData;
+        }
+        public String getTargetType() {
+            return targetType;
+        }
+        public String getExpectedErrorFragment() {
+            return expectedErrorFragment;
+        }
     }
 
     // ========== Positive Test Scenarios ==========
@@ -402,7 +416,8 @@ public class PostgresArrayTestDataFactory {
 
         record.put("id", 20);
         record.put("int_array", PostgresArrayTestUtils.createIntArray(Integer.MIN_VALUE, 0, Integer.MAX_VALUE));
-        record.put("text_array", PostgresArrayTestUtils.createStringArray("", "a", "very_long_string_with_many_characters_to_test_limits"));
+        record.put("text_array", PostgresArrayTestUtils.createStringArray("", "a",
+                "very_long_string_with_many_characters_to_test_limits"));
         record.put("boolean_array", PostgresArrayTestUtils.createBooleanArray(true, false));
         record.put("numeric_array", PostgresArrayTestUtils.createDoubleArray(Double.MIN_VALUE, 0.0, Double.MAX_VALUE));
         record.put("real_array", PostgresArrayTestUtils.createFloatArray(Float.MIN_VALUE, 0.0f, Float.MAX_VALUE));
