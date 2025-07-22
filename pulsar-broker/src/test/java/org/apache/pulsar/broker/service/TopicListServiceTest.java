@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import com.google.re2j.Pattern;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +38,7 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,6 +50,8 @@ public class TopicListServiceTest {
     private CompletableFuture<List<String>> topicListFuture;
     private Semaphore lookupSemaphore;
     private TopicResources topicResources;
+    private final TopicsPattern.RegexImplementation topicsPatternImplementation =
+            TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -80,8 +82,8 @@ public class TopicListServiceTest {
                 NamespaceName.get("tenant/ns"),
                 13,
                 7,
-                Pattern.compile("persistent://tenant/ns/topic\\d"),
-                null,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         String hash = TopicList.calculateHash(topics);
@@ -98,8 +100,8 @@ public class TopicListServiceTest {
                 NamespaceName.get("tenant/ns"),
                 13,
                 7,
-                Pattern.compile("persistent://tenant/ns/topic\\d"),
-                null,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
                 lookupSemaphore);
         topicListFuture.completeExceptionally(new PulsarServerException("Error"));
         Assert.assertEquals(1, lookupSemaphore.availablePermits());
@@ -114,8 +116,8 @@ public class TopicListServiceTest {
                 NamespaceName.get("tenant/ns"),
                 13,
                 7,
-                Pattern.compile("persistent://tenant/ns/topic\\d"),
-                null,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
