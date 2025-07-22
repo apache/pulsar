@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -49,7 +50,7 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace("my-test-tenant/my-test-ns");
     }
 
-    @BeforeClass(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
