@@ -54,7 +54,8 @@ public class PostgresArrayTestConfig {
         private String password = DEFAULT_PASSWORD;
         private String tableName = DEFAULT_TABLE_NAME;
         private String keyColumns = "id";
-        private String nonKeyColumns = "int_array,text_array,boolean_array,numeric_array,real_array,bigint_array,mixed_data";
+        private String nonKeyColumns =
+                "int_array,text_array,boolean_array,numeric_array,real_array,bigint_array,mixed_data";
         private JdbcSinkConfig.InsertMode insertMode = JdbcSinkConfig.InsertMode.UPSERT;
         private int batchSize = 1;
         private boolean autoCreateTable = true;
@@ -224,7 +225,8 @@ public class PostgresArrayTestConfig {
      * @return database connection
      * @throws SQLException if connection fails
      */
-    public static Connection createTestConnection(String jdbcUrl, String username, String password) throws SQLException {
+    public static Connection createTestConnection(String jdbcUrl, String username, String password)
+            throws SQLException {
         Properties props = new Properties();
         props.setProperty("user", username);
         props.setProperty("password", password);
@@ -274,7 +276,8 @@ public class PostgresArrayTestConfig {
      * @param connection database connection to use
      * @throws Exception if configuration fails
      */
-    public static void configureSinkWithConnection(PostgresJdbcAutoSchemaSink sink, Connection connection) throws Exception {
+    public static void configureSinkWithConnection(PostgresJdbcAutoSchemaSink sink, Connection connection)
+            throws Exception {
         // Set connection using reflection
         Field connectionField = JdbcAbstractSink.class.getDeclaredField("connection");
         connectionField.setAccessible(true);
