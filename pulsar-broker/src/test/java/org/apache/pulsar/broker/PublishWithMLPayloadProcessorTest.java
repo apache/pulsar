@@ -35,6 +35,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
