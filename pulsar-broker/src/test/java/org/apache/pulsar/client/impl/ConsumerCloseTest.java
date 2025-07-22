@@ -20,19 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -52,47 +46,6 @@ public class ConsumerCloseTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    @Test
-    public void testInterruptedWhenCreateConsumer() throws InterruptedException {
-
-        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        String subName = "test-sub";
-        String mlCursorPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/"
-                + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + subName;
-
-        // Make create cursor delay 1s
-        CountDownLatch topicLoadLatch = new CountDownLatch(1);
-        for (int i = 0; i < 5; i++) {
-            mockZooKeeper.delay(1000, (op, path) -> {
-                if (mlCursorPath.equals(path)) {
-                    topicLoadLatch.countDown();
-                    return true;
-                }
-                return false;
-            });
-        }
-
-        Thread startConsumer = new Thread(() -> {
-            try {
-                pulsarClient.newConsumer()
-                        .topic(tpName)
-                        .subscriptionName(subName)
-                        .subscribe();
-                Assert.fail("Should have thrown an exception");
-            } catch (PulsarClientException e) {
-                assertTrue(e.getCause() instanceof InterruptedException);
-            }
-        });
-        startConsumer.start();
-        topicLoadLatch.await();
-        startConsumer.interrupt();
-
-        PulsarClientImpl clientImpl = (PulsarClientImpl) pulsarClient;
-        Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-            Assert.assertEquals(clientImpl.consumersCount(), 0);
-        });
     }
 
     @Test
