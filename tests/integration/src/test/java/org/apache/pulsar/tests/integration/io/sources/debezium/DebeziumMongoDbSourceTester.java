@@ -44,12 +44,13 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
 
         /*
          *The `mongodb.connection.string` property replaces the deprecated `mongodb.hosts` property in release 2.2
-         * that was used to provide earlier versions of the connector with the host address of the configuration server replica.
-         * In the current release, use mongodb.connection.string to provide the connector with the addresses of MongoDB routers,
-         * also known as mongos.
+         * that was used to provide earlier versions of the connector with the host address of the configuration server
+         * replica. In the current release, use mongodb.connection.string to provide the connector with the addresses
+         * of MongoDB routers, also known as mongos.
          */
         sourceConfig.put("connector.class", "io.debezium.connector.mongodb.MongoDbConnector");
-        sourceConfig.put("mongodb.connection.string", "mongodb://" + DebeziumMongoDbContainer.NAME + ":27017/?replicaSet=rs0");
+        sourceConfig.put("mongodb.connection.string", "mongodb://"
+                + DebeziumMongoDbContainer.NAME + ":27017/?replicaSet=rs0");
         sourceConfig.put("mongodb.name", "dbserver1");
         sourceConfig.put("mongodb.user", "debezium");
         sourceConfig.put("mongodb.password", "dbz");

@@ -24,10 +24,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -99,7 +97,8 @@ public class URLRegexLookupProxyHandlerTest extends MockedPulsarServiceBaseTest 
         ProxyService redirectProxyService = Mockito.spy(new ProxyService(redirectProxyConfig, new AuthenticationService(
             PulsarConfigurationLoader.convertFrom(redirectProxyConfig)), proxyClientAuthentication));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(redirectProxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(redirectProxyService).createConfigurationMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(redirectProxyService)
+                .createConfigurationMetadataStore();
 
         redirectProxyService.start();
 
@@ -121,7 +120,8 @@ public class URLRegexLookupProxyHandlerTest extends MockedPulsarServiceBaseTest 
         // Create a consumer directly attached to broker
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-            .topic("persistent://sample/test/local/producer-consumer-topic").subscriptionName("my-sub").subscribe();
+            .topic("persistent://sample/test/local/producer-consumer-topic").subscriptionName("my-sub")
+                .subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -149,14 +149,16 @@ public class URLRegexLookupProxyHandlerTest extends MockedPulsarServiceBaseTest 
         redirectProxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         redirectProxyConfig.setLookupHandler("org.apache.pulsar.proxy.server.URLRegexLookupProxyHandler");
         redirectProxyConfig.getProperties().setProperty("urlRegexLookupProxyHandlerRegex", "invalid");
-        redirectProxyConfig.getProperties().setProperty("urlRegexLookupProxyHandlerReplacement", proxyService.getServiceUrl());
+        redirectProxyConfig.getProperties().setProperty("urlRegexLookupProxyHandlerReplacement", proxyService
+                .getServiceUrl());
         redirectProxyConfig.setClusterName(configClusterName);
 
         @Cleanup
         ProxyService redirectProxyService = Mockito.spy(new ProxyService(redirectProxyConfig, new AuthenticationService(
             PulsarConfigurationLoader.convertFrom(redirectProxyConfig)), proxyClientAuthentication));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(redirectProxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(redirectProxyService).createConfigurationMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(redirectProxyService)
+                .createConfigurationMetadataStore();
 
         redirectProxyService.start();
 

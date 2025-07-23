@@ -45,7 +45,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
- * Class that initializes the WebSocketService disabling {@link WebSocketProxyConfiguration#setGrantImplicitPermissionOnSubscription(boolean)}.
+ * Class that initializes the WebSocketService disabling
+ * {@link WebSocketProxyConfiguration#setGrantImplicitPermissionOnSubscription(boolean)}.
  * We must have this class on its own because the WebSocketProxyConfiguration is converted to the ServiceConfiguration
  * on start up, so it is not a dynamic property that we can change after the service has started.
  */
@@ -118,14 +119,14 @@ public class ProxyAuthorizationWithoutImplicitPermissionOnSubscriptionTest exten
 
         // Expect false because we disabled the implicit permission on subscription
         assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, "sub"));
-        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null,"sub"));
+        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null, "sub"));
 
         // Grant permission
         admin.namespaces().grantPermissionOnSubscription("p1/c1/ns1", "sub", Set.of("other-role"));
 
         // Expect only true for "other-role" because we granted permission for only that one
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, "sub"));
-        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null,"sub"));
+        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null, "sub"));
 
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "no-access-role", null));

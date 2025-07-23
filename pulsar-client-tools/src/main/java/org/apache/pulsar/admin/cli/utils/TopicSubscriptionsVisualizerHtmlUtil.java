@@ -20,7 +20,7 @@ package org.apache.pulsar.admin.cli.utils;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -159,6 +159,6 @@ class TopicSubscriptionsVisualizerHtmlUtil {
     }
 
     private static String escapeHtml(String str) {
-        return StringEscapeUtils.escapeHtml(str);
+        return StringEscapeUtils.escapeHtml4(str);
     }
 }

@@ -2075,7 +2075,7 @@ public class TransactionTest extends TransactionTestBase {
     @DataProvider(name = "BlockTransactionsIfReplicationEnabledValues")
     public static Object[][] packageNamesProvider() {
         return new Object[][]{
-                {false},{true}
+                {false}, {true}
         };
     }
 
