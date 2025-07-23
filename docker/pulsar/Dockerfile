@@ -104,6 +104,10 @@ RUN apk add --no-cache \
 RUN apk upgrade --no-cache
 
 # Python dependencies
+# The pinned grpcio and protobuf versions should be compatible with the generated Protobuf and gRPC stubs used
+# in Pulsar Functions Python runtime. You should also update the grpcio version in src/update_python_protobuf_stubs.sh
+# and regenerate the Python stubs if you change the grpcio version here. Please see
+# pulsar-functions/instance/src/main/python/README.md for more details.
 ARG PULSAR_CLIENT_PYTHON_VERSION
 RUN pip3 install --break-system-packages --no-cache-dir \
     --only-binary \

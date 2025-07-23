@@ -18,6 +18,10 @@
 # under the License.
 #
 
+# This script generates Python gRPC and Protobuf stubs from the .proto files
+# Set the version of PYTHON_GRPCIO_VERSION to the version which matches the version of grpcio in the Dockerfile
+PYTHON_GRPCIO_VERSION=${PYTHON_GRPCIO_VERSION:-"1.73.1"}
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
@@ -28,7 +32,8 @@ python3 -m venv $tempvenv
 source $tempvenv/bin/activate
 
 # install the required packages for protobuf and grpc
-python3 -m pip install grpcio-tools==1.73.1
+echo "Installing grpc-tools $PYTHON_GRPCIO_VERSION..."
+python3 -m pip install grpcio-tools==$PYTHON_GRPCIO_VERSION
 
 cd $SCRIPT_DIR/..
 echo "Generating Python gRPC and Protobuf stubs from the .proto files..."
