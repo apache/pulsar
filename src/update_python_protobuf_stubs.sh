@@ -35,6 +35,11 @@ source $tempvenv/bin/activate
 echo "Installing grpc-tools $PYTHON_GRPCIO_VERSION..."
 python3 -m pip install grpcio-tools==$PYTHON_GRPCIO_VERSION
 
+echo "libprotoc library included in grpcio-tools will be used:"
+python3 -m grpc_tools.protoc --version
+echo "The compatible matching protobuf package version in Python is prefixed with '6.'"
+echo "Ensure that you are using a compatible version of the protobuf package such as 6.$(python3 -m grpc_tools.protoc --version | awk '{print $2}') (or a matching patch version)."
+
 cd $SCRIPT_DIR/..
 echo "Generating Python gRPC and Protobuf stubs from the .proto files..."
 

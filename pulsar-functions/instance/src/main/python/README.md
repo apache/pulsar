@@ -28,3 +28,13 @@ Alternatively, you can run this command to install the required tools in a docke
 src/update_python_protobuf_stubs_with_docker.sh
 ```
 
+When the script is run, it will also print such information to the console:
+
+```
+libprotoc library included in grpcio-tools will be used:
+libprotoc 31.0
+The compatible matching protobuf package version in Python is prefixed with '6.'
+Ensure that you are using a compatible version of the protobuf package such as 6.31.0 (or a matching patch version).
+```
+
+When pinning the `protobuf` package in your Python project follow this guidance to ensure compatibility of the generated stubs with the `protobuf` package version.
