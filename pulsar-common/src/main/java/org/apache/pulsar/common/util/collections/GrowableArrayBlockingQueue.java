@@ -223,6 +223,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
                 if (timeoutNanos <= 0) {
                     return null;
                 }
+                if (terminated) {
+                    throw new IllegalStateException("Queue is terminated");
+                }
 
                 timeoutNanos = isNotEmpty.awaitNanos(timeoutNanos);
             }
