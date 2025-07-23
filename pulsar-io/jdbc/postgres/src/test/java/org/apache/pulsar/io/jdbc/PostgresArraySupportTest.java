@@ -188,28 +188,30 @@ public class PostgresArraySupportTest {
 
     @Test
     public void testPostgresTypeMapping() throws Exception {
-        // Test various PostgreSQL type name mappings
-        String[] testCases = {
-            "int4", "integer",
-            "_int4", "integer",
-            "int8", "bigint",
-            "_int8", "bigint",
-            "text", "text",
-            "_text", "text",
-            "varchar", "text",
-            "bool", "boolean",
-            "_bool", "boolean",
-            "numeric", "numeric",
-            "_numeric", "numeric",
-            "float4", "real",
-            "_float4", "real",
-            "float8", "float8",
-            "_float8", "float8"
+        // Test various PostgreSQL type name mappings with appropriate Java types
+        Object[][] testCases = {
+            {"int4", "integer", new Integer[]{1, 2, 3}},
+            {"_int4", "integer", new Integer[]{1, 2, 3}},
+            {"int8", "bigint", new Long[]{1L, 2L, 3L}},
+            {"_int8", "bigint", new Long[]{1L, 2L, 3L}},
+            {"text", "text", new String[]{"a", "b", "c"}},
+            {"_text", "text", new String[]{"a", "b", "c"}},
+            {"varchar", "text", new String[]{"a", "b", "c"}},
+            {"bool", "boolean", new Boolean[]{true, false, true}},
+            {"_bool", "boolean", new Boolean[]{true, false, true}},
+            {"numeric", "numeric", new Double[]{1.0, 2.0, 3.0}},
+            {"_numeric", "numeric", new Double[]{1.0, 2.0, 3.0}},
+            {"float4", "real", new Float[]{1.0f, 2.0f, 3.0f}},
+            {"_float4", "real", new Float[]{1.0f, 2.0f, 3.0f}},
+            {"float8", "float8", new Double[]{1.0, 2.0, 3.0}},
+            {"_float8", "float8", new Double[]{1.0, 2.0, 3.0}}
         };
-        Integer[] testArray = {1, 2, 3};
-        for (int i = 0; i < testCases.length; i += 2) {
-            String inputType = testCases[i];
-            String expectedType = testCases[i + 1];
+        
+        for (Object[] testCase : testCases) {
+            String inputType = (String) testCase[0];
+            String expectedType = (String) testCase[1];
+            Object[] testArray = (Object[]) testCase[2];
+            
             // Reset mock for each test
             mockConnection = mock(Connection.class);
             when(mockConnection.createArrayOf(ArgumentMatchers.anyString(),
@@ -217,6 +219,7 @@ public class PostgresArraySupportTest {
             Field connectionField = JdbcAbstractSink.class.getDeclaredField("connection");
             connectionField.setAccessible(true);
             connectionField.set(sink, mockConnection);
+            
             // Test the mapping
             sink.handleArrayValue(mockStatement, 1, testArray, inputType);
             verify(mockConnection).createArrayOf(expectedType, testArray);
@@ -419,12 +422,21 @@ public class PostgresArraySupportTest {
         try {
             sink.handleArrayValue(mockStatement, 1, intArray, "integer");
             Assert.fail("Expected SQLException");
-        } catch (SQLException exception) {
-            Assert.assertTrue(exception.getMessage().contains("Failed to create PostgreSQL array"));
-            Assert.assertTrue(exception.getMessage().contains("integer"));
-            Assert.assertTrue(exception.getMessage().contains("Mock array creation failure"));
-            Assert.assertEquals("42000", exception.getSQLState());
-            Assert.assertEquals(123, exception.getErrorCode());
+        } catch (Exception exception) {
+            System.out.println("DEBUG: Caught exception type: " + exception.getClass().getName());
+            System.out.println("DEBUG: Exception message: " + exception.getMessage());
+            if (exception instanceof SQLException) {
+                SQLException sqlEx = (SQLException) exception;
+                System.out.println("DEBUG: SQLState: " + sqlEx.getSQLState());
+                System.out.println("DEBUG: ErrorCode: " + sqlEx.getErrorCode());
+                Assert.assertTrue(exception.getMessage().contains("Failed to create PostgreSQL array"));
+                Assert.assertTrue(exception.getMessage().contains("integer"));
+                Assert.assertTrue(exception.getMessage().contains("Mock array creation failure"));
+                Assert.assertEquals(sqlEx.getSQLState(), "42000");
+                Assert.assertEquals(sqlEx.getErrorCode(), 123);
+            } else {
+                Assert.fail("Expected SQLException but got: " + exception.getClass().getName());
+            }
         }
     }
 
