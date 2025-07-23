@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -420,6 +421,36 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testZeroQueueGetExceptionWhenReceiveBatchMessage() throws PulsarClientException {
+
+        int batchMessageDelayMs = 100;
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-xyz/use/ns-abc/topic1")
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+                .subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://prop-xyz/use/ns-abc/topic1")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
+
+        producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(5);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+
+        assertThatThrownBy(
+                consumer::receive
+        )
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Queue is terminated");
     }
 
     @Test(timeOut = 30000)
