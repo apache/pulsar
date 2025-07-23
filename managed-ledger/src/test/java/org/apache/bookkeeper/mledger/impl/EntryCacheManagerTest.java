@@ -412,7 +412,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         when(ml1.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 1L));
         when(ml1.getOptionalLedgerInfo(lh.getId())).thenReturn(Optional.of(mock(
                 MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
-        entryCache.asyncReadEntry(lh, PositionFactory.create(1L,1L), new AsyncCallbacks.ReadEntryCallback() {
+        entryCache.asyncReadEntry(lh, PositionFactory.create(1L, 1L), new AsyncCallbacks.ReadEntryCallback() {
             public void readEntryComplete(Entry entry, Object ctx) {
                 Assert.assertNotEquals(entry, null);
                 entry.release();

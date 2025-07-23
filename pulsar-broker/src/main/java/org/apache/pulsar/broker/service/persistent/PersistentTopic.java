@@ -649,7 +649,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
                 break;
             default:
-                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                publishContext.completed(
+                        new MessageDeduplication.MessageDupUnknownException(
+                                topic, publishContext.getProducerName()), -1, -1);
                 decrementPendingWriteOpsAndCheck();
 
         }
@@ -887,8 +889,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private synchronized CompletableFuture<Void> closeReplProducersIfNoBacklog() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true, true)));
-        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect(true, true)));
+        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -2135,16 +2137,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (backlogEstimate > compactionThreshold) {
                     if (log.isDebugEnabled()) {
                         log.debug(
-                                "topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering "
-                                        + "compaction", topic, backlogEstimate, compactionThreshold);
+                            "topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering "
+                                + "compaction", topic, backlogEstimate, compactionThreshold);
                     }
-                    try {
-                        triggerCompaction();
-                    } catch (AlreadyRunningException are) {
-                        log.debug("[{}] Compaction already running, so don't trigger again, "
-                                  + "even though backlog({}) is over threshold({})",
-                                  name, backlogEstimate, compactionThreshold);
-                    }
+
+                    triggerCompactionWithCheckHasMoreMessages();
+
                 }
             }
         } catch (Exception e) {
@@ -2745,6 +2743,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ? null
             : oldestPositionInfo.getCursorName();
 
+        // Set the last publish timestamp using a hybrid approach:
+        // 1. First try ledger.getLastAddEntryTime() if available
+        // 2. If needed, read the last message to get actual publish time
+        long ledgerLastAddTime = ledger.getLastAddEntryTime();
+        CompletableFuture<Long> lastPublishTimeFuture;
+
+        if (ledgerLastAddTime > 0) {
+            // Use ledger's last add time as a good approximation
+            stats.lastPublishTimeStamp = ledgerLastAddTime;
+            lastPublishTimeFuture = CompletableFuture.completedFuture(ledgerLastAddTime);
+        } else {
+            // Fallback to reading the last message to get actual publish time
+            stats.lastPublishTimeStamp = 0; // Will be updated below if we can read the message
+            lastPublishTimeFuture = getLastMessagePublishTime();
+        }
+
+        // Set the topic creation timestamp - get it directly since it's synchronous
+        stats.topicCreationTimeStamp = getTopicCreationTimeStamp();
+
         stats.compaction.reset();
         mxBean.flatMap(bean -> bean.getCompactionRecordForTopic(topic)).map(compactionRecord -> {
             stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
@@ -2759,7 +2776,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         subscriptions.forEach((name, subscription) -> {
             subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions));
         });
-        return FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore -> {
+
+        // Combine all async operations: last publish time and subscription stats
+        CompletableFuture<Void> combinedFutures = CompletableFuture.allOf(
+            lastPublishTimeFuture.thenAccept(time -> stats.lastPublishTimeStamp = time)
+        );
+
+        return combinedFutures.thenCompose(ignore ->
+            FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore2 -> {
             for (Map.Entry<String, CompletableFuture<SubscriptionStatsImpl>> e : subscriptionFutures.entrySet()) {
                 String name = e.getKey();
                 SubscriptionStatsImpl subStats = e.getValue().join();
@@ -2775,7 +2799,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 subStats.bucketDelayedIndexStats.forEach((k, v) -> {
                     TopicMetricBean topicMetricBean =
-                            stats.bucketDelayedIndexStats.computeIfAbsent(k, ignore2 -> new TopicMetricBean());
+                            stats.bucketDelayedIndexStats.computeIfAbsent(k, key -> new TopicMetricBean());
                     topicMetricBean.name = v.name;
                     topicMetricBean.labelsAndValues = v.labelsAndValues;
                     topicMetricBean.value += v.value;
@@ -2800,7 +2824,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             } else {
                 return CompletableFuture.completedFuture(stats);
             }
-        });
+        }));
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
@@ -3627,7 +3651,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         Position oldestMarkDeletePosition = oldestMarkDeleteCursorInfo.getPosition();
         OldestPositionInfo lastOldestPositionInfo = oldestPositionInfo;
         if (lastOldestPositionInfo != null
-            && oldestMarkDeletePosition.compareTo(lastOldestPositionInfo.getOldestCursorMarkDeletePosition()) == 0) {
+            && oldestMarkDeletePosition.compareTo(lastOldestPositionInfo.getOldestCursorMarkDeletePosition()) == 0
+            && oldestMarkDeletePosition.compareTo(ledger.getFirstPosition()) >= 0) {
             // Same position, but the cursor causing it has changed?
             if (!lastOldestPositionInfo.getCursorName().equals(oldestMarkDeleteCursorInfo.getCursor().getName())) {
                 updateResultIfNewer(new OldestPositionInfo(
@@ -3755,6 +3780,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
                 markDeletePositionLedgerInfo = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get();
+
+        // If markDeletePositionLedgerInfo is null (ledger no longer exists due to retention/cleanup),
+        // use the next valid position instead to get a meaningful timestamp
+        if (markDeletePositionLedgerInfo == null) {
+            Position nextValidPosition = ledger.getNextValidPosition(markDeletePosition);
+            markDeletePositionLedgerInfo = ledger.getLedgerInfo(nextValidPosition.getLedgerId()).get();
+            markDeletePosition = nextValidPosition;
+        }
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo positionToCheckLedgerInfo =
                 markDeletePositionLedgerInfo;
@@ -4012,6 +4045,31 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }, null);
         return completableFuture;
+    }
+
+    public synchronized CompletableFuture<Void> triggerCompactionWithCheckHasMoreMessages() {
+        return getLastDispatchablePosition().thenCombine(topicCompactionService.getLastCompactedPosition(),
+            (lastDispatchablePosition, lastCompactedPosition) -> {
+                if (lastDispatchablePosition == null) {
+                    lastDispatchablePosition = PositionFactory.EARLIEST;
+                }
+                return lastCompactedPosition == null || lastDispatchablePosition.compareTo(lastCompactedPosition) > 0;
+            }).thenAccept(hasMoreMessagesToBeCompacted -> {
+            if (!hasMoreMessagesToBeCompacted) {
+                log.info("[{}] No more messages to compact, skip triggering compaction", topic);
+                return;
+            }
+            try {
+                triggerCompaction();
+            } catch (PulsarServerException | AlreadyRunningException e) {
+                throw new CompletionException(e);
+            }
+        }).whenComplete((__, ex) -> {
+            if (ex != null) {
+                ex = FutureUtil.unwrapCompletionException(ex);
+                log.error("[{}] Trigger Compaction failure.", topic, ex);
+            }
+        });
     }
 
     public synchronized void triggerCompaction()
@@ -4329,7 +4387,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
                 break;
             default:
-                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(
+                        topic, publishContext.getProducerName()), -1, -1);
                 decrementPendingWriteOpsAndCheck();
 
         }
@@ -4548,5 +4607,62 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         return PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
                 old -> old != null ? old : new PersistentTopicAttributes(TopicName.get(topic)));
+    }
+
+    /**
+     * Get the topic creation timestamp from the managed ledger metadata.
+     * This method retrieves the creation timestamp directly.
+     *
+     * @return the topic creation timestamp in milliseconds, or 0 if not available
+     */
+    public long getTopicCreationTimeStamp() {
+        // Get the creation timestamp from the managed ledger metadata
+        return ledger.getMetadataCreationTimestamp();
+    }
+
+    /**
+     * Get the publish time of the last message by reading the last entry.
+     * This is used as a fallback when ledger.getLastAddEntryTime() is not available.
+     *
+     * @return a CompletableFuture that completes with the last message publish time
+     */
+    private CompletableFuture<Long> getLastMessagePublishTime() {
+        CompletableFuture<Long> future = new CompletableFuture<>();
+
+        try {
+            Position lastPosition = ledger.getLastConfirmedEntry();
+            if (lastPosition == null) {
+                future.complete(0L);
+                return future;
+            }
+
+            ledger.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    try {
+                        ByteBuf metadataAndPayload = entry.getDataBuffer();
+                        MessageMetadata msgMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                        long publishTime = msgMetadata.getPublishTime();
+                        future.complete(publishTime);
+                    } catch (Exception e) {
+                        log.warn("[{}] Failed to parse message metadata for last publish time", topic, e);
+                        future.complete(0L);
+                    } finally {
+                        entry.release();
+                    }
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    log.warn("[{}] Failed to read last entry for publish time", topic, exception);
+                    future.complete(0L);
+                }
+            }, null);
+        } catch (Exception e) {
+            log.warn("[{}] Failed to get last position for publish time", topic, e);
+            future.complete(0L);
+        }
+
+        return future;
     }
 }

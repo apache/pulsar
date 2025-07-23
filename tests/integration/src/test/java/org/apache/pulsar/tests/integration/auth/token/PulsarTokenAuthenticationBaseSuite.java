@@ -344,15 +344,15 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
-        final int TokenExpiryTimeSecs = 2;
-        String initialToken = this.createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+        final int tokenExpiryTimeSecs = 2;
+        String initialToken = this.createClientTokenWithExpiry(tokenExpiryTimeSecs, TimeUnit.SECONDS);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .authentication(AuthenticationFactory.token(() -> {
                     try {
-                        return createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+                        return createClientTokenWithExpiry(tokenExpiryTimeSecs, TimeUnit.SECONDS);
                     } catch (Exception e) {
                         return null;
                     }
@@ -369,7 +369,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         producer1.close();
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(TokenExpiryTimeSecs));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(tokenExpiryTimeSecs));
 
         @Cleanup
         Producer<String> producer2 = client.newProducer(Schema.STRING)

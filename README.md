@@ -98,6 +98,15 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Pulsar Runtime Java Version Recommendation
 
+- pulsar ver > 4.0 and master branch
+
+| Components     | Java Version |
+|----------------|:------------:|
+| Broker         |      17      |
+| Functions / IO |      17      |
+| CLI            |      17      |
+| Java Client    |      17      |
+
 - pulsar ver > 2.10 and master branch
 
 | Components     | Java Version  |

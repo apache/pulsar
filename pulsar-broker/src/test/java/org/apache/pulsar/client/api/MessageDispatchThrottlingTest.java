@@ -52,7 +52,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
     /**
-     * verifies: message-rate change gets reflected immediately into topic at runtime
+     * verifies: message-rate change gets reflected immediately into topic at runtime.
      *
      * @throws Exception
      */
@@ -166,7 +166,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * verify: consumer should not receive all messages due to message-rate throttling
+     * verify: consumer should not receive all messages due to message-rate throttling.
      *
      * @param subscription
      * @throws Exception
@@ -236,7 +236,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * It verifies that dispatch-rate throttling with cluster-configuration
+     * It verifies that dispatch-rate throttling with cluster-configuration.
      *
      * @throws Exception
      */
@@ -247,7 +247,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final int messageRate = 5;
-        final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
+        final long byteRate = 1024 * 1024; // 1MB rate enough to let all msg to be delivered
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
@@ -432,7 +432,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * verify message-rate on multiple consumers with shared-subscription
+     * verify message-rate on multiple consumers with shared-subscription.
      *
      * @throws Exception
      */
@@ -469,7 +469,8 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(1)
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared)
+                .messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
                     log.debug("Received message [{}] in the listener", receivedMessage);
@@ -638,7 +639,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * It verifies that that dispatch-throttling considers both msg/byte rate if both of them are configured together
+     * It verifies that that dispatch-throttling considers both msg/byte rate if both of them are configured together.
      *
      * @param subscription
      * @throws Exception
@@ -774,7 +775,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag is enabled
+     * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag is enabled.
      *
      * @param subscription
      * @throws Exception
@@ -1090,7 +1091,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         long maxTimeNanos = TimeUnit.MILLISECONDS.toNanos(1100);
         long startNanos = System.nanoTime();
         for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive((int)maxTimeNanos, TimeUnit.NANOSECONDS);
+            Message<byte[]> msg = consumer.receive((int) maxTimeNanos, TimeUnit.NANOSECONDS);
             totalReceived++;
             assertNotNull(msg);
             long elapsedNanos = System.nanoTime() - startNanos;

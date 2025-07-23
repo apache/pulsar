@@ -309,12 +309,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
+                                                        ReadEntriesCallback callback, Object ctx) {
             return Sets.newConcurrentHashSet();
         }
 
         @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
+                                                        ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
             return Sets.newConcurrentHashSet();
         }
 
@@ -340,12 +342,12 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Entry getNthEntry(int N, IndividualDeletedEntries deletedEntries) {
+        public Entry getNthEntry(int num, IndividualDeletedEntries deletedEntries) {
             return null;
         }
 
         @Override
-        public void asyncGetNthEntry(int N, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
+        public void asyncGetNthEntry(int num, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
                 Object ctx) {
         }
 
@@ -470,7 +472,7 @@ public class ManagedCursorContainerTest {
         assertNull(container.getSlowestReaderPosition());
 
         // Add no durable cursor
-        Position position = PositionFactory.create(5,5);
+        Position position = PositionFactory.create(5, 5);
         ManagedCursor cursor1 = spy(new MockManagedCursor(container, "test1", position));
         doReturn(false).when(cursor1).isDurable();
         doReturn(position).when(cursor1).getReadPosition();
@@ -478,7 +480,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 5));
 
         // Add no durable cursor
-        position = PositionFactory.create(1,1);
+        position = PositionFactory.create(1, 1);
         ManagedCursor cursor2 = spy(new MockManagedCursor(container, "test2", position));
         doReturn(false).when(cursor2).isDurable();
         doReturn(position).when(cursor2).getReadPosition();
@@ -486,13 +488,13 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(1, 1));
 
         // Move forward cursor, cursor1 = 5:5, cursor2 = 5:6, slowest is 5:5
-        position = PositionFactory.create(5,6);
+        position = PositionFactory.create(5, 6);
         container.cursorUpdated(cursor2, position);
         doReturn(position).when(cursor2).getReadPosition();
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 5));
 
         // Move forward cursor, cursor1 = 5:8, cursor2 = 5:6, slowest is 5:6
-        position = PositionFactory.create(5,8);
+        position = PositionFactory.create(5, 8);
         doReturn(position).when(cursor1).getReadPosition();
         container.cursorUpdated(cursor1, position);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));

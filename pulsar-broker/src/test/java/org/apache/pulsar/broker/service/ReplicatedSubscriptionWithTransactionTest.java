@@ -24,7 +24,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Tests replicated subscriptions with transaction (PIP-33)
+ * Tests replicated subscriptions with transaction (PIP-33).
  */
 @Test(groups = "broker")
 public class ReplicatedSubscriptionWithTransactionTest extends ReplicatedSubscriptionTest {

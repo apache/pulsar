@@ -35,11 +35,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class SimpleBrokerStartTest {
 
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
             .getPath();
-    final static String brokerCertPath =
+    private static final String brokerCertPath =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
+    private static final String brokerKeyPath =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     public void testHasNICSpeed() throws Exception {

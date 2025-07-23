@@ -571,6 +571,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void negativeAcknowledge(MessageId messageId) {
+        if (getState() != State.Ready) {
+            log.warn("[{}] [{}] Cannot negative acknowledge message {} - consumer is not ready (state: {})",
+                    topic, subscription, messageId, getState());
+            return;
+        }
         checkArgument(messageId instanceof TopicMessageId);
         ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());
         consumer.negativeAcknowledge(messageId);
@@ -579,6 +584,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void negativeAcknowledge(Message<?> message) {
+        if (getState() != State.Ready) {
+            log.warn("[{}] [{}] Cannot negative acknowledge message {} - consumer is not ready (state: {})",
+                    topic, subscription, message.getMessageId(), getState());
+            return;
+        }
         MessageId messageId = message.getMessageId();
         checkArgument(messageId instanceof TopicMessageId);
         ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());

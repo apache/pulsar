@@ -58,7 +58,8 @@ public class ClientCnxTest {
 
     @Test
     public void testClientCnxTimeout() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
@@ -77,7 +78,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -109,7 +111,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphoreServiceNotReady() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -146,7 +149,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingWaitingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -283,6 +287,17 @@ public class ClientCnxTest {
         verify(producer).connectionClosed(cnx, Optional.empty(), Optional.empty());
 
         eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testIdleCheckWithTopicListWatcher() {
+        ClientCnx cnx =
+                new ClientCnx(InstrumentProvider.NOOP, new ClientConfigurationData(), mock(EventLoopGroup.class));
+        // idle check should return true initially
+        assertTrue(cnx.idleCheck());
+        cnx.registerTopicListWatcher(0, mock(TopicListWatcher.class));
+        // idle check should now return false since there's a registered watcher
+        assertFalse(cnx.idleCheck());
     }
 
     @Test
