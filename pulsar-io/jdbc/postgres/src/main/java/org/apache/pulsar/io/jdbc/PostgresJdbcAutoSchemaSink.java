@@ -243,7 +243,7 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                 return getConnection().createArrayOf(postgresArrayType, elements);
             } catch (SQLException e) {
                 throw new SQLException("Failed to create empty PostgreSQL array of type '" + postgresArrayType
-                        + "' for column at index " + columnIndex + ": " + e.getMessage(), e);
+                        + "' for column at index " + columnIndex + ": " + e.getMessage(), e.getSQLState(), e.getErrorCode(), e);
             }
         }
 
@@ -262,7 +262,7 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
             throw new SQLException("Failed to create PostgreSQL array of type '" + postgresArrayType
                     + "' for column at index " + columnIndex + ". "
                     + "This may indicate a data type mismatch or database connectivity issue. "
-                    + "Original error: " + e.getMessage(), e);
+                    + "Original error: " + e.getMessage(), e.getSQLState(), e.getErrorCode(), e);
         }
     }
 

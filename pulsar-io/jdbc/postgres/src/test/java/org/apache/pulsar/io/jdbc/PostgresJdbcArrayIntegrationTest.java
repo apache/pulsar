@@ -137,12 +137,12 @@ public class PostgresJdbcArrayIntegrationTest {
 
         // Verify string array has multiple elements
         Object textArrayValue = mutation.getValues().apply("text_array");
-        assertTrue(textArrayValue instanceof Object[], "text_array should be converted to Object[]");
-        Object[] textArray = (Object[]) textArrayValue;
-        assertEquals(textArray.length, 3, "String array should have 3 elements");
-        assertEquals(textArray[0], "hello", "First element should be 'hello'");
-        assertEquals(textArray[1], "world", "Second element should be 'world'");
-        assertEquals(textArray[2], "test", "Third element should be 'test'");
+        assertTrue(textArrayValue instanceof GenericData.Array, "text_array should be GenericData.Array");
+        GenericData.Array<?> textArray = (GenericData.Array<?>) textArrayValue;
+        assertEquals(textArray.size(), 3, "String array should have 3 elements");
+        assertEquals(textArray.get(0), "hello", "First element should be 'hello'");
+        assertEquals(textArray.get(1), "world", "Second element should be 'world'");
+        assertEquals(textArray.get(2), "test", "Third element should be 'test'");
     }
 
     @Test
@@ -163,11 +163,11 @@ public class PostgresJdbcArrayIntegrationTest {
 
         // Verify boolean array conversion
         Object boolArrayValue = mutation.getValues().apply("boolean_array");
-        assertTrue(boolArrayValue instanceof Object[], "boolean_array should be converted to Object[]");
-        Object[] boolArray = (Object[]) boolArrayValue;
-        assertEquals(boolArray.length, 4, "Boolean array should have 4 elements");
-        assertEquals(boolArray[0], true, "First element should be true");
-        assertEquals(boolArray[1], false, "Second element should be false");
+        assertTrue(boolArrayValue instanceof GenericData.Array, "boolean_array should be GenericData.Array");
+        GenericData.Array<?> boolArray = (GenericData.Array<?>) boolArrayValue;
+        assertEquals(boolArray.size(), 4, "Boolean array should have 4 elements");
+        assertEquals(boolArray.get(0), true, "First element should be true");
+        assertEquals(boolArray.get(1), false, "Second element should be false");
     }
 
     @Test
@@ -188,11 +188,11 @@ public class PostgresJdbcArrayIntegrationTest {
 
         // Verify numeric array conversion
         Object numericArrayValue = mutation.getValues().apply("numeric_array");
-        assertTrue(numericArrayValue instanceof Object[], "numeric_array should be converted to Object[]");
-        Object[] numericArray = (Object[]) numericArrayValue;
-        assertEquals(numericArray.length, 4, "Numeric array should have 4 elements");
-        assertEquals(numericArray[0], 1.1, "First element should be 1.1");
-        assertEquals(numericArray[1], 2.2, "Second element should be 2.2");
+        assertTrue(numericArrayValue instanceof GenericData.Array, "numeric_array should be GenericData.Array");
+        GenericData.Array<?> numericArray = (GenericData.Array<?>) numericArrayValue;
+        assertEquals(numericArray.size(), 4, "Numeric array should have 4 elements");
+        assertEquals(numericArray.get(0), 1.1, "First element should be 1.1");
+        assertEquals(numericArray.get(1), 2.2, "Second element should be 2.2");
     }
 
     // Test UPSERT operations with array data
@@ -215,12 +215,12 @@ public class PostgresJdbcArrayIntegrationTest {
 
         // Verify arrays with different sizes are handled correctly
         Object intArrayValue = mutation.getValues().apply("int_array");
-        assertTrue(intArrayValue instanceof Object[], "int_array should be converted to Object[]");
-        assertEquals(((Object[]) intArrayValue).length, 3, "Integer array should have 3 elements");
+        assertTrue(intArrayValue instanceof GenericData.Array, "int_array should be GenericData.Array");
+        assertEquals(((GenericData.Array<?>) intArrayValue).size(), 3, "Integer array should have 3 elements");
 
         Object stringArrayValue = mutation.getValues().apply("text_array");
-        assertTrue(stringArrayValue instanceof Object[], "text_array should be converted to Object[]");
-        assertEquals(((Object[]) stringArrayValue).length, 2, "String array should have 2 elements");
+        assertTrue(stringArrayValue instanceof GenericData.Array, "text_array should be GenericData.Array");
+        assertEquals(((GenericData.Array<?>) stringArrayValue).size(), 2, "String array should have 2 elements");
     }
 
     // Test mixed data types (arrays and primitives)
@@ -246,7 +246,7 @@ public class PostgresJdbcArrayIntegrationTest {
         assertEquals(mixedDataValue, "mixed_primitive_data", "Primitive field should be preserved");
 
         Object intArrayValue = mutation.getValues().apply("int_array");
-        assertTrue(intArrayValue instanceof Object[], "Array field should be converted to Object[]");
+        assertTrue(intArrayValue instanceof GenericData.Array, "Array field should be GenericData.Array");
     }
 
     // Test empty arrays
@@ -269,8 +269,8 @@ public class PostgresJdbcArrayIntegrationTest {
 
         // Verify empty arrays are handled correctly
         Object intArrayValue = mutation.getValues().apply("int_array");
-        assertTrue(intArrayValue instanceof Object[], "Empty int_array should be converted to Object[]");
-        assertEquals(((Object[]) intArrayValue).length, 0, "Empty array should have 0 elements");
+        assertTrue(intArrayValue instanceof GenericData.Array, "Empty int_array should be GenericData.Array");
+        assertEquals(((GenericData.Array<?>) intArrayValue).size(), 0, "Empty array should have 0 elements");
     }
 
     // Test arrays with null elements
@@ -299,12 +299,12 @@ public class PostgresJdbcArrayIntegrationTest {
 
         // Verify arrays with null elements are handled correctly
         Object intArrayValue = mutation.getValues().apply("int_array");
-        assertTrue(intArrayValue instanceof Object[], "Array with nulls should be converted to Object[]");
-        Object[] intArray = (Object[]) intArrayValue;
-        assertEquals(intArray.length, 3, "Array should have 3 elements");
-        assertEquals(intArray[0], 1, "First element should be 1");
-        assertEquals(intArray[1], null, "Second element should be null");
-        assertEquals(intArray[2], 3, "Third element should be 3");
+        assertTrue(intArrayValue instanceof GenericData.Array, "Array with nulls should be GenericData.Array");
+        GenericData.Array<?> intArray = (GenericData.Array<?>) intArrayValue;
+        assertEquals(intArray.size(), 3, "Array should have 3 elements");
+        assertEquals(intArray.get(0), 1, "First element should be 1");
+        assertEquals(intArray.get(1), null, "Second element should be null");
+        assertEquals(intArray.get(2), 3, "Third element should be 3");
     }
 
     // Helper methods for creating test data
@@ -407,11 +407,11 @@ public class PostgresJdbcArrayIntegrationTest {
                                        Class<?> expectedElementType) {
         Object fieldValue = mutation.getValues().apply(fieldName);
         assertNotNull(fieldValue, fieldName + " should not be null");
-        assertTrue(fieldValue instanceof Object[], fieldName + " should be converted to Object[]");
+        assertTrue(fieldValue instanceof GenericData.Array, fieldName + " should be GenericData.Array");
 
-        Object[] array = (Object[]) fieldValue;
-        if (array.length > 0 && array[0] != null) {
-            assertTrue(expectedElementType.isInstance(array[0]),
+        GenericData.Array<?> array = (GenericData.Array<?>) fieldValue;
+        if (array.size() > 0 && array.get(0) != null) {
+            assertTrue(expectedElementType.isInstance(array.get(0)),
                 "First element of " + fieldName + " should be of type " + expectedElementType.getSimpleName());
         }
     }
