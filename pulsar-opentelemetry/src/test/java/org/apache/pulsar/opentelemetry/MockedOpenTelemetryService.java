@@ -59,7 +59,6 @@ public class MockedOpenTelemetryService {
 
     public void start() throws IOException {
         server.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
     }
 
     public void stop() {
