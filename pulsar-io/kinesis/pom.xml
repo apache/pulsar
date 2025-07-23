@@ -108,6 +108,13 @@
       <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
+    <!-- add utils to fix jackson parsing issue -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>utils</artifactId>
+      <version>2.22.12</version>
+    </dependency>
+
     <dependency>
       <groupId>software.amazon.kinesis</groupId>
       <artifactId>amazon-kinesis-client</artifactId>

@@ -73,7 +73,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public Reader<T> create() throws PulsarClientException {
         try {
-            return createAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(createAsync(), Reader::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
