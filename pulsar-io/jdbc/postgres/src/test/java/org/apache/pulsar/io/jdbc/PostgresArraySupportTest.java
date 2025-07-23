@@ -20,6 +20,7 @@ package org.apache.pulsar.io.jdbc;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -225,7 +226,7 @@ public class PostgresArraySupportTest {
     // Test array type mismatch scenarios
 
     @Test
-    public void testIntegerArrayTypeMismatch() {
+    public void testIntegerArrayTypeMismatch() throws Exception {
         // Create string array but specify integer target type
         String[] stringArray = {"not", "an", "integer"};
         try {
@@ -238,7 +239,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testStringArrayTypeMismatch() {
+    public void testStringArrayTypeMismatch() throws Exception {
         // Create integer array but specify text target type
         Integer[] intArray = {1, 2, 3};
         try {
@@ -251,7 +252,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testBooleanArrayTypeMismatch() {
+    public void testBooleanArrayTypeMismatch() throws Exception {
         // Create integer array but specify boolean target type
         Integer[] intArray = {1, 0, 1};
         try {
@@ -264,7 +265,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testLongArrayTypeMismatch() {
+    public void testLongArrayTypeMismatch() throws Exception {
         // Create integer array but specify bigint target type
         Integer[] intArray = {1, 2, 3};
         try {
@@ -277,7 +278,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testFloatArrayTypeMismatch() {
+    public void testFloatArrayTypeMismatch() throws Exception {
         // Create double array but specify real target type
         Double[] doubleArray = {1.5, 2.7, 3.14};
         try {
@@ -290,7 +291,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testDoubleArrayTypeMismatch() {
+    public void testDoubleArrayTypeMismatch() throws Exception {
         // Create float array but specify float8 target type
         Float[] floatArray = {1.5f, 2.7f, 3.14f};
         try {
@@ -305,7 +306,7 @@ public class PostgresArraySupportTest {
     // Test inconsistent array element types
 
     @Test
-    public void testInconsistentArrayElementTypes() {
+    public void testInconsistentArrayElementTypes() throws Exception {
         // Create array with mixed types
         Object[] mixedArray = {1, "string", true};
         try {
@@ -320,7 +321,7 @@ public class PostgresArraySupportTest {
     // Test unsupported array type scenarios
 
     @Test
-    public void testUnsupportedArrayType() {
+    public void testUnsupportedArrayType() throws Exception {
         Integer[] intArray = {1, 2, 3};
         try {
             sink.handleArrayValue(mockStatement, 1, intArray, "unsupported_type");
@@ -333,7 +334,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testUnsupportedArrayValueType() {
+    public void testUnsupportedArrayValueType() throws Exception {
         // Create unsupported array type (List instead of array)
         List<Integer> intList = new ArrayList<>();
         intList.add(1);
@@ -351,7 +352,7 @@ public class PostgresArraySupportTest {
     // Test null and empty parameter validation
 
     @Test
-    public void testNullTargetSqlType() {
+    public void testNullTargetSqlType() throws Exception {
         Integer[] intArray = {1, 2, 3};
         try {
             sink.handleArrayValue(mockStatement, 1, intArray, null);
@@ -362,7 +363,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testEmptyTargetSqlType() {
+    public void testEmptyTargetSqlType() throws Exception {
         Integer[] intArray = {1, 2, 3};
         try {
             sink.handleArrayValue(mockStatement, 1, intArray, "");
@@ -373,7 +374,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testWhitespaceTargetSqlType() {
+    public void testWhitespaceTargetSqlType() throws Exception {
         Integer[] intArray = {1, 2, 3};
         try {
             sink.handleArrayValue(mockStatement, 1, intArray, "   ");
@@ -430,8 +431,8 @@ public class PostgresArraySupportTest {
     @Test
     public void testJdbcSetArrayFailure() throws Exception {
         // Mock SQLException during setArray
-        when(mockStatement.setArray(ArgumentMatchers.anyInt(), ArgumentMatchers.any(Array.class)))
-            .thenThrow(new SQLException("Mock setArray failure"));
+        doThrow(new SQLException("Mock setArray failure"))
+            .when(mockStatement).setArray(ArgumentMatchers.anyInt(), ArgumentMatchers.any(Array.class));
         Integer[] intArray = {1, 2, 3};
         boolean exceptionThrown = false;
         try {
@@ -450,8 +451,8 @@ public class PostgresArraySupportTest {
     @Test
     public void testJdbcSetNullFailure() throws Exception {
         // Mock SQLException during setNull
-        when(mockStatement.setNull(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt()))
-            .thenThrow(new SQLException("Mock setNull failure"));
+        doThrow(new SQLException("Mock setNull failure"))
+            .when(mockStatement).setNull(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
         boolean exceptionThrown = false;
         try {
             sink.handleArrayValue(mockStatement, 1, null, "integer");
@@ -508,7 +509,7 @@ public class PostgresArraySupportTest {
     // Test error message context and formatting
 
     @Test
-    public void testErrorMessageContextInformation() {
+    public void testErrorMessageContextInformation() throws Exception {
         Integer[] intArray = {1, 2, 3};
         // Test unsupported type error includes context
         try {
@@ -521,7 +522,7 @@ public class PostgresArraySupportTest {
     }
 
     @Test
-    public void testValidationErrorWrapping() {
+    public void testValidationErrorWrapping() throws Exception {
         String[] stringArray = {"test"};
         // Test that validation errors are properly wrapped with context
         try {
