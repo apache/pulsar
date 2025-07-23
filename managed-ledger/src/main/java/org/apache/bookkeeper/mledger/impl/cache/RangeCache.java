@@ -73,7 +73,7 @@ class RangeCache {
             }
             long entrySize = value.getLength();
             boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entrySize, newWrapper -> {
-                if (removalQueue.addEntry(newWrapper) && entries.putIfAbsent(key, newWrapper) == null) {
+                if (entries.putIfAbsent(key, newWrapper) == null && removalQueue.addEntry(newWrapper)) {
                     this.size.addAndGet(entrySize);
                     return true;
                 } else {
