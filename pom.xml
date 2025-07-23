@@ -82,7 +82,7 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
-    <pulsar.client.python.version>3.7.0</pulsar.client.python.version>
+    <pulsar.client.python.version>3.8.0</pulsar.client.python.version>
 
     <UBUNTU_MIRROR>http://archive.ubuntu.com/ubuntu/</UBUNTU_MIRROR>
     <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
@@ -1813,6 +1813,8 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
+                <exclude>**/*_pb2.py</exclude>
+                <exclude>**/*_pb2_grpc.py</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -1964,6 +1966,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.so.*</exclude>
             <exclude>**/*.dylib</exclude>
             <exclude>src/test/resources/*.txt</exclude>
+            <exclude>**/*_pb2.py</exclude>
+            <exclude>**/*_pb2_grpc.py</exclude>
           </excludes>
         </configuration>
       </plugin>
