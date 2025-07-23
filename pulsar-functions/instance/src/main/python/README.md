@@ -21,10 +21,10 @@ To update the generated stubs, run the following command in the project root dir
 src/update_python_protobuf_stubs.sh
 ```
 
-Alternatively, you can run this command to install the required tools in a docker container
+Alternatively, you can run this command to install the required tools in a docker container and update the stubs:
 
 ```bash
 # run this command from the project root directory
-src/update_python_protobuf_stubs_in_alpine.sh
+src/update_python_protobuf_stubs_with_docker.sh
 ```
 
