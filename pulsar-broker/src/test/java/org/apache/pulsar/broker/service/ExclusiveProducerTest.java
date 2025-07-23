@@ -242,6 +242,35 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topics")
+    public void testSharedProducerCloseWithWaitForExclusiveProducer(String type, boolean partitioned) throws Exception {
+        String topic = newTopic(type, partitioned);
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+        Producer<String> p2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+        CompletableFuture<Producer<String>> p3Future = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .createAsync();
+        // sleep 1 second to make sure p1, p2, p3Future are added to broker producers and waitingExclusiveProducers
+        Thread.sleep(1000L);
+        // now p3Future is still pending because p1,p2 are active in shared mode.
+        assertFalse(p3Future.isDone());
+        p1.close();
+        p2.close();
+        // close p1,p2 and p3Future should be done and return a producer.
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(p3Future.isDone());
+            assertTrue(p3Future.get().isConnected());
+        });
+        p3Future.get().close();
+    }
+
+    @Test(dataProvider = "topics")
     public void existingSharedProducer(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
