@@ -1996,6 +1996,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
+                <exclude>**/src/test/proto/opentelemetry/proto/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
