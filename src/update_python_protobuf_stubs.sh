@@ -78,3 +78,7 @@ sed -i '/^_runtime_version\.ValidateProtobufRuntimeVersion($/,/^)$/d' \
   bin/proto/MLDataFormats_pb2.py
 
 echo "Python gRPC and Protobuf stubs generated successfully."
+
+# Deactivate and remove the temporary virtual environment
+deactivate
+rm -rf $tempvenv
