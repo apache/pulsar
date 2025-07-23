@@ -2137,16 +2137,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (backlogEstimate > compactionThreshold) {
                     if (log.isDebugEnabled()) {
                         log.debug(
-                                "topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering "
-                                        + "compaction", topic, backlogEstimate, compactionThreshold);
+                            "topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering "
+                                + "compaction", topic, backlogEstimate, compactionThreshold);
                     }
-                    try {
-                        triggerCompaction();
-                    } catch (AlreadyRunningException are) {
-                        log.debug("[{}] Compaction already running, so don't trigger again, "
-                                  + "even though backlog({}) is over threshold({})",
-                                  name, backlogEstimate, compactionThreshold);
-                    }
+
+                    triggerCompactionWithCheckHasMoreMessages();
+
                 }
             }
         } catch (Exception e) {
@@ -3655,7 +3651,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         Position oldestMarkDeletePosition = oldestMarkDeleteCursorInfo.getPosition();
         OldestPositionInfo lastOldestPositionInfo = oldestPositionInfo;
         if (lastOldestPositionInfo != null
-            && oldestMarkDeletePosition.compareTo(lastOldestPositionInfo.getOldestCursorMarkDeletePosition()) == 0) {
+            && oldestMarkDeletePosition.compareTo(lastOldestPositionInfo.getOldestCursorMarkDeletePosition()) == 0
+            && oldestMarkDeletePosition.compareTo(ledger.getFirstPosition()) >= 0) {
             // Same position, but the cursor causing it has changed?
             if (!lastOldestPositionInfo.getCursorName().equals(oldestMarkDeleteCursorInfo.getCursor().getName())) {
                 updateResultIfNewer(new OldestPositionInfo(
@@ -3783,6 +3780,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
                 markDeletePositionLedgerInfo = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get();
+
+        // If markDeletePositionLedgerInfo is null (ledger no longer exists due to retention/cleanup),
+        // use the next valid position instead to get a meaningful timestamp
+        if (markDeletePositionLedgerInfo == null) {
+            Position nextValidPosition = ledger.getNextValidPosition(markDeletePosition);
+            markDeletePositionLedgerInfo = ledger.getLedgerInfo(nextValidPosition.getLedgerId()).get();
+            markDeletePosition = nextValidPosition;
+        }
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo positionToCheckLedgerInfo =
                 markDeletePositionLedgerInfo;
@@ -4040,6 +4045,31 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }, null);
         return completableFuture;
+    }
+
+    public synchronized CompletableFuture<Void> triggerCompactionWithCheckHasMoreMessages() {
+        return getLastDispatchablePosition().thenCombine(topicCompactionService.getLastCompactedPosition(),
+            (lastDispatchablePosition, lastCompactedPosition) -> {
+                if (lastDispatchablePosition == null) {
+                    lastDispatchablePosition = PositionFactory.EARLIEST;
+                }
+                return lastCompactedPosition == null || lastDispatchablePosition.compareTo(lastCompactedPosition) > 0;
+            }).thenAccept(hasMoreMessagesToBeCompacted -> {
+            if (!hasMoreMessagesToBeCompacted) {
+                log.info("[{}] No more messages to compact, skip triggering compaction", topic);
+                return;
+            }
+            try {
+                triggerCompaction();
+            } catch (PulsarServerException | AlreadyRunningException e) {
+                throw new CompletionException(e);
+            }
+        }).whenComplete((__, ex) -> {
+            if (ex != null) {
+                ex = FutureUtil.unwrapCompletionException(ex);
+                log.error("[{}] Trigger Compaction failure.", topic, ex);
+            }
+        });
     }
 
     public synchronized void triggerCompaction()
