@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -4138,6 +4139,36 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }).start();
         countDownLatch3.await();
     }
+
+    @Test(timeOut = 100000)
+    public void consumerReceiveThrowExceptionWhenConsumerClose() throws Exception {
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic2")
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("my-sub")
+                .subscribe();
+
+        Thread thread = new Thread(() -> {
+            try {
+                // sleep 0.1 second to close consumer to ensure consumer.receive() is triggerd
+                Thread.sleep(1000);
+                consumer.close();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        thread.start();
+
+        assertThatThrownBy(
+                () -> consumer.receive()
+        )
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Queue is terminated");
+    }
+
 
     @Test(timeOut = 20000)
     public void testResetPosition() throws Exception {

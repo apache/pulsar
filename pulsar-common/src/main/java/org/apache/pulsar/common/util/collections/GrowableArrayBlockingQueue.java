@@ -194,6 +194,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         try {
             while (SIZE_UPDATER.get(this) == 0) {
+                if (terminated) {
+                    throw new IllegalStateException("Queue is terminated");
+                }
                 isNotEmpty.await();
             }
 
@@ -435,6 +438,20 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             }
         } finally {
             tailLock.unlockWrite(stamp);
+        }
+    }
+
+
+    public void terminate() {
+        // 1. Set terminated flag to prevent new items
+        terminate(itemAfterTerminatedHandler);
+
+        // 2. Wake up waiting threads with proper handling
+        headLock.lock();
+        try {
+            isNotEmpty.signal();
+        } finally {
+            headLock.unlock();
         }
     }
 

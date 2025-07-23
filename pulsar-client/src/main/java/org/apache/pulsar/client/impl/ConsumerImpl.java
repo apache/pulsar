@@ -1246,6 +1246,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (poolMessages) {
             releasePooledMessagesAndStopAcceptNew();
         }
+        incomingMessages.terminate();
     }
 
     /**
