@@ -44,17 +44,14 @@ cd $SCRIPT_DIR/..
 echo "Generating Python gRPC and Protobuf stubs from the .proto files..."
 
 # Generate Python gRPC and Protobuf stubs from the .proto files
-python3 -m grpc_tools.protoc \
-    --proto_path=managed-ledger/src/main/proto \
-    --python_out=bin/proto \
-    managed-ledger/src/main/proto/MLDataFormats.proto
-sed -i '/^_runtime_version\.ValidateProtobufRuntimeVersion($/,/^)$/d' \
-  bin/proto/MLDataFormats_pb2.py
 
+# Generate stubs for Function.proto and InstanceCommunication.proto, used for Pulsar Functions Python runtime
 python3 -m grpc_tools.protoc \
     --proto_path=pulsar-functions/proto/src/main/proto \
     --python_out=pulsar-functions/instance/src/main/python \
     pulsar-functions/proto/src/main/proto/Function.proto
+
+# Remove the strict version checking in the generated file
 sed -i '/^_runtime_version\.ValidateProtobufRuntimeVersion($/,/^)$/d' \
   pulsar-functions/instance/src/main/python/Function_pb2.py
 
@@ -63,9 +60,21 @@ python3 -m grpc_tools.protoc \
     --python_out=pulsar-functions/instance/src/main/python \
     --grpc_python_out=pulsar-functions/instance/src/main/python \
     pulsar-functions/proto/src/main/proto/InstanceCommunication.proto
+
+# Remove the strict version checking in the generated file
 sed -i '/^_runtime_version\.ValidateProtobufRuntimeVersion($/,/^)$/d' \
   pulsar-functions/instance/src/main/python/InstanceCommunication_pb2.py
 sed -i '/^_version_not_supported = False$/,/^    )$/d' \
   pulsar-functions/instance/src/main/python/InstanceCommunication_pb2_grpc.py
+
+# Generate stubs for MLDataFormats.proto, used for managed-ledger python scripts
+python3 -m grpc_tools.protoc \
+    --proto_path=managed-ledger/src/main/proto \
+    --python_out=bin/proto \
+    managed-ledger/src/main/proto/MLDataFormats.proto
+
+# Remove the strict version checking in the generated file
+sed -i '/^_runtime_version\.ValidateProtobufRuntimeVersion($/,/^)$/d' \
+  bin/proto/MLDataFormats_pb2.py
 
 echo "Python gRPC and Protobuf stubs generated successfully."
