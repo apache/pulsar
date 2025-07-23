@@ -18,14 +18,8 @@
 # under the License.
 #
 
-set -x
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
-# Python dependencies
-# The pinned grpcio and protobuf versions should be compatible with the generated Protobuf and gRPC stubs used
-# in Pulsar Functions Python runtime. You should also update the grpcio version in src/update_python_protobuf_stubs.sh
-# and regenerate the Python stubs if you change the grpcio version here. Please see
-# pulsar-functions/instance/src/main/python/README.md for more details.
-pip3 install --no-cache-dir --only-binary \
-  grpcio==1.73.1 \
-  protobuf==6.31.1 \
-  pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}
+# Create an inline docker container with alpine:3.21 base image and mount the current directory to it as the
+# working directory and run the script inside the container.
+docker run --rm -v "$SCRIPT_DIR/..:/pulsar_src" -w /pulsar_src alpine:3.21 sh -c 'apk add --no-cache bash python3 && /pulsar_src/src/update_python_protobuf_stubs.sh'
