@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
@@ -146,8 +147,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             cachedData = entry.getDataBuffer().retain();
         }
 
-        CachedEntryImpl cacheEntry =
-                CachedEntryImpl.create(position, cachedData);
+        ReferenceCountedEntry cacheEntry = EntryImpl.createWithRetainedDuplicate(position, cachedData);
         cachedData.release();
         if (entries.put(position, cacheEntry)) {
             totalAddedEntriesSize.add(entryLength);
@@ -373,9 +373,9 @@ public class RangeEntryCacheImpl implements EntryCache {
     void doAsyncReadEntriesByPosition(ReadHandle lh, Position firstPosition, Position lastPosition, int numberOfEntries,
                                       boolean shouldCacheEntry, final ReadEntriesCallback callback,
                                       Object ctx) {
-        Collection<CachedEntry> cachedEntries;
+        Collection<ReferenceCountedEntry> cachedEntries;
         if (firstPosition.compareTo(lastPosition) == 0) {
-            CachedEntry cachedEntry = entries.get(firstPosition);
+            ReferenceCountedEntry cachedEntry = entries.get(firstPosition);
             if (cachedEntry == null) {
                 cachedEntries = Collections.emptyList();
             } else {

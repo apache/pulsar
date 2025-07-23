@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Function;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 
 /**
  * Wrapper around the value to store in Map. This is needed to ensure that a specific instance can be removed from
@@ -39,7 +40,7 @@ class RangeCacheEntryWrapper {
     };
     private final StampedLock lock = new StampedLock();
     Position key;
-    CachedEntry value;
+    ReferenceCountedEntry value;
     RangeCache rangeCache;
     long size;
     long timestampNanos;
@@ -48,7 +49,7 @@ class RangeCacheEntryWrapper {
         this.recyclerHandle = recyclerHandle;
     }
 
-    static <R> R withNewInstance(RangeCache rangeCache, Position key, CachedEntry value, long size,
+    static <R> R withNewInstance(RangeCache rangeCache, Position key, ReferenceCountedEntry value, long size,
                                  Function<RangeCacheEntryWrapper, R> function) {
         RangeCacheEntryWrapper entryWrapper = RECYCLER.get();
         StampedLock lock = entryWrapper.lock;
@@ -58,6 +59,8 @@ class RangeCacheEntryWrapper {
             entryWrapper.key = key;
             entryWrapper.value = value;
             entryWrapper.size = size;
+            // Set the timestamp to the current time in nanoseconds
+            // This is used for time-based eviction of entries
             entryWrapper.timestampNanos = System.nanoTime();
             return function.apply(entryWrapper);
         } finally {
@@ -72,7 +75,7 @@ class RangeCacheEntryWrapper {
      * @return the value associated with the key, or null if the value has already been recycled or the key does not
      * match
      */
-    CachedEntry getValue(Position key) {
+    ReferenceCountedEntry getValue(Position key) {
         return getValueInternal(key, false);
     }
 
@@ -83,7 +86,7 @@ class RangeCacheEntryWrapper {
      * @return the value associated with the key, or null if the value has already been recycled or the key does not
      * exactly match the same instance
      */
-    static CachedEntry getValueMatchingMapEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
+    static ReferenceCountedEntry getValueMatchingMapEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
         return entry.getValue().getValueInternal(entry.getKey(), true);
     }
 
@@ -98,10 +101,10 @@ class RangeCacheEntryWrapper {
      *                               instances are available.
      * @return the value associated with the key, or null if the key does not match
      */
-    private CachedEntry getValueInternal(Position key, boolean requireSameKeyInstance) {
+    private ReferenceCountedEntry getValueInternal(Position key, boolean requireSameKeyInstance) {
         long stamp = lock.tryOptimisticRead();
         Position localKey = this.key;
-        CachedEntry localValue = this.value;
+        ReferenceCountedEntry localValue = this.value;
         if (!lock.validate(stamp)) {
             stamp = lock.readLock();
             localKey = this.key;
@@ -125,7 +128,7 @@ class RangeCacheEntryWrapper {
      * @param value the expected value of the entry
      * @return the size of the entry if the entry was removed, -1 otherwise
      */
-    long markRemoved(Position key, CachedEntry value) {
+    long markRemoved(Position key, ReferenceCountedEntry value) {
         if (this.key != key || this.value != value) {
             return -1;
         }

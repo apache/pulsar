@@ -36,6 +36,8 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.Reflections;
 import org.assertj.core.groups.Tuple;
@@ -56,13 +58,13 @@ public class RangeCacheTest {
         assertEquals(cache.getSize(), 2);
         assertEquals(cache.getNumberOfEntries(), 2);
 
-        CachedEntry s = cache.get(createPosition(0));
+        ReferenceCountedEntry s = cache.get(createPosition(0));
         assertEquals(s.getData(), "0".getBytes());
         assertEquals(s.refCnt(), 2);
         s.release();
 
-        CachedEntry s1 = cache.get(createPosition(0));
-        CachedEntry s2 = cache.get(createPosition(0));
+        ReferenceCountedEntry s1 = cache.get(createPosition(0));
+        ReferenceCountedEntry s2 = cache.get(createPosition(0));
         assertEquals(s1, s2);
         assertEquals(s1.refCnt(), 3);
         s1.release();
@@ -96,16 +98,16 @@ public class RangeCacheTest {
 
     private void putToCache(RangeCache cache, int i, String str) {
         Position position = createPosition(i);
-        CachedEntry cachedEntry = createCachedEntry(position, str);
+        ReferenceCountedEntry cachedEntry = createCachedEntry(position, str);
         cache.put(position, cachedEntry);
     }
 
-    private static CachedEntry createCachedEntry(int i, String str) {
+    private static ReferenceCountedEntry createCachedEntry(int i, String str) {
         return createCachedEntry(createPosition(i), str);
     }
 
-    private static CachedEntry createCachedEntry(Position position, String str) {
-        return CachedEntryImpl.create(position, Unpooled.wrappedBuffer(str.getBytes()));
+    private static ReferenceCountedEntry createCachedEntry(Position position, String str) {
+        return EntryImpl.create(position, Unpooled.wrappedBuffer(str.getBytes()));
     }
 
     private static Position createPosition(int i) {
@@ -153,7 +155,7 @@ public class RangeCacheTest {
             retainedEntries.forEach(Entry::release);
         } else {
             final var valueToRefCnt = retainedEntries.stream().filter(v -> v.refCnt() > 0).collect(Collectors.toMap(
-                    cachedEntry -> new String(cachedEntry.getData()), CachedEntry::refCnt));
+                    cachedEntry -> new String(cachedEntry.getData()), ReferenceCountedEntry::refCnt));
             assertEquals(valueToRefCnt, Map.of("4444", 1));
         }
     }
@@ -163,22 +165,22 @@ public class RangeCacheTest {
         RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
 
-        CachedEntry s0 = createCachedEntry(0, "zero");
+        ReferenceCountedEntry s0 = createCachedEntry(0, "zero");
         assertEquals(s0.refCnt(), 1);
         assertTrue(cache.put(s0.getPosition(), s0));
         assertEquals(s0.refCnt(), 1);
 
-        CachedEntry one = createCachedEntry(1, "one");
+        ReferenceCountedEntry one = createCachedEntry(1, "one");
         assertTrue(cache.put(one.getPosition(), one));
         assertEquals(createPosition(1), one.getPosition());
 
         assertEquals(cache.getSize(), 7);
         assertEquals(cache.getNumberOfEntries(), 2);
-        CachedEntry s = cache.get(createPosition(1));
+        ReferenceCountedEntry s = cache.get(createPosition(1));
         assertEquals(s.getData(), "one".getBytes());
         assertEquals(s.refCnt(), 2);
 
-        CachedEntry s1 = createCachedEntry(1, "uno");
+        ReferenceCountedEntry s1 = createCachedEntry(1, "uno");
         assertEquals(s1.refCnt(), 1);
         assertFalse(cache.put(s1.getPosition(), s1));
         assertEquals(s1.refCnt(), 1);
@@ -338,7 +340,7 @@ public class RangeCacheTest {
     public void testPutSameObj() {
         RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
-        CachedEntry s0 = createCachedEntry(0, "zero");
+        ReferenceCountedEntry s0 = createCachedEntry(0, "zero");
         assertEquals(s0.refCnt(), 1);
         assertTrue(cache.put(s0.getPosition(), s0));
         assertFalse(cache.put(s0.getPosition(), s0));
@@ -348,7 +350,7 @@ public class RangeCacheTest {
     public void testRemoveEntryWithInvalidRefCount() {
         RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
-        CachedEntry value = createCachedEntry(1, "1");
+        ReferenceCountedEntry value = createCachedEntry(1, "1");
         cache.put(value.getPosition(), value);
         // release the value to make the reference count invalid
         value.release();
@@ -360,7 +362,7 @@ public class RangeCacheTest {
     public void testInvalidMatchingKey() {
         RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
-        CachedEntry value = createCachedEntry(1, "1");
+        ReferenceCountedEntry value = createCachedEntry(1, "1");
         cache.put(value.getPosition(), value);
         assertNotNull(cache.get(value.getPosition()));
         // change the entryId to make the entry invalid for the cache
@@ -384,7 +386,7 @@ public class RangeCacheTest {
         RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
         Position key = createPosition(129);
-        CachedEntry value = createCachedEntry(key, "129");
+        ReferenceCountedEntry value = createCachedEntry(key, "129");
         cache.put(key, value);
         // create a different instance of the key
         Position key2 = createPosition(129);
@@ -392,7 +394,7 @@ public class RangeCacheTest {
         assertNotSame(key, key2);
         assertEquals(key, key2);
         // get the value using key2
-        CachedEntry value2 = cache.get(key2);
+        ReferenceCountedEntry value2 = cache.get(key2);
         // the value should be found
         assertEquals(value2.getData(), "129".getBytes());
     }

@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -63,7 +64,7 @@ class RangeCache {
      * @param value ref counted value with at least 1 ref to pass on the cache
      * @return whether the entry was inserted in the cache
      */
-    public boolean put(Position key, CachedEntry value) {
+    public boolean put(Position key, ReferenceCountedEntry value) {
         // retain value so that it's not released before we put it in the cache and calculate the weight
         value.retain();
         try {
@@ -95,15 +96,15 @@ class RangeCache {
      * Get the value associated with the key and increment the reference count of it.
      * The caller is responsible for releasing the reference.
      */
-    public CachedEntry get(Position key) {
+    public ReferenceCountedEntry get(Position key) {
         return getValueFromWrapper(key, entries.get(key));
     }
 
-    private CachedEntry getValueFromWrapper(Position key, RangeCacheEntryWrapper valueWrapper) {
+    private ReferenceCountedEntry getValueFromWrapper(Position key, RangeCacheEntryWrapper valueWrapper) {
         if (valueWrapper == null) {
             return null;
         } else {
-            CachedEntry value = valueWrapper.getValue(key);
+            ReferenceCountedEntry value = valueWrapper.getValue(key);
             return getRetainedValueMatchingKey(key, value);
         }
     }
@@ -111,8 +112,8 @@ class RangeCache {
     /**
      * @apiNote the returned value must be released if it's not null
      */
-    private CachedEntry getValueMatchingEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
-        CachedEntry valueMatchingEntry = RangeCacheEntryWrapper.getValueMatchingMapEntry(entry);
+    private ReferenceCountedEntry getValueMatchingEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
+        ReferenceCountedEntry valueMatchingEntry = RangeCacheEntryWrapper.getValueMatchingMapEntry(entry);
         return getRetainedValueMatchingKey(entry.getKey(), valueMatchingEntry);
     }
 
@@ -121,7 +122,7 @@ class RangeCache {
     /**
      * @apiNote the returned value must be released if it's not null
      */
-    private CachedEntry getRetainedValueMatchingKey(Position key, CachedEntry value) {
+    private ReferenceCountedEntry getRetainedValueMatchingKey(Position key, ReferenceCountedEntry value) {
         if (value == null) {
             // the wrapper has been recycled and contains another key
             return null;
@@ -152,13 +153,13 @@ class RangeCache {
      *            the last key in the range (inclusive)
      * @return a collections of the value found in cache
      */
-    public Collection<CachedEntry> getRange(Position first, Position last) {
-        List<CachedEntry> values = new ArrayList();
+    public Collection<ReferenceCountedEntry> getRange(Position first, Position last) {
+        List<ReferenceCountedEntry> values = new ArrayList();
 
         // Return the values of the entries found in cache
         for (Map.Entry<Position, RangeCacheEntryWrapper> entry : entries.subMap(first, true, last, true)
                 .entrySet()) {
-            CachedEntry value = getValueMatchingEntry(entry);
+            ReferenceCountedEntry value = getValueMatchingEntry(entry);
             if (value != null) {
                 values.add(value);
             }
@@ -206,7 +207,7 @@ class RangeCache {
      * @param counters the removal counters
      * @return true if the entry was removed, false otherwise
      */
-    boolean removeEntry(Position key, CachedEntry value, RangeCacheEntryWrapper entryWrapper,
+    boolean removeEntry(Position key, ReferenceCountedEntry value, RangeCacheEntryWrapper entryWrapper,
                         RangeCacheRemovalCounters counters, boolean updateSize) {
         // always remove the entry from the map
         entries.remove(key, entryWrapper);
