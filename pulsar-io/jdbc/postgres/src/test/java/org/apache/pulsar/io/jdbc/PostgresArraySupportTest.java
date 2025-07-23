@@ -206,12 +206,10 @@ public class PostgresArraySupportTest {
             {"float8", "float8", new Double[]{1.0, 2.0, 3.0}},
             {"_float8", "float8", new Double[]{1.0, 2.0, 3.0}}
         };
-        
         for (Object[] testCase : testCases) {
             String inputType = (String) testCase[0];
             String expectedType = (String) testCase[1];
             Object[] testArray = (Object[]) testCase[2];
-            
             // Reset mock for each test
             mockConnection = mock(Connection.class);
             when(mockConnection.createArrayOf(ArgumentMatchers.anyString(),
@@ -219,7 +217,6 @@ public class PostgresArraySupportTest {
             Field connectionField = JdbcAbstractSink.class.getDeclaredField("connection");
             connectionField.setAccessible(true);
             connectionField.set(sink, mockConnection);
-            
             // Test the mapping
             sink.handleArrayValue(mockStatement, 1, testArray, inputType);
             verify(mockConnection).createArrayOf(expectedType, testArray);
