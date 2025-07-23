@@ -423,7 +423,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testZeroQueueGetExceptionWhenReceiveBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;
@@ -440,12 +440,13 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
         Producer<byte[]> producer = producerBuilder.create();
 
-
+        // send a batch message to trigger zeroQueueConsumer to close
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.sendAsync(message.getBytes());
         }
 
+        // when zeroQueueConsumer receive a batch message, it will close and receive method will throw exception
         assertThatThrownBy(
                 consumer::receive
         )
