@@ -28,7 +28,10 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -372,11 +375,18 @@ public class PostgresJdbcArrayIntegrationTest {
     }
 
     private JdbcAbstractSink.Mutation createMutation(GenericRecord avroRecord) throws Exception {
+        // Create a GenericAvroSchema based on the avroSchema
+        AvroSchema<GenericRecord> avroSchemaImpl = AvroSchema.of(SchemaDefinition.<GenericRecord>builder()
+                .withJsonDef(avroSchema.toString())
+                .build());
+        GenericAvroSchema genericAvroSchema = new GenericAvroSchema(avroSchemaImpl.getSchemaInfo());
+
         // Create a mock Record wrapper
         Record<GenericObject> record = new Record<GenericObject>() {
             @Override
+            @SuppressWarnings("unchecked")
             public org.apache.pulsar.client.api.Schema<GenericObject> getSchema() {
-                return null; // Not used in this test
+                return (org.apache.pulsar.client.api.Schema<GenericObject>) (Object) genericAvroSchema;
             }
 
             @Override
