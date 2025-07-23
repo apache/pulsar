@@ -72,7 +72,7 @@ public interface Entry {
      * @param position the position to check against
      * @return true if the entry matches the position, false otherwise
      */
-    default boolean matchesKey(Position position) {
+    default boolean matchesPosition(Position position) {
         return position != null && position.compareTo(getLedgerId(), getEntryId()) == 0;
     }
 }

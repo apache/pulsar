@@ -68,7 +68,7 @@ class RangeCache {
         // retain value so that it's not released before we put it in the cache and calculate the weight
         value.retain();
         try {
-            if (!value.matchesKey(key)) {
+            if (!value.matchesPosition(key)) {
                 throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
             }
             long entrySize = value.getLength();
@@ -135,7 +135,7 @@ class RangeCache {
         }
         // check that the value matches the key and that there's at least 2 references to it since
         // the cache should be holding one reference and a new reference was just added in this method
-        if (value.refCnt() > 1 && value.matchesKey(key)) {
+        if (value.refCnt() > 1 && value.matchesPosition(key)) {
             return value;
         } else {
             // Value or IdentityWrapper was recycled and already contains another value
@@ -222,7 +222,7 @@ class RangeCache {
             return false;
         }
         try {
-            if (!value.matchesKey(key)) {
+            if (!value.matchesPosition(key)) {
                 return false;
             }
             long removedSize = entryWrapper.markRemoved(key, value);

@@ -239,7 +239,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     @Override
-    public boolean matchesKey(Position key) {
+    public boolean matchesPosition(Position key) {
         return key != null && key.compareTo(ledgerId, entryId) == 0;
     }
 }
