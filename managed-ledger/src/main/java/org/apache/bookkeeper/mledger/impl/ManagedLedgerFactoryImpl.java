@@ -169,7 +169,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     Function<ManagedLedgerFactoryImpl, EntryCacheManager>
                                             entryCacheManagerCreator)
             throws Exception {
-        this(metadataStore, __ -> CompletableFuture.completedFuture(bookKeeper), false,
+        this(metadataStore, __ -> bookKeeper, false,
                 new ManagedLedgerFactoryConfig(), NullStatsLogger.INSTANCE,
                 entryCacheManagerCreator);
     }
