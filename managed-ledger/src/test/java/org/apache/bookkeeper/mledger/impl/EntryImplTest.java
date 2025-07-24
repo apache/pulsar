@@ -22,6 +22,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -176,6 +178,63 @@ public class EntryImplTest {
         } finally {
             entry.release();
         }
+    }
+
+
+    @Test
+    public void testCreateFromEntryImplWhereGetPositionHasntBeenCalled() {
+        // Given
+        EntryImpl originalEntry = EntryImpl.create(1L, 2L, new byte[0]);
+        EntryImpl newEntry = EntryImpl.create(originalEntry);
+
+        // Expect that the position is created lazily and the instances are different
+        assertNotSame(originalEntry.getPosition(), newEntry.getPosition());
+        assertTrue(originalEntry.matchesPosition(newEntry.getPosition()));
+
+        // Clean up
+        originalEntry.release();
+        newEntry.release();
+    }
+
+    @Test
+    public void testCreateFromEntryImplWhereGetPositionHasBeenCalled() {
+        // Given
+        EntryImpl originalEntry = EntryImpl.create(1L, 2L, new byte[0]);
+        originalEntry.getPosition();
+        EntryImpl newEntry = EntryImpl.create(originalEntry);
+
+        // Expect that the position instances are the same
+        assertSame(originalEntry.getPosition(), newEntry.getPosition());
+
+        // Clean up
+        originalEntry.release();
+        newEntry.release();
+    }
+
+    @Test
+    public void testCreateWithPositionThatIsntImmutable() {
+        // Given
+        Position position = new AckSetPositionImpl(1L, 2L, new long[0]);
+        EntryImpl entry = EntryImpl.create(position, Unpooled.EMPTY_BUFFER);
+
+        // Expect that the position is different since it's not immutable
+        assertNotSame(entry.getPosition(), position);
+
+        // Clean up
+        entry.release();
+    }
+
+    @Test
+    public void testCreateWithPositionThatIsImmutable() {
+        // Given
+        Position position = PositionFactory.create(1L, 2L);
+        EntryImpl entry = EntryImpl.create(position, Unpooled.EMPTY_BUFFER);
+
+        // Expect that the position is same since it's immutable
+        assertSame(entry.getPosition(), position);
+
+        // Clean up
+        entry.release();
     }
 
     private void assertEntryFields(EntryImpl entry, long expectedLedgerId, long expectedEntryId) {
