@@ -47,6 +47,7 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -79,6 +80,8 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -100,12 +103,11 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.collections.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
@@ -139,7 +141,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @AfterMethod
     public void afterMethod() {
-        setEntryCacheCreator(null);
+        bkc.setReadHandleInterceptor(null);
     }
 
     @Test
@@ -5413,16 +5415,32 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 10000)
     public void testReadNoEntries() throws Exception {
         final var firstRead = new AtomicBoolean(true);
-        setEntryCacheCreator(ml -> new RangeEntryCacheImpl((RangeEntryCacheManagerImpl) factory.getEntryCacheManager(),
-                ml, factory.getConfig().isCopyEntriesInCache()) {
-
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
             @Override
-            protected CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh, long firstEntry, long lastEntry,
-                                                                         boolean shouldCacheEntry) {
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry, long lastEntry,
+                                                                       LedgerEntries entries) {
                 if (firstRead.compareAndSet(true, false)) {
-                    return CompletableFuture.completedFuture(List.of());
+                    // LedgerEntriesImpl doesn't allow empty entries list.
+                    // Implementing a dummy LedgerEntries that returns an empty list.
+                    return CompletableFuture.completedFuture(new LedgerEntries() {
+                        @Override
+                        public org.apache.bookkeeper.client.api.LedgerEntry getEntry(long entryId) {
+                            return null;
+                        }
+
+                        @Override
+                        public Iterator<org.apache.bookkeeper.client.api.LedgerEntry> iterator() {
+                            return EmptyIterator.INSTANCE;
+                        }
+
+                        @Override
+                        public void close() {
+
+                        }
+                    });
+                } else {
+                    return CompletableFuture.completedFuture(entries);
                 }
-                return super.readFromStorage(lh, firstEntry, lastEntry, shouldCacheEntry);
             }
         });
         final var ml = factory.open("testReadNoEntries");
