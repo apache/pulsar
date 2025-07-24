@@ -22,10 +22,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -39,17 +39,19 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotAllowedException;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.LookupTopicResult;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
@@ -57,7 +59,7 @@ import org.testng.annotations.Test;
 public class TopicAutoCreationTest extends ProducerConsumerBase {
 
     @Override
-    @BeforeMethod
+    @BeforeClass
     protected void setup() throws Exception {
         conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setAllowAutoTopicCreation(true);
@@ -73,7 +75,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -89,9 +91,11 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                 .create();
 
         List<String> partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
+        assertTrue(partitionedTopics.contains(topic));
         List<String> topics = admin.topics().getList(namespaceName);
-        assertEquals(partitionedTopics.size(), 1);
-        assertEquals(topics.size(), 3);
+        for (int i = 0; i < conf.getDefaultNumPartitions(); i++) {
+            assertTrue(topics.contains(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + i));
+        }
 
         producer.close();
         for (String t : topics) {
@@ -248,4 +252,38 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         admin.namespaces().deleteNamespace(namespace, true);
     }
 
+    @Test
+    public void testPartitionsNotCreatedAfterDeletion() throws Exception {
+        @Cleanup final var client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        final var topicName = TopicName.get("my-property/my-ns/testPartitionsNotCreatedAfterDeletion");
+        final var topic = topicName.toString();
+
+        final var interval = Duration.ofSeconds(1);
+
+        admin.topics().createPartitionedTopic(topic, 1);
+        try (final var producer = client.newProducer().topic(topic)
+                .autoUpdatePartitionsInterval(interval.toSecondsPart(), TimeUnit.SECONDS).create()) {
+            admin.topics().terminatePartitionedTopic(topic);
+            admin.topics().deletePartitionedTopic(topic, true);
+
+            Thread.sleep(interval.toMillis() + 500); // wait until the auto update partitions task has run
+
+            final var topics = admin.topics().getList(topicName.getNamespace()).stream()
+                    .filter(__ -> __.contains(topicName.getLocalName())).toList();
+            assertTrue(topics.isEmpty(), "topics are " + topics);
+        }
+
+        admin.topics().createPartitionedTopic(topic, 1);
+        try (final var consumer = client.newConsumer().topic(topic).subscriptionName("sub")
+                .autoUpdatePartitionsInterval(interval.toSecondsPart(), TimeUnit.SECONDS).subscribe()) {
+            admin.topics().terminatePartitionedTopic(topic);
+            admin.topics().deletePartitionedTopic(topic, true);
+
+            Thread.sleep(interval.toMillis() + 500); // wait until the auto update partitions task has run
+
+            final var topics = admin.topics().getList(topicName.getNamespace()).stream()
+                    .filter(__ -> __.contains(topicName.getLocalName())).toList();
+            assertTrue(topics.isEmpty(), "topics are " + topics);
+        }
+    }
 }
