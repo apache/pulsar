@@ -114,6 +114,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
+        entry.position = position;
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data.retainedDuplicate();
