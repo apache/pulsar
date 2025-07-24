@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
@@ -37,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -257,33 +259,34 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         @Cleanup final var client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         final var topicName = TopicName.get("my-property/my-ns/testPartitionsNotCreatedAfterDeletion");
         final var topic = topicName.toString();
-
         final var interval = Duration.ofSeconds(1);
+        final ThrowableConsumer<ThrowableSupplier<Closeable>> verifier = creator -> {
+            admin.topics().createPartitionedTopic(topic, 1);
+            try (final var ignored = creator.get()) {
+                admin.topics().terminatePartitionedTopic(topic);
+                admin.topics().deletePartitionedTopic(topic, true);
+                Thread.sleep(interval.toMillis() + 500); // wait until the auto update partitions task has run
 
-        admin.topics().createPartitionedTopic(topic, 1);
-        try (final var producer = client.newProducer().topic(topic)
-                .autoUpdatePartitionsInterval(interval.toSecondsPart(), TimeUnit.SECONDS).create()) {
-            admin.topics().terminatePartitionedTopic(topic);
-            admin.topics().deletePartitionedTopic(topic, true);
+                final var topics = admin.topics().getList(topicName.getNamespace()).stream()
+                        .filter(__ -> __.contains(topicName.getLocalName())).toList();
+                assertTrue(topics.isEmpty(), "topics are " + topics);
+            }
+        };
+        verifier.accept(() -> client.newProducer().topic(topic)
+                .autoUpdatePartitionsInterval(interval.toSecondsPart(), TimeUnit.SECONDS).create());
+        verifier.accept(() -> client.newConsumer().topic(topic).subscriptionName("sub")
+                .autoUpdatePartitionsInterval(interval.toSecondsPart(), TimeUnit.SECONDS).subscribe());
+        verifier.accept(() -> client.newReader().topic(topic).startMessageId(MessageId.earliest)
+                .autoUpdatePartitionsInterval(interval.toSecondsPart(), TimeUnit.SECONDS).create());
+    }
 
-            Thread.sleep(interval.toMillis() + 500); // wait until the auto update partitions task has run
+    private interface ThrowableConsumer<T> {
 
-            final var topics = admin.topics().getList(topicName.getNamespace()).stream()
-                    .filter(__ -> __.contains(topicName.getLocalName())).toList();
-            assertTrue(topics.isEmpty(), "topics are " + topics);
-        }
+        void accept(T value) throws Exception;
+    }
 
-        admin.topics().createPartitionedTopic(topic, 1);
-        try (final var consumer = client.newConsumer().topic(topic).subscriptionName("sub")
-                .autoUpdatePartitionsInterval(interval.toSecondsPart(), TimeUnit.SECONDS).subscribe()) {
-            admin.topics().terminatePartitionedTopic(topic);
-            admin.topics().deletePartitionedTopic(topic, true);
+    public interface ThrowableSupplier<T> {
 
-            Thread.sleep(interval.toMillis() + 500); // wait until the auto update partitions task has run
-
-            final var topics = admin.topics().getList(topicName.getNamespace()).stream()
-                    .filter(__ -> __.contains(topicName.getLocalName())).toList();
-            assertTrue(topics.isEmpty(), "topics are " + topics);
-        }
+        T get() throws Exception;
     }
 }
