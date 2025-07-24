@@ -4142,7 +4142,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 100000)
     public void consumerReceiveThrowExceptionWhenConsumerClose() throws Exception {
-        @Cleanup
         Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2")
@@ -4166,6 +4165,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 () -> consumer.receive()
         )
                 .isInstanceOf(PulsarClientException.class)
+                .hasMessage("java.lang.InterruptedException: Queue is terminated")
                 .hasCauseInstanceOf(InterruptedException.class);
     }
 
