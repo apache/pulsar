@@ -139,9 +139,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        bkc.setReadHandleInterceptor(null);
+        if (bkc != null) {
+            bkc.setReadHandleInterceptor(null);
+        }
     }
 
     @Test
