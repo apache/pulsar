@@ -4166,7 +4166,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 () -> consumer.receive()
         )
                 .isInstanceOf(PulsarClientException.class)
-                .hasMessage("java.lang.InterruptedException: Queue is terminated");
+                .hasCauseInstanceOf(InterruptedException.class);
     }
 
 

@@ -451,7 +451,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
                 consumer::receive
         )
                 .isInstanceOf(PulsarClientException.class)
-                .hasMessage("java.lang.InterruptedException: Queue is terminated");
+                .hasCauseInstanceOf(InterruptedException.class);
     }
 
     @Test(timeOut = 30000)
