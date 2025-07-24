@@ -433,7 +433,7 @@ public interface ManagedLedger {
      * **Implementation Note:** Downstream projects that support the ML PayloadProcessor should implement
      * this method. Otherwise, do not implement it.
      */
-    default void resetInterceptorException() {
+    default void unfenceForInterceptorException() {
         // Default implementation does nothing
     }
 

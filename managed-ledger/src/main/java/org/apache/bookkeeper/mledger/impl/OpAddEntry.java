@@ -152,7 +152,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                             .processPayloadBeforeLedgerWrite(this.getCtx(), duplicateBuffer);
                 } catch (Exception e) {
                     ManagedLedgerException mle = new ManagedLedgerException.ManagedLedgerInterceptException(e);
-                    ml.interceptorException = mle;
+                    ml.fenceForInterceptorException(mle);
                     ml.pendingAddEntries.remove(this);
                     ReferenceCountUtil.safeRelease(duplicateBuffer);
                     log.error("[{}] Error processing payload before ledger write", ml.getName(), e);

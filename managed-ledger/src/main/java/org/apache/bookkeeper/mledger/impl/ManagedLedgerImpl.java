@@ -4415,8 +4415,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void resetInterceptorException() {
+    public void unfenceForInterceptorException() {
         this.interceptorException = null;
+    }
+
+    protected void fenceForInterceptorException(ManagedLedgerException e) {
+        this.interceptorException = e;
     }
 
     @Override
