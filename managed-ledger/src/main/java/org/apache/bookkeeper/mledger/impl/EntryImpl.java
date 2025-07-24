@@ -243,4 +243,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     public boolean matchesPosition(Position key) {
         return key != null && key.compareTo(ledgerId, entryId) == 0;
     }
+
+    @Override
+    public String toString() {
+        return getClass().getName() + "@" + System.identityHashCode(this)
+                + "{ledgerId=" + ledgerId + ", entryId=" + entryId + '}';
+    }
 }
