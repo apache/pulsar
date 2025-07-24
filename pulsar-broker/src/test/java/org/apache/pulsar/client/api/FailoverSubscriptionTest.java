@@ -60,7 +60,7 @@ public class FailoverSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Failover).subscriptionName(subscription).subscribe();
         consumerMap.put(firstConsumer.getConsumerName(), firstConsumer);
         PersistentDispatcherSingleActiveConsumer dispatcher =
-                (PersistentDispatcherSingleActiveConsumer) topic.getSubscription(subscription).getDispatcher();;
+                (PersistentDispatcherSingleActiveConsumer) topic.getSubscription(subscription).getDispatcher();
         for (int i = 0; i < 100; i++) {
             ConsumerImpl<byte[]> consumerLoop = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(tp)
                     .subscriptionType(SubscriptionType.Failover).subscriptionName(subscription).subscribe();
