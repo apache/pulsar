@@ -2470,7 +2470,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // start a new eviction task that will invalidate entries up to slowest reader position when the task
             // gets executed. The cacheEvictionPosition could get updates by other threads before the task gets
             // executed. This minimizes the number of eviction tasks that get executed.
-            getFactory().getCacheEvictionExecutor().execute(() -> {
+            executor.execute(() -> {
                 Position latestEvictionPosition = cacheEvictionPosition.getAndSet(null);
                 if (latestEvictionPosition == PositionFactory.LATEST) {
                     entryCache.clear();
@@ -3057,7 +3057,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
             TOTAL_SIZE_UPDATER.addAndGet(this, -ls.getSize());
 
-            getFactory().getCacheEvictionExecutor().execute(() -> {
+            executor.execute(() -> {
                 entryCache.invalidateAllEntries(ls.getLedgerId());
             });
         }
