@@ -1053,8 +1053,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                             op.readPosition);
                 }
 
-                // Check again for new entries after the configured time, then if still no entries are available register
-                // to be notified
+                // Check again for new entries after the configured time, then if still no entries are available
+                // register to be notified.
                 if (getConfig().getNewEntriesCheckDelayInMillis() > 0) {
                     delayCheckForNewEntriesTask = new DelayCheckForNewEntriesTask(op, callback, ctx);
                 } else {
