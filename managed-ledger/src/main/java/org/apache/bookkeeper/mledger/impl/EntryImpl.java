@@ -104,6 +104,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public static EntryImpl create(Position position, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
+        entry.position = position;
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data;
@@ -124,6 +125,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public static EntryImpl create(EntryImpl other) {
         EntryImpl entry = RECYCLER.get();
+        entry.position = other.getPosition();
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
@@ -133,6 +135,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public static EntryImpl create(Entry other) {
         EntryImpl entry = RECYCLER.get();
+        entry.position = other.getPosition();
         entry.ledgerId = other.getLedgerId();
         entry.entryId = other.getLedgerId();
         entry.data = other.getDataBuffer().retainedDuplicate();
