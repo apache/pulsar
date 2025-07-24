@@ -445,14 +445,17 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             assertEquals(unloadCount.get(), 0);
         });
 
-        ServiceUnitStateChannelImpl channel = new ServiceUnitStateChannelImpl(pulsar1);
-        channel.start();
+        // The bundle maybe owned by another broker, so we need to start both channels.
+        @Cleanup
+        ServiceUnitStateChannelImpl channel1 = new ServiceUnitStateChannelImpl(pulsar1);
+        channel1.start();
+        @Cleanup
+        ServiceUnitStateChannelImpl channel2 = new ServiceUnitStateChannelImpl(pulsar2);
+        channel2.start();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(onloadCount.get(), 2);
             assertEquals(unloadCount.get(), 0);
         });
-
-        channel.close();
     }
 
     private void checkOwnershipState(String broker, NamespaceBundle bundle)
