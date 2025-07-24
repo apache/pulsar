@@ -137,7 +137,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         EntryImpl entry = RECYCLER.get();
         entry.position = other.getPosition();
         entry.ledgerId = other.getLedgerId();
-        entry.entryId = other.getLedgerId();
+        entry.entryId = other.getEntryId();
         entry.data = other.getDataBuffer().retainedDuplicate();
         entry.setRefCnt(1);
         return entry;
