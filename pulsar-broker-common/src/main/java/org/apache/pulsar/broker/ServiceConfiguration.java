@@ -3217,6 +3217,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema"
             + ".BookkeeperSchemaStorageFactory";
 
+    private String schemaRegistryStorageGrpcEndpoint;
+
+    private boolean schemaRegistryStorageGrpcEnableTls = false;
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The list compatibility checkers to be used in schema registry"
