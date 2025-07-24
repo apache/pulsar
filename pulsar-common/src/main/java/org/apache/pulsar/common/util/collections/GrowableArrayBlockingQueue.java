@@ -428,7 +428,8 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     }
 
     /**
-     * Make the queue not accept new items and waking up blocked consume.if there are still new data trying to enter the queue, it will be handed
+     * Make the queue not accept new items and waking up blocked consume.
+     * if there are still new data trying to enter the queue, it will be handed
      * by {@param itemAfterTerminatedHandler}.
      */
     public void terminate(@Nullable Consumer<T> itemAfterTerminatedHandler) {
