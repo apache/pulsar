@@ -4165,8 +4165,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertThatThrownBy(
                 () -> consumer.receive()
         )
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Queue is terminated");
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessage("java.lang.InterruptedException: Queue is terminated");
     }
 
 
