@@ -336,6 +336,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (NamespaceService.isHeartbeatNamespace(namespace) || isSelf(topicName)) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
+        // When the extensible load manager initializes its channel topic, it will trigger the topic policies
+        // initialization by calling this method. At the moment, the load manager does not start so the lookup
+        // for "__change_events" will fail. In this case, just return an empty policies to avoid deadlock.
+        final var loadManager = pulsarService.getLoadManager().get();
+        if (loadManager == null || !loadManager.started() || closed.get()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         final CompletableFuture<Void> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
         return preparedFuture.thenApply(__ -> {
             final TopicPolicies candidatePolicies = isGlobal
