@@ -324,9 +324,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     /**
-     * Waits for all pending cache evictions to complete.
+     * Waits for all pending cache evictions based on total cache size or entry TTL to complete.
      * This is for testing purposes only, so that we can ensure all cache evictions are done before proceeding with
-     * further operations.
+     * further operations. Please notice that Managed Ledger level cache eviction is not handled here. There's
+     * a similar method {@link ManagedLedgerImpl#waitForPendingCacheEvictions()} that waits for pending cache evictions
+     * at the Managed Ledger level.
      */
     @VisibleForTesting
     public void waitForPendingCacheEvictions() {

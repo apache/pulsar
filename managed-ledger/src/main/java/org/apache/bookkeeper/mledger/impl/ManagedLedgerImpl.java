@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -307,7 +307,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final OrderedScheduler scheduledExecutor;
 
     @Getter
-    protected final Executor executor;
+    protected final ExecutorService executor;
 
     @Getter
     private final ManagedLedgerFactoryImpl factory;
@@ -4836,5 +4836,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public long getMetadataCreationTimestamp() {
         return ledgersStat != null ? ledgersStat.getCreationTimestamp() : 0;
+    }
+
+    /**
+     * Waits for Managed Ledger level pending cache evictions to complete. This doesn't wait for the size or time
+     * based evictions to complete. Use the {@link ManagedLedgerFactoryImpl#waitForPendingCacheEvictions()} for that
+     * purpose.
+     * This is for testing purposes only, so that we can ensure all cache evictions are done before proceeding with
+     * further operations.
+     */
+    @VisibleForTesting
+    public void waitForPendingCacheEvictions() {
+        try {
+            // currently it's sufficient to just submit a no-op task to the executor and wait for its completion.
+            executor.submit(() -> {
+                // no-op
+            }).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
