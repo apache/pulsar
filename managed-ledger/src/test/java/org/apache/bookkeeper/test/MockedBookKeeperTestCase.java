@@ -23,16 +23,12 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -61,7 +57,6 @@ public abstract class MockedBookKeeperTestCase {
     protected ExecutorService cachedExecutor;
 
     protected FaultInjectionMetadataStore metadataStore;
-    private Function<ManagedLedgerImpl, EntryCache> entryCacheCreator = null;
 
     public MockedBookKeeperTestCase() {
         // By default start a 3 bookies cluster
@@ -89,17 +84,7 @@ public abstract class MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         initManagedLedgerFactoryConfig(managedLedgerFactoryConfig);
-        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, __ -> new RangeEntryCacheManagerImpl(__,
-                __.getScheduledExecutor()) {
-
-            @Override
-            public EntryCache getEntryCache(ManagedLedgerImpl ml) {
-                if (entryCacheCreator != null) {
-                    return entryCacheCreator.apply(ml);
-                }
-                return super.getEntryCache(ml);
-            }
-        });
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         setUpTestCase();
     }
@@ -178,9 +163,5 @@ public abstract class MockedBookKeeperTestCase {
 
     protected void stopMetadataStore() {
         metadataStore.setAlwaysFail(new MetadataStoreException("failed"));
-    }
-
-    protected void setEntryCacheCreator(Function<ManagedLedgerImpl, EntryCache> entryCacheCreator) {
-        this.entryCacheCreator = entryCacheCreator;
     }
 }
