@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -42,7 +41,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -150,7 +148,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
-                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE, null);
+                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper)
@@ -164,21 +162,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this(metadataStore, (policyConfig) -> bookKeeper, config);
     }
 
-    @VisibleForTesting
-    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
-                                    Function<ManagedLedgerFactoryImpl, EntryCacheManager>
-                                            entryCacheManagerCreator)
-            throws Exception {
-        this(metadataStore, __ -> bookKeeper, false,
-                new ManagedLedgerFactoryConfig(), NullStatsLogger.INSTANCE,
-                entryCacheManagerCreator);
-    }
-
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
-        this(metadataStore, bookKeeperGroupFactory, config, NullStatsLogger.INSTANCE);
+        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
+                config, NullStatsLogger.INSTANCE);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
@@ -186,16 +175,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger)
             throws Exception {
         this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, statsLogger, null);
+                config, statsLogger);
     }
 
     private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                      BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                      boolean isBookkeeperManaged,
-                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger,
-                                     Function<ManagedLedgerFactoryImpl, EntryCacheManager>
-                                             entryCacheManagerCreator)
-            throws Exception {
+                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(config.getNumManagedLedgerSchedulerThreads())
                 .statsLogger(statsLogger)
@@ -213,11 +199,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 config.getCompressionConfigForManagedCursorInfo());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        if (entryCacheManagerCreator == null) {
-            this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor);
-        } else {
-            this.entryCacheManager = entryCacheManagerCreator.apply(this);
-        }
+        this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
