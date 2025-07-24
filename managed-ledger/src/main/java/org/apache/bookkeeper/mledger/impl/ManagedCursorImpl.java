@@ -168,7 +168,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
-    private volatile DelayCheckForNewEntriesTask delayCheckForNewEntriesTask;
+    private DelayCheckForNewEntriesTask delayCheckForNewEntriesTask;
 
     public static final int FALSE = 0;
     public static final int TRUE = 1;
@@ -1065,57 +1065,55 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private enum DelayCheckForNewEntriesTaskState {
+        INIT, RUNNING, CANCELLED, DONE
+    }
+
     private class DelayCheckForNewEntriesTask implements Runnable {
 
         private final OpReadEntry op;
         private final ReadEntriesCallback callback;
         private final Object ctx;
-        private ScheduledFuture<?> scheduledFuture;
-        /**
-         * 0: init
-         * 1: running
-         * 2: cancelled
-         * 3: done
-         */
-        private final AtomicInteger state = new AtomicInteger();
+        private final ScheduledFuture<?> scheduledFuture;
+        private DelayCheckForNewEntriesTaskState state = DelayCheckForNewEntriesTaskState.INIT;
 
         public DelayCheckForNewEntriesTask(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
             this.op = op;
             this.callback = callback;
             this.ctx = ctx;
-            start();
-        }
-
-        private void start() {
             scheduledFuture = ledger.getScheduledExecutor().schedule(this,
                     getConfig().getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
         }
 
         @Override
         public void run() {
-            if (!state.compareAndSet(0, 1)) {
-                return;
-            }
             synchronized (pendingReadOpMutex) {
+                if (state != DelayCheckForNewEntriesTaskState.INIT) {
+                    return;
+                }
+                state = DelayCheckForNewEntriesTaskState.RUNNING;
                 checkForNewEntries(op, callback, ctx);
-                state.compareAndSet(1, 3);
+                state = DelayCheckForNewEntriesTaskState.DONE;
             }
         }
 
         public boolean isDone() {
-            return state.get() == 3;
+            return state == DelayCheckForNewEntriesTaskState.DONE;
         }
 
         public boolean cancel() {
-            // Not all implementations of Executor guarantee that the Runnable will be no long be executed after a
-            // successful cancel, such as Guava MoreExecutors, see also https://github.com/google/guava/blob
-            // /v32.1.2/guava/src/com/google/common/util/concurrent/MoreExecutors.java#L709.
-            // The current task gurantees.
-            if (state.compareAndSet(0, 2)) {
+            synchronized (pendingReadOpMutex) {
+                // Not all implementations of Executor guarantee that the Runnable will be no long be executed after a
+                // successful cancel, such as Guava MoreExecutors, see also https://github.com/google/guava/blob
+                // /v32.1.2/guava/src/com/google/common/util/concurrent/MoreExecutors.java#L709.
+                // The current task guarantees.
+                if (state != DelayCheckForNewEntriesTaskState.INIT) {
+                    return false;
+                }
+                state = DelayCheckForNewEntriesTaskState.CANCELLED;
                 scheduledFuture.cancel(false);
                 return true;
             }
-            return false;
         }
     }
 
@@ -1160,8 +1158,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     PENDING_READ_OPS_UPDATER.incrementAndGet(this);
                     ledger.asyncReadEntries(op);
                 } else {
-                    log.info("[{}] [{}] notification that new entries added was already be called, skipped the curren"
-                        + "t new entry checking", ledger.getName(), name);
+                    log.info("[{}] [{}] notification that new entries added was already be called, skipped the current"
+                        + " new entry checking", ledger.getName(), name);
                 }
             } else if (ledger.isTerminated()) {
                 // At this point we registered for notification and still there were no more available
@@ -1191,7 +1189,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return false;
             }
             Function<Boolean, Boolean> clearWaitingReadOp = removeWaitingCursor -> {
-                if (WAITING_READ_OP_UPDATER.compareAndSet(this, op,null)) {
+                if (WAITING_READ_OP_UPDATER.compareAndSet(this, op, null)) {
                     if (removeWaitingCursor) {
                         ledger.removeWaitingCursor(this);
                     }

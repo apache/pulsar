@@ -21,16 +21,13 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -75,10 +72,8 @@ public class FailoverSubscriptionTest extends ProducerConsumerBase {
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
-        ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors =
-                WhiteboxImpl.getInternalState(managedLedger, "waitingCursors");
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(waitingCursors.size(), 1);
+            assertEquals(managedLedger.getWaitingCursorsCount(), 1);
         });
 
         // cleanup.
