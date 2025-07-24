@@ -131,8 +131,16 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
 
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
-            ByteBuf duplicateBuffer = data.retainedDuplicate();
+            // Fail the add operation if the managed ledger is in a state that prevents adding entries.
+            ManagedLedgerException exbw = ml.interceptorException;
+            if (exbw != null) {
+                ml.pendingAddEntries.remove(this);
+                this.failed(exbw);
+                // Don't recycle the object here, see: https://lists.apache.org/thread/po08w0tkhc7q8gc5khpdft6stxnr1v2y
+                return;
+            }
 
+            ByteBuf duplicateBuffer = data.retainedDuplicate();
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             lastInitTime = System.nanoTime();
             if (ml.getManagedLedgerInterceptor() != null) {
@@ -141,10 +149,14 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
                     payloadProcessorHandle = ml.getManagedLedgerInterceptor()
                             .processPayloadBeforeLedgerWrite(this, duplicateBuffer);
                 } catch (Exception e) {
+                    ManagedLedgerException mle = new ManagedLedgerException.ManagedLedgerInterceptException(e);
+                    ml.fenceForInterceptorException(mle);
                     ml.pendingAddEntries.remove(this);
                     ReferenceCountUtil.safeRelease(duplicateBuffer);
                     log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
-                    this.failed(new ManagedLedgerException.ManagedLedgerInterceptException(e));
+                    this.failed(mle);
+                    // Don't recycle the object here
+                    // see: https://lists.apache.org/thread/po08w0tkhc7q8gc5khpdft6stxnr1v2y
                     return;
                 }
                 if (payloadProcessorHandle != null) {
@@ -169,7 +181,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             //Use entryId in PublishContext and call addComplete directly.
             this.addComplete(BKException.Code.OK, ledger, ((Position) ctx).getEntryId(), addOpCount);
         } else {
-            log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            log.warn("[{}] initiateShadowWrite with unexpected state {}, expect OPEN state.", ml.getName(), state);
         }
     }
 

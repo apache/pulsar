@@ -230,6 +230,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private volatile long lastOffloadSuccessTimestamp = 0;
     private volatile long lastOffloadFailureTimestamp = 0;
 
+    protected volatile ManagedLedgerException interceptorException = null;
+
     private int minBacklogCursorsForCaching = 0;
     private int minBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
@@ -4322,6 +4324,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         return offloadedSize;
+    }
+
+    @Override
+    public void unfenceForInterceptorException() {
+        this.interceptorException = null;
+    }
+
+    protected void fenceForInterceptorException(ManagedLedgerException e) {
+        this.interceptorException = e;
     }
 
     @Override
