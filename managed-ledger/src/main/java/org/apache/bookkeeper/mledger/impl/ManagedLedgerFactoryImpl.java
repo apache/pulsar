@@ -323,6 +323,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         entryCacheManager.doCacheEviction(maxTimestamp);
     }
 
+    /**
+     * Waits for all pending cache evictions to complete.
+     * This is for testing purposes only, so that we can ensure all cache evictions are done before proceeding with
+     * further operations.
+     */
     @VisibleForTesting
     public void waitForPendingCacheEvictions() {
         try {
@@ -334,6 +339,36 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Blocks the pending cache evictions until the returned runnable is called.
+     * This is for testing purposes only, so that asynchronous cache evictions can be blocked for consistent
+     * test results.
+     *
+     * @return
+     * @throws InterruptedException
+     */
+    @VisibleForTesting
+    public Runnable blockPendingCacheEvictions() throws InterruptedException {
+        CountDownLatch blockedLatch = new CountDownLatch(1);
+        CountDownLatch releaseLatch = new CountDownLatch(1);
+        cacheEvictionExecutor.execute(() -> {
+            blockedLatch.countDown();
+            try {
+                releaseLatch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        blockedLatch.await();
+        return () -> {
+            if (releaseLatch.getCount() == 0) {
+                throw new IllegalStateException("Releasing should only be called once");
+            }
+            releaseLatch.countDown();
+            waitForPendingCacheEvictions();
+        };
     }
 
     /**
