@@ -642,7 +642,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                         Set<String> candidateBrokers = availableBrokerCandidates.keySet();
                         return getBrokerSelectionStrategy(bundle).select(candidateBrokers, bundle, context);
                     });
-                });
+                }, pulsar.getOrderedExecutor().chooseThread(bundle.toString()));
     }
 
     /**
