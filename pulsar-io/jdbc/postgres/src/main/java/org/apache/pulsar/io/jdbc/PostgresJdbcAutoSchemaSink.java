@@ -376,6 +376,229 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
     }
 
     /**
+     * Coerces array elements to the expected type when possible, providing intelligent type conversion.
+     * <p>
+     * This method attempts to convert array elements that don't strictly match the expected PostgreSQL
+     * array type but can be reasonably converted. This improves robustness when dealing with various
+     * Avro schema configurations while maintaining type safety.
+     * </p>
+     * <p>
+     * <strong>Supported Coercions:</strong>
+     * <ul>
+     * <li>Records to Strings: Converts Avro Records to JSON string representation</li>
+     * <li>Primitive wrappers to Strings: Integer, Boolean, etc. to String</li>
+     * <li>CharSequence to String: StringBuilder, StringBuffer to String</li>
+     * <li>Numbers to Strings: For text array targets</li>
+     * <li>String to Numbers: For numeric array targets (with validation)</li>
+     * </ul>
+     * </p>
+     * <p>
+     * <strong>Coercion Strategy:</strong>
+     * <ol>
+     * <li>Return null elements unchanged (always valid)</li>
+     * <li>Return correctly-typed elements unchanged (fast path)</li>
+     * <li>Attempt intelligent conversion for compatible types</li>
+     * <li>Return original element if no safe conversion exists</li>
+     * </ol>
+     * </p>
+     *
+     * @param element           the array element to potentially coerce
+     * @param postgresArrayType the target PostgreSQL array type (e.g., "text", "integer")
+     * @param elementIndex      the index of the element for error reporting
+     * @param columnIndex       the column index for error reporting
+     * @return the coerced element, or the original element if no coercion is needed/possible
+     */
+    private Object coerceArrayElement(Object element, String postgresArrayType, int elementIndex, int columnIndex) {
+        // Null elements are always valid
+        if (element == null) {
+            return null;
+        }
+        Class<?> elementClass = element.getClass();
+        switch (postgresArrayType) {
+            case "text":
+                // Fast path: already a String
+                if (elementClass == String.class) {
+                    return element;
+                }
+                // Coerce various types to String
+                if (element instanceof CharSequence) {
+                    return element.toString();
+                }
+                if (element instanceof Number || element instanceof Boolean) {
+                    return element.toString();
+                }
+                // Convert Avro Records to JSON string representation
+                if (element instanceof GenericData.Record) {
+                    String recordStr = element.toString();
+                    if (log.isDebugEnabled()) {
+                        log.debug("Coerced Avro Record to String for text array at column {} element {}: {}",
+                                columnIndex, elementIndex, recordStr);
+                    }
+                    return recordStr;
+                }
+                break;
+            case "integer":
+                // Fast path: already an Integer
+                if (elementClass == Integer.class) {
+                    return element;
+                }
+                // Try to convert String to Integer
+                if (element instanceof String) {
+                    try {
+                        Integer coerced = Integer.valueOf((String) element);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Coerced String '{}' to Integer for integer array at column {} element {}",
+                                    element, columnIndex, elementIndex);
+                        }
+                        return coerced;
+                    } catch (NumberFormatException e) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to coerce String '{}' to Integer at column {} element {}: {}",
+                                    element, columnIndex, elementIndex, e.getMessage());
+                        }
+                    }
+                }
+                // Try to convert other numeric types
+                if (element instanceof Number) {
+                    Number num = (Number) element;
+                    // Check if conversion would lose precision
+                    if (num.longValue() >= Integer.MIN_VALUE && num.longValue() <= Integer.MAX_VALUE
+                            && num.doubleValue() == num.longValue()) {
+                        Integer coerced = num.intValue();
+                        if (log.isDebugEnabled()) {
+                            log.debug("Coerced {} to Integer for integer array at column {} element {}",
+                                    num.getClass().getSimpleName(), columnIndex, elementIndex);
+                        }
+                        return coerced;
+                    }
+                }
+                break;
+            case "bigint":
+                // Fast path: already a Long
+                if (elementClass == Long.class) {
+                    return element;
+                }
+                // Try to convert String to Long
+                if (element instanceof String) {
+                    try {
+                        Long coerced = Long.valueOf((String) element);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Coerced String '{}' to Long for bigint array at column {} element {}",
+                                    element, columnIndex, elementIndex);
+                        }
+                        return coerced;
+                    } catch (NumberFormatException e) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to coerce String '{}' to Long at column {} element {}: {}",
+                                    element, columnIndex, elementIndex, e.getMessage());
+                        }
+                    }
+                }
+                // Try to convert other numeric types
+                if (element instanceof Number) {
+                    Long coerced = ((Number) element).longValue();
+                    if (log.isDebugEnabled()) {
+                        log.debug("Coerced {} to Long for bigint array at column {} element {}",
+                                element.getClass().getSimpleName(), columnIndex, elementIndex);
+                    }
+                    return coerced;
+                }
+                break;
+            case "boolean":
+                // Fast path: already a Boolean
+                if (elementClass == Boolean.class) {
+                    return element;
+                }
+                // Try to convert String to Boolean
+                if (element instanceof String) {
+                    String str = ((String) element).toLowerCase().trim();
+                    if ("true".equals(str) || "1".equals(str) || "yes".equals(str)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Coerced String '{}' to Boolean(true) for boolean array at column {} element {}",
+                                    element, columnIndex, elementIndex);
+                        }
+                        return Boolean.TRUE;
+                    } else if ("false".equals(str) || "0".equals(str) || "no".equals(str)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Coerced String '{}' to Boolean(false) for boolean array at column {} element {}",
+                                    element, columnIndex, elementIndex);
+                        }
+                        return Boolean.FALSE;
+                    }
+                }
+                break;
+            case "real":
+                // Fast path: already a Float
+                if (elementClass == Float.class) {
+                    return element;
+                }
+                // Try to convert String to Float
+                if (element instanceof String) {
+                    try {
+                        Float coerced = Float.valueOf((String) element);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Coerced String '{}' to Float for real array at column {} element {}",
+                                    element, columnIndex, elementIndex);
+                        }
+                        return coerced;
+                    } catch (NumberFormatException e) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to coerce String '{}' to Float at column {} element {}: {}",
+                                    element, columnIndex, elementIndex, e.getMessage());
+                        }
+                    }
+                }
+                // Try to convert other numeric types
+                if (element instanceof Number) {
+                    Float coerced = ((Number) element).floatValue();
+                    if (log.isDebugEnabled()) {
+                        log.debug("Coerced {} to Float for real array at column {} element {}",
+                                element.getClass().getSimpleName(), columnIndex, elementIndex);
+                    }
+                    return coerced;
+                }
+                break;
+            case "float8":
+                // Fast path: already a Double
+                if (elementClass == Double.class) {
+                    return element;
+                }
+                // Try to convert String to Double
+                if (element instanceof String) {
+                    try {
+                        Double coerced = Double.valueOf((String) element);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Coerced String '{}' to Double for float8 array at column {} element {}",
+                                    element, columnIndex, elementIndex);
+                        }
+                        return coerced;
+                    } catch (NumberFormatException e) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to coerce String '{}' to Double at column {} element {}: {}",
+                                    element, columnIndex, elementIndex, e.getMessage());
+                        }
+                    }
+                }
+                // Try to convert other numeric types
+                if (element instanceof Number) {
+                    Double coerced = ((Number) element).doubleValue();
+                    if (log.isDebugEnabled()) {
+                        log.debug("Coerced {} to Double for float8 array at column {} element {}",
+                                element.getClass().getSimpleName(), columnIndex, elementIndex);
+                    }
+                    return coerced;
+                }
+                break;
+            // For numeric, timestamp, and other types, we return the original element
+            // and let the existing validation provide appropriate error messages
+            default:
+                break;
+        }
+        // Return original element if no coercion was possible or applicable
+        return element;
+    }
+
+    /**
      * Validates that array elements match the expected PostgreSQL array type with detailed error reporting.
      * <p>
      * This method performs comprehensive type checking to ensure data compatibility before
@@ -446,8 +669,31 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
         if (elements.length == 0) {
             return; // Empty arrays are always valid
         }
-
-        // Check first non-null element for type compatibility
+        // First pass: Attempt to coerce elements to expected types
+        boolean coercionApplied = false;
+        Object[] coercedElements = elements;
+        // Check if any element needs coercion
+        for (int i = 0; i < elements.length; i++) {
+            if (elements[i] != null) {
+                Object coercedElement = coerceArrayElement(elements[i], postgresArrayType, i, columnIndex);
+                if (coercedElement != elements[i]) {
+                    // Create a new Object[] array to avoid type conflicts
+                    if (!coercionApplied) {
+                        coercedElements = new Object[elements.length];
+                        System.arraycopy(elements, 0, coercedElements, 0, elements.length);
+                        coercionApplied = true;
+                    }
+                    coercedElements[i] = coercedElement;
+                }
+            }
+        }
+        // Use the coerced elements array for the rest of the validation
+        elements = coercedElements;
+        if (coercionApplied && log.isDebugEnabled()) {
+            log.debug("Applied type coercion to array elements for {} array at column {}",
+                    postgresArrayType, columnIndex);
+        }
+        // Check first non-null element for type compatibility (after coercion)
         Object sampleElement = null;
         int sampleIndex = -1;
         for (int i = 0; i < elements.length; i++) {
@@ -457,75 +703,85 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                 break;
             }
         }
-
         if (sampleElement == null) {
             return; // All elements are null, which is valid for any array type
         }
-
         Class<?> elementClass = sampleElement.getClass();
-
-        // Validate all non-null elements have consistent types
+        // Validate all non-null elements have consistent types (after coercion)
         for (int i = sampleIndex + 1; i < elements.length; i++) {
             if (elements[i] != null && !elements[i].getClass().equals(elementClass)) {
-                throw new IllegalArgumentException("Inconsistent array element types: found "
+                throw new IllegalArgumentException("Inconsistent array element types after coercion: found "
                         + elementClass.getSimpleName() + " at index " + sampleIndex
                         + " and " + elements[i].getClass().getSimpleName() + " at index " + i
-                        + ". All non-null array elements must have the same type.");
+                        + ". Array elements could not be coerced to a consistent type for PostgreSQL "
+                        + postgresArrayType + "[] column.");
             }
         }
-
         switch (postgresArrayType) {
             case "integer":
                 if (!(elementClass == Integer.class)) {
                     throw new IllegalArgumentException("expected Integer for PostgreSQL integer[] column, got "
-                            + elementClass.getSimpleName() + ". "
-                            + "Ensure your Avro schema uses 'int' type for integer array elements.");
+                            + elementClass.getSimpleName() + " after type coercion attempts. "
+                            + "Original data types could not be converted to integers. "
+                            + "Ensure your Avro schema uses 'int' type for integer array elements, "
+                            + "or that string values contain valid integer representations.");
                 }
                 break;
             case "bigint":
                 if (!(elementClass == Long.class)) {
                     throw new IllegalArgumentException("expected Long for PostgreSQL bigint[] column, got "
-                            + elementClass.getSimpleName() + ". "
-                            + "Ensure your Avro schema uses 'long' type for bigint array elements.");
+                            + elementClass.getSimpleName() + " after type coercion attempts. "
+                            + "Original data types could not be converted to long integers. "
+                            + "Ensure your Avro schema uses 'long' type for bigint array elements, "
+                            + "or that string values contain valid long integer representations.");
                 }
                 break;
             case "text":
                 if (!(elementClass == String.class)) {
                     throw new IllegalArgumentException("expected String for PostgreSQL text[] column, got "
-                            + elementClass.getSimpleName() + ". "
-                            + "Ensure your Avro schema uses 'string' type for text array elements.");
+                            + elementClass.getSimpleName() + " after type coercion attempts. "
+                            + "Most data types should be convertible to strings, including Avro Records. "
+                            + "This error suggests an unusual data type that couldn't be converted. "
+                            + "Ensure your Avro schema uses 'string' type for text array elements, "
+                            + "or verify that complex types like Records are properly structured.");
                 }
                 break;
             case "boolean":
                 if (!(elementClass == Boolean.class)) {
                     throw new IllegalArgumentException("expected Boolean for PostgreSQL boolean[] column, got "
-                            + elementClass.getSimpleName() + ". "
-                            + "Ensure your Avro schema uses 'boolean' type for boolean array elements.");
+                            + elementClass.getSimpleName() + " after type coercion attempts. "
+                            + "String values like 'true', 'false', '1', '0' should be convertible to booleans. "
+                            + "Ensure your Avro schema uses 'boolean' type for boolean array elements, "
+                            + "or that string values contain valid boolean representations.");
                 }
                 break;
             case "numeric":
                 if (!(elementClass == Double.class || elementClass == Float.class
                         || elementClass == Integer.class || elementClass == Long.class)) {
                     throw new IllegalArgumentException(
-                            "expected numeric type (Double, Float, Integer, or Long) for PostgreSQL numeric[] column,"
-                                    + " got "
-                                    + elementClass.getSimpleName() + ". "
-                                    + "Ensure your Avro schema uses 'double', 'float', 'int', or 'long' type for "
-                                    + "numeric array elements.");
+                            "expected numeric type (Double, Float, Integer, or Long) for PostgreSQL numeric[] column"
+                            + ", got " + elementClass.getSimpleName() + " after type coercion attempts. "
+                            + "String representations of numbers should be convertible. "
+                            + "Ensure your Avro schema uses 'double', 'float', 'int', or 'long' type for "
+                            + "numeric array elements, or that string values contain valid numeric representations.");
                 }
                 break;
             case "real":
                 if (!(elementClass == Float.class)) {
                     throw new IllegalArgumentException("expected Float for PostgreSQL real[] column, got "
-                            + elementClass.getSimpleName() + ". "
-                            + "Ensure your Avro schema uses 'float' type for real array elements.");
+                            + elementClass.getSimpleName() + " after type coercion attempts. "
+                            + "String and other numeric types should be convertible to floats. "
+                            + "Ensure your Avro schema uses 'float' type for real array elements, "
+                            + "or that string values contain valid floating-point representations.");
                 }
                 break;
             case "float8":
                 if (!(elementClass == Double.class)) {
                     throw new IllegalArgumentException("expected Double for PostgreSQL float8[] column, got "
-                            + elementClass.getSimpleName() + ". "
-                            + "Ensure your Avro schema uses 'double' type for float8 array elements.");
+                            + elementClass.getSimpleName() + " after type coercion attempts. "
+                            + "String and other numeric types should be convertible to doubles. "
+                            + "Ensure your Avro schema uses 'double' type for float8 array elements, "
+                            + "or that string values contain valid double-precision representations.");
                 }
                 break;
             case "timestamp":
@@ -534,17 +790,19 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                         || elementClass == java.time.Instant.class)) {
                     throw new IllegalArgumentException(
                             "expected timestamp type (Timestamp, Date, LocalDateTime, or Instant) for PostgreSQL "
-                                    + "timestamp[] column, got "
-                                    + elementClass.getSimpleName() + ". "
-                                    + "Ensure your Avro schema uses appropriate timestamp type for timestamp array "
-                                    + "elements.");
+                            + "timestamp[] column, got " + elementClass.getSimpleName()
+                            + " after type coercion attempts. "
+                            + "Currently, automatic conversion to timestamp types is not supported. "
+                            + "Ensure your Avro schema uses appropriate timestamp type for timestamp array elements.");
                 }
                 break;
             default:
                 // This should not happen if inferPostgresArrayType() is working correctly
                 throw new IllegalArgumentException(
                         "Internal error: Unknown PostgreSQL array type for validation: " + postgresArrayType
-                                + ". This indicates a bug in the array type inference logic.");
+                                + ". This indicates a bug in the array type inference logic. "
+                                + "Supported types are: integer, "
+                                + "bigint, text, boolean, numeric, real, float8, timestamp.");
         }
     }
 }
