@@ -32,7 +32,6 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.re2j.Pattern;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -175,6 +174,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -252,6 +252,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final long resumeThresholdPendingBytesPerThread;
 
     private final long connectionLivenessCheckTimeoutMillis;
+    private final TopicsPattern.RegexImplementation topicsPatternImplementation;
 
     // Tracks and limits number of bytes pending to be published from a single specific IO thread.
     static final class PendingBytesPerThreadTracker {
@@ -354,6 +355,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 enableSubscriptionPatternEvaluation, maxSubscriptionPatternLength);
         this.brokerInterceptor = this.service != null ? this.service.getInterceptor() : null;
         this.throttleTracker = new ServerCnxThrottleTracker(this);
+        topicsPatternImplementation = conf.getTopicsPatternRegexImplementation();
     }
 
     @Override
@@ -477,27 +479,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (!service.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        CompletableFuture<Boolean> isProxyAuthorizedFuture;
-        if (originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-                    topicName, operation, originalPrincipal,
-                    originalAuthDataSource != null ? originalAuthDataSource : authDataSource);
-        } else {
-            isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-        }
-        CompletableFuture<Boolean> isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-            topicName, operation, authRole, authDataSource);
-        return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
-            if (!isProxyAuthorized) {
-                log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}",
-                        originalPrincipal, operation, topicName);
-            }
+        CompletableFuture<Boolean> result = service.getAuthorizationService().allowTopicOperationAsync(
+                topicName, operation, originalPrincipal, authRole,
+                originalAuthDataSource != null ? originalAuthDataSource : authDataSource);
+        result.thenAccept(isAuthorized -> {
             if (!isAuthorized) {
-                log.warn("Role {} is not authorized to perform operation {} on topic {}",
-                        authRole, operation, topicName);
+                log.warn("Role {} and OriginalRole {} is not authorized to perform operation {} on topic {}",
+                        authRole, originalPrincipal, operation, topicName);
             }
-            return isProxyAuthorized && isAuthorized;
         });
+        return result;
     }
 
     private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, String subscriptionName,
@@ -561,7 +552,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         properties = Collections.emptyMap();
                     }
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
-                            getPrincipal(), getAuthenticationData(),
+                            authRole, originalPrincipal, getAuthenticationData(),
                             requestId, advertisedListenerName, properties).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     writeAndFlush(lookupResponse);
@@ -2532,7 +2523,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
                                 if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
                                     filterTopics = true;
-                                    filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get());
+                                    filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get(),
+                                            topicsPatternImplementation);
                                 } else {
                                     log.info("[{}] Subscription pattern provided [{}] was longer than maximum {}.",
                                             remoteAddress, topicsPattern.get(), maxSubscriptionPatternLength);
@@ -3176,18 +3168,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long watcherId = commandWatchTopicList.getWatcherId();
         final NamespaceName namespaceName = NamespaceName.get(commandWatchTopicList.getNamespace());
 
-        Pattern topicsPattern = Pattern.compile(commandWatchTopicList.hasTopicsPattern()
-                ? TopicList.removeTopicDomainScheme(commandWatchTopicList.getTopicsPattern())
-                : TopicList.ALL_TOPICS_PATTERN);
-        String topicsHash = commandWatchTopicList.hasTopicsHash()
-                ? commandWatchTopicList.getTopicsHash() : null;
-
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
-                    topicListService.handleWatchTopicList(namespaceName, watcherId, requestId, topicsPattern,
-                            topicsHash, lookupSemaphore);
+                    String topicsPatternString = commandWatchTopicList.hasTopicsPattern()
+                            ? commandWatchTopicList.getTopicsPattern() : TopicList.ALL_TOPICS_PATTERN;
+                    String topicsHash = commandWatchTopicList.hasTopicsHash()
+                            ? commandWatchTopicList.getTopicsHash() : null;
+                    topicListService.handleWatchTopicList(namespaceName, watcherId, requestId, topicsPatternString,
+                            topicsPatternImplementation, topicsHash, lookupSemaphore);
                 } else {
                     final String msg = "Proxy Client is not authorized to watchTopicList";
                     log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);

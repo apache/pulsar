@@ -194,7 +194,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     @Override
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
                                             int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
-                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch) {
+                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
+                                            boolean isEncrypted) {
         log.warn(
                 "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
                 subscription, consumerName);

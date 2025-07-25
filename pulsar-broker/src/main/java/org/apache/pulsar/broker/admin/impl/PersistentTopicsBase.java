@@ -977,11 +977,13 @@ public class PersistentTopicsBase extends AdminResource {
                 TopicPolicies policies = op.orElseGet(TopicPolicies::new);
                 DelayedDeliveryPolicies delayedDeliveryPolicies = null;
                 if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
-                    delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                    DelayedDeliveryPolicies.Builder builder = DelayedDeliveryPolicies.builder()
                             .tickTime(policies.getDelayedDeliveryTickTimeMillis())
-                            .active(policies.getDelayedDeliveryEnabled())
-                            .maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis())
-                            .build();
+                            .active(policies.getDelayedDeliveryEnabled());
+                    if (policies.isDelayedDeliveryMaxDelayInMillisSet()) {
+                        builder.maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis());
+                    }
+                    delayedDeliveryPolicies = builder.build();
                 }
                 if (delayedDeliveryPolicies == null && applied) {
                     delayedDeliveryPolicies = getNamespacePolicies(namespaceName).delayed_delivery_policies;
@@ -4347,7 +4349,7 @@ public class PersistentTopicsBase extends AdminResource {
             AuthenticationDataSource authenticationData, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         CompletableFuture<Void> authorizationFuture = new CompletableFuture<>();
-        checkAuthorizationAsync(pulsar, topicName, clientAppId, authenticationData)
+        checkAuthorizationAsync(pulsar, topicName, clientAppId, originalPrincipal, authenticationData)
                 .thenRun(() -> authorizationFuture.complete(null))
                 .exceptionally(e -> {
                     Throwable throwable = FutureUtil.unwrapCompletionException(e);

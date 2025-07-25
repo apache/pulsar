@@ -19,9 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.HashSet;
@@ -35,12 +37,13 @@ import org.testng.annotations.Test;
  * Unit test {@link PulsarServiceNameResolver}.
  */
 public class PulsarServiceNameResolverTest {
-
+    private static final int INIT_QUARANTINE_TIME_MS = 1000;
+    private static final int MAX_QUARANTINE_TIME_MS = 10000;
     private PulsarServiceNameResolver resolver;
 
     @BeforeMethod
     public void setup() {
-        this.resolver = new PulsarServiceNameResolver();
+        this.resolver = new PulsarServiceNameResolver(INIT_QUARANTINE_TIME_MS, MAX_QUARANTINE_TIME_MS);
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
     }
@@ -127,5 +130,61 @@ public class PulsarServiceNameResolverTest {
             assertTrue(expectedAddresses.contains(resolver.resolveHost()));
             assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
         }
+    }
+
+    @Test
+    public void testRemoveUnavailableHost() throws InvalidServiceURL {
+        String serviceUrl = "pulsar+ssl://host1:6651,host2:6651,host3:6651";
+        resolver.updateServiceUrl(serviceUrl);
+        assertEquals(resolver.getServiceUrl(), serviceUrl);
+        assertEquals(resolver.getServiceUri(), ServiceURI.create(serviceUrl));
+
+        Set<InetSocketAddress> expectedAddresses = new HashSet<>();
+        Set<URI> expectedHostUrls = new HashSet<>();
+        expectedAddresses.add(InetSocketAddress.createUnresolved("host2", 6651));
+        expectedAddresses.add(InetSocketAddress.createUnresolved("host3", 6651));
+        expectedHostUrls.add(URI.create("pulsar+ssl://host2:6651"));
+        expectedHostUrls.add(URI.create("pulsar+ssl://host3:6651"));
+        Set<InetSocketAddress> allOriginAddresses = new HashSet<>(expectedAddresses);
+        allOriginAddresses.add(InetSocketAddress.createUnresolved("host1", 6651));
+
+        // Mark host1 as unavailable
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host1", 6651), false);
+        // Now host1 should be removed from the available hosts
+        for (int i = 0; i < 10; i++) {
+            InetSocketAddress inetSocketAddress = resolver.resolveHost();
+            assertNotEquals(inetSocketAddress.getHostName(), "host1");
+            assertTrue(expectedAddresses.contains(inetSocketAddress));
+
+            URI uri = resolver.resolveHostUri();
+            assertNotEquals(uri.getHost(), "host1");
+            assertTrue(expectedHostUrls.contains(uri));
+        }
+
+        // After backoff time, host1 should be recovery from the unavailable hosts
+        Uninterruptibles.sleepUninterruptibly(INIT_QUARANTINE_TIME_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        // trigger the recovery of host1
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host2", 6651), true);
+
+        Set<InetSocketAddress> resolverAddresses = new HashSet<>();
+        for (int i = 0; i < 10; i++) {
+            InetSocketAddress address = resolver.resolveHost();
+            resolverAddresses.add(address);
+        }
+        assertEquals(resolverAddresses, allOriginAddresses);
+
+        resolverAddresses.clear();
+        // Mark all hosts as unavailable
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host1", 6651), false);
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host2", 6651), false);
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host3", 6651), false);
+
+        // After marking all hosts as unavailable, resolver should fall back to select from all origin host
+        assertTrue(resolver.getAvailableAddressList().isEmpty());
+        for (int i = 0; i < 10; i++) {
+            InetSocketAddress address = resolver.resolveHost();
+            resolverAddresses.add(address);
+        }
+        assertEquals(resolverAddresses, allOriginAddresses);
     }
 }

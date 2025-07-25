@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,18 +35,19 @@ public class KinesisRecord implements Record<byte[]> {
     public static final String SHARD_ID = "kinesis.shard.id";
     public static final String MILLIS_BEHIND_LATEST = "kinesis.millis.behind.latest";
 
-    private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<>();
 
     private final String sequenceNumber;
+    private final long subSequenceNumber;
     private final KinesisRecordProcessor recordProcessor;
 
     public KinesisRecord(KinesisClientRecord record, String shardId, long millisBehindLatest,
                          Set<String> propertiesToInclude, KinesisRecordProcessor recordProcessor) {
         this.key = Optional.of(record.partitionKey());
         this.sequenceNumber = record.sequenceNumber();
+        this.subSequenceNumber = record.subSequenceNumber();
         this.recordProcessor = recordProcessor;
         // encryption type can (annoyingly) be null, so we default to NONE
         EncryptionType encType = EncryptionType.NONE;
@@ -75,11 +74,7 @@ public class KinesisRecord implements Record<byte[]> {
         }
 
         if (encType == EncryptionType.NONE) {
-            String s = null;
-            try {
-                s = decoder.decode(record.data()).toString();
-            } catch (CharacterCodingException ignored) {
-            }
+            String s = StandardCharsets.UTF_8.decode(record.data()).toString();
             this.value = (s != null) ? s.getBytes() : null;
         } else if (encType == EncryptionType.KMS) {
             // use the raw encrypted value, let them handle it downstream
@@ -102,7 +97,7 @@ public class KinesisRecord implements Record<byte[]> {
 
     @Override
     public void ack() {
-        this.recordProcessor.updateSequenceNumberToCheckpoint(this.sequenceNumber);
+        this.recordProcessor.updateSequenceNumberToCheckpoint(this.sequenceNumber, this.subSequenceNumber);
     }
 
     @Override

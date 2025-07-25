@@ -82,7 +82,7 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>17</pulsar.client.compiler.release>
 
-    <pulsar.client.python.version>3.7.0</pulsar.client.python.version>
+    <pulsar.client.python.version>3.8.0</pulsar.client.python.version>
 
     <IMAGE_JDK_MAJOR_VERSION>21</IMAGE_JDK_MAJOR_VERSION>
 
@@ -222,14 +222,14 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
-    <kafka-client.version>3.8.1</kafka-client.version>
+    <kafka-client.version>3.9.0</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.638</aws-sdk.version>
     <avro.version>1.11.4</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
-    <sqlite-jdbc.version>3.42.0.0</sqlite-jdbc.version>
+    <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.5.5</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
@@ -237,10 +237,10 @@ flexible messaging model and an intuitive client API.</description>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
-    <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
+    <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.30</debezium.mysql.version>
+    <debezium.mysql.version>8.0.33</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
@@ -255,14 +255,14 @@ flexible messaging model and an intuitive client API.</description>
     <confluent.version>7.8.2</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
-    <commons-lang3.version>3.17.0</commons-lang3.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.19.0</commons-io.version>
     <commons-codec.version>1.18.0</commons-codec.version>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
-    <caffeine.version>2.9.1</caffeine.version>
+    <caffeine.version>3.2.1</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
     <jline.version>2.14.6</jline.version>
     <jline3.version>3.21.0</jline3.version>
@@ -305,7 +305,7 @@ flexible messaging model and an intuitive client API.</description>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
     <opentelemetry.semconv.version>1.29.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
-    <re2j.version>1.7</re2j.version>
+    <re2j.version>1.8</re2j.version>
     <completable-futures.version>0.3.6</completable-futures.version>
     <failsafe.version>3.3.2</failsafe.version>
 
@@ -1996,6 +1996,8 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
+                <exclude>**/*_pb2.py</exclude>
+                <exclude>**/*_pb2_grpc.py</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -2149,6 +2151,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.dylib</exclude>
             <exclude>**/*.patch</exclude>
             <exclude>src/test/resources/*.txt</exclude>
+            <exclude>**/*_pb2.py</exclude>
+            <exclude>**/*_pb2_grpc.py</exclude>
           </excludes>
         </configuration>
       </plugin>

@@ -47,6 +47,7 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,6 +72,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -78,6 +80,8 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -103,6 +107,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.collections.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
@@ -121,6 +126,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -133,6 +139,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+    @AfterMethod
+    public void afterMethod() {
+        bkc.setReadHandleInterceptor(null);
+    }
 
     @Test
     public void testCloseCursor() throws Exception {
@@ -5400,6 +5410,52 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.recoverFromLedger(info, callback);
         latch.await();
         assertTrue(recovered.booleanValue());
+    }
+
+    @Test(timeOut = 10000)
+    public void testReadNoEntries() throws Exception {
+        final var firstRead = new AtomicBoolean(true);
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry, long lastEntry,
+                                                                       LedgerEntries entries) {
+                if (firstRead.compareAndSet(true, false)) {
+                    // LedgerEntriesImpl doesn't allow empty entries list.
+                    // Implementing a dummy LedgerEntries that returns an empty list.
+                    return CompletableFuture.completedFuture(new LedgerEntries() {
+                        @Override
+                        public org.apache.bookkeeper.client.api.LedgerEntry getEntry(long entryId) {
+                            return null;
+                        }
+
+                        @Override
+                        public Iterator<org.apache.bookkeeper.client.api.LedgerEntry> iterator() {
+                            return EmptyIterator.INSTANCE;
+                        }
+
+                        @Override
+                        public void close() {
+
+                        }
+                    });
+                } else {
+                    return CompletableFuture.completedFuture(entries);
+                }
+            }
+        });
+        final var ml = factory.open("testReadNoEntries");
+        final var cursor = ml.openCursor("cursor");
+        cursor.setInactive(); // disable caching when adding entries
+        for (int i = 0; i < 10; i++) {
+            ml.addEntry(("msg-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+        final var entries = cursor.readEntries(10);
+        assertEquals(entries.stream().map(e -> {
+            final var buffer = e.getDataBuffer();
+            final var bytes = new byte[buffer.readableBytes()];
+            buffer.readBytes(bytes);
+            return new String(bytes, StandardCharsets.UTF_8);
+        }).toList(), IntStream.range(0, 10).mapToObj(i -> "msg-" + i).toList());
     }
 
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {

@@ -260,7 +260,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.17.2.jar
      - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.17.2.jar
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.17.2.jar
- * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
+ * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.14.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.51.0.jar
@@ -293,7 +293,7 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-collections4-4.4.jar
     - org.apache.commons-commons-compress-1.27.1.jar
     - org.apache.commons-commons-configuration2-2.12.0.jar
-    - org.apache.commons-commons-lang3-3.17.0.jar
+    - org.apache.commons-commons-lang3-3.18.0.jar
     - org.apache.commons-commons-text-1.13.1.jar
  * Netty
     - io.netty-netty-buffer-4.1.122.Final.jar
@@ -512,7 +512,7 @@ The Apache Software License, Version 2.0
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar
     - com.google.auto.value-auto-value-annotations-1.11.0.jar
-    - com.google.re2j-re2j-1.7.jar
+    - com.google.re2j-re2j-1.8.jar
   * Jetcd - shaded
   * IPAddress
     - com.github.seancfoley-ipaddress-5.5.0.jar
