@@ -628,7 +628,7 @@ public abstract class AdminResource extends PulsarWebResource {
                             && pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
                         internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
                         log.info("[{}] Successfully created partitioned for topic {} for the remote clusters",
-                                clientAppId());
+                                clientAppId(), topicName);
                     } else {
                         log.info("[{}] Skip creating partitioned for topic {} for the remote clusters",
                                 clientAppId(), topicName);

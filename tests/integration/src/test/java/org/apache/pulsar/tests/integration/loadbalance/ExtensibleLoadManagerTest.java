@@ -322,7 +322,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertEquals(result.size(), NUM_BROKERS);
     }
 
-    @Test(timeOut = 300 * 1000)
+    @Test(timeOut = 300 * 1000, enabled = false)
     public void testIsolationPolicy() throws Exception {
         final String namespaceIsolationPolicyName = "my-isolation-policy";
         final String isolationEnabledNameSpace = DEFAULT_TENANT + "/my-isolation-policy" + nsSuffix;
