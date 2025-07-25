@@ -45,7 +45,7 @@ public class TopicName implements ServiceUnitId {
     private final String namespacePortion;
     private final String localName;
 
-    private volatile NamespaceName namespaceName;
+    private final NamespaceName namespaceName;
 
     private final int partitionIndex;
 
@@ -138,6 +138,7 @@ public class TopicName implements ServiceUnitId {
                 }
                 this.partitionIndex = getPartitionIndex(localName);
                 this.completeTopicName = domain.name() + "://" + tenant + "/" + namespacePortion + "/" + localName;
+                this.namespaceName = NamespaceName.get(tenant, namespacePortion);
             } else {
                 // The fully qualified topic name can be in two different forms:
                 // new:    persistent://tenant/namespace/topic
@@ -154,6 +155,7 @@ public class TopicName implements ServiceUnitId {
                     this.namespacePortion = parts.get(1);
                     this.localName = parts.get(2);
                     this.partitionIndex = getPartitionIndex(localName);
+                    this.namespaceName = NamespaceName.get(tenant, namespacePortion);
                 } else if (parts.size() == 4) {
                     // Legacy topic name that includes cluster name
                     this.tenant = parts.get(0);
@@ -161,6 +163,7 @@ public class TopicName implements ServiceUnitId {
                     this.namespacePortion = parts.get(2);
                     this.localName = parts.get(3);
                     this.partitionIndex = getPartitionIndex(localName);
+                    namespaceName = NamespaceName.get(tenant, cluster, namespacePortion);
                 } else {
                     throw new IllegalArgumentException("Invalid topic name " + completeTopicName);
                 }
@@ -200,16 +203,6 @@ public class TopicName implements ServiceUnitId {
      */
     @Override
     public NamespaceName getNamespaceObject() {
-        if (namespaceName != null) {
-            return namespaceName;
-        }
-        synchronized (this) {
-            if (cluster == null) {
-                namespaceName = NamespaceName.get(tenant, namespacePortion);
-            } else {
-                namespaceName = NamespaceName.get(tenant, cluster, namespacePortion);
-            }
-        }
         return namespaceName;
     }
 
