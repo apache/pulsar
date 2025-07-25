@@ -1162,8 +1162,7 @@ public class BrokerService implements Closeable {
                     return FutureUtil.failedFuture(new NotAllowedException(
                             "Broker is unable to load persistent topic"));
                 }
-                return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName)
-                        .thenCompose(exists -> {
+                return checkNonPartitionedTopicExists(topicName).thenCompose(exists -> {
                     if (!exists && !createIfMissing) {
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
@@ -1787,7 +1786,7 @@ public class BrokerService implements Closeable {
         }
 
         CompletableFuture<Void> maxTopicsCheck = createIfMissing
-                ? checkMaxTopicsPerNamespace(topicName, 1)
+                ? checkMaxTopicsPerNamespace(topicName)
                 : CompletableFuture.completedFuture(null);
 
         CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
@@ -3362,7 +3361,7 @@ public class BrokerService implements Closeable {
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
 
-        return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions)
+        return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions, true)
                 .thenCompose(__ -> {
                     PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
                             .getPartitionedTopicResources();
@@ -3710,9 +3709,25 @@ public class BrokerService implements Closeable {
         });
     }
 
-    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
+    private CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topicName) {
+        return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName);
+    }
+
+    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName) {
         if (isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(null);
+        }
+        return checkNonPartitionedTopicExists(topicName).thenCompose(exists -> exists
+                ? CompletableFuture.completedFuture(null)
+                : checkMaxTopicsPerNamespace(topicName, 1, false));
+    }
+
+    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
+                                                               boolean validateSystemTopic) {
+        if (validateSystemTopic) {
+            if (isSystemTopic(topicName)) {
+                return CompletableFuture.completedFuture(null);
+            }
         }
         return pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())
