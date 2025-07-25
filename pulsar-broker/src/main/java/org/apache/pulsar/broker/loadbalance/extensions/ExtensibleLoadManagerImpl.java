@@ -1077,6 +1077,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                             + "Playing the follower role.", role, isChannelOwner);
                     playFollower();
                 }
+                closeInternalTopics();
             }
         } catch (Throwable e) {
             log.error("Failed to monitor load manager state", e);
