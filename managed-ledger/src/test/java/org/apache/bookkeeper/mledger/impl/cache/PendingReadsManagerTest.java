@@ -26,7 +26,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.AssertJUnit.assertNotSame;
+import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertSame;
 import io.opentelemetry.api.OpenTelemetry;
 import java.nio.charset.StandardCharsets;
@@ -267,8 +267,7 @@ public class PendingReadsManagerTest  {
 
         int pos = 0;
         for (long entry = firstEntry; entry <= endEntry; entry++) {
-            assertNotSame(callback.entries.get(pos), callback2.entries.get(pos));
-            assertEquals(callback.entries.get(pos).getEntryId(), callback2.entries.get(pos).getEntryId());
+            assertTrue(callback.entries.get(pos).compareTo(callback2.entries.get(pos)) == 0);
             pos++;
         }
 
@@ -314,9 +313,7 @@ public class PendingReadsManagerTest  {
         for (long entry = firstEntry; entry <= endEntry; entry++) {
             if (entry >= firstEntrySecondRead && entry <= endEntrySecondRead) {
                 int posInSecondList = (int) (pos - (firstEntrySecondRead - firstEntry));
-                assertNotSame(callback.entries.get(pos), callback2.entries.get(posInSecondList));
-                assertEquals(callback.entries.get(pos).getEntryId(),
-                        callback2.entries.get(posInSecondList).getEntryId());
+                assertTrue(callback.entries.get(pos).compareTo(callback2.entries.get(posInSecondList)) == 0);
             }
             pos++;
         }
