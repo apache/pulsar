@@ -290,6 +290,17 @@ public class ClientCnxTest {
     }
 
     @Test
+    public void testIdleCheckWithTopicListWatcher() {
+        ClientCnx cnx =
+                new ClientCnx(InstrumentProvider.NOOP, new ClientConfigurationData(), mock(EventLoopGroup.class));
+        // idle check should return true initially
+        assertTrue(cnx.idleCheck());
+        cnx.registerTopicListWatcher(0, mock(TopicListWatcher.class));
+        // idle check should now return false since there's a registered watcher
+        assertFalse(cnx.idleCheck());
+    }
+
+    @Test
     public void testNoWatchersWhenNoServerSupport() {
         withConnection("testNoWatchersWhenNoServerSupport", cnx -> {
             cnx.handleConnected(new CommandConnected()

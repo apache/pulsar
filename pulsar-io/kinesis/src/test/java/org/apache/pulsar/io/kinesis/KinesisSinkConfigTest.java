@@ -20,6 +20,7 @@ package org.apache.pulsar.io.kinesis;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +38,11 @@ public class KinesisSinkConfigTest {
         map.put("awsKinesisStreamName", "my-stream");
         map.put("awsCredentialPluginParam", "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
 
+        Map<String, String> expectedExtraKinesisProducerConfig = new HashMap<> ();
+        expectedExtraKinesisProducerConfig.put("credentialsRefreshDelay", "6000");
+        expectedExtraKinesisProducerConfig.put("logLevel", "debug");
+        map.put("extraKinesisProducerConfig", expectedExtraKinesisProducerConfig);
+
         SinkContext sinkContext = Mockito.mock(SinkContext.class);
         KinesisSinkConfig config = KinesisSinkConfig.load(map, sinkContext);
 
@@ -46,6 +52,11 @@ public class KinesisSinkConfigTest {
         assertEquals(config.getAwsKinesisStreamName(), "my-stream");
         assertEquals(config.getAwsCredentialPluginParam(),
                 "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getExtraKinesisProducerConfig(), expectedExtraKinesisProducerConfig,
+                "ExtraKinesisProducerConfiguration Maps should match exactly");
+        KinesisProducerConfiguration kinesisProducerConfiguration = KinesisSinkConfig
+                .loadExtraKinesisProducerConfig(config.getExtraKinesisProducerConfig());
+        assertEquals(kinesisProducerConfiguration.getCredentialsRefreshDelay(), 6000);
     }
 
     @Test

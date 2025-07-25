@@ -27,12 +27,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
-import com.google.re2j.Pattern;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl.TopicsChangedListener;
@@ -41,6 +41,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -67,7 +68,7 @@ public class TopicListWatcherTest {
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
         String topic = "persistent://tenant/ns/topic\\d+";
-        when(client.getConnection(topic, 0)).
+        when(client.getConnection(anyString(), anyInt())).
                 thenReturn(clientCnxFuture.thenApply(clientCnx -> Pair.of(clientCnx, false)));
         when(client.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
         when(connectionPool.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
@@ -82,7 +83,7 @@ public class TopicListWatcherTest {
 
         watcherFuture = new CompletableFuture<>();
         watcher = new TopicListWatcher(queue, client,
-                Pattern.compile(topic), 7,
+                TopicsPatternFactory.create(Pattern.compile(topic)), 7,
                 NamespaceName.get("tenant/ns"), null, watcherFuture, () -> {});
     }
 

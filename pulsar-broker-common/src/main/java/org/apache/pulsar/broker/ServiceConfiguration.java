@@ -51,6 +51,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -1568,6 +1569,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "# 2. Allowed alphanumeric (a-zA-Z_0-9) and these special chars -=:. for topic name.\n"
                     + "# NOTE: This flag will be removed in some major releases in the future.\n")
     private boolean strictTopicNameEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The regular expression implementation to use for topic pattern matching. \n"
+                    + "RE2J_WITH_JDK_FALLBACK is the default. It uses the RE2J implementation and falls back to "
+                    + "the JDK implementation for backwards compatibility reasons when the pattern compilation fails "
+                    + "with the RE2/j library.\n"
+                    + "RE2J is more performant but does not support all regex features (e.g. negative lookaheads). \n"
+                    + "JDK uses the standard Java regex implementation which supports all features but can be slower.\n"
+                    + "Bad or malicious regex patterns requiring extensive backtracing could cause high resource usage "
+                    + "with RE2J_WITH_JDK_FALLBACK or JDK implementations."
+    )
+    private TopicsPattern.RegexImplementation topicsPatternRegexImplementation =
+            TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK;
 
     @FieldContext(
             category = CATEGORY_SCHEMA,

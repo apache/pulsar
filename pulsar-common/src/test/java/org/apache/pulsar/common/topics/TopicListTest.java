@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.common.topics;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
-import com.google.re2j.Pattern;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
+import java.util.regex.Pattern;
 import org.testng.annotations.Test;
 
 public class TopicListTest {
@@ -43,12 +44,11 @@ public class TopicListTest {
 
         Pattern pattern1 = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
         List<String> result1 = TopicList.filterTopics(topicsNames, pattern1);
-        assertTrue(result1.size() == 2 && result1.contains(topicName1) && result1.contains(topicName2));
+        assertThat(result1).containsExactly(topicName1, topicName2);
 
         Pattern pattern2 = Pattern.compile("persistent://my-property/my-ns/.*");
         List<String> result2 = TopicList.filterTopics(topicsNames, pattern2);
-        assertTrue(result2.size() == 4
-                && Stream.of(topicName1, topicName2, topicName3, topicName4).allMatch(result2::contains));
+        assertThat(result2).containsExactly(topicName1, topicName2, topicName3, topicName4);
     }
 
     @Test
@@ -100,10 +100,16 @@ public class TopicListTest {
         String hash1 = TopicList.calculateHash(Arrays.asList(topicName3, topicName2, topicName1));
         String hash2 = TopicList.calculateHash(Arrays.asList(topicName1, topicName3, topicName2));
         assertEquals(hash1, hash2, "Hash must not depend on order of topics in the list");
+        assertEquals(hash1, "90d4a04a", "Hash must be equal to the expected value");
 
         String hash3 = TopicList.calculateHash(Arrays.asList(topicName1, topicName2));
         assertNotEquals(hash1, hash3, "Different list must have different hashes");
 
+        String hash4 = TopicList.calculateHash(Arrays.asList(topicName1));
+        assertEquals(hash4, "0d0602ed", "Hash must be equal to the expected value");
+
+        String hash5 = TopicList.calculateHash(Collections.emptyList());
+        assertEquals(hash5, "00000000", "Hash of empty list must be 0");
     }
 
     @Test

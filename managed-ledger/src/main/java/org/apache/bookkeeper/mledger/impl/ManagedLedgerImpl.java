@@ -238,6 +238,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private volatile long lastOffloadSuccessTimestamp = 0;
     private volatile long lastOffloadFailureTimestamp = 0;
 
+    protected volatile ManagedLedgerException interceptorException = null;
+
     private int minBacklogCursorsForCaching = 0;
     private int minBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
@@ -2245,8 +2247,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // If all messages in [firstEntry...lastEntry] are filter out,
             // then manual call internalReadEntriesComplete to advance read position.
             if (firstValidEntry == -1L) {
-                opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx,
-                        PositionFactory.create(ledger.getId(), lastEntry));
+                final var nextReadPosition = PositionFactory.create(ledger.getId(), lastEntry).getNext();
+                opReadEntry.updateReadPosition(nextReadPosition);
+                opReadEntry.checkReadCompletion();
                 return;
             }
 
@@ -4410,6 +4413,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         return offloadedSize;
+    }
+
+    @Override
+    public void unfenceForInterceptorException() {
+        this.interceptorException = null;
+    }
+
+    protected void fenceForInterceptorException(ManagedLedgerException e) {
+        this.interceptorException = e;
     }
 
     @Override
