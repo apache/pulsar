@@ -4170,6 +4170,43 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
 
+    @Test(timeOut = 100000)
+    public void multiThreadConsumerReceiveThrowExceptionWhenConsumerClose() throws Exception {
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic2")
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("my-sub")
+                .subscribe();
+        int threadCount = 10;
+
+        CountDownLatch terminateCompletedLatch = new CountDownLatch(threadCount);
+        CountDownLatch allThreadReadyLatch = new CountDownLatch(threadCount);
+        AtomicInteger interruptedThreadCount = new AtomicInteger(0);
+        for (int i = 0; i < threadCount; i++) {
+            new Thread(() -> {
+                allThreadReadyLatch.countDown();
+                try {
+                    consumer.receive();
+                    fail("thread should have been interrupted");
+                } catch (PulsarClientException e) {
+                    terminateCompletedLatch.countDown();
+                    interruptedThreadCount.incrementAndGet();
+                }
+            }).start();
+        }
+        // all threads should be ready in at most 3 seconds
+        assertTrue(allThreadReadyLatch.await(3, TimeUnit.SECONDS));
+        // close consumer, and all threads should be interrupted by thrown PulsarClientException
+        consumer.close();
+        // all threads should be terminated in at most 3 seconds
+        assertTrue(terminateCompletedLatch.await(3, TimeUnit.SECONDS));
+        // Verify all threads were properly terminated
+        assertEquals(interruptedThreadCount.get(), threadCount);
+    }
+
+
     @Test(timeOut = 20000)
     public void testResetPosition() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testResetPosition";

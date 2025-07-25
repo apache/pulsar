@@ -447,7 +447,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         // Signal waiting consumer threads to prevent indefinite blocking after termination
         headLock.lock();
         try {
-            isNotEmpty.signal();
+            isNotEmpty.signalAll();
         } finally {
             headLock.unlock();
         }
