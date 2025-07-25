@@ -1236,17 +1236,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
-        if (poolMessages) {
-            releasePooledMessagesAndStopAcceptNew();
-        }
-    }
-
-    /**
-     * If enabled pooled messages, we should release the messages after closing consumer and stop accept the new
-     * messages.
-     */
-    private void releasePooledMessagesAndStopAcceptNew() {
-        incomingMessages.terminate(message -> message.release());
+        //terminate incomingMessages queue, stop accept the new messages and waking up blocked thread.
+        incomingMessages.terminate(Message::release);
         clearIncomingMessages();
     }
 
