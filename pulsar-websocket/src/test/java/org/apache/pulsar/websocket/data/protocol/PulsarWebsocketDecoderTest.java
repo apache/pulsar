@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.websocket.data.protocol;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import lombok.Getter;
 import org.apache.pulsar.websocket.data.CommandAuthResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import lombok.Getter;
 
 public class PulsarWebsocketDecoderTest {
 
@@ -39,8 +42,8 @@ public class PulsarWebsocketDecoderTest {
 
     @Test
     public void testHandleAuthResponseWithoutClientVersion() throws Exception {
-        String message = "{\"type\" : \"AUTH_RESPONSE\", \"authResponse\" : {\"clientVersion\" : \"v21\", \"protocolVersion\" : 21, \"response\" : {\"authMethodName\":\"token\", \"authData\": \"NewAccessToken\"}}}";
-
+        Path messagePath = Paths.get(this.getClass().getClassLoader().getResource("AUTH_RESPONSE.json").toURI());
+        String message = Files.readString(messagePath, StandardCharsets.UTF_8);
         MockedPulsarWebsocketDecoder websocketDecoder = new MockedPulsarWebsocketDecoder();
 
         websocketDecoder.onWebSocketText(message);

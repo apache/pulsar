@@ -489,7 +489,6 @@ public class AbstractWebSocketHandlerTest {
         WebSocketProxyConfiguration webSocketProxyConfiguration = new WebSocketProxyConfiguration();
         webSocketProxyConfiguration.setAuthenticationEnabled(true);
         webSocketProxyConfiguration.setAuthenticationRefreshCheckSeconds(1);
-        
         WebSocketService webSocketService = spy(new WebSocketService(webSocketProxyConfiguration));
 
         HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
