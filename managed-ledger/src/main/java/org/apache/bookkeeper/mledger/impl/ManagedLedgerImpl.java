@@ -3063,7 +3063,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Truncate to ensure the offloaded data is not orphaned.
         // Also ensures the BK ledgers are deleted and not just scheduled for deletion
-        CompletableFuture<Void> truncateFuture = asyncTruncate();
+        CompletableFuture<Void> truncateFuture = asyncTruncate(true);
         truncateFuture.whenComplete((ignore, exc) -> {
             if (exc != null) {
                 log.error("[{}] Error truncating ledger for deletion", name, exc);
@@ -4460,6 +4460,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public CompletableFuture<Void> asyncTruncate() {
+        return asyncTruncate(false);
+    }
+
+    // When asyncTruncate is called by asyncDelete, the argument should be true because cursors will not be accessed
+    // after the managed ledger is deleted.
+    private CompletableFuture<Void> asyncTruncate(boolean ignoreCursorFailure) {
 
         final List<CompletableFuture<Void>> futures = new ArrayList();
         for (ManagedCursor cursor : cursors) {
@@ -4472,7 +4478,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 @Override
                 public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
+                    if (ignoreCursorFailure) {
+                        log.warn("Failed to clear backlog for cursor {}", cursor.getName(), exception);
+                        future.complete(null);
+                    } else {
+                        future.completeExceptionally(exception);
+                    }
                 }
             }, null);
             futures.add(future);
