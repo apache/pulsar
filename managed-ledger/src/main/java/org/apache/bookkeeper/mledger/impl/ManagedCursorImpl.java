@@ -49,7 +49,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -158,17 +157,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             MarkDeleteEntry.class, "lastMarkDeleteEntry");
     protected volatile MarkDeleteEntry lastMarkDeleteEntry;
 
-    /** Protects the method "asyncReadEntriesWithSkipOrWait" and "cancelPendingReadRequest" runs concurrently. **/
-    private final Object pendingReadOpMutex = new Object();
-    /**
-     *  'ManagedLedger.notifyCursors' relies on this CAS to avoid using "pendingReadOpMutex" to guarantee thread-safety,
-     *  which improved the performance of publishing messages.
-     */
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, OpReadEntry> WAITING_READ_OP_UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
-    private DelayCheckForNewEntriesTask delayCheckForNewEntriesTask;
 
     public static final int FALSE = 0;
     public static final int TRUE = 1;
@@ -234,6 +226,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
     private volatile boolean isActive = false;
+
+    private Object waitingRegistrationLock = new Object();
+    boolean waitingRegistered = false;
 
     class MarkDeleteEntry {
         final Position newPosition;
@@ -1040,87 +1035,36 @@ public class ManagedCursorImpl implements ManagedCursor {
             skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
                     ctx, maxPosition, skipCondition);
+            int opReadId = op.id;
+            if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
+                op.recycle();
+                callback.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException(), ctx);
+                return;
+            }
 
-            synchronized (pendingReadOpMutex) {
-                if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
-                    op.recycle();
-                    callback.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException(), ctx);
-                    return;
-                }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Deferring retry of read at position {}", ledger.getName(), name, op.readPosition);
+            }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Deferring retry of read at position {}", ledger.getName(), name,
-                            op.readPosition);
-                }
-
-                // Check again for new entries after the configured time, then if still no entries are available
-                // register to be notified.
-                if (getConfig().getNewEntriesCheckDelayInMillis() > 0) {
-                    delayCheckForNewEntriesTask = new DelayCheckForNewEntriesTask(op, callback, ctx);
-                } else {
-                    // If there's no delay, check directly from the same thread
-                    checkForNewEntries(op, callback, ctx);
-                }
+            // Check again for new entries after the configured time, then if still no entries are available register
+            // to be notified
+            if (getConfig().getNewEntriesCheckDelayInMillis() > 0) {
+                ledger.getScheduledExecutor().schedule(() -> checkForNewEntries(opReadId, op, callback, ctx),
+                        getConfig().getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
+            } else {
+                // If there's no delay, check directly from the same thread
+                checkForNewEntries(opReadId, op, callback, ctx);
             }
         }
     }
 
-    private enum DelayCheckForNewEntriesTaskState {
-        INIT, RUNNING, CANCELLED, DONE
-    }
-
-    private class DelayCheckForNewEntriesTask implements Runnable {
-
-        private final OpReadEntry op;
-        private final ReadEntriesCallback callback;
-        private final Object ctx;
-        private final ScheduledFuture<?> scheduledFuture;
-        private DelayCheckForNewEntriesTaskState state = DelayCheckForNewEntriesTaskState.INIT;
-
-        public DelayCheckForNewEntriesTask(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
-            this.op = op;
-            this.callback = callback;
-            this.ctx = ctx;
-            scheduledFuture = ledger.getScheduledExecutor().schedule(this,
-                    getConfig().getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
-        }
-
-        @Override
-        public void run() {
-            synchronized (pendingReadOpMutex) {
-                if (state != DelayCheckForNewEntriesTaskState.INIT) {
-                    return;
-                }
-                state = DelayCheckForNewEntriesTaskState.RUNNING;
-                checkForNewEntries(op, callback, ctx);
-                state = DelayCheckForNewEntriesTaskState.DONE;
-            }
-        }
-
-        public boolean isDone() {
-            return state == DelayCheckForNewEntriesTaskState.DONE;
-        }
-
-        public boolean cancel() {
-            synchronized (pendingReadOpMutex) {
-                // Not all implementations of Executor guarantee that the Runnable will be no long be executed after a
-                // successful cancel, such as Guava MoreExecutors, see also https://github.com/google/guava/blob
-                // /v32.1.2/guava/src/com/google/common/util/concurrent/MoreExecutors.java#L709.
-                // The current task guarantees.
-                if (state != DelayCheckForNewEntriesTaskState.INIT) {
-                    return false;
-                }
-                state = DelayCheckForNewEntriesTaskState.CANCELLED;
-                scheduledFuture.cancel(false);
-                return true;
-            }
-        }
-    }
-
-    private void checkForNewEntries(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
+    // Please notice that OpReadEntry might be recycled due to sharing via waitingReadOp field logic
+    // That's why the fields cannot be accessed before the reference is removed from waitingReadOp atomically
+    // and the id matches the removed reference.
+    private void checkForNewEntries(int opReadId, OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
         try {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Re-trying the read at position {}", ledger.getName(), name, op.readPosition);
+                log.debug("[{}] [{}] Re-trying the read for op id {}", ledger.getName(), name, opReadId);
             }
 
             if (isClosed()) {
@@ -1149,17 +1093,21 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug("[{}] [{}] Found more entries", ledger.getName(), name);
                 }
                 // Try to cancel the notification request
-                if (WAITING_READ_OP_UPDATER.compareAndSet(this, op, null)) {
-                    ledger.removeWaitingCursor(this);
+                // Clear the waiting read op only if it matches the current opReadId
+                OpReadEntry cancelledReadOp = WAITING_READ_OP_UPDATER.getAndUpdate(this,
+                        current -> current == op && current.id == opReadId ? null : current);
+                if (cancelledReadOp != null && cancelledReadOp.id == opReadId) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Cancelled notification and scheduled read at {}", ledger.getName(),
-                            name, op.readPosition);
+                                name, op.readPosition);
                     }
                     PENDING_READ_OPS_UPDATER.incrementAndGet(this);
                     ledger.asyncReadEntries(op);
                 } else {
-                    log.info("[{}] [{}] notification that new entries added was already be called, skipped the current"
-                        + " new entry checking", ledger.getName(), name);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] notification was already cancelled for op id {}", ledger.getName(), name,
+                                opReadId);
+                    }
                 }
             } else if (ledger.isTerminated()) {
                 // At this point we registered for notification and still there were no more available
@@ -1182,53 +1130,21 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Cancel pending read request", ledger.getName(), name);
         }
-        synchronized (pendingReadOpMutex) {
-            final OpReadEntry op = WAITING_READ_OP_UPDATER.get(this);
-            // Case 1: the pending read has executed, or there is no pending read.
-            if (op == null) {
-                return false;
+        final OpReadEntry op = WAITING_READ_OP_UPDATER.getAndUpdate(this, current -> {
+            if (current == OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+                return current;
             }
-            Function<Boolean, Boolean> clearWaitingReadOp = removeWaitingCursor -> {
-                if (WAITING_READ_OP_UPDATER.compareAndSet(this, op, null)) {
-                    if (removeWaitingCursor) {
-                        ledger.removeWaitingCursor(this);
-                    }
-                    op.recycle();
-                    return true;
-                } else {
-                    // Managed ledger has noticed that new entries was added.
-                    if (WAITING_READ_OP_UPDATER.get(this) == null) {
-                        return false;
-                    }
-                    // It will never occur, it means the lock "pendingReadOpMutex" does not work as expected, which
-                    // allowed other thread to modify the "waitingReadOp" concurrently.
-                    // The waitingReadOp has been modified to other instance, which will never occur.
-                    log.warn("[{}] [{}] Cancel pending request encountered an unexpected error, the lock"
-                        + " \"pendingReadOpMutex\" does not work as expected, which allowed other"
-                        + " thread to modify the \"waitingReadOp\" concurrently..", ledger.getName(), name);
-                    return cancelPendingReadRequest();
-                }
-            };
-            // There is a pending read,
-            // Case 2: delayCheckForNewEntriesTask can be cancelled, no need to remove cursor from "ml.waitingCursors",
-            //         because it has not added successfully yet.
-            if (delayCheckForNewEntriesTask != null && delayCheckForNewEntriesTask.cancel()) {
-                return clearWaitingReadOp.apply(false);
-            }
-            // Case 3: managedLedgerNewEntriesCheckDelayInMillis is "0".
-            // Case 4: delayCheckForNewEntriesTask has done, which has added cursor into "ml.waitingCursors".
-            if (delayCheckForNewEntriesTask == null || delayCheckForNewEntriesTask.isDone()) {
-                return clearWaitingReadOp.apply(true);
-            }
-            // Case 5: delayCheckForNewEntriesTask is running, but not done, which only occurs at a corner case. It
-            // only happens when the task is starting. Calling "cancelPendingReadRequest" here will release the lock
-            // "pendingReadOpMutex" and let the task go ahead.
-            return cancelPendingReadRequest();
+            return null;
+        });
+        if (op != null) {
+            op.recycle();
         }
+        return op != null;
     }
 
     public boolean hasPendingReadRequest() {
-        return WAITING_READ_OP_UPDATER.get(this) != null;
+        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.get(this);
+        return opReadEntry != null && opReadEntry != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR;
     }
 
     @Override
@@ -2958,6 +2874,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.closeComplete(ctx);
             return;
         }
+        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(ManagedCursorImpl.this,
+                OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
+        if (opReadEntry != null) {
+            opReadEntry.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException(
+                    "Cursor is closing"), opReadEntry.ctx);
+        }
         persistPositionWhenClosing(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
                 new AsyncCallbacks.CloseCallback(){
 
@@ -3526,7 +3448,21 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Received ml notification", ledger.getName(), name);
         }
-        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(this, null);
+
+        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndUpdate(this, current -> {
+            // if the waitingReadOp is WAITING_READ_OP_FOR_CLOSED_CURSOR, keep it as is
+            if (current == OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+                return current;
+            } else {
+                // Otherwise, clear the waiting read operation
+                return null;
+            }
+        });
+
+        // ignore the notification if the cursor is already closed
+        if (opReadEntry == OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+            return;
+        }
 
         if (opReadEntry != null) {
             if (log.isDebugEnabled()) {
@@ -3535,7 +3471,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] Consumer {} cursor notification: other counters: consumed {} mdPos {} rdPos {}",
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
-
+            if (isClosed()) {
+                // If the cursor is closed, we should not read any more entries
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Cursor is already closed, ignoring notification", ledger.getName(), name);
+                }
+                opReadEntry.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException(
+                        "Cursor was already closed"), opReadEntry.ctx);
+                return;
+            }
             PENDING_READ_OPS_UPDATER.incrementAndGet(this);
             opReadEntry.readPosition = getReadPosition();
             ledger.asyncReadEntries(opReadEntry);
@@ -4011,5 +3955,46 @@ public class ManagedCursorImpl implements ManagedCursor {
         cs.totalNonContiguousDeletedMessagesRange = getTotalNonContiguousDeletedMessagesRange();
         cs.properties = getProperties();
         return cs;
+    }
+
+    /**
+     * Called by ManagedLedgerImpl to execute the Runnable inside the lock to remove the cursor from it's
+     * waiting cursors list.
+     * The cursor state is set to unregistered, and it can be registered again for waiting in ManagedLedgerImpl.
+     */
+    void removeWaitingCursorRequested(Runnable removeWaitingCursorRunnable) {
+        synchronized (waitingRegistrationLock) {
+            if (!waitingRegistered) {
+                // The cursor hasn't been registered, do not attempt to remove
+                return;
+            }
+            removeWaitingCursorRunnable.run();
+            waitingRegistered = false;
+        }
+    }
+
+    /**
+     * Called by ManagedLedgerImpl to notify that the cursor has been dequeued from the waiting cursors list.
+     */
+    void notifyWaitingCursorDequeued() {
+        synchronized (waitingRegistrationLock) {
+            waitingRegistered = false;
+        }
+    }
+
+    /**
+     * Called by ManagedLedgerImpl to execute the Runnable inside the lock to remove the cursor from it's
+     * waiting cursors list.
+     * This method is used to ensure that the cursor is not already registered, resulting in duplicates.
+     */
+    void addWaitingCursorRequested(Runnable addWaitingCursorRunnable) {
+        synchronized (waitingRegistrationLock) {
+            if (waitingRegistered || isClosed()) {
+                // The cursor is already registered or closed, do not register again.
+                return;
+            }
+            addWaitingCursorRunnable.run();
+            waitingRegistered = true;
+        }
     }
 }
