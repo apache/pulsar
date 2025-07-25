@@ -169,6 +169,18 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> readerListener(ReaderListener<T> readerListener);
 
     /**
+     * Sets a {@link ReaderListener} for the reader.
+     *
+     * <p>When a {@link ReaderListener} is set, application will receive messages through it. Calls to
+     * {@link Reader#readNext()} will not be allowed.
+     *
+     * @param readerDecryptFailListener
+     *            the listener object
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> readerDecryptFailListener(ReaderDecryptFailListener<T> readerDecryptFailListener);
+
+    /**
      * Sets a {@link CryptoKeyReader} to decrypt the message payloads.
      *
      * @param cryptoKeyReader

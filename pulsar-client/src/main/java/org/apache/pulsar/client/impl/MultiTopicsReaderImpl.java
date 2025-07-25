@@ -29,12 +29,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderDecryptFailListener;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -101,13 +103,33 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
             });
         }
 
+        if (readerConfiguration.getReaderDecryptFailListener() != null) {
+            ReaderDecryptFailListener<T> readerDecryptFailListener = readerConfiguration.getReaderDecryptFailListener();
+            consumerConfiguration.setDecryptFailListener(new DecryptFailListener<T>() {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public void received(Consumer<T> consumer, Message<T> msg) {
+                    final MessageId messageId = msg.getMessageId();
+                    readerDecryptFailListener.received(MultiTopicsReaderImpl.this, msg);
+                    consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
+                        log.error("[{}][{}] auto acknowledge decrypt fail message {} cumulative fail.", getTopic(),
+                                getMultiTopicsConsumer().getSubscription(), messageId, ex);
+                        return null;
+                    });
+                }
+            });
+        }
+
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
         }
         if (readerConfiguration.isResetIncludeHead()) {
             consumerConfiguration.setResetIncludeHead(true);
         }
-        consumerConfiguration.setCryptoFailureAction(readerConfiguration.getCryptoFailureAction());
+        if (readerConfiguration.getCryptoFailureAction() != null) {
+            consumerConfiguration.setCryptoFailureAction(readerConfiguration.getCryptoFailureAction());
+        }
         if (readerConfiguration.getCryptoKeyReader() != null) {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }

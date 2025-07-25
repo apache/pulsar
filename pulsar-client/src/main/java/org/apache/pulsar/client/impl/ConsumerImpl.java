@@ -2027,7 +2027,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, true);
         }
 
-
         int maxDecryptedSize = msgCrypto.getMaxOutputSize(payload.readableBytes());
         ByteBuf decryptedData = PulsarByteBufAllocator.DEFAULT.buffer(maxDecryptedSize);
         ByteBuffer nioDecryptedData = decryptedData.nioBuffer(0, maxDecryptedSize);
@@ -2044,6 +2043,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private DecryptResult handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
             int redeliveryCount, int batchSize, boolean cryptoReaderNotExist) {
 
+        if (conf.getDecryptFailListener() != null) {
+            return DecryptResult.failure(payload.retain());
+        }
         switch (conf.getCryptoFailureAction()) {
         case CONSUME:
             if (cryptoReaderNotExist) {
@@ -2914,7 +2916,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private boolean isMessageUndecryptable(MessageMetadata msgMetadata) {
         return (msgMetadata.getEncryptionKeysCount() > 0 && conf.getCryptoKeyReader() == null
-                && conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME);
+                && (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME
+                || conf.getDecryptFailListener() != null));
     }
 
     /**
