@@ -1076,6 +1076,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         private final Object ctx;
         private final ScheduledFuture<?> scheduledFuture;
         private DelayCheckForNewEntriesTaskState state = DelayCheckForNewEntriesTaskState.INIT;
+        private volatile boolean cancelled = false;
 
         public DelayCheckForNewEntriesTask(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
             this.op = op;
@@ -1088,6 +1089,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         @Override
         public void run() {
             synchronized (pendingReadOpMutex) {
+                if (cancelled) {
+                    // change state back to init in order to execute cancel()
+                    state = DelayCheckForNewEntriesTaskState.INIT;
+                    return;
+                }
                 if (state != DelayCheckForNewEntriesTaskState.INIT) {
                     return;
                 }
@@ -1107,6 +1113,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // successful cancel, such as Guava MoreExecutors, see also https://github.com/google/guava/blob
                 // /v32.1.2/guava/src/com/google/common/util/concurrent/MoreExecutors.java#L709.
                 // The current task guarantees.
+                cancelled = true;
                 if (state != DelayCheckForNewEntriesTaskState.INIT) {
                     return false;
                 }
