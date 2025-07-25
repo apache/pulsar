@@ -17,7 +17,6 @@
  * under the License.
  */
 package org.apache.pulsar.io.jdbc;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -40,18 +39,15 @@ import org.mockito.ArgumentMatchers;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 /**
  * Unit tests for PostgreSQL array support in PostgresJdbcAutoSchemaSink.
  * Tests array conversion, type validation, error handling, and edge cases.
  */
 public class PostgresArraySupportTest {
-
     private PostgresJdbcAutoSchemaSink sink;
     private PreparedStatement mockStatement;
     private Connection mockConnection;
     private Array mockArray;
-
     @BeforeMethod
     public void setUp() throws Exception {
         sink = new PostgresJdbcAutoSchemaSink();
@@ -64,7 +60,6 @@ public class PostgresArraySupportTest {
         when(mockConnection.createArrayOf(ArgumentMatchers.anyString(),
                 ArgumentMatchers.any(Object[].class))).thenReturn(mockArray);
     }
-
     // Test supported array type conversions
     @Test
     public void testIntegerArrayConversion() throws Exception {
@@ -76,7 +71,6 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("integer", intArray);
         verify(mockStatement).setArray(1, mockArray);
     }
-
     @Test
     public void testStringArrayConversion() throws Exception {
         // Create string array
@@ -87,7 +81,6 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("text", stringArray);
         verify(mockStatement).setArray(2, mockArray);
     }
-
     @Test
     public void testBooleanArrayConversion() throws Exception {
         // Create boolean array
@@ -98,7 +91,6 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("boolean", boolArray);
         verify(mockStatement).setArray(3, mockArray);
     }
-
     @Test
     public void testDoubleArrayConversion() throws Exception {
         // Create double array
@@ -109,7 +101,6 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("numeric", doubleArray);
         verify(mockStatement).setArray(4, mockArray);
     }
-
     @Test
     public void testFloatArrayConversion() throws Exception {
         // Create float array
@@ -120,7 +111,6 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("real", floatArray);
         verify(mockStatement).setArray(5, mockArray);
     }
-
     @Test
     public void testLongArrayConversion() throws Exception {
         // Create long array
@@ -131,9 +121,7 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("bigint", longArray);
         verify(mockStatement).setArray(6, mockArray);
     }
-
     // Test GenericData.Array conversion
-
     @Test
     public void testGenericDataArrayConversion() throws Exception {
         // Create Avro schema for string array
@@ -149,9 +137,7 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf(ArgumentMatchers.eq("text"), ArgumentMatchers.any(Object[].class));
         verify(mockStatement).setArray(1, mockArray);
     }
-
     // Test null array handling
-
     @Test
     public void testNullArrayHandling() throws Exception {
         // Test null array
@@ -159,9 +145,7 @@ public class PostgresArraySupportTest {
         // Verify null is set properly
         verify(mockStatement).setNull(1, Types.ARRAY);
     }
-
     // Test empty array handling
-
     @Test
     public void testEmptyArrayHandling() throws Exception {
         // Create empty array
@@ -172,7 +156,6 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("integer", emptyArray);
         verify(mockStatement).setArray(1, mockArray);
     }
-
     @Test
     public void testEmptyGenericDataArrayHandling() throws Exception {
         // Create empty GenericData.Array
@@ -184,9 +167,7 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf(ArgumentMatchers.eq("integer"), ArgumentMatchers.any(Object[].class));
         verify(mockStatement).setArray(1, mockArray);
     }
-
     // Test PostgreSQL type mapping
-
     @Test
     public void testPostgresTypeMapping() throws Exception {
         // Test various PostgreSQL type name mappings with appropriate Java types
@@ -223,9 +204,7 @@ public class PostgresArraySupportTest {
             verify(mockConnection).createArrayOf(expectedType, testArray);
         }
     }
-
     // Test array type mismatch scenarios
-
     @Test
     public void testIntegerArrayTypeMismatch() throws Exception {
         // Create string array but specify integer target type
@@ -238,23 +217,18 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("got String"));
         }
     }
-
     @Test
     public void testStringArrayTypeCoercion() throws Exception {
         // Create integer array but specify text target type - should now be coerced successfully
         Integer[] intArray = {1, 2, 3};
-        
         // With the new coercion logic, this should succeed by converting Integer to String
         sink.handleArrayValue(mockStatement, 1, intArray, "text");
-        
         // Verify that setArray was called (indicating successful conversion)
         verify(mockStatement).setArray(eq(1), any(Array.class));
-        
         // Note: The original test expected this to fail, but with intelligent type coercion,
         // Integer arrays are now automatically converted to String arrays for text columns.
         // This is an improvement that makes the system more robust and user-friendly.
     }
-
     @Test
     public void testBooleanArrayTypeMismatch() throws Exception {
         // Create integer array but specify boolean target type
@@ -267,57 +241,43 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("got Integer"));
         }
     }
-
     @Test
     public void testLongArrayTypeCoercion() throws Exception {
         // Create integer array but specify bigint target type - should now be coerced successfully
         Integer[] intArray = {1, 2, 3};
-        
         // With the new coercion logic, this should succeed by converting Integer to Long
         sink.handleArrayValue(mockStatement, 1, intArray, "bigint");
-        
         // Verify that setArray was called (indicating successful conversion)
         verify(mockStatement).setArray(eq(1), any(Array.class));
-        
         // Note: The original test expected this to fail, but with intelligent type coercion,
         // Integer arrays are now automatically converted to Long arrays for bigint columns.
         // This is an improvement that makes the system more robust and user-friendly.
     }
-
     @Test
     public void testFloatArrayTypeCoercion() throws Exception {
         // Create double array but specify real target type - should now be coerced successfully
         Double[] doubleArray = {1.5, 2.7, 3.14};
-        
         // With the new coercion logic, this should succeed by converting Double to Float
         sink.handleArrayValue(mockStatement, 1, doubleArray, "real");
-        
         // Verify that setArray was called (indicating successful conversion)
         verify(mockStatement).setArray(eq(1), any(Array.class));
-        
         // Note: The original test expected this to fail, but with intelligent type coercion,
         // Double arrays are now automatically converted to Float arrays for real columns.
         // This is an improvement that makes the system more robust and user-friendly.
     }
-
     @Test
     public void testDoubleArrayTypeCoercion() throws Exception {
         // Create float array but specify float8 target type - should now be coerced successfully
         Float[] floatArray = {1.5f, 2.7f, 3.14f};
-        
         // With the new coercion logic, this should succeed by converting Float to Double
         sink.handleArrayValue(mockStatement, 1, floatArray, "float8");
-        
         // Verify that setArray was called (indicating successful conversion)
         verify(mockStatement).setArray(eq(1), any(Array.class));
-        
         // Note: The original test expected this to fail, but with intelligent type coercion,
         // Float arrays are now automatically converted to Double arrays for float8 columns.
         // This is an improvement that makes the system more robust and user-friendly.
     }
-
     // Test inconsistent array element types
-
     @Test
     public void testInconsistentArrayElementTypes() throws Exception {
         // Create array with mixed types
@@ -330,9 +290,7 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("Integer") && exception.getMessage().contains("String"));
         }
     }
-
     // Test unsupported array type scenarios
-
     @Test
     public void testUnsupportedArrayType() throws Exception {
         Integer[] intArray = {1, 2, 3};
@@ -345,7 +303,6 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("Supported types are"));
         }
     }
-
     @Test
     public void testUnsupportedArrayValueType() throws Exception {
         // Create unsupported array type (List instead of array)
@@ -361,9 +318,7 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("Expected GenericData.Array or Object[]"));
         }
     }
-
     // Test null and empty parameter validation
-
     @Test
     public void testNullTargetSqlType() throws Exception {
         Integer[] intArray = {1, 2, 3};
@@ -374,7 +329,6 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("Target SQL type cannot be null or empty"));
         }
     }
-
     @Test
     public void testEmptyTargetSqlType() throws Exception {
         Integer[] intArray = {1, 2, 3};
@@ -385,7 +339,6 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("Target SQL type cannot be null or empty"));
         }
     }
-
     @Test
     public void testWhitespaceTargetSqlType() throws Exception {
         Integer[] intArray = {1, 2, 3};
@@ -396,9 +349,7 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("Target SQL type cannot be null or empty"));
         }
     }
-
     // Test arrays with null elements
-
     @Test
     public void testArrayWithNullElements() throws Exception {
         // Create array with null elements
@@ -409,7 +360,6 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("integer", arrayWithNulls);
         verify(mockStatement).setArray(1, mockArray);
     }
-
     @Test
     public void testArrayWithAllNullElements() throws Exception {
         // Create array with all null elements
@@ -420,9 +370,7 @@ public class PostgresArraySupportTest {
         verify(mockConnection).createArrayOf("integer", allNullArray);
         verify(mockStatement).setArray(1, mockArray);
     }
-
     // Test JDBC SQLException handling
-
     @Test
     public void testJdbcArrayCreationFailure() throws Exception {
         // Mock SQLException during array creation
@@ -449,7 +397,6 @@ public class PostgresArraySupportTest {
             }
         }
     }
-
     @Test
     public void testJdbcSetArrayFailure() throws Exception {
         // Mock SQLException during setArray
@@ -469,7 +416,6 @@ public class PostgresArraySupportTest {
             Assert.fail("Expected SQLException");
         }
     }
-
     @Test
     public void testJdbcSetNullFailure() throws Exception {
         // Mock SQLException during setNull
@@ -489,9 +435,7 @@ public class PostgresArraySupportTest {
             Assert.fail("Expected SQLException");
         }
     }
-
     // Test numeric array type compatibility
-
     @Test
     public void testNumericArrayTypeCompatibility() throws Exception {
         // Test that numeric array accepts various numeric types
@@ -527,9 +471,7 @@ public class PostgresArraySupportTest {
         sink.handleArrayValue(mockStatement, 1, mixedNumericArray, "numeric");
         verify(mockConnection).createArrayOf("numeric", mixedNumericArray);
     }
-
     // Test error message context and formatting
-
     @Test
     public void testErrorMessageContextInformation() throws Exception {
         Integer[] intArray = {1, 2, 3};
@@ -542,7 +484,6 @@ public class PostgresArraySupportTest {
             Assert.assertTrue(exception.getMessage().contains("unsupported"));
         }
     }
-
     @Test
     public void testValidationErrorWrapping() throws Exception {
         String[] stringArray = {"test"};
