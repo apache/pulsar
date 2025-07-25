@@ -85,7 +85,7 @@ public class ManagedLedgerUtils {
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 future.completeExceptionally(exception);
             }
-        }, new Object());
+        }, null);
         return future;
     }
 }
