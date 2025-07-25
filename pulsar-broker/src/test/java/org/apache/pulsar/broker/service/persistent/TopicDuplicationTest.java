@@ -48,8 +48,9 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -59,7 +60,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/max-unacked-";
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         this.conf.setBrokerDeduplicationEnabled(true);
@@ -67,10 +68,15 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    protected void resetDeduplicationStatus() throws Exception {
+        admin.namespaces().removeDeduplicationStatus(myNamespace);
     }
 
     @Test(timeOut = 10000)
@@ -539,9 +545,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testFinishTakeSnapshotWhenTopicLoading() throws Exception {
-        cleanup();
-        setup();
-
         // Create a topic and wait deduplication is started.
         int brokerDeduplicationEntriesInterval = 1000;
         pulsar.getConfiguration().setBrokerDeduplicationEnabled(true);
@@ -628,8 +631,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
         // cleanup.
         admin.topics().delete(topic);
-        cleanup();
-        setup();
     }
 
     private void waitCacheInit(String topicName) throws Exception {
