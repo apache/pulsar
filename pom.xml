@@ -222,7 +222,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
-    <kafka-client.version>3.9.0</kafka-client.version>
+    <kafka-client.version>3.9.1</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.638</aws-sdk.version>
     <avro.version>1.11.4</avro.version>
@@ -252,7 +252,7 @@ flexible messaging model and an intuitive client API.</description>
     <guava.version>33.4.8-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
-    <confluent.version>7.8.2</confluent.version>
+    <confluent.version>7.9.2</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
