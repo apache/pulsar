@@ -1053,6 +1053,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         } else if (!cursor.isDurable()) {
             cursor.setState(ManagedCursorImpl.State.Closed);
+            cursor.cancelPendingReadRequest();
             cursors.removeCursor(consumerName);
             deactivateCursorByName(consumerName);
             callback.deleteCursorComplete(ctx);
