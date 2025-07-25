@@ -32,6 +32,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelPromise;
@@ -191,6 +192,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
+    // This variable can be exposed as a metrics in the future, a PIP is needed.
+    private final AtomicInteger pendingQueueFullCounter;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -309,11 +312,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 "The number of producer sessions opened", topic, Attributes.empty());
         producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
                 "The number of producer sessions closed", topic, Attributes.empty());
+        pendingQueueFullCounter = new AtomicInteger();
 
         this.connectionHandler = initConnectionHandler();
         setChunkMaxMessageSize();
         grabCnx();
         producersOpenedCounter.increment();
+    }
+
+    @VisibleForTesting
+    public int getPendingQueueFullCount() {
+        return pendingQueueFullCounter.get();
     }
 
     ConnectionHandler initConnectionHandler() {
@@ -394,6 +403,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
+    }
+
+    public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sequenceId,
+                                                             long highestSequenceId) {
+        log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with sequence-id {}-{} published by has been"
+                        + " dropped because Broker can not determine whether is duplicate or not",
+                topic, producerId, producerName, channel, sequenceId, highestSequenceId);
     }
 
     private class DefaultSendMessageCallback implements SendCallback {
@@ -1074,6 +1090,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 client.getMemoryLimitController().reserveMemory(payloadSize);
             } else {
                 if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
+                    pendingQueueFullCounter.incrementAndGet();
                     callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError(
                             "Producer send queue is full", sequenceId), null);
                     return false;
@@ -1973,13 +1990,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             // Close the producer since topic does not exist.
-            if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
-                closeAsync().whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to close producer on TopicDoesNotExistException.", ex);
-                    }
-                    producerCreatedFuture.completeExceptionally(cause);
-                });
+            if (isUnrecoverableError(cause)) {
+                closeWhenReceivedUnrecoverableError(cause, cnx);
                 future.complete(null);
                 return null;
             }
@@ -2051,8 +2063,28 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return future;
     }
 
+    protected boolean isUnrecoverableError(Throwable t) {
+        // TopicDoesNotExistException: topic has been deleted.
+        // NotFoundException: topic has been deleted.
+        // IllegalStateException: producer has been closed.
+        return (t instanceof PulsarClientException.TopicDoesNotExistException) || (t instanceof IllegalStateException)
+                || (t instanceof PulsarClientException.NotFoundException);
+    }
+
+    protected void closeWhenReceivedUnrecoverableError(Throwable t, ClientCnx cnx) {
+        final String cnxStr = cnx == null ? "null" : String.valueOf(cnx.channel().remoteAddress());
+        log.warn("[{}][{}] {} Closed producer because get an error that does not support to retry: {} {}",
+                topic, producerName, cnxStr, t.getClass().getName(), t.getMessage());
+        closeAsync().whenComplete((v, ex) -> {
+            if (ex != null) {
+                log.error("Failed to close producer on TopicDoesNotExistException.", ex);
+            }
+            producerCreatedFuture.completeExceptionally(t);
+        });
+    }
+
     @Override
-    public void connectionFailed(PulsarClientException exception) {
+    public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
@@ -2067,10 +2099,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 closeProducerTasks();
                 setState(State.Failed);
                 client.cleanupProducer(this);
+                return false;
+            } else {
+                Throwable actError = FutureUtil.unwrapCompletionException(exception);
+                if (isUnrecoverableError(actError)) {
+                    closeWhenReceivedUnrecoverableError(actError, null);
+                    return false;
+                }
             }
         } else {
             previousExceptionCount.incrementAndGet();
         }
+        return true;
     }
 
     private void closeProducerTasks() {
@@ -2464,6 +2504,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true pause all following
      *       publishing to avoid out-of-order issue.
      *     3-1-2. Otherwise, discard the failed message anc continuously publishing the following messages.
+     *            Additionally, the following messages may need schema registration also.
      *   3-2. The new schema registration failed due to other error, retry registering.
      * Note: Since the current method accesses & modifies {@link #pendingMessages}, you should acquire a lock on
      *       {@link ProducerImpl} before calling method.
@@ -2482,6 +2523,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
         MessageImpl loopStartAt = latestMsgAttemptedRegisteredSchema;
         OpSendMsg loopEndDueToSchemaRegisterNeeded = null;
+        boolean pausedSendingToPreservePublishOrderOnSchemaRegFailure = false;
         while (msgIterator.hasNext()) {
             OpSendMsg op = msgIterator.next();
             if (loopStartAt != null) {
@@ -2526,6 +2568,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 + " 2) Unload topic on target cluster. Schema details: {}",
                                 topic, producerName, SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false));
                         loopEndDueToSchemaRegisterNeeded = op;
+                        pausedSendingToPreservePublishOrderOnSchemaRegFailure = true;
                         break;
                     }
                     // Event 3-1-2.
@@ -2581,7 +2624,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         cnx.ctx().flush();
 
-        // "Event 1-1" or "Event 3-1-1" or "Event 3-2".
+        // "Event 1-1" or "Event 3-1-1" or "Event 3-1-2" or "Event 3-2".
         if (loopEndDueToSchemaRegisterNeeded != null) {
             if (compareAndSetState(State.Connecting, State.Ready)) {
                 // "Event 1-1" happens after "Event 3-1-1".
@@ -2589,15 +2632,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // after users changed the compatibility strategy to make the schema is compatible.
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
                     expectedEpoch);
-            } else if (!failedIncompatibleSchema && compareAndSetState(State.RegisteringSchema, State.Ready)) {
-                // "Event 2-1" or "Event 3-2".
+            } else if (pausedSendingToPreservePublishOrderOnSchemaRegFailure) {
+                // Nothing to do if the event is "Event 3-1-1", just keep stuck.
+                return;
+            } else if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
+                // "Event 2-1" or "Event 3-1-2" or "Event 3-2".
                 // "pendingMessages" has more messages to register new schema.
                 // This operation will not be conflict with another schema registration because both operations are
                 // attempt to acquire the same lock "ProducerImpl.this".
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
                         expectedEpoch);
             }
-            // Nothing to do if the event is "Event 3-1-1", just keep stuck.
+            // Schema registration will trigger a new "recoverProcessOpSendMsgFrom", so return here. If failed to switch
+            // state, it means another task will trigger a new "recoverProcessOpSendMsgFrom".
             return;
         } else if (latestMsgAttemptedRegisteredSchema != null) {
             // Event 2-2 or "Event 3-1-2".

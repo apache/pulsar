@@ -114,7 +114,8 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
 
     @Test(dataProvider = "tlsEnabled")
     public void testClientIPIsPickedFromHAProxyProtocolAndLogged(boolean tlsEnabled) throws Exception {
-        String metricsUrl = (tlsEnabled ? pulsar.getWebServiceAddressTls() : pulsar.getWebServiceAddress()) + "/metrics/";
+        String metricsUrl = (tlsEnabled ? pulsar.getWebServiceAddressTls() : pulsar.getWebServiceAddress())
+                + "/metrics/";
         performLoggingTest(consoleCaptor -> {
             // Send a GET request to the metrics URL
             ContentResponse response = httpClient.newRequest(metricsUrl)

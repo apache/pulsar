@@ -38,20 +38,20 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
-    @BeforeClass(alwaysRun = true)
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         setupDefaultTenantAndNamespace();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -268,8 +268,8 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testNegativeClientMemory() throws Exception {
-        final String topicName = "persistent://public/default/testMemory-" +
-                UUID.randomUUID().toString();
+        final String topicName = "persistent://public/default/testMemory-"
+                + UUID.randomUUID().toString();
         final String subName = "my-sub";
 
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -315,7 +315,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         });
 
 
-        MemoryLimitController controller = ((PulsarClientImpl)pulsarClient).getMemoryLimitController();
+        MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
         Assert.assertEquals(controller.currentUsage(), 0);
         Assert.assertEquals(controller.currentUsagePercent(), 0);
     }

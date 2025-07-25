@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
@@ -44,12 +42,13 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T> implements TimerTask {
-    private final Pattern topicsPattern;
+    private final TopicsPattern topicsPattern;
     final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
@@ -66,7 +65,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
      */
-    public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
+    public PatternMultiTopicsConsumerImpl(TopicsPattern topicsPattern,
                                           String topicsHash,
                                           PulsarClientImpl client,
                                           ConsumerConfigurationData<T> conf,
@@ -80,11 +79,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         this.topicsPattern = topicsPattern;
         this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;
-
-        if (this.namespaceName == null) {
-            this.namespaceName = getNameSpaceFromPattern(topicsPattern);
-        }
-        checkArgument(getNameSpaceFromPattern(topicsPattern).toString().equals(this.namespaceName.toString()));
+        this.namespaceName = topicsPattern.namespace();
 
         this.topicsChangeListener = new PatternTopicsChangedListener();
         this.updateTaskQueue = new PatternConsumerUpdateQueue(this);
@@ -109,10 +104,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         }
     }
 
-    public static NamespaceName getNameSpaceFromPattern(Pattern pattern) {
-        return TopicName.get(pattern.pattern()).getNamespaceObject();
-    }
-
     /**
      * This method will be called after the {@link TopicListWatcher} reconnected after enabled {@link TopicListWatcher}.
      */
@@ -135,7 +126,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     }
 
     CompletableFuture<Void> recheckTopicsChange() {
-        String pattern = topicsPattern.pattern();
+        String pattern = topicsPattern.inputPattern();
         final int epoch = recheckPatternEpoch.incrementAndGet();
         return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {
@@ -168,7 +159,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             });
     }
 
-    static CompletableFuture<Void> updateSubscriptions(Pattern topicsPattern,
+    static CompletableFuture<Void> updateSubscriptions(TopicsPattern topicsPattern,
                                                        java.util.function.Consumer<String> topicsHashSetter,
                                                        GetTopicsResult getTopicsResult,
                                                        TopicsChangedListener topicsChangedListener,
@@ -198,7 +189,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return FutureUtil.waitForAll(Collections.unmodifiableList(listenersCallback));
     }
 
-    public Pattern getPattern() {
+    public TopicsPattern getPattern() {
         return this.topicsPattern;
     }
 

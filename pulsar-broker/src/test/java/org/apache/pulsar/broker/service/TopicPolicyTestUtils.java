@@ -44,7 +44,7 @@ public class TopicPolicyTestUtils {
 
     public static TopicPolicies getTopicPolicies(TopicPoliciesService topicPoliciesService, TopicName topicName)
             throws ExecutionException, InterruptedException {
-        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.DEFAULT).get()
+        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY).get()
                 .orElse(null);
     }
 

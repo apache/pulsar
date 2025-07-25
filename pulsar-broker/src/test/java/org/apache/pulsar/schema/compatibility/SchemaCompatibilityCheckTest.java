@@ -68,7 +68,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))
                 .build();
@@ -114,7 +115,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
-    public void testConsumerCompatibilityCheckCanReadLastTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
+    public void testConsumerCompatibilityCheckCanReadLastTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
 
@@ -191,7 +193,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(dataProvider = "ReadAllCheckSchemaCompatibilityStrategy")
-    public void testConsumerCompatibilityReadAllCheckTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
+    public void testConsumerCompatibilityReadAllCheckTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
         String namespace = "test-namespace-" + randomName(16);
@@ -439,7 +442,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
-    public void testProducerSendWithOldSchemaAndConsumerCanRead(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
+    public void testProducerSendWithOldSchemaAndConsumerCanRead(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
         String namespace = "test-namespace-" + randomName(16);
@@ -492,20 +496,21 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     public void testSchemaLedgerAutoRelease() throws Exception {
         String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
         String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespaceName + "/tp");
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         // Update schema 100 times.
         for (int i = 0; i < 100; i++){
             Schema schema = Schema.JSON(SchemaDefinition.builder()
                     .withJsonDef(String.format("""
                             {
-                            	"type": "record",
-                            	"name": "Test_Pojo",
-                            	"namespace": "org.apache.pulsar.schema.compatibility",
-                            	"fields": [{
-                            		"name": "prop_%s",
-                            		"type": ["null", "string"],
-                            		"default": null
-                            	}]
+                                "type": "record",
+                                "name": "Test_Pojo",
+                                "namespace": "org.apache.pulsar.schema.compatibility",
+                                "fields": [{
+                                    "name": "prop_%s",
+                                    "type": ["null", "string"],
+                                    "default": null
+                                }]
                             }
                             """, i))
                     .build());
@@ -574,18 +579,21 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         // set ALWAYS_COMPATIBLE
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(),
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
         // should not fail
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).subscriptionName("my-sub").topic(topicName).subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).subscriptionName("my-sub")
+                .topic(topicName).subscribe();
 
         producer.close();
         consumer.close();
     }
 
     @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
-    public void testConsumerWithNotCompatibilitySchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
+    public void testConsumerWithNotCompatibilitySchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
 

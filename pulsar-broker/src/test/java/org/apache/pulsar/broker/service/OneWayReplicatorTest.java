@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -34,6 +35,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -70,12 +72,16 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -83,14 +89,19 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -220,7 +231,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // The topic in cluster2 has a replicator created producer(schema Auto_Produce), but does not have any schema。
         // Verify: the consumer of this cluster2 can create successfully.
         Consumer<String> consumer2 = client2.newConsumer(Schema.STRING).topic(topicName).subscriptionName("s1")
-                .subscribe();;
+                .subscribe();
         // Wait for replicator started.
         waitReplicatorStarted(topicName);
         // cleanup.
@@ -230,6 +241,34 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
         });
+    }
+
+    /**
+     * Since {@link NonPersistentReplicator} never implement the rate limitation, the config
+     * "replicationProducerQueueSize" should not affect {@link NonPersistentReplicator}.
+     */
+    @Test
+    public void testNonPersistentReplicatorQueueSize() throws Exception {
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "2");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), 2);
+        });
+        final String topicName = BrokerTestUtil.newUniqueName("non-persistent://" + replicatedNamespace + "/tp_");
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        // Wait for replicator started.
+        Awaitility.await().untilAsserted(() -> {
+            Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional2.isPresent());
+            NonPersistentTopic persistentTopic2 = (NonPersistentTopic) topicOptional2.get();
+            assertFalse(persistentTopic2.getProducers().isEmpty());
+        });
+
+        NonPersistentTopic topic = (NonPersistentTopic) broker1.getTopic(topicName, false).get().get();
+        NonPersistentReplicator nonPersistentReplicator = topic.getReplicators().get(cluster2);
+        assertEquals(nonPersistentReplicator.getProducer().getConfiguration().getMaxPendingMessages(), 1000);
+        // cleanup.
+        producer1.close();
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "1000");
     }
 
     @Test(timeOut = 45 * 1000)
@@ -1116,7 +1155,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             assertEquals(admin2.namespaces().getAutoTopicCreationAsync(ns).join().getDefaultNumPartitions(), 2);
             // Trigger system topic __change_event's initialize.
             pulsar2.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get("persistent://" + ns + "/1"),
-                    TopicPoliciesService.GetType.DEFAULT);
+                    TopicPoliciesService.GetType.LOCAL_ONLY);
         });
 
         // Create non-partitioned topic.
@@ -1366,10 +1405,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         }
         // Verify: no individual acks.
         Awaitility.await().untilAsserted(() -> {
-           PersistentTopic persistentTopic2 =
-                   (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-           assertTrue(
-           persistentTopic2.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true) > 0);
+            PersistentTopic persistentTopic2 =
+                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            assertTrue(
+                    persistentTopic2.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true) > 0);
             PersistentTopic persistentTopic1 =
                     (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
             ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
@@ -1421,5 +1460,227 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().deleteSubscription(topicName, subscriptionName);
         admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
                 SchemaCompatibilityStrategy.FORWARD);
+    }
+
+    /***
+     * Manually modifying topic policies by Rest API.
+     *   - Global topic level policies:
+     *     - Add: replicate
+     *     - Update: replicate
+     *     - Delete a single policy(it is equivalent to specify updating): delete both local and remote policies.
+     *   - Local topic level policies:
+     *     - Add: never replicate
+     *     - Update: never replicate
+     *     - Delete a single policy(it is equivalent to specify updating): delete local policies only.
+     * Delete Topic triggers that both local and global policies will be deleted in local cluster, but will not delete
+     * the remote cluster's global policies. This test case will be covered by
+     * "OneWayReplicatorUsingGlobalPartitionedTest.testRemoveCluster".
+     */
+    @Test
+    public void testTopicPoliciesReplicationRule() throws Exception {
+        // Init Pulsar resources.
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final TopicName topicNameObj = TopicName.get(topicName);
+        final String subscriptionName = "s1";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> producer1 = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        waitReplicatorStarted(topicName);
+        producer1.close();
+        assertTrue(pulsar2.getPulsarResources().getTopicResources().persistentTopicExists(topicNameObj).join());
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin1.topics().createSubscription(subscriptionName, topicName, MessageId.earliest);
+        admin2.topics().createSubscription(subscriptionName, topicName, MessageId.earliest);
+
+        // Case 1: Global topic level policies -> Add: replicate.
+        PublishRate publishRateAddGlobal = new PublishRate(100, 10000);
+        admin1.topicPolicies(true).setPublishRate(topicName, publishRateAddGlobal);
+        // Case 4: Local topic level policies -> Add: never replicate.
+        PublishRate publishRateAddLocal = new PublishRate(200, 20000);
+        admin1.topicPolicies(false).setPublishRate(topicName, publishRateAddLocal);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topicName);
+            assertEquals(valueGlobal, publishRateAddGlobal);
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertNull(valueLocal);
+        });
+
+        // Case 2: Global topic level policies -> Update: replicate.
+        PublishRate publishRateUpdateGlobal = new PublishRate(300, 30000);
+        admin1.topicPolicies(true).setPublishRate(topicName, publishRateUpdateGlobal);
+        // Case 5: Local topic level policies -> Update: never replicate.
+        PublishRate publishRateUpdateLocal = new PublishRate(400, 40000);
+        admin1.topicPolicies(false).setPublishRate(topicName, publishRateUpdateLocal);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topicName);
+            assertEquals(valueGlobal, publishRateUpdateGlobal);
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertNull(valueLocal);
+        });
+
+        // Case 3: Global topic level policies -> Delete: delete both local and remote policies.
+        admin1.topicPolicies(true).removePublishRate(topicName);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topicName);
+            assertNull(valueGlobal);
+        });
+
+        // Case 6: Local topic level policies -> Delete: never replicate.
+        PublishRate publishRateAddLocal2 = new PublishRate(500, 50000);
+        admin2.topicPolicies(false).setPublishRate(topicName, publishRateAddLocal2);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertEquals(valueLocal, publishRateAddLocal2);
+        });
+        admin1.topicPolicies(false).removePublishRate(topicName);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertEquals(valueLocal, publishRateAddLocal2);
+        });
+    }
+
+    @Test
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        String originalReplicationStartAt = pulsar1.getConfig().getReplicationStartAt();
+        int originalDispatcherMaxReadBatchSize = pulsar1.getConfig().getDispatcherMaxReadBatchSize();
+        int originalDispatcherMinReadBatchSize = pulsar1.getConfig().getDispatcherMinReadBatchSize();
+        int originalReplicationProducerQueueSize = pulsar1.getConfig().getReplicationProducerQueueSize();
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", "earliest");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize", "10");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize", "10");
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "10");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationStartAt(), "earliest");
+            assertEquals(pulsar1.getConfig().getDispatcherMaxReadBatchSize(), 10);
+            assertEquals(pulsar1.getConfig().getDispatcherMinReadBatchSize(), 10);
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), 10);
+        });
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // Publish messages.
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false).create();
+        CompletableFuture<MessageId> latestSend = null;
+        for (int i = 0; i < 1000; i++) {
+            latestSend = producer1.sendAsync(new byte[]{1});
+        }
+        latestSend.join();
+        log.info("Cluster: {}, Publish finished", cluster1);
+
+        // Inject two delay:
+        // 1. delay publish responding,
+        // 2. delay switch concurrent mechanism of "replicator.readMoreEntries".
+        ClientBuilderImpl clientBuilder2 = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(url2.toString());
+        PulsarClient injectedReplClient2 = InjectedClientCnxClientBuilder.create(clientBuilder2,
+                (conf, eventLoopGroup) -> {
+           return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+
+               @Override
+               protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
+                   ctx().executor().schedule(() -> super.handleSendReceipt(sendReceipt), 3600, TimeUnit.SECONDS);
+               }
+
+               @Override
+               protected Channel channel() {
+                   boolean delay = false;
+                   StackTraceElement[] stacks = Thread.currentThread().getStackTrace();
+                   for (StackTraceElement stack : stacks) {
+                       if (stack.toString().contains("readMoreEntries")) {
+                           delay = true;
+                           break;
+                       }
+                   }
+                   if (!delay) {
+                       return super.ctx().channel();
+                   }
+                   try {
+                       Thread.sleep(3000);
+                   } catch (InterruptedException e) {
+                       throw new RuntimeException(e);
+                   }
+                   return super.ctx().channel();
+               }
+            };
+        });
+        PulsarClient originalReplClient2 = pulsar1.getBrokerService().getReplicationClients()
+                .put(cluster2, injectedReplClient2);
+
+        // Start replication and inject race conditions of "replicator.readMoreEntries".
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        PersistentTopic persistentTopic1 =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        waitReplicatorStarted(topicName);
+        GeoPersistentReplicator replicator =
+                (GeoPersistentReplicator) persistentTopic1.getReplicators().values().iterator().next();
+        for (int i = 0; i < 10; i++) {
+            new Thread(() -> {
+                BrokerServicePersistInternalMethodInvoker.replicatorReadMoreEntries(replicator);
+            }).start();
+        }
+
+        // Verify: after a few seconds, there is no "pending queue is full" error.
+        Thread.sleep(10_000);
+        assertEquals(replicator.producer.getPendingQueueFullCount(), 0);
+
+        // cleanup.
+        producer1.close();
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        waitReplicatorStopped(topicName);
+        admin1.topics().delete(topicName, false);
+        if (originalReplClient2 == null) {
+            pulsar1.getBrokerService().getReplicationClients().remove(cluster2);
+        } else {
+            pulsar1.getBrokerService().getReplicationClients().put(cluster2, originalReplClient2);
+        }
+        injectedReplClient2.close();
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", originalReplicationStartAt);
+        admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize",
+                originalDispatcherMaxReadBatchSize + "");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize",
+                originalDispatcherMinReadBatchSize + "");
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize",
+                originalReplicationProducerQueueSize + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationStartAt(), originalReplicationStartAt);
+            assertEquals(pulsar1.getConfig().getDispatcherMaxReadBatchSize(), originalDispatcherMaxReadBatchSize);
+            assertEquals(pulsar1.getConfig().getDispatcherMinReadBatchSize(), originalDispatcherMinReadBatchSize);
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), originalReplicationProducerQueueSize);
+        });
+    }
+
+    @Test
+    public void testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // Publish messages.
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false).create();
+        CompletableFuture<MessageId> latestSend = null;
+        for (int i = 0; i < 100; i++) {
+            latestSend = producer1.sendAsync(new byte[]{1});
+        }
+        latestSend.join();
+        log.info("Cluster: {}, Publish finished", cluster1);
+        producer1.close();
+
+        // Start replication.
+        waitForReplicationTaskFinish(topicName);
+        // Verify: all inflight tasks are done.
+        ensureNoBacklogByInflightTask(getReplicator(topicName));
     }
 }

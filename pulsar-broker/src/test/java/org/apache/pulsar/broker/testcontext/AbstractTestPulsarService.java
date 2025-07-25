@@ -53,7 +53,8 @@ abstract class AbstractTestPulsarService extends PulsarService {
                                      CompactionServiceFactory compactionServiceFactory,
                                      BrokerInterceptor brokerInterceptor,
                                      BookKeeperClientFactory bookKeeperClientFactory,
-                                     Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
+                                     Consumer<AutoConfiguredOpenTelemetrySdkBuilder>
+                                             openTelemetrySdkBuilderCustomizer) {
         super(config, new WorkerConfig(), Optional.empty(),
                 exitCode -> log.info("Pulsar process termination requested with code {}.", exitCode),
                 openTelemetrySdkBuilderCustomizer);

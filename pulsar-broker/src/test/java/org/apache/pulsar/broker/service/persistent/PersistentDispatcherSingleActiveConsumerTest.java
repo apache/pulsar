@@ -77,7 +77,8 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         Mockito.doReturn(topic).when(sub).getTopic();
         // Mock the dispatcher.
         PersistentDispatcherSingleActiveConsumer dispatcher =
-                Mockito.spy(new PersistentDispatcherSingleActiveConsumer(cursor, CommandSubscribe.SubType.Exclusive,0, topic, sub));
+                Mockito.spy(new PersistentDispatcherSingleActiveConsumer(cursor,
+                        CommandSubscribe.SubType.Exclusive, 0, topic, sub));
 
         // Mock a consumer
         Consumer consumer = Mockito.mock(Consumer.class);
@@ -118,7 +119,8 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
         dispatcher.readMoreEntries(consumer);
 
-        // Verify: the readEntriesFailed should be called once and the scheduleReadEntriesWithDelay should not be called.
+        // Verify: the readEntriesFailed should be called once and
+        // the scheduleReadEntriesWithDelay should not be called.
         Assert.assertTrue(callReadEntriesFailed.get() == 1 && callScheduleReadEntriesWithDelayCnt.get() == 0);
 
         // Verify: the topic can be deleted successfully.

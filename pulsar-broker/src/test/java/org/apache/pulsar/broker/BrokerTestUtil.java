@@ -112,7 +112,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Uses Jackson to create a JSON string for the given object
+     * Uses Jackson to create a JSON string for the given object.
      * @param object to convert to JSON
      * @return JSON string
      */
@@ -128,7 +128,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      * @param logger logger to use
      * @param pulsarAdmin PulsarAdmin client to use
      * @param topic topic name
@@ -144,7 +144,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      * @param logger logger to use
      * @param baseUrl Pulsar service URL
      * @param topic topic name
@@ -154,7 +154,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      * @param logger logger to use
      * @param baseUrl Pulsar service URL
      * @param tenant tenant name
@@ -171,7 +171,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Pretty print the given JSON string
+     * Pretty print the given JSON string.
      * @param jsonString JSON string to pretty print
      * @return pretty printed JSON string
      */
@@ -187,7 +187,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Get the resource as a string from the given URI
+     * Get the resource as a string from the given URI.
      */
     @SneakyThrows
     public static String getJsonResourceAsString(String uri) {
@@ -365,7 +365,8 @@ public class BrokerTestUtil {
         return createMockConsumer(consumerName, consumerName + " consumerId:" + consumerId, consumerId);
     }
 
-    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName, String toString, long consumerId) {
+    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName,
+                                                                               String toString, long consumerId) {
         // without stubOnly, the mock will record method invocations and could run into OOME
         org.apache.pulsar.broker.service.Consumer
                 consumer = mock(org.apache.pulsar.broker.service.Consumer.class, Mockito.withSettings().stubOnly());

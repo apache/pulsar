@@ -29,7 +29,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -50,7 +49,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -88,46 +86,46 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public static String getTlsFileForClient(String name) {
         return ResourceUtils.getAbsolutePath(String.format("certificate-authority/client-keys/%s.pem", name));
     }
-    public final static String CA_CERT_FILE_PATH =
+    public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
+    public static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
+    public static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    public final static String PROXY_CERT_FILE_PATH =
+    public static final String PROXY_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.cert.pem");
-    public final static String PROXY_KEY_FILE_PATH =
+    public static final String PROXY_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.key-pk8.pem");
-    public final static String BROKER_KEYSTORE_FILE_PATH =
+    public static final String BROKER_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
-    public final static String BROKER_TRUSTSTORE_FILE_PATH =
+    public static final String BROKER_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
-    public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+    public static final String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
-    public final static String BROKER_KEYSTORE_PW = "111111";
-    public final static String BROKER_TRUSTSTORE_PW = "111111";
+    public static final String BROKER_KEYSTORE_PW = "111111";
+    public static final String BROKER_TRUSTSTORE_PW = "111111";
 
-    public final static String CLIENT_KEYSTORE_FILE_PATH =
+    public static final String CLIENT_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
-    public final static String CLIENT_TRUSTSTORE_FILE_PATH =
+    public static final String CLIENT_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
-    public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+    public static final String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
-    public final static String CLIENT_KEYSTORE_PW = "111111";
-    public final static String CLIENT_TRUSTSTORE_PW = "111111";
+    public static final String CLIENT_KEYSTORE_PW = "111111";
+    public static final String CLIENT_TRUSTSTORE_PW = "111111";
 
-    public final static String PROXY_KEYSTORE_FILE_PATH =
+    public static final String PROXY_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy.keystore.jks");
-    public final static String PROXY_KEYSTORE_PW = "111111";
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
+    public static final String PROXY_KEYSTORE_PW = "111111";
+    public static final String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy-and-client.truststore.jks");
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
+    public static final String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
 
-    public final static String CLIENT_KEYSTORE_CN = "clientuser";
-    public final static String KEYSTORE_TYPE = "JKS";
+    public static final String CLIENT_KEYSTORE_CN = "clientuser";
+    public static final String KEYSTORE_TYPE = "JKS";
 
-    protected final String DUMMY_VALUE = "DUMMY_VALUE";
-    protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
+    protected static final String DUMMY_VALUE = "DUMMY_VALUE";
+    protected static final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
 
     protected ServiceConfiguration conf;
     protected PulsarTestContext pulsarTestContext;
@@ -693,35 +691,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     * see {@link #deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
-            throws Exception {
-        deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
+        deleteNamespaceWithRetry(ns, force, admin);
     }
 
     /**
      * 1. Pause system "__change_event" topic creates.
      * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
      */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
-                                                Collection<PulsarService> pulsars) throws Exception {
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
                 .pollDelay(500, TimeUnit.MILLISECONDS)
                 .until(() -> {

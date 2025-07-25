@@ -32,7 +32,7 @@ import picocli.CommandLine.Option;
 public class BrokerToolTest {
 
     /**
-     * Test broker-tool generate docs
+     * Test broker-tool generate docs.
      *
      * @throws Exception
      */

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -114,6 +115,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
+    @VisibleForTesting
+    @Getter
     protected volatile boolean isFenced;
 
     protected final HierarchyTopicPolicies topicPolicies;
@@ -1095,9 +1098,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected void handleProducerRemoved(Producer producer) {
         // decrement usage only if this was a valid producer close
         USAGE_COUNT_UPDATER.decrementAndGet(this);
-        // this conditional check is an optimization so we don't have acquire the write lock
-        // and execute following routine if there are no exclusive producers
-        if (hasExclusiveProducer) {
+        // this conditional check is an optimization so we only need to acquire the write lock
+        // and execute following routine when:
+        // 1. If there was an exclusive producer before.
+        // 2. If this was the last producer closed and there are waiting exclusive producers
+        if (hasExclusiveProducer || (producers.isEmpty() && !waitingExclusiveProducers.isEmpty())) {
             lock.writeLock().lock();
             try {
                 hasExclusiveProducer = false;
@@ -1286,6 +1291,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     }
 
     public CompletableFuture<Void> deleteTopicPolicies() {
+        if (TopicName.get(getName()).isPartitioned()) {
+            return CompletableFuture.completedFuture(null);
+        }
         return brokerService.pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(TopicName.get(topic));
     }
 

@@ -206,6 +206,7 @@ public class ClientCnx extends PulsarHandler {
     private long lastDisconnectedTimestamp;
 
     protected final String clientVersion;
+    protected final String originalPrincipal;
 
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -271,6 +272,7 @@ public class ClientCnx extends PulsarHandler {
         this.idleState = new ClientCnxIdleState(this);
         this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
                 + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
+        this.originalPrincipal = conf.getOriginalPrincipal();
         this.connectionsOpenedCounter =
                 instrumentProvider.newCounter("pulsar.client.connection.opened", Unit.Connections,
                         "The number of connections opened", null, Attributes.empty());
@@ -320,7 +322,7 @@ public class ClientCnx extends PulsarHandler {
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                clientVersion, proxyToTargetBrokerAddress, null, null, null);
+                clientVersion, proxyToTargetBrokerAddress, originalPrincipal, null, null);
     }
 
     @Override
@@ -482,9 +484,13 @@ public class ClientCnx extends PulsarHandler {
         }
         ProducerImpl<?> producer = producers.get(producerId);
         if (ledgerId == -1 && entryId == -1) {
-            log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
-                    ctx.channel(), sequenceId, highestSequenceId, producerId,
-                    producer != null ? producer.getProducerName() : "null");
+            if (producer == null) {
+                log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
+                        ctx.channel(), sequenceId, highestSequenceId, producerId, "null");
+            } else {
+                producer.printWarnLogWhenCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
+            }
+
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
@@ -644,10 +650,12 @@ public class ClientCnx extends PulsarHandler {
             if (!lookupResult.hasResponse()
                     || CommandLookupTopicResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
-                    checkServerError(lookupResult.getError(), lookupResult.getMessage());
+                    checkServerError(lookupResult.getError(),
+                            lookupResult.hasMessage() ? lookupResult.getMessage() : lookupResult.getError().name());
                     requestFuture.completeExceptionally(
                             getPulsarClientException(lookupResult.getError(),
-                                    buildError(lookupResult.getRequestId(), lookupResult.getMessage())));
+                                    buildError(lookupResult.getRequestId(),
+                                            lookupResult.hasMessage() ? lookupResult.getMessage() : null)));
                 } else {
                     requestFuture
                             .completeExceptionally(new PulsarClientException.LookupException("Empty lookup response"));
@@ -782,20 +790,25 @@ public class ClientCnx extends PulsarHandler {
         long producerId = sendError.getProducerId();
         long sequenceId = sendError.getSequenceId();
 
+        ProducerImpl<?> producer = producers.get(producerId);
+        if (producer == null) {
+            log.warn("{} Producer with id {} not found while handling send error", ctx.channel(), producerId);
+            return;
+        }
+
         switch (sendError.getError()) {
         case ChecksumError:
-            producers.get(producerId).recoverChecksumError(this, sequenceId);
+            producer.recoverChecksumError(this, sequenceId);
             break;
-
         case TopicTerminatedError:
-            producers.get(producerId).terminated(this);
+            producer.terminated(this);
             break;
         case NotAllowedError:
-            producers.get(producerId).recoverNotAllowedError(sequenceId, sendError.getMessage());
+            producer.recoverNotAllowedError(sequenceId, sendError.getMessage());
             break;
         default:
             // don't close this ctx, otherwise it will close all consumers and producers which use this ctx
-            producers.get(producerId).connectionClosed(this, Optional.empty(), Optional.empty());
+            producer.connectionClosed(this, Optional.empty(), Optional.empty());
         }
     }
 
@@ -1023,7 +1036,8 @@ public class ClientCnx extends PulsarHandler {
         return ctx;
     }
 
-    Channel channel() {
+    @VisibleForTesting
+    protected Channel channel() {
         return ctx.channel();
     }
 
@@ -1353,7 +1367,7 @@ public class ClientCnx extends PulsarHandler {
         case PersistenceError:
             return new PulsarClientException.BrokerPersistenceException(errorMsg);
         case ServiceNotReady:
-            return new PulsarClientException.LookupException(errorMsg);
+            return new PulsarClientException.ServiceNotReadyException(errorMsg);
         case TooManyRequests:
             return new PulsarClientException.TooManyRequestsException(errorMsg);
         case ProducerBlockedQuotaExceededError:
@@ -1499,6 +1513,9 @@ public class ClientCnx extends PulsarHandler {
             return false;
         }
         if (!transactionMetaStoreHandlers.isEmpty()) {
+            return false;
+        }
+        if (!topicListWatchers.isEmpty()) {
             return false;
         }
         return true;

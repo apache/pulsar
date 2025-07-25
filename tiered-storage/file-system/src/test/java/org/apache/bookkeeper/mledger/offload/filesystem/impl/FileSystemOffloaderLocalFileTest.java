@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,6 +26,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -38,12 +38,29 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class FileSystemOffloaderLocalFileTest {
-    private OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
-    private LedgerOffloaderStats offloaderStats = LedgerOffloaderStats.create(true, true, scheduler, 60);
+    private OrderedScheduler scheduler;
+    private LedgerOffloaderStats offloaderStats;
 
+    @BeforeClass
+    public void setup() throws Exception {
+        scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
+        offloaderStats = LedgerOffloaderStats.create(true, true, scheduler, 60);
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void cleanup() throws Exception {
+        if (scheduler != null) {
+            scheduler.shutdown();
+        }
+        if (offloaderStats != null) {
+            offloaderStats.close();
+        }
+    }
 
     private String getResourceFilePath(String name) {
         return getClass().getClassLoader().getResource(name).getPath();
@@ -59,19 +76,22 @@ public class FileSystemOffloaderLocalFileTest {
         offloadPolicies.setFileSystemProfilePath(getResourceFilePath("filesystem_offload_core_site.xml"));
 
         // initialize the offloader with the offload policies
+        @Cleanup
         var offloader = FileSystemManagedLedgerOffloader.create(offloadPolicies, scheduler, offloaderStats);
 
         int numberOfEntries = 100;
 
         // prepare the data in bookkeeper
+        @Cleanup
         BookKeeper bk = new PulsarMockBookKeeper(scheduler);
-        LedgerHandle lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "".getBytes());
+        LedgerHandle lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "".getBytes());
         for (int i = 0; i <  numberOfEntries; i++) {
-            byte[] entry = ("foobar"+i).getBytes();
+            byte[] entry = ("foobar" + i).getBytes();
             lh.addEntry(entry);
         }
         lh.close();
 
+        @Cleanup
         ReadHandle read = bk.newOpenLedgerOp()
             .withLedgerId(lh.getId())
             .withDigestType(DigestType.CRC32)
@@ -83,13 +103,14 @@ public class FileSystemOffloaderLocalFileTest {
 
         UUID uuid = UUID.randomUUID();
         offloader.offload(read, uuid, offloadDriverMetadata).get();
+        @Cleanup
         ReadHandle toTest = offloader.readOffloaded(read.getId(), uuid, offloadDriverMetadata).get();
         assertEquals(toTest.getLastAddConfirmed(), read.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-        LedgerEntries toWriteEntries = read.read(0,numberOfEntries - 1);
+        LedgerEntries toWriteEntries = read.read(0, numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -98,11 +119,14 @@ public class FileSystemOffloaderLocalFileTest {
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
+        toTestEntries.close();
+        toWriteEntries.close();
+
         toTestEntries = toTest.read(1, numberOfEntries - 1);
-        toWriteEntries = read.read(1,numberOfEntries - 1);
+        toWriteEntries = read.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -111,6 +135,9 @@ public class FileSystemOffloaderLocalFileTest {
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
+
+        toTestEntries.close();
+        toWriteEntries.close();
 
         // check the file located in the local file system
         Path offloadedFilePath = Paths.get(basePath, mlName);

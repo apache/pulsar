@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.testng.Assert;
 import org.testng.IClass;
+import org.testng.ITestClass;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 import org.testng.TestNG;
@@ -143,14 +144,14 @@ public class BetweenTestClassesListenerAdapterTest {
         XmlSuite suite = new XmlSuite();
         suite.setName("Programmatic Suite");
 
-        XmlTest test = new XmlTest(suite);
-        test.setName("Programmatic Test");
-
-        List<XmlClass> xmlClasses = new ArrayList<>();
         for (Class<?> cls : testClasses) {
+            // create a new XmlTest for each class so that this simulates the behavior of maven-surefire-plugin
+            XmlTest test = new XmlTest(suite);
+            test.setName("Programmatic Test for " + cls.getName());
+            List<XmlClass> xmlClasses = new ArrayList<>();
             xmlClasses.add(new XmlClass(cls));
+            test.setXmlClasses(xmlClasses);
         }
-        test.setXmlClasses(xmlClasses);
 
         List<XmlSuite> suites = new ArrayList<>();
         suites.add(suite);
@@ -174,16 +175,18 @@ public class BetweenTestClassesListenerAdapterTest {
 
     // Test implementation of the abstract listener
     private class TestBetweenTestClassesListener extends BetweenTestClassesListenerAdapter {
-        private final List<IClass> classesCalled = new ArrayList<>();
+        private final List<ITestClass> classesCalled = new ArrayList<>();
 
         @Override
-        protected void onBetweenTestClasses(IClass testClass) {
-            System.out.println("onBetweenTestClasses " + testClass.getName());
+        protected void onBetweenTestClasses(List<ITestClass> testClasses) {
+            assertEquals(testClasses.size(), 1);
+            ITestClass testClass = testClasses.get(0);
+            System.out.println("onBetweenTestClasses " + testClass);
             classesCalled.add(testClass);
             closeTestInstance(testClass);
         }
 
-        private void closeTestInstance(IClass testClass) {
+        private void closeTestInstance(ITestClass testClass) {
             Arrays.stream(testClass.getInstances(false))
                     .map(instance -> instance instanceof IParameterInfo
                             ? ((IParameterInfo) instance).getInstance() : instance)
@@ -198,7 +201,7 @@ public class BetweenTestClassesListenerAdapterTest {
                     });
         }
 
-        public List<IClass> getClassesCalled() {
+        public List<ITestClass> getClassesCalled() {
             return classesCalled;
         }
 
@@ -350,9 +353,9 @@ public class BetweenTestClassesListenerAdapterTest {
 
         @Override
         public String toString() {
-            return "FactoryMethodCase{" +
-                    "id=" + id +
-                    '}';
+            return "FactoryMethodCase{"
+                    + "id=" + id
+                    + '}';
         }
     }
 
@@ -384,9 +387,9 @@ public class BetweenTestClassesListenerAdapterTest {
 
         @Override
         public String toString() {
-            return "FactoryMethodCaseWithoutAfterClass{" +
-                    "id=" + id +
-                    '}';
+            return "FactoryMethodCaseWithoutAfterClass{"
+                    + "id=" + id
+                    + '}';
         }
     }
 }
