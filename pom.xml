@@ -256,7 +256,6 @@ flexible messaging model and an intuitive client API.</description>
     <aircompressor.version>0.27</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
-    <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.19.0</commons-io.version>
     <commons-codec.version>1.18.0</commons-codec.version>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
@@ -828,12 +827,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
         <version>${commons-compress.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>commons-configuration</groupId>
-        <artifactId>commons-configuration</artifactId>
-        <version>${commons-configuration.version}</version>
       </dependency>
 
       <dependency>
