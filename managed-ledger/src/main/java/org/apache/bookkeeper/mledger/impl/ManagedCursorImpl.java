@@ -2354,7 +2354,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 cb.operationFailed(new ManagedLedgerException("Switch new cursor ledger failed"));
             }
         } else {
-            persistPositionToLedger(cursorLedger, mdEntry, cb);
+            persistPositionToLedger(cursorLedger, mdEntry, cb, false);
         }
     }
 
@@ -2799,7 +2799,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                     ledger.getName(), name, cursorLedger.getId(), e.getMessage());
                             callback.closeFailed(e, ctx);
                         }
-                    });
+                    }, true);
         } else {
             persistPositionMetaStore(-1, position, properties, new MetaStoreCallback<Void>() {
                 @Override
@@ -3167,7 +3167,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     deleteLedgerAsync(newLedgerHandle);
                     callback.operationFailed(exception);
                 }
-            });
+            }, false);
         }).whenComplete((result, e) -> {
             ledger.mbean.endCursorLedgerCreateOp();
             if (e != null) {
@@ -3326,7 +3326,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
+    void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback,
+                                 boolean ignoreClosedStateAfterFailure) {
         Position position = mdEntry.newPosition;
         Builder piBuilder = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
                 .setEntryId(position.getEntryId())
@@ -3380,7 +3381,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 mbean.addWriteCursorLedgerSize(data.length);
                 callback.operationComplete();
             } else {
-                if (state.isClosed()) {
+                if (!ignoreClosedStateAfterFailure && state.isClosed()) {
                     // After closed the cursor, the in-progress persistence task will get a
                     // BKException.Code.LedgerClosedException.
                     callback.operationFailed(new CursorAlreadyClosedException(String.format("%s %s skipped this"
