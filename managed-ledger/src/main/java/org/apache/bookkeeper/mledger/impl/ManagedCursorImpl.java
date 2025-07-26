@@ -1093,10 +1093,22 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug("[{}] [{}] Found more entries", ledger.getName(), name);
                 }
                 // Try to cancel the notification request
-                // Clear the waiting read op only if it matches the current opReadId
-                OpReadEntry cancelledReadOp = WAITING_READ_OP_UPDATER.getAndUpdate(this,
-                        current -> current == op && current.id == opReadId ? null : current);
-                if (cancelledReadOp != null && cancelledReadOp.id == opReadId) {
+                // Clear the waiting read op only if it matches the current instance and the id matches
+                // the opReadId parameter. This avoids recycled OpReadEntry instances from matching since their
+                // ids would be different after recycling.
+                OpReadEntry waitingReadOpItem = WAITING_READ_OP_UPDATER.getAndUpdate(this,
+                        current -> {
+                            if (current == op && current.id == opReadId) {
+                                // update the value to null to cancel the waiting read op
+                                return null;
+                            } else {
+                                // keep the current waiting read op value
+                                return current;
+                            }
+                        });
+                // If the waiting read op was the same as the one we are trying to cancel, it means that it was now
+                // cleared from the waitingReadOp field and therefore "cancelled"
+                if (waitingReadOpItem == op && waitingReadOpItem.id == opReadId) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Cancelled notification and scheduled read at {}", ledger.getName(),
                                 name, op.readPosition);
