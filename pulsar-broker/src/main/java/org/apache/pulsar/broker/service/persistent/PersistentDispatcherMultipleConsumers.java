@@ -362,10 +362,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         Position markDeletePosition = cursor.getMarkDeletedPosition();
         if (lastMarkDeletePositionBeforeReadMoreEntries != markDeletePosition) {
             redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            for (Consumer consumer : consumerList) {
-                consumer.getPendingAcks()
-                        .removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
             lastMarkDeletePositionBeforeReadMoreEntries = markDeletePosition;
         }
 
@@ -779,9 +775,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      * if you need to change it.
      */
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        if (needTrimAckedMessages()) {
-            cursor.trimDeletedEntries(entries);
-        }
+        cursor.trimDeletedEntries(entries);
         lastNumberOfEntriesProcessed = 0;
 
         int entriesToDispatch = entries.size();
