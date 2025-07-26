@@ -1081,7 +1081,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // Set the state to closing to avoid any new writes
         ManagedCursorImpl.State previousState =
                 cursor.changeStateIfNotDeletingOrDeleted(ManagedCursorImpl.State.Deleting);
-        if (previousState.isDeletion()) {
+        if (previousState.isDeletingOrDeleted()) {
             log.warn("[{}] [{}] Cursor is already being deleted or has been deleted.", name, consumerName);
             return;
         }
@@ -1102,7 +1102,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                handleBadVersion(e);
+                cursor.getAndSetState(ManagedCursorImpl.State.DeletingFailed);
                 callback.deleteCursorFailed(e, ctx);
             }
 

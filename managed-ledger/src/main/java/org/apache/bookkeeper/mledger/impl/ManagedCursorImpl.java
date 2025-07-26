@@ -296,7 +296,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         Closing(true), // The managed cursor is closing
         Closed(true), // The managed cursor has been closed
         Deleting(true), // The managed cursor is being deleted
-        Deleted(true);  // The managed cursor has been deleted
+        Deleted(true), // The managed cursor has been deleted
+        DeletingFailed(true); // The managed cursor deletion failed, state allows retrying deletion.
 
         // Indicate if the cursor is in a state that is considered closed
         private final boolean closedState;
@@ -312,7 +313,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             return closedState;
         }
 
-        public boolean isDeletion() {
+        public boolean isDeletingOrDeleted() {
             return this == Deleting || this == Deleted;
         }
     }
@@ -821,7 +822,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     State changeStateIfNotDeletingOrDeleted(State newState) {
         return STATE_UPDATER.getAndUpdate(this, current -> {
-            if (current.isDeletion()) {
+            if (current.isDeletingOrDeleted()) {
                 return current;
             }
             return newState;
@@ -3633,9 +3634,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void asyncDeleteCursorLedger(int retry) {
         State previousState = changeStateIfNotDeletingOrDeleted(State.Deleting);
-        if (previousState == State.Deleted) {
-            log.warn("[{}-{}] Cursor ledger {} is already deleted.", ledger.getName(), name,
-                    cursorLedger.getId());
+        if (previousState.isDeletingOrDeleted()) {
+            log.warn("[{}-{}] Cursor ledger {} is already deleting or deleted. state=", ledger.getName(), name,
+                    cursorLedger.getId(), state);
             return;
         }
         closeWaitingCursor();
@@ -3658,6 +3659,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}][{}] Failed to delete ledger {}: {}", ledger.getName(), name, cursorLedger.getId(),
                         BKException.getMessage(rc));
                 if (!isNoSuchLedgerExistsException(rc)) {
+                    state = State.DeletingFailed;
                     ledger.getScheduledExecutor().schedule(() -> asyncDeleteCursorLedger(retry - 1),
                             DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
                 } else {
