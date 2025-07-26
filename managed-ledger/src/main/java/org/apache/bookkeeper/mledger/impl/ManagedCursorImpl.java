@@ -61,6 +61,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import lombok.Getter;
@@ -87,6 +88,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorDeactivatedWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
@@ -287,15 +289,31 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile long lastActive;
 
     public enum State {
-        Uninitialized, // Cursor is being initialized
-        NoLedger, // There is no metadata ledger open for writing
-        Open, // Metadata ledger is ready
-        SwitchingLedger, // The metadata ledger is being switched
-        Closing, // The managed cursor is closing
-        Closed; // The managed cursor has been closed
+        Uninitialized(false), // Cursor is being initialized
+        NoLedger(false), // There is no metadata ledger open for writing
+        Open(false), // Metadata ledger is ready
+        SwitchingLedger(false), // The metadata ledger is being switched
+        Closing(true), // The managed cursor is closing
+        Closed(true), // The managed cursor has been closed
+        Deleting(true), // The managed cursor is being deleted
+        Deleted(true);  // The managed cursor has been deleted
 
+        // Indicate if the cursor is in a state that is considered closed
+        private final boolean closedState;
+
+        State(boolean closedState) {
+            this.closedState = closedState;
+        }
+
+        /**
+         * Returns true if the state is considered closed.
+         */
         public boolean isClosed() {
-            return this == Closing || this == Closed;
+            return closedState;
+        }
+
+        public boolean isDeletion() {
+            return this == Deleting || this == Deleted;
         }
     }
 
@@ -795,6 +813,15 @@ public class ManagedCursorImpl implements ManagedCursor {
     private State changeStateIfNotClosed(State newState) {
         return STATE_UPDATER.getAndUpdate(this, current -> {
             if (current.isClosed()) {
+                return current;
+            }
+            return newState;
+        });
+    }
+
+    State changeStateIfNotDeletingOrDeleted(State newState) {
+        return STATE_UPDATER.getAndUpdate(this, current -> {
+            if (current.isDeletion()) {
                 return current;
             }
             return newState;
@@ -1408,6 +1435,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void setInactive() {
         if (isActive) {
+            cancelWaitingCursorsWhenDeactivated();
             ledger.deactivateCursor(this);
             isActive = false;
         }
@@ -2899,6 +2927,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
         closeWaitingCursor();
+        setInactive();
         persistPositionWhenClosing(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
                 new AsyncCallbacks.CloseCallback(){
 
@@ -2922,6 +2951,14 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     protected void closeWaitingCursor() {
+        internalCloseWaitingCursor(() -> new CursorAlreadyClosedException("Cursor is closing"));
+    }
+
+    protected void cancelWaitingCursorsWhenDeactivated() {
+        internalCloseWaitingCursor(() -> new CursorDeactivatedWaitCallbackException());
+    }
+
+    private void internalCloseWaitingCursor(Supplier<ManagedLedgerException> exceptionSupplier) {
         synchronized (waitingRegistrationLock) {
             if (waitingRegistered) {
                 ledger.removeWaitingCursor(this);
@@ -2929,9 +2966,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(ManagedCursorImpl.this,
                 OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
-        if (opReadEntry != null) {
-            opReadEntry.readEntriesFailed(new CursorAlreadyClosedException(
-                    "Cursor is closing"), opReadEntry.ctx);
+        if (opReadEntry != null && opReadEntry != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+            opReadEntry.readEntriesFailed(exceptionSupplier.get(), opReadEntry.ctx);
         }
     }
 
@@ -3595,8 +3631,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void asyncDeleteCursorLedger(int retry) {
-        // TODO: State transition would need to be handled here
-        STATE_UPDATER.set(this, State.Closed);
+        State previousState = changeStateIfNotDeletingOrDeleted(State.Deleting);
+        if (previousState == State.Deleted) {
+            log.warn("[{}-{}] Cursor ledger {} is already deleted.", ledger.getName(), name,
+                    cursorLedger.getId());
+            return;
+        }
+        closeWaitingCursor();
 
         if (cursorLedger == null || retry <= 0) {
             if (cursorLedger != null) {
@@ -3610,6 +3651,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         bookkeeper.asyncDeleteLedger(cursorLedger.getId(), (rc, ctx) -> {
             ledger.mbean.endCursorLedgerDeleteOp();
             if (rc == BKException.Code.OK) {
+                state = State.Deleted;
                 log.info("[{}][{}] Deleted cursor ledger {}", ledger.getName(), name, cursorLedger.getId());
             } else {
                 log.warn("[{}][{}] Failed to delete ledger {}: {}", ledger.getName(), name, cursorLedger.getId(),
@@ -3617,6 +3659,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (!isNoSuchLedgerExistsException(rc)) {
                     ledger.getScheduledExecutor().schedule(() -> asyncDeleteCursorLedger(retry - 1),
                             DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                } else {
+                    state = State.Deleted;
                 }
             }
         }, null);
@@ -3903,8 +3947,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @VisibleForTesting
-    public void setState(State state) {
-        this.state = state;
+    public State getAndSetState(State state) {
+        return STATE_UPDATER.getAndSet(this, state);
     }
 
     public void setCacheReadEntry(boolean cacheReadEntry) {
@@ -3989,7 +4033,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         synchronized (waitingRegistrationLock) {
             if (!waitingRegistered) {
                 // The cursor hasn't been registered, do not attempt to remove
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Skipping removing cursor {} from waiting cursors since it's not registered.",
+                            ledger.getName(), name);
+                }
                 return;
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Removing cursor {} from waiting cursors", ledger.getName(), name);
             }
             removeWaitingCursorRunnable.run();
             waitingRegistered = false;
@@ -4015,6 +4066,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (waitingRegistered || isClosed()) {
                 // The cursor is already registered or closed, do not register again.
                 return;
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Adding cursor {} to waiting cursors", ledger.getName(), name);
             }
             addWaitingCursorRunnable.run();
             waitingRegistered = true;
