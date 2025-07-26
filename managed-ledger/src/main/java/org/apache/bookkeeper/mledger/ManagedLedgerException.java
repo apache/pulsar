@@ -193,9 +193,14 @@ public class ManagedLedgerException extends Exception {
     }
 
     public static class ConcurrentWaitCallbackException extends ManagedLedgerException {
-
         public ConcurrentWaitCallbackException() {
             super("We can only have a single waiting callback");
+        }
+    }
+
+    public static class CursorDeactivatedWaitCallbackException extends ManagedLedgerException {
+        public CursorDeactivatedWaitCallbackException() {
+            super("Cursor is deactivated without cancelling pending request, cannot wait for callback");
         }
     }
 

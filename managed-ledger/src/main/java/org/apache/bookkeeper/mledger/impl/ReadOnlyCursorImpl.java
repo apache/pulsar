@@ -60,6 +60,8 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
         state = State.Closed;
+        closeWaitingCursor();
+        setInactive();
         callback.closeComplete(ctx);
     }
 
