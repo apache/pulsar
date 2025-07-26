@@ -1436,7 +1436,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void setInactive() {
         if (isActive) {
-            cancelWaitingCursorsWhenDeactivated();
             ledger.deactivateCursor(this);
             isActive = false;
         }
