@@ -2886,12 +2886,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.closeComplete(ctx);
             return;
         }
-        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(ManagedCursorImpl.this,
-                OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
-        if (opReadEntry != null) {
-            opReadEntry.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException(
-                    "Cursor is closing"), opReadEntry.ctx);
-        }
+        closeWaitingCursor();
         persistPositionWhenClosing(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
                 new AsyncCallbacks.CloseCallback(){
 
@@ -2908,6 +2903,20 @@ public class ManagedCursorImpl implements ManagedCursor {
                         callback.closeFailed(exception, ctx);
                     }
                 }, ctx);
+    }
+
+    protected void closeWaitingCursor() {
+        synchronized (waitingRegistrationLock) {
+            if (waitingRegistered) {
+                ledger.removeWaitingCursor(this);
+            }
+        }
+        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(ManagedCursorImpl.this,
+                OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
+        if (opReadEntry != null) {
+            opReadEntry.readEntriesFailed(new CursorAlreadyClosedException(
+                    "Cursor is closing"), opReadEntry.ctx);
+        }
     }
 
     /**
