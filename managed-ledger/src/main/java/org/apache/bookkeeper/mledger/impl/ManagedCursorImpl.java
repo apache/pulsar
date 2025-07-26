@@ -292,12 +292,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         Open, // Metadata ledger is ready
         SwitchingLedger, // The metadata ledger is being switched
         Closing, // The managed cursor is closing
-        Closed // The managed cursor has been closed
+        Closed; // The managed cursor has been closed
+
+        public boolean isClosed() {
+            return this == Closing || this == Closed;
+        }
     }
 
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
-    protected volatile State state = null;
+    protected volatile State state = State.Uninitialized;
 
     protected final ManagedCursorMXBean mbean;
 
@@ -326,7 +330,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             this.batchDeletedIndexes = null;
         }
         this.digestType = BookKeeper.DigestType.fromApiDigestType(getConfig().getDigestType());
-        STATE_UPDATER.set(this, State.Uninitialized);
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.set(this, 0);
         PENDING_READ_OPS_UPDATER.set(this, 0);
         RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
@@ -786,7 +789,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         // assign cursor-ledger so, it can be deleted when new ledger will be switched
         this.cursorLedger = recoveredFromCursorLedger;
         this.isCursorLedgerReadOnly = true;
-        STATE_UPDATER.set(this, State.NoLedger);
+        changeStateIfNotClosed(State.NoLedger);
+    }
+
+    private State changeStateIfNotClosed(State newState) {
+        return STATE_UPDATER.getAndUpdate(this, current -> {
+            if (current.isClosed()) {
+                return current;
+            }
+            return newState;
+        });
     }
 
     void initialize(Position position, Map<String, Long> properties, Map<String, String> cursorProperties,
@@ -800,7 +812,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 new MetaStoreCallback<>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
-                        STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
+                        changeStateIfNotClosed(State.NoLedger);
                         callback.operationComplete();
                     }
                     @Override
@@ -1134,7 +1146,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public boolean isClosed() {
-        return state == State.Closed || state == State.Closing;
+        return state.isClosed();
     }
 
     @Override
@@ -2174,7 +2186,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // We cannot write to the ledger during the switch, need to wait until the new metadata ledger is available
         synchronized (pendingMarkDeleteOps) {
             // The state might have changed while we were waiting on the queue mutex
-            switch (STATE_UPDATER.get(this)) {
+            switch (state) {
             case Closed:
                 callback.markDeleteFailed(new ManagedLedgerException
                         .CursorAlreadyClosedException("Cursor was already closed"), ctx);
@@ -2305,7 +2317,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         };
 
-        if (State.NoLedger.equals(STATE_UPDATER.get(this))) {
+        if (state == State.NoLedger) {
             if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
                 log.error("[{}][{}] Metadata ledger creation failed, try to persist the position in the metadata"
                         + " store.", ledger.getName(), name);
@@ -2892,7 +2904,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                     @Override
                     public void closeComplete(Object ctx) {
-                        STATE_UPDATER.set(ManagedCursorImpl.this, State.Closed);
+                        if (!STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Closing, State.Closed)) {
+                            log.warn("[{}] [{}] State was modified from closing to {} while closing", ledger.getName(),
+                                    name, state);
+                            state = State.Closed;
+                        }
                         callback.closeComplete(ctx);
                     }
 
@@ -3017,8 +3033,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void startCreatingNewMetadataLedger() {
         // Change the state so that new mark-delete ops will be queued and not immediately submitted
-        State oldState = STATE_UPDATER.getAndSet(this, State.SwitchingLedger);
-        if (oldState == State.SwitchingLedger) {
+        State oldState = changeStateIfNotClosed(State.SwitchingLedger);
+        if (oldState == State.SwitchingLedger || oldState.isClosed()) {
             // Ignore double request
             return;
         }
@@ -3038,7 +3054,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     flushPendingMarkDeletes();
 
                     // Resume normal mark-delete operations
-                    STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
+                    changeStateIfNotClosed(State.Open);
                 }
             }
 
@@ -3047,7 +3063,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.error("[{}][{}] Metadata ledger creation failed {}", ledger.getName(), name, exception);
                 synchronized (pendingMarkDeleteOps) {
                     // At this point we don't have a ledger ready
-                    STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
+                    changeStateIfNotClosed(State.NoLedger);
                     // There are two case may cause switch ledger fails.
                     // 1. No enough BKs; BKs are in read-only mode...
                     // 2. Write ZK fails.
@@ -3071,19 +3087,8 @@ public class ManagedCursorImpl implements ManagedCursor {
      * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
      */
     private boolean trySetStateToClosing() {
-        State previousState = STATE_UPDATER.getAndUpdate(this, current -> {
-            if (current != State.Closing && current != State.Closed) {
-                return State.Closing;
-            }
-            return current;
-        });
-        if (previousState == State.Closing || previousState == State.Closed) {
-            // Already closing or closed
-            return false;
-        } else {
-            // Successfully set to closing
-            return true;
-        }
+        State previousState = changeStateIfNotClosed(State.Closing);
+        return !previousState.isClosed();
     }
 
     private void flushPendingMarkDeletes() {
@@ -3339,7 +3344,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 mbean.addWriteCursorLedgerSize(data.length);
                 callback.operationComplete();
             } else {
-                if (state == State.Closed) {
+                if (state.isClosed()) {
                     // After closed the cursor, the in-progress persistence task will get a
                     // BKException.Code.LedgerClosedException.
                     callback.operationFailed(new CursorAlreadyClosedException(String.format("%s %s skipped this"
@@ -3360,8 +3365,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     public boolean periodicRollover() {
         LedgerHandle lh = cursorLedger;
-        if (State.Open.equals(STATE_UPDATER.get(this))
-                && lh != null && lh.getLength() > 0) {
+        if (state == State.Open && lh != null && lh.getLength() > 0) {
             boolean triggered = rolloverLedgerIfNeeded(lh);
             if (triggered) {
                 log.info("[{}] Periodic rollover triggered for cursor {} (length={} bytes)",
@@ -3419,7 +3423,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (ledger.getFactory().isMetadataServiceAvailable()
                 && (lh.getLastAddConfirmed() >= getConfig().getMetadataMaxEntriesPerLedger()
                 || lastLedgerSwitchTimestamp < (now - getConfig().getLedgerRolloverTimeout() * 1000))
-                && (STATE_UPDATER.get(this) != State.Closed && STATE_UPDATER.get(this) != State.Closing)) {
+                && !state.isClosed()) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that
             // calls will be serialized on one single thread
             lastLedgerSwitchTimestamp = now;
@@ -3533,7 +3537,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void decrementPendingMarkDeleteCount() {
         if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.decrementAndGet(this) == 0) {
-            final State state = STATE_UPDATER.get(this);
             if (state == State.SwitchingLedger) {
                 // A metadata ledger switch was pending and now we can do it since we don't have any more
                 // outstanding mark-delete requests
@@ -3545,7 +3548,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     void readOperationCompleted() {
         if (PENDING_READ_OPS_UPDATER.decrementAndGet(this) == 0) {
             synchronized (pendingMarkDeleteOps) {
-                if (STATE_UPDATER.get(this) == State.Open) {
+                if (state == State.Open) {
                     // Flush the pending writes only if the state is open.
                     flushPendingMarkDeletes();
                 } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) != 0) {
@@ -3592,6 +3595,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void asyncDeleteCursorLedger(int retry) {
+        // TODO: State transition would need to be handled here
         STATE_UPDATER.set(this, State.Closed);
 
         if (cursorLedger == null || retry <= 0) {
@@ -3775,7 +3779,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     public String getState() {
-        return STATE_UPDATER.get(this).toString();
+        return state.toString();
     }
 
     @Override
