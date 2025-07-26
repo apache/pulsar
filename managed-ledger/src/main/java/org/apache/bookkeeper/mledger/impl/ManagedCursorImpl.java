@@ -3634,18 +3634,21 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void asyncDeleteCursorLedger(int retry) {
         State previousState = changeStateIfNotDeletingOrDeleted(State.Deleting);
-        if (previousState.isDeletingOrDeleted()) {
-            log.warn("[{}-{}] Cursor ledger {} is already deleting or deleted. state=", ledger.getName(), name,
-                    cursorLedger.getId(), state);
+        if (previousState == State.Deleted) {
+            log.warn("[{}-{}] Cursor ledger is already deleting or deleted. state=", ledger.getName(), name, state);
             return;
         }
+
         closeWaitingCursor();
 
-        if (cursorLedger == null || retry <= 0) {
-            if (cursorLedger != null) {
-                log.warn("[{}-{}] Failed to delete ledger after retries {}", ledger.getName(), name,
-                        cursorLedger.getId());
-            }
+        if (cursorLedger == null) {
+            return;
+        }
+
+        if (retry <= 0) {
+            log.warn("[{}-{}] Failed to delete ledger after retries {}", ledger.getName(), name,
+                    cursorLedger.getId());
+            state = State.DeletingFailed;
             return;
         }
 
