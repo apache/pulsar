@@ -809,6 +809,13 @@ public class ManagedCursorImpl implements ManagedCursor {
         changeStateIfNotClosed(State.NoLedger);
     }
 
+    /**
+     * Change the state of the cursor if it is not already considered closed.
+     * This is to prevent invalid state transitions when the cursor is already closed.
+     *
+     * @param newState The new state to set
+     * @return The previous state of the cursor
+     */
     private State changeStateIfNotClosed(State newState) {
         return STATE_UPDATER.getAndUpdate(this, current -> {
             if (current.isClosed()) {
@@ -818,6 +825,13 @@ public class ManagedCursorImpl implements ManagedCursor {
         });
     }
 
+    /**
+     * Change the state of the cursor if it is not already Deleting or Deleted.
+     * This is to prevent invalid state transitions when the cursor is already being deleted or has been deleted.
+     *
+     * @param newState The new state to set
+     * @return The previous state of the cursor
+     */
     State changeStateIfNotDeletingOrDeleted(State newState) {
         return STATE_UPDATER.getAndUpdate(this, current -> {
             if (current.isDeletingOrDeleted()) {
