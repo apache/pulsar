@@ -198,12 +198,6 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
-    public static class CursorDeactivatedWaitCallbackException extends ManagedLedgerException {
-        public CursorDeactivatedWaitCallbackException() {
-            super("Cursor is deactivated without cancelling pending request, cannot wait for callback");
-        }
-    }
-
     public static class OffloadReadHandleClosedException extends ManagedLedgerException {
 
         public OffloadReadHandleClosedException() {

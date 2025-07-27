@@ -61,7 +61,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import lombok.Getter;
@@ -88,7 +87,6 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorDeactivatedWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
@@ -2951,23 +2949,15 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     protected void closeWaitingCursor() {
-        internalCloseWaitingCursor(() -> new CursorAlreadyClosedException("Cursor is closing"));
-    }
-
-    protected void cancelWaitingCursorsWhenDeactivated() {
-        internalCloseWaitingCursor(() -> new CursorDeactivatedWaitCallbackException());
-    }
-
-    private void internalCloseWaitingCursor(Supplier<ManagedLedgerException> exceptionSupplier) {
         synchronized (waitingRegistrationLock) {
             if (waitingRegistered) {
                 ledger.removeWaitingCursor(this);
             }
         }
-        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(ManagedCursorImpl.this,
+        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(this,
                 OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
         if (opReadEntry != null && opReadEntry != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
-            opReadEntry.readEntriesFailed(exceptionSupplier.get(), opReadEntry.ctx);
+            opReadEntry.readEntriesFailed(new CursorAlreadyClosedException("Cursor is closing"), opReadEntry.ctx);
         }
     }
 
