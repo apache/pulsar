@@ -228,7 +228,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile boolean isActive = false;
 
     // This is a lock used to update the registration state of the cursor in the managed ledger.
-    private Object waitingRegistrationLock = new Object();
+    private final Object waitingRegistrationLock = new Object();
     // This is used to track if the cursor is waiting for registration in the managed ledger.
     boolean waitingRegistered = false;
 
