@@ -827,22 +827,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         });
     }
 
-    /**
-     * Change the state of the cursor if it is not already Deleting or Deleted.
-     * This is to prevent invalid state transitions when the cursor is already being deleted or has been deleted.
-     *
-     * @param newState The new state to set
-     * @return The previous state of the cursor
-     */
-    State changeStateIfNotDeletingOrDeleted(State newState) {
-        return STATE_UPDATER.getAndUpdate(this, current -> {
-            if (current.isDeletingOrDeleted()) {
-                return current;
-            }
-            return newState;
-        });
-    }
-
     void initialize(Position position, Map<String, Long> properties, Map<String, String> cursorProperties,
                     final VoidCallback callback) {
         recoveredCursor(position, properties, cursorProperties, null);
@@ -3638,9 +3622,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void asyncDeleteCursorLedger(int retry) {
-        State previousState = changeStateIfNotDeletingOrDeleted(State.Deleting);
-        if (previousState == State.Deleted) {
-            log.warn("[{}-{}] Cursor ledger is already deleting or deleted. state={}", ledger.getName(), name, state);
+        State beforeChangingState = STATE_UPDATER.getAndUpdate(this, current -> {
+            // don't change the state if it's already deleting or deleted
+            if (current.isDeletingOrDeleted()) {
+                return current;
+            }
+            return State.Deleting;
+        });
+        if (beforeChangingState.isDeletingOrDeleted()) {
+            log.warn("[{}-{}] Cursor ledger is already deleting or deleted. state={}", ledger.getName(), name,
+                    beforeChangingState);
             return;
         }
 
