@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.common.net.ServiceURI;
+import org.apache.pulsar.common.util.PortManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -53,10 +54,10 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithBinaryServiceUrlDisableQuarantine;
     private PulsarClientImpl pulsarClientWithHttpServiceUrl;
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
-    private static final int BROKER_SERVICE_PORT = 6666;
-    private static final int WEB_SERVICE_PORT = 8888;
+    private static final int BROKER_SERVICE_PORT = PortManager.nextLockedFreePort();
+    private static final int WEB_SERVICE_PORT = PortManager.nextLockedFreePort();
     private static final int UNAVAILABLE_NODES = 20;
-    private static final int TIMEOUT_SECONDS = 1;
+    private static final int TIMEOUT_MS = 500;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -82,16 +83,16 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                                 .serviceUrl(binaryServiceUrlWithUnavailableNodes)
                                 .serviceUrlQuarantineInitDuration(0, TimeUnit.MILLISECONDS)
                                 .serviceUrlQuarantineMaxDuration(0, TimeUnit.MILLISECONDS)
-                                .operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                                .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                                .operationTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
+                                .lookupTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
                                 .build();
         this.pulsarClientWithHttpServiceUrlDisableQuarantine =
                 (PulsarClientImpl) PulsarClient.builder()
                         .serviceUrl(httpServiceUrlWithUnavailableNodes)
                         .serviceUrlQuarantineInitDuration(0, TimeUnit.MILLISECONDS)
                         .serviceUrlQuarantineMaxDuration(0, TimeUnit.MILLISECONDS)
-                        .operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                        .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .operationTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
+                        .lookupTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
                         .build();
     }
 
@@ -104,8 +105,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
 
     @Override
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        clientBuilder.operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        clientBuilder.operationTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .lookupTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
 
@@ -125,6 +126,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
             pulsarClientWithHttpServiceUrlDisableQuarantine.close();
         }
+        PortManager.releaseLockedPort(BROKER_SERVICE_PORT);
+        PortManager.releaseLockedPort(WEB_SERVICE_PORT);
     }
 
     @Test
@@ -197,7 +200,7 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         return successCount;
     }
 
-    @Test
+    @Test(invocationCount = 10)
     public void testServiceUrlHealthCheck() throws Exception {
         doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrl,
                 "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
@@ -249,19 +252,16 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         // Create consumers to trigger unhealthy address removal
         for (int i = 0; i < originAllAddresses.size(); i++) {
             String subName = "my-sub" + UUID.randomUUID();
-            pulsarClient.newConsumer()
-                    .subscriptionMode(SubscriptionMode.Durable)
-                    .topic(topic).receiverQueueSize(1).subscriptionName(subName)
-                    .subscribeAsync()
-                    .thenAccept(e -> {
-                        try {
-                            e.close();
-                        } catch (PulsarClientException e1) {
-                            log.warn("Failed to close consumer {} for topic {}: {}", subName, topic, e1.getMessage());
-                        }
-                    });
+            try {
+                Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                        .subscriptionMode(SubscriptionMode.Durable)
+                        .topic(topic).receiverQueueSize(1).subscriptionName(subName)
+                        .subscribe();
+                consumer.closeAsync();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to create consumer {} for topic {}: {}", subName, topic, e.getMessage());
+            }
         }
-        Uninterruptibles.sleepUninterruptibly(10, java.util.concurrent.TimeUnit.SECONDS);
         // check if the unhealthy address is removed
         Set<InetSocketAddress> expectedHealthyAddresses = new HashSet<>();
         expectedHealthyAddresses.add(healthyAddress);
@@ -269,7 +269,7 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         Set<InetSocketAddress> resolvedAddresses = new HashSet<>();
         for (int i = 0; i < hosts.length; i++) {
             if (enableQuarantine) {
-                assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
+                assertThat(expectedHealthyAddresses).contains(resolver.resolveHost());
             } else {
                 resolvedAddresses.add(resolver.resolveHost());
             }
