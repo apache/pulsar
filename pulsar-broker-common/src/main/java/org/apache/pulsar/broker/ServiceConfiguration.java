@@ -51,6 +51,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -1570,6 +1571,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean strictTopicNameEnabled = false;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The regular expression implementation to use for topic pattern matching. \n"
+                    + "RE2J_WITH_JDK_FALLBACK is the default. It uses the RE2J implementation and falls back to "
+                    + "the JDK implementation for backwards compatibility reasons when the pattern compilation fails "
+                    + "with the RE2/j library.\n"
+                    + "RE2J is more performant but does not support all regex features (e.g. negative lookaheads). \n"
+                    + "JDK uses the standard Java regex implementation which supports all features but can be slower.\n"
+                    + "Bad or malicious regex patterns requiring extensive backtracing could cause high resource usage "
+                    + "with RE2J_WITH_JDK_FALLBACK or JDK implementations."
+    )
+    private TopicsPattern.RegexImplementation topicsPatternRegexImplementation =
+            TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK;
+
+    @FieldContext(
             category = CATEGORY_SCHEMA,
             doc = "The schema compatibility strategy to use for system topics"
     )
@@ -2163,6 +2178,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "the topic cannot be automatically created."
     )
     private boolean allowAutoTopicCreationWithLegacyNamingScheme = true;
+    @FieldContext(category = CATEGORY_SERVER, dynamic = true,
+            doc = "If 'strictSubscriptionNameVerification' is true, the new subscription name can only contain"
+                + " (a-zA-Z_0-9) and these special chars -=:."
+    )
+    private boolean strictlyVerifySubscriptionName = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -2972,6 +2992,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(only used in load balancer extension logics)"
     )
     private boolean loadBalancerSheddingBundlesWithPoliciesEnabled = false;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The namespaces to be excluded from load shedding"
+    )
+    private Set<String> loadBalancerSheddingExcludedNamespaces = new HashSet<>();
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

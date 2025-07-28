@@ -110,7 +110,7 @@ public abstract class PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(PulsarWebResource.class);
 
     private static final LoadingCache<String, PulsarServiceNameResolver> SERVICE_NAME_RESOLVER_CACHE =
-            Caffeine.newBuilder().expireAfterAccess(Duration.ofMinutes(5)).build(
+            Caffeine.newBuilder().recordStats().expireAfterAccess(Duration.ofMinutes(5)).build(
                     new CacheLoader<>() {
                         @Override
                         public @Nullable PulsarServiceNameResolver load(@NonNull String serviceUrl) throws Exception {
@@ -987,14 +987,14 @@ public abstract class PulsarWebResource {
     }
 
     protected static CompletableFuture<Void> checkAuthorizationAsync(PulsarService pulsarService, TopicName topicName,
-                        String role, AuthenticationDataSource authenticationData) {
+                        String role, String originalPrinciple, AuthenticationDataSource authenticationData) {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return CompletableFuture.completedFuture(null);
         }
         // get zk policy manager
         return pulsarService.getBrokerService().getAuthorizationService().allowTopicOperationAsync(topicName,
-                TopicOperation.LOOKUP, null, role, authenticationData).thenAccept(allow -> {
+                TopicOperation.LOOKUP, originalPrinciple, role, authenticationData).thenAccept(allow -> {
                     if (!allow) {
                         log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
                         throw new RestException(Status.UNAUTHORIZED,

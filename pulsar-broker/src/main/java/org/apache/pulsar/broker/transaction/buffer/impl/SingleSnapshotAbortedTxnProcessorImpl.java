@@ -87,7 +87,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     public CompletableFuture<Position> recoverFromSnapshot() {
         final var future = new CompletableFuture<Position>();
         final var pulsar = topic.getBrokerService().getPulsar();
-        pulsar.getTransactionExecutorProvider().getExecutor(this).execute(() -> {
+        pulsar.getTransactionSnapshotRecoverExecutorProvider().getExecutor(this).execute(() -> {
             try {
                 final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
                         .getTableView().readLatest(topic.getName());

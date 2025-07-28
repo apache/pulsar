@@ -275,6 +275,8 @@ public class CmdTopics extends CmdBase {
         addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
         addCommand("trim-topic", new TrimTopic());
+
+        addCommand("get-message-id-by-index", new GetMessageIdByIndex());
     }
 
     @Command(description = "Get the list of topics under a namespace.")
@@ -2151,8 +2153,8 @@ public class CmdTopics extends CmdBase {
 
         @Option(names = { "-r",
                 "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation "
-                + "(0 means no throttle)")
-        private double managedLedgerMaxMarkDeleteRate = 0;
+                + "(0 means no throttle, -1 means unset which will use the configuration from namespace or broker)")
+        private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "-c",
                 "--ml-storage-class" },
@@ -2165,9 +2167,6 @@ public class CmdTopics extends CmdBase {
             if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
-            }
-            if (managedLedgerMaxMarkDeleteRate < 0) {
-                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
@@ -2507,7 +2506,7 @@ public class CmdTopics extends CmdBase {
 
         @Option(names = { "--dispatch-rate-period",
             "-dt" }, description = "dispatch-rate-period in second type"
-                + " (default 1 second will be overwrite if not passed)")
+                + "(default 1 second will be overwrite if not passed)")
         private int dispatchRatePeriodSec = 1;
 
         @Option(names = { "--relative-to-publish-rate",
@@ -3056,6 +3055,22 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(topicName);
             getAdmin().topics().trimTopic(topic);
+        }
+    }
+
+    @Command(description = "Get message id by index")
+    private class GetMessageIdByIndex extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--index", "-i" }, description = "Index to get message id for the topic", required = true)
+        private Long index;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(topicName);
+            System.out.println(getAdmin().topics().getMessageIdByIndex(topic, index));
         }
     }
 }

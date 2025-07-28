@@ -19,26 +19,31 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.assertj.core.api.ThrowableAssert;
 import org.assertj.core.util.Sets;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -104,7 +109,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         int receives = 0;
         for (int i = 0; i < messages; i++) {
             Message<byte[]> received = consumer.receive();
-            ++ receives;
+            ++receives;
             Assert.assertEquals(i, Integer.valueOf(new String(received.getValue())).intValue());
         }
 
@@ -115,7 +120,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testPeekMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
@@ -148,7 +153,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testGetMessageById() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
@@ -181,7 +186,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testExamineMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
@@ -213,7 +218,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testBatchMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final int msgNum = 2;
 
         @Cleanup
@@ -420,4 +425,93 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
         cursor.close();
     }
+
+    @Test
+    public void testGetMessageIdByIndex() throws Exception {
+        // 1. test no partitioned topic
+        final String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        MessageIdImpl messageId = (MessageIdImpl) producer.send("test");
+        Message<byte[]>
+                message =
+                admin.topics().getMessagesById(topicName, messageId.getLedgerId(), messageId.getEntryId()).get(0);
+        long index = message.getIndex().get();
+        MessageIdImpl messageIdByIndex = (MessageIdImpl) admin.topics().getMessageIdByIndex(topicName, index);
+        Assert.assertEquals(messageIdByIndex, messageId);
+
+        // 2. test partitioned topic
+        final String topicName2 = newTopicName();
+        final String partitionedTopicName = topicName2 + "-partition-" + 0;
+        admin.topics().createPartitionedTopic(topicName2, 10);
+        @Cleanup
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName2)
+                .enableBatching(false)
+                .create();
+
+        MessageIdImpl messageId2 = null;
+        for (int i = 0; i < 200; i++) {
+            messageId2 = (MessageIdImpl) producer2.send("test" + i);
+            if (messageId2.getPartitionIndex() == 0) {
+                break;
+            }
+        }
+        Message<byte[]>
+                message2 = admin.topics().getMessagesById(partitionedTopicName,
+                messageId2.getLedgerId(), messageId2.getEntryId()).get(0);
+        long index2 = message2.getIndex().get();
+        // 2.1 test partitioned topic name with partition index
+        MessageIdImpl messageIdByIndex2 =
+                (MessageIdImpl) admin.topics().getMessageIdByIndex(partitionedTopicName, index2);
+        Assert.assertEquals(messageIdByIndex2, messageId2);
+        // 2.2 test partitioned topic name without partition index
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName2, index2),
+                PulsarAdminException.class, NotAllowedException.class);
+
+        // 3. test invalid index
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, -1),
+                PulsarAdminException.class, NotFoundException.class);
+
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, 100000),
+                PulsarAdminException.class, NotFoundException.class);
+    }
+
+    @Test
+    public void testGetMessageIdByIndexForEmptyTopic() throws PulsarAdminException {
+        final String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, 0),
+                PulsarAdminException.class, NotFoundException.class);
+    }
+
+    @Test
+    public void testGetMessageIdByIndexOutOfIndex() throws PulsarAdminException, PulsarClientException {
+        final String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            producer.send("msg-" + i);
+        }
+
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, 1000),
+                PulsarAdminException.class, NotFoundException.class);
+    }
+
+    private void assertThrowsWithCause(ThrowableAssert.ThrowingCallable executable,
+                                       Class<? extends Throwable> expectedException,
+                                       Class<? extends Throwable> expectedCause) {
+        assertThatThrownBy(executable)
+                .isInstanceOf(expectedException)
+                .hasRootCauseInstanceOf(expectedCause);
+    }
+
 }

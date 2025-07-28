@@ -39,7 +39,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFac
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -57,7 +57,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
-            bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().buildAsync();
+            bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().recordStats().buildAsync();
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public ManagedLedgerClientFactory() {

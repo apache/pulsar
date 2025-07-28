@@ -113,11 +113,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ModularLoadManagerImplTest {
 
-    public final static String CA_CERT_FILE_PATH =
+    public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
+    public static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
+    public static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -344,7 +344,8 @@ public class ModularLoadManagerImplTest {
         // Write long message rate for first bundle to ensure that even bundle distribution is not a coincidence of
         // balancing by message rate. If we were balancing by message rate, one of the brokers should only have this
         // one bundle.
-        pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class).create(firstBundleDataPath, bundleData).join();
+        pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class).create(firstBundleDataPath,
+                bundleData).join();
         for (final NamespaceBundle bundle : bundles) {
             if (primaryLoadManager.selectBrokerForAssignment(bundle).equals(primaryBrokerId)) {
                 ++numAssignedToPrimary;
@@ -370,7 +371,8 @@ public class ModularLoadManagerImplTest {
         final String cluster = "test";
         String namespace = tenant + "/" + cluster + "/" + "test";
         String topic = "persistent://" + namespace + "/my-topic1";
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace, 16);
@@ -381,15 +383,14 @@ public class ModularLoadManagerImplTest {
         String brokerServiceUrl = pulsar1.getBrokerServiceUrl();
         String brokerId = pulsar1.getBrokerId();
         log.debug("initial broker service url - {}", topicLookup);
-        Random rand=new Random();
+        Random rand = new Random();
 
         if (topicLookup.equals(brokerServiceUrl)) {
             int x = rand.nextInt(2);
             if (x == 0) {
                 brokerId = pulsar2.getBrokerId();
                 brokerServiceUrl = pulsar2.getBrokerServiceUrl();
-            }
-            else {
+            } else {
                 brokerId = pulsar3.getBrokerId();
                 brokerServiceUrl = pulsar3.getBrokerServiceUrl();
             }
@@ -401,8 +402,7 @@ public class ModularLoadManagerImplTest {
         // Make a call to broker which is not a leader
         if (!leaderBrokerId.equals(pulsar1.getBrokerId())) {
             admin1.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerId);
-        }
-        else {
+        } else {
             admin2.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerId);
         }
 
@@ -437,7 +437,8 @@ public class ModularLoadManagerImplTest {
         longTermMessageData.setMsgRateIn(1000);
         bundleData.setLongTermData(longTermMessageData);
         final String firstBundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[0]);
-        pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class).create(firstBundleDataPath, bundleData).join();
+        pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class)
+                .create(firstBundleDataPath, bundleData).join();
         String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]).get();
 
         for (int i = 1; i < totalBundles; i++) {
@@ -455,7 +456,8 @@ public class ModularLoadManagerImplTest {
         pulsarServices.put(pulsar2.getWebServiceAddress(), pulsar2);
         MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
         String protocol = "http://";
-        PulsarService leaderBroker = pulsarServices.get(protocol + pulsar1.getLeaderElectionService().getCurrentLeader().get().getBrokerId());
+        PulsarService leaderBroker = pulsarServices.get(protocol + pulsar1.getLeaderElectionService()
+                .getCurrentLeader().get().getBrokerId());
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
                 leaderBroker.getLoadManager().get(), "loadManager");
         int topK = 1;
@@ -536,7 +538,8 @@ public class ModularLoadManagerImplTest {
         when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
         brokerDataMap.put(primaryBrokerId, brokerDataSpy1);
         // Need to update all the bundle data for the shredder to see the spy.
-        primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
+        primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created,
+                LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
 
         sleep(100);
         localBrokerData.setCpu(new ResourceUsage(80, 100));
@@ -594,7 +597,8 @@ public class ModularLoadManagerImplTest {
         final LocalBrokerData localBrokerData = new LocalBrokerData();
         localBrokerData.update(new SystemResourceUsage(), statsMap);
         final Namespaces namespacesSpy1 = spy(pulsar1.getAdminClient().namespaces());
-        doNothing().when(namespacesSpy1).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doNothing().when(namespacesSpy1).unloadNamespaceBundle(Mockito.anyString(),
+                Mockito.anyString(), Mockito.anyString());
         setField(pulsar1.getAdminClient(), "namespaces", namespacesSpy1);
         ModularLoadManagerImpl primaryLoadManagerSpy = spy(primaryLoadManager);
 
@@ -606,25 +610,26 @@ public class ModularLoadManagerImplTest {
         when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
         brokerDataMap.put(primaryBrokerId, brokerDataSpy1);
         // Need to update all the bundle data for the shredder to see the spy.
-        primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
+        primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created,
+                LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
 
         sleep(100);
 
         // Most expensive bundle will be unloaded.
         localBrokerData.setCpu(new ResourceUsage(90, 100));
         primaryLoadManagerSpy.doLoadShedding();
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 1l);
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 1l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 1L);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 1L);
 
         // Now less expensive bundle will be unloaded
         primaryLoadManagerSpy.doLoadShedding();
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2L);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2L);
 
         // Now both are in grace period: neither should be unloaded.
         primaryLoadManagerSpy.doLoadShedding();
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2L);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2L);
 
         // clear the recently unloaded bundles to avoid the grace period
         loadData.getRecentlyUnloadedBundles().clear();
@@ -636,8 +641,8 @@ public class ModularLoadManagerImplTest {
         }).when(primaryLoadManagerSpy).selectBroker(any());
         primaryLoadManagerSpy.doLoadShedding();
 
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
-        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2L);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2L);
     }
 
     // Test that ModularLoadManagerImpl will determine that writing local data to ZooKeeper is necessary if certain
@@ -723,7 +728,7 @@ public class ModularLoadManagerImplTest {
     }
 
     /**
-     * It verifies that deletion of broker-znode on broker-stop will invalidate availableBrokerCache list
+     * It verifies that deletion of broker-znode on broker-stop will invalidate availableBrokerCache list.
      */
     @Test
     public void testBrokerStopCacheUpdate() throws Exception {
@@ -763,14 +768,16 @@ public class ModularLoadManagerImplTest {
         String broker2Host = pulsar2.getAdvertisedAddress() + "1";
         final String broker2Address = broker2Host + ":8080";
         final String sharedBroker = "broker3:8080";
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);
 
         // set a new policy
         String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s/%s.*\"],\"primary\":[\"%s\"],"
-                + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
+                + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\","
+                + "\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
         String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Host,
                 broker2Host, 1);
         String newPolicyName = "my-ns-isolation-policies";
@@ -864,7 +871,8 @@ public class ModularLoadManagerImplTest {
         final String broker1Host = pulsar1.getAdvertisedAddress() + "1";
         final String broker1Address = broker1Host + ":8080";
 
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace);
@@ -883,7 +891,8 @@ public class ModularLoadManagerImplTest {
 
         // test2: as isolation policy, there are not another broker to load the bundle.
         String newPolicyJsonTemplate = "{\"namespaces\":[\"%s.*\"],\"primary\":[\"%s\"],"
-                + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
+                + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\","
+                + "\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
 
         String newPolicyJson = String.format(newPolicyJsonTemplate, namespace, broker1Host, broker1Host, 1);
         String newPolicyName = "my-ns-isolation-policies";
@@ -967,7 +976,8 @@ public class ModularLoadManagerImplTest {
         final String tenant = "my-tenant";
         final String namespace = "my-ns";
         NamespaceName ns = isV1 ? NamespaceName.get(tenant, cluster, namespace) : NamespaceName.get(tenant, namespace);
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(ns.toString(), 16);
@@ -975,8 +985,8 @@ public class ModularLoadManagerImplTest {
         // set resourceQuota to the first bundle range.
         BundlesData bundlesData = admin1.namespaces().getBundles(ns.toString());
         NamespaceBundle namespaceBundle = nsFactory.getBundle(ns,
-                Range.range(Long.decode(bundlesData.getBoundaries().get(0)), BoundType.CLOSED, Long.decode(bundlesData.getBoundaries().get(1)),
-                        BoundType.OPEN));
+                Range.range(Long.decode(bundlesData.getBoundaries().get(0)), BoundType.CLOSED,
+                        Long.decode(bundlesData.getBoundaries().get(1)), BoundType.OPEN));
         ResourceQuota quota = new ResourceQuota();
         quota.setMsgRateIn(1024.1);
         quota.setMsgRateOut(1024.2);
@@ -1016,7 +1026,8 @@ public class ModularLoadManagerImplTest {
         final String topicName = tenant + "/" + namespace + "/" + "topic";
         int bundleNumbers = 8;
 
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(tenant + "/" + namespace, bundleNumbers);

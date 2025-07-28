@@ -172,13 +172,13 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionLost);
         // --- test  le1 can be leader
         Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading)); // reacquire leadership
+                .untilAsserted(()-> assertEquals(le1.getState(), LeaderElectionState.Leading)); // reacquire leadership
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
         Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
+                .untilAsserted(()-> assertEquals(le1.getState(), LeaderElectionState.Leading));
         assertTrue(store.get(path).join().isPresent());
     }
 
@@ -229,7 +229,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.Reconnected);
         Awaitility.await().atMost(Duration.ofSeconds(15))
                 .untilAsserted(()-> {
-                    assertEquals(le1.getState(),LeaderElectionState.Leading);
+                    assertEquals(le1.getState(), LeaderElectionState.Leading);
                 }); // reacquire leadership
 
 

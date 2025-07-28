@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.PulsarStandaloneStarter;
-import org.testng.annotations.Test;
-
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
+import org.apache.pulsar.PulsarStandaloneStarter;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class StandaloneTest {

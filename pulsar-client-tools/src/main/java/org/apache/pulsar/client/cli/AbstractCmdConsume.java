@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
@@ -195,15 +194,15 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
 
     protected static Map<String, Object> keyValueToMap(KeyValue value, boolean displayHex) throws IOException {
         if (value == null) {
-            return ImmutableMap.of("value", "NULL");
+            return Map.of("value", "NULL");
         }
-        return ImmutableMap.of("key", primitiveValueToMap(value.getKey(), displayHex),
+        return Map.of("key", primitiveValueToMap(value.getKey(), displayHex),
                 "value", primitiveValueToMap(value.getValue(), displayHex));
     }
 
     protected static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
         if (value == null) {
-            return ImmutableMap.of("value", "NULL");
+            return Map.of("value", "NULL");
         }
         if (value instanceof GenericObject) {
             return genericObjectToMap((GenericObject) value, displayHex);
@@ -211,7 +210,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
         if (value instanceof byte[]) {
             value = interpretByteArray(displayHex, (byte[]) value);
         }
-        return ImmutableMap.of("value", value.toString(), "type", value.getClass());
+        return Map.of("value", value.toString(), "type", value.getClass());
     }
 
     protected static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex)

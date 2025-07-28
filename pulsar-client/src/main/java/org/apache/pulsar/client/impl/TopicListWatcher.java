@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.re2j.Pattern;
 import io.netty.channel.ChannelHandlerContext;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +29,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +45,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final PatternConsumerUpdateQueue patternConsumerUpdateQueue;
     private final String name;
     private final ConnectionHandler connectionHandler;
-    private final Pattern topicsPattern;
+    private final TopicsPattern topicsPattern;
     private final long watcherId;
     private volatile long createWatcherDeadline = 0;
     private final NamespaceName namespace;
@@ -63,11 +63,11 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
      */
     public TopicListWatcher(PatternConsumerUpdateQueue patternConsumerUpdateQueue,
-                            PulsarClientImpl client, Pattern topicsPattern, long watcherId,
+                            PulsarClientImpl client, TopicsPattern topicsPattern, long watcherId,
                             NamespaceName namespace, String topicsHash,
                             CompletableFuture<TopicListWatcher> watcherFuture,
                             Runnable recheckTopicsChangeAfterReconnect) {
-        super(client, topicsPattern.pattern());
+        super(client, topicsPattern.topicLookupNameForTopicListWatcherPlacement());
         this.patternConsumerUpdateQueue = patternConsumerUpdateQueue;
         this.name = "Watcher(" + topicsPattern + ")";
         this.connectionHandler = new ConnectionHandler(this,
@@ -131,7 +131,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         synchronized (this) {
             setClientCnx(cnx);
             BaseCommand watchRequest = Commands.newWatchTopicList(requestId, watcherId, namespace.toString(),
-                            topicsPattern.pattern(), topicsHash);
+                            topicsPattern.inputPattern(), topicsHash);
 
             cnx.newWatchTopicList(watchRequest, requestId)
 

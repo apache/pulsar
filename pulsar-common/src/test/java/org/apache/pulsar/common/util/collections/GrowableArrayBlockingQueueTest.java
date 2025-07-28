@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -31,10 +31,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class GrowableArrayBlockingQueueTest {
 
@@ -209,6 +206,117 @@ public class GrowableArrayBlockingQueueTest {
         queue.put(1);
 
         latch.await();
+    }
+
+    /**
+     * test that multi-threads calling take(), and then terminate the queue, these threads will be properly interrupted.
+     */
+    @Test(timeOut = 10000)
+    public void testTakeBlockingThreadsTermination() throws InterruptedException {
+        GrowableArrayBlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(2);
+        int threadCount = 10;
+        CountDownLatch terminateCompletedLatch = new CountDownLatch(threadCount);
+        CountDownLatch allThreadReadyLatch = new CountDownLatch(threadCount);
+        AtomicInteger interruptedThreadCount = new AtomicInteger(0);
+        for (int i = 0; i < threadCount; i++) {
+            new Thread(() -> {
+                try {
+                    allThreadReadyLatch.countDown();
+                    queue.take();
+                    fail("thread should have been interrupted");
+                } catch (InterruptedException e) {
+                    // Expected interruption, record and notify
+                    terminateCompletedLatch.countDown();
+                    interruptedThreadCount.incrementAndGet();
+                }
+            }).start();
+        }
+        // all threads should be ready in at most 1 second
+        assertTrue(allThreadReadyLatch.await(1, TimeUnit.SECONDS));
+        // Terminate the queue - this should interrupt all threads blocked on take()
+        queue.terminate(null);
+        // all threads should be interrupted in at most 1 second
+        assertTrue(terminateCompletedLatch.await(1, TimeUnit.SECONDS));
+        // Verify all threads were properly interrupted
+        assertEquals(interruptedThreadCount.get(), threadCount);
+    }
+
+    /**
+     * test that multi-threads calling poll(), and then terminate the queue,
+     * these threads will be terminated by return null value.
+     */
+    @Test(timeOut = 10000)
+    public void testPollBlockingThreadsTermination() throws InterruptedException {
+        GrowableArrayBlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(2);
+        int threadCount = 10;
+        CountDownLatch terminateCompletedLatch = new CountDownLatch(threadCount);
+        CountDownLatch allThreadReadyLatch = new CountDownLatch(threadCount);
+        AtomicInteger terminateThreadCount = new AtomicInteger(0);
+        for (int i = 0; i < threadCount; i++) {
+            new Thread(() -> {
+                try {
+                    allThreadReadyLatch.countDown();
+                    // poll message at a very long timeout, so it will keep pending
+                    Integer poll = queue.poll(1, TimeUnit.HOURS);
+                    // should return a null value if queue is terminated
+                    assertNull(poll);
+                    terminateCompletedLatch.countDown();
+                    terminateThreadCount.incrementAndGet();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }).start();
+        }
+        // all threads should be ready in at most 1 second
+        assertTrue(allThreadReadyLatch.await(1, TimeUnit.SECONDS));
+        // Terminate the queue - this should make all threads return null value
+        queue.terminate(null);
+        // all threads should be terminated in at most 1 second
+        assertTrue(terminateCompletedLatch.await(1, TimeUnit.SECONDS));
+        assertEquals(terminateThreadCount.get(), threadCount);
+    }
+
+    /**
+     * test that multi-threads calling take() and poll() mix, and then terminate the queue,
+     * the queue will signal all these threads properly.
+     */
+    @Test(timeOut = 10000)
+    public void testPollTakeMixBlockingThreadsTermination() throws InterruptedException {
+        GrowableArrayBlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(2);
+        int threadCount = 10;
+        CountDownLatch terminateCompletedLatch = new CountDownLatch(threadCount);
+        CountDownLatch allThreadReadyLatch = new CountDownLatch(threadCount);
+        AtomicInteger terminateThreadCount = new AtomicInteger(0);
+        for (int i = 0; i < threadCount; i++) {
+            int finalI = i;
+            new Thread(() -> {
+                allThreadReadyLatch.countDown();
+                if (finalI % 2 == 0) {
+                    try {
+                        queue.take();
+                    } catch (InterruptedException e) {
+                        terminateCompletedLatch.countDown();
+                        terminateThreadCount.incrementAndGet();
+                    }
+                } else {
+                    try {
+                        Integer poll = queue.poll(1, TimeUnit.HOURS);
+                        assertNull(poll);
+                        terminateCompletedLatch.countDown();
+                        terminateThreadCount.incrementAndGet();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }).start();
+        }
+        // all threads should be ready in at most 1 second
+        assertTrue(allThreadReadyLatch.await(1, TimeUnit.SECONDS));
+        // Terminate the queue - this should make all threads return null value
+        queue.terminate(null);
+        // all threads should be terminated in at most 1 second
+        assertTrue(terminateCompletedLatch.await(1, TimeUnit.SECONDS));
+        assertEquals(terminateThreadCount.get(), threadCount);
     }
 
     @Test

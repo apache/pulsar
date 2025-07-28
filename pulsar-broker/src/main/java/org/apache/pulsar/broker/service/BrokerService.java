@@ -808,6 +808,12 @@ public class BrokerService implements Closeable {
                 return CompletableFuture.completedFuture(null);
             }
             return client.closeAsync();
+        }).thenCompose(__ -> {
+            PulsarAdmin pulsarAdmin = clusterAdmins.remove(clusterName);
+            if (pulsarAdmin != null) {
+                pulsarAdmin.close();
+            }
+            return CompletableFuture.completedFuture(null);
         });
     }
 
@@ -1156,8 +1162,7 @@ public class BrokerService implements Closeable {
                     return FutureUtil.failedFuture(new NotAllowedException(
                             "Broker is unable to load persistent topic"));
                 }
-                return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName)
-                        .thenCompose(exists -> {
+                return checkNonPartitionedTopicExists(topicName).thenCompose(exists -> {
                     if (!exists && !createIfMissing) {
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
@@ -1781,7 +1786,7 @@ public class BrokerService implements Closeable {
         }
 
         CompletableFuture<Void> maxTopicsCheck = createIfMissing
-                ? checkMaxTopicsPerNamespace(topicName, 1)
+                ? checkMaxTopicsPerNamespace(topicName)
                 : CompletableFuture.completedFuture(null);
 
         CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
@@ -2050,7 +2055,9 @@ public class BrokerService implements Closeable {
                 }
             }
 
-            managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
+            managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate() >= 0
+                    ? persistencePolicies.getManagedLedgerMaxMarkDeleteRate()
+                    : serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
             managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
             managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
 
@@ -2358,19 +2365,19 @@ public class BrokerService implements Closeable {
 
     public CompletableFuture<Void> checkTopicNsOwnership(final String topic) {
         TopicName topicName = TopicName.get(topic);
+        final var namespaceService = pulsar.getNamespaceService();
 
-        return pulsar.getNamespaceService().checkTopicOwnership(topicName)
-                .thenCompose(ownedByThisInstance -> {
+        return namespaceService.getBundleAsync(topicName).thenCompose(bundle ->
+                namespaceService.checkBundleOwnership(topicName, bundle).thenCompose(ownedByThisInstance -> {
                     if (ownedByThisInstance) {
                         return CompletableFuture.completedFuture(null);
                     } else {
-                        String msg = String.format("Namespace bundle for topic (%s) not served by this instance:%s. "
-                                        + "Please redo the lookup. Request is denied: namespace=%s",
-                                topic, pulsar.getBrokerId(), topicName.getNamespace());
+                        String msg = String.format("Namespace bundle (%s) for topic (%s) not served by this instance:"
+                                + "%s. Please redo the lookup.", bundle, topic, pulsar.getBrokerId());
                         log.warn(msg);
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
-                });
+                }));
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
@@ -3354,7 +3361,7 @@ public class BrokerService implements Closeable {
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
 
-        return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions)
+        return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions, true)
                 .thenCompose(__ -> {
                     PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
                             .getPartitionedTopicResources();
@@ -3702,9 +3709,25 @@ public class BrokerService implements Closeable {
         });
     }
 
-    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
+    private CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topicName) {
+        return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName);
+    }
+
+    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName) {
         if (isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(null);
+        }
+        return checkNonPartitionedTopicExists(topicName).thenCompose(exists -> exists
+                ? CompletableFuture.completedFuture(null)
+                : checkMaxTopicsPerNamespace(topicName, 1, false));
+    }
+
+    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
+                                                               boolean validateSystemTopic) {
+        if (validateSystemTopic) {
+            if (isSystemTopic(topicName)) {
+                return CompletableFuture.completedFuture(null);
+            }
         }
         return pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())

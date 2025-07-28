@@ -41,6 +41,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.avro.reflect.Nullable;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -128,7 +130,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         // create default resources.
         admin.clusters().createCluster(conf.getClusterName(),
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfo tenantInfo = new TenantInfoImpl(Collections.emptySet(), Collections.singleton(conf.getClusterName()));
+        TenantInfo tenantInfo = new TenantInfoImpl(Collections.emptySet(),
+                Collections.singleton(conf.getClusterName()));
         admin.tenants().createTenant("public", tenantInfo);
         admin.namespaces().createNamespace("public/default");
     }
@@ -140,7 +143,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(configClusterName);
 
-        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+        proxyClientAuthentication = AuthenticationFactory.create(
+                proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
     }
@@ -176,6 +180,34 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
+    }
+
+    @Test
+    public void testProxyConnectionClientConfig() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic("persistent://sample/test/local/producer-topic2")
+                .create();
+
+        MutableBoolean found = new MutableBoolean(false);
+        proxyService.getClientCnxs().forEach(proxyConnection -> {
+            if (proxyConnection.getConnectionPool() != null) {
+                try {
+                    found.setTrue();
+                    assertEquals(-1,
+                            FieldUtils.readDeclaredField(proxyConnection.getConnectionPool(),
+                                    "connectionMaxIdleSeconds",
+                                    true));
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        assertTrue(found.isTrue(), "No proxy connection found with connectionMaxIdleSeconds set to -1");
     }
 
     @Test
@@ -241,7 +273,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * test auto create partitioned topic by proxy
+     * test auto create partitioned topic by proxy.
      **/
     @Test
     public void testAutoCreateTopic() throws Exception{
