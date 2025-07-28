@@ -263,6 +263,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         final var interval = Duration.ofSeconds(1);
         final ThrowableConsumer<ThrowableSupplier<Closeable>> verifier = creator -> {
             admin.topics().createPartitionedTopic(topic, 1);
+            boolean needCleanup = false;
             try (final var ignored = creator.get()) {
                 admin.topics().terminatePartitionedTopic(topic);
                 admin.topics().deletePartitionedTopic(topic, true);
@@ -274,7 +275,11 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                 // automatically created.
                 if (!topics.isEmpty()) {
                     assertEquals(topics, List.of(topicName.getPartition(0).toString()));
+                    needCleanup = true;
                 }
+            }
+            if (needCleanup) {
+                admin.topics().delete(topicName.getPartition(0).toString());
             }
         };
         verifier.accept(() -> client.newProducer().topic(topic)
