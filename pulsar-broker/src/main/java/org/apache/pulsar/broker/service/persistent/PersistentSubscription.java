@@ -355,11 +355,14 @@ public class PersistentSubscription extends AbstractSubscription {
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
             // Remove the cursor from the waiting cursors list.
-            // For durable cursors, we should *not* cancel the pending read. This is because internally,
-            // in the dispatcher implementations, there is a "havePendingRead" flag that is not reset. If the pending
-            // read is cancelled, the dispatcher will not continue reading from the managed ledger when a new
-            // consumer is added to the dispatcher since based on the "havePendingRead" state, it will continue to
-            // expect that a read is pending and will not submit a new read.
+            // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.
+            // This is because internally, in the dispatcher implementations, there is a "havePendingRead" flag
+            // that is not reset. If the pending read is cancelled, the dispatcher will not continue reading from
+            // the managed ledger when a new consumer is added to the dispatcher since based on the "havePendingRead"
+            // state, it will continue to expect that a read is pending and will not submit a new read.
+            // For non-durable cursors, there's no difference since the cursor is not expected to be used again.
+
+            // remove waiting cursor from the managed ledger, this applies to both durable and non-durable cursors.
             topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
