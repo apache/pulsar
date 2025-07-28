@@ -166,6 +166,48 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @Test(timeOut = 30_000)
+    public void testCancelPendingReadInCheckingNewEntriesCallback() throws Exception {
+        final int newEntriesCheckDelayInMillis = 2000;
+        final String mlName = "ml_" + UUID.randomUUID().toString().replaceAll("-", "");
+        final String cursorName = "cs_" + UUID.randomUUID().toString().replaceAll("-", "");
+        final Object ctx = new Object();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setNewEntriesCheckDelayInMillis(newEntriesCheckDelayInMillis);
+        ManagedLedger ledger = factory.open(mlName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+
+        // Trigger a reading request.
+        cursor.asyncReadEntriesWithSkipOrWait(1, 1L, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                log.info("read completed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                cursor.cancelPendingReadRequest();
+            }
+        }, ctx, PositionFactory.LATEST, null);
+
+        // Wait for the delay task is created.
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(cursor.delayCheckForNewEntriesTask);
+        });
+
+        // Close the cursor.
+        cursor.trySetStateToClosing();
+
+        // Wait for the delay task being done.
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertTrue(cursor.delayCheckForNewEntriesTask.isDone()
+                    || cursor.delayCheckForNewEntriesTask.isCancelled());
+        });
+
+        // cleanup.
+        ledger.delete();
+    }
+
     @Test
     public void testRepeatCloseCursor() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();

@@ -168,7 +168,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
-    private DelayCheckForNewEntriesTask delayCheckForNewEntriesTask;
+    @VisibleForTesting
+    DelayCheckForNewEntriesTask delayCheckForNewEntriesTask;
 
     public static final int FALSE = 0;
     public static final int TRUE = 1;
@@ -1065,11 +1066,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private enum DelayCheckForNewEntriesTaskState {
+    enum DelayCheckForNewEntriesTaskState {
         INIT, RUNNING, CANCELLED, DONE
     }
 
-    private class DelayCheckForNewEntriesTask implements Runnable {
+    class DelayCheckForNewEntriesTask implements Runnable {
 
         private final OpReadEntry op;
         private final ReadEntriesCallback callback;
@@ -1097,11 +1098,15 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
 
-        public boolean isDone() {
+        boolean isDone() {
             return state == DelayCheckForNewEntriesTaskState.DONE;
         }
 
-        public boolean cancel() {
+        boolean isCancelled() {
+            return state == DelayCheckForNewEntriesTaskState.CANCELLED;
+        }
+
+        boolean cancel() {
             synchronized (pendingReadOpMutex) {
                 // Not all implementations of Executor guarantee that the Runnable will be no long be executed after a
                 // successful cancel, such as Guava MoreExecutors, see also https://github.com/google/guava/blob
@@ -1118,13 +1123,19 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void checkForNewEntries(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
+        boolean callbacked = false;
         try {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Re-trying the read at position {}", ledger.getName(), name, op.readPosition);
             }
 
             if (isClosed()) {
-                callback.readEntriesFailed(new CursorAlreadyClosedException("Cursor was already closed"), ctx);
+                log.info("[{}] [{}] Skip to check for new entries because the cursor is already closed",
+                    ledger.getName(), name);
+                callbacked = true;
+                ledger.executor.execute(() -> {
+                    callback.readEntriesFailed(new CursorAlreadyClosedException("Cursor was already closed"), ctx);
+                });
                 return;
             }
 
@@ -1165,10 +1176,20 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // At this point we registered for notification and still there were no more available
                 // entries.
                 // If the managed ledger was indeed terminated, we need to notify the cursor
-                callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+                log.warn("[{}] [{}] Failed to check for new entries because the managed ledger is already terminated",
+                        ledger.getName(), name);
+                callbacked = true;
+                ledger.executor.execute(() -> {
+                    callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+                });
             }
         } catch (Throwable t) {
-            callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
+            log.error("[{}] [{}] Failed to check for new entries", ledger.getName(), name, t);
+            if (!callbacked) {
+                ledger.executor.execute(() -> {
+                    callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
+                });
+            }
         }
     }
 
@@ -3127,7 +3148,8 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Try set {@link #state} to {@link State#Closing}.
      * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
      */
-    private boolean trySetStateToClosing() {
+    @VisibleForTesting
+    boolean trySetStateToClosing() {
         final AtomicBoolean notClosing = new AtomicBoolean(false);
         STATE_UPDATER.updateAndGet(this, state -> {
             switch (state){
