@@ -3638,6 +3638,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         closeWaitingCursor();
 
         if (cursorLedger == null) {
+            log.warn("[{}-{}] There's no cursor ledger available for deletion.", ledger.getName(), name);
+            state = State.DeletingFailed;
             return;
         }
 
