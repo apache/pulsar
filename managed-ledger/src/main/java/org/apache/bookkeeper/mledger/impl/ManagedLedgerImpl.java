@@ -1078,10 +1078,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // If the cursor is active, we need to deactivate it first
         cursor.setInactive();
-        // Set the state to closing to avoid any new writes
-        ManagedCursorImpl.State previousState =
-                cursor.changeStateIfNotDeletingOrDeleted(ManagedCursorImpl.State.Deleting);
-        if (previousState.isDeletingOrDeleted()) {
+        // Set the state to deleting (which is a closed state) to avoid any new writes
+        ManagedCursorImpl.State beforeChangingState = cursor.changeStateToDeletingIfNotDeleted();
+        if (beforeChangingState.isDeletingOrDeleted()) {
             log.warn("[{}] [{}] Cursor is already being deleted or has been deleted.", name, consumerName);
             return;
         }

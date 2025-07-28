@@ -3622,15 +3622,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void asyncDeleteCursorLedger(int retry) {
-        State beforeChangingState = STATE_UPDATER.getAndUpdate(this, current -> {
-            // don't change the state if it's already deleting or deleted
-            if (current.isDeletingOrDeleted()) {
-                return current;
-            }
-            return State.Deleting;
-        });
-        if (beforeChangingState.isDeletingOrDeleted()) {
-            log.warn("[{}-{}] Cursor ledger is already deleting or deleted. state={}", ledger.getName(), name,
+        State beforeChangingState = changeStateToDeletingIfNotDeleted();
+        if (beforeChangingState == State.Deleted) {
+            log.warn("[{}-{}] Cursor ledger is already deleted. state={}", ledger.getName(), name,
                     beforeChangingState);
             return;
         }
@@ -3668,6 +3662,20 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
             }
         }, null);
+    }
+
+    /**
+     * Change the state to {@link State#Deleting} if the current state is not {@link State#Deleted}.
+     * @return The state before changing.
+     */
+    State changeStateToDeletingIfNotDeleted() {
+        return STATE_UPDATER.getAndUpdate(this, current -> {
+            // don't change the state if it's already deleted
+            if (current == State.Deleted) {
+                return current;
+            }
+            return State.Deleting;
+        });
     }
 
     /**
