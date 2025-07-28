@@ -66,4 +66,13 @@ public interface Entry {
      * of data reached to 0).
      */
     boolean release();
+
+    /**
+     * Check if this entry is for the given Position.
+     * @param position the position to check against
+     * @return true if the entry matches the position, false otherwise
+     */
+    default boolean matchesPosition(Position position) {
+        return position != null && position.compareTo(getLedgerId(), getEntryId()) == 0;
+    }
 }
