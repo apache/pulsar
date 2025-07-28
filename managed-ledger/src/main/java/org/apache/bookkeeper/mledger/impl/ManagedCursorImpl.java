@@ -1205,7 +1205,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (op != null) {
             op.recycle();
         }
-        return op != null;
+        return op != null && op != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR;
     }
 
     public boolean hasPendingReadRequest() {
