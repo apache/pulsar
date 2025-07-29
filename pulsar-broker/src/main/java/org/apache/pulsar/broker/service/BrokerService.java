@@ -1166,18 +1166,8 @@ public class BrokerService implements Closeable {
                     if (!exists && !createIfMissing) {
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
-                    // The topic level policies are not needed now, but the meaning of calling
-                    // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
-                    return getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
-                            .exceptionally(ex -> {
-                        final Throwable rc = FutureUtil.unwrapCompletionException(ex);
-                        final String errorInfo = String.format("Topic creation encountered an exception by initialize"
-                                + " topic policies service. topic_name=%s error_message=%s", topicName,
-                                rc.getMessage());
-                        log.error(errorInfo, rc);
-                        throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
-                    }).thenCompose(optionalTopicPolicies -> topics.computeIfAbsent(topicName.toString(),
-                            __ -> loadOrCreatePersistentTopic(topicName, createIfMissing, properties)));
+                    return topics.computeIfAbsent(topicName.toString(), __ ->
+                            loadOrCreatePersistentTopic(topicName, createIfMissing, properties));
                 });
             } else {
                 if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
