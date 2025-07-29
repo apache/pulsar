@@ -1670,7 +1670,7 @@ public class BrokerService implements Closeable {
 
         if (topicLoadSemaphore.tryAcquire()) {
             checkOwnershipAndCreatePersistentTopic(topicName, createIfMissing, topicFuture,
-                    properties);
+                    properties, false);
             topicFuture.handle((persistentTopic, ex) -> {
                 // release permit and process pending topic
                 topicLoadSemaphore.release();
@@ -1724,13 +1724,17 @@ public class BrokerService implements Closeable {
     }
 
     private void checkOwnershipAndCreatePersistentTopic(TopicName topicName, boolean createIfMissing,
-                                       CompletableFuture<Optional<Topic>> topicFuture,
-                                       @Nullable Map<String, String> properties) {
+                                                        CompletableFuture<Optional<Topic>> topicFuture,
+                                                        @Nullable Map<String, String> properties,
+                                                        boolean fromPendingLoadTopic) {
         final var topic = topicName.toString();
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         checkTopicNsOwnership(topicName).thenRun(() ->
                 createPersistentTopic0(topicName, createIfMissing, topicFuture, properties, topicCreateTimeMs)
         ).exceptionally(ex -> {
+            if (fromPendingLoadTopic) {
+                inactivityMonitor.schedule(this::createPendingLoadTopic, 100, MILLISECONDS);
+            }
             failTopicFuture(topic, topicFuture, ex);
             return null;
         });
@@ -3222,28 +3226,17 @@ public class BrokerService implements Closeable {
         }
 
         final var topicName = pendingTopic.topicName;
-        checkTopicNsOwnership(topicName).thenRun(() -> {
-            CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
-            final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
-            final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            checkOwnershipAndCreatePersistentTopic(topicName,
-                    pendingTopic.isCreateIfMissing(),
-                    pendingFuture,
-                    pendingTopic.getProperties());
-            pendingFuture.handle((persistentTopic, ex) -> {
-                // release permit and process next pending topic
-                if (acquiredPermit) {
-                    topicLoadSemaphore.release();
-                }
-                createPendingLoadTopic();
-                return null;
-            });
-        }).exceptionally(e -> {
-            log.error("Failed to create pending topic {}", topicName.toString(), e);
-            pendingTopic.getTopicFuture()
-                    .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
-            // schedule to process next pending topic
-            inactivityMonitor.schedule(this::createPendingLoadTopic, 100, MILLISECONDS);
+        final var pendingFuture = pendingTopic.topicFuture;
+        final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
+        final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
+        checkOwnershipAndCreatePersistentTopic(topicName, pendingTopic.createIfMissing, pendingFuture,
+                pendingTopic.properties, true);
+        pendingFuture.handle((persistentTopic, ex) -> {
+            // release permit and process next pending topic
+            if (acquiredPermit) {
+                topicLoadSemaphore.release();
+            }
+            createPendingLoadTopic();
             return null;
         });
     }
@@ -3811,12 +3804,8 @@ public class BrokerService implements Closeable {
         return null;
     }
 
-    @AllArgsConstructor
     @Getter
-    private static class TopicLoadingContext {
-        private final TopicName topicName;
-        private final boolean createIfMissing;
-        private final CompletableFuture<Optional<Topic>> topicFuture;
-        private final Map<String, String> properties;
+    private record TopicLoadingContext(TopicName topicName, boolean createIfMissing,
+                                       CompletableFuture<Optional<Topic>> topicFuture, Map<String, String> properties) {
     }
 }
