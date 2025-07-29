@@ -4091,8 +4091,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     consumer.receive();
                     fail("thread should have been interrupted");
                 } catch (PulsarClientException e) {
-                    terminateCompletedLatch.countDown();
                     interruptedThreadCount.incrementAndGet();
+                    terminateCompletedLatch.countDown();
                 }
             }).start();
         }
