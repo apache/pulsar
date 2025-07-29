@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -3108,7 +3107,7 @@ public class ServerCnxTest {
 
         // Force the checkTopicNsOwnership method to throw ServiceUnitNotReadyException
         doReturn(FutureUtil.failedFuture(new ServiceUnitNotReadyException("Service unit is not ready")))
-                .when(brokerService).checkTopicNsOwnership(anyString());
+                .when(brokerService).checkTopicNsOwnership(any());
 
         // 2nd subscribe command when the service unit is not ready
         ByteBuf clientCommand2 = Commands.newSubscribe(successTopicName, successSubName, 2 /* consumer id */,

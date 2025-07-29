@@ -1176,10 +1176,8 @@ public class BrokerService implements Closeable {
                                 rc.getMessage());
                         log.error(errorInfo, rc);
                         throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
-                    }).thenCompose(optionalTopicPolicies -> {
-                        return topics.computeIfAbsent(topicName.toString(),
-                                (tpName) -> loadOrCreatePersistentTopic(tpName, createIfMissing, properties));
-                    });
+                    }).thenCompose(optionalTopicPolicies -> topics.computeIfAbsent(topicName.toString(),
+                            __ -> loadOrCreatePersistentTopic(topicName, createIfMissing, properties)));
                 });
             } else {
                 if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
@@ -1391,7 +1389,7 @@ public class BrokerService implements Closeable {
             topicFuture.completeExceptionally(e);
             return topicFuture;
         }
-        checkTopicNsOwnership(topic)
+        checkTopicNsOwnership(TopicName.get(topic))
                 .thenCompose((__) -> validateTopicConsistency(TopicName.get(topic)))
                 .thenRun(() -> {
             nonPersistentTopic.initialize()
@@ -1651,12 +1649,8 @@ public class BrokerService implements Closeable {
     /**
      * It creates a topic async and returns CompletableFuture. It also throttles down configured max-concurrent topic
      * loading and puts them into queue once in-process topics are created.
-     *
-     * @param topic persistent-topic name
-     * @return CompletableFuture<Topic>
-     * @throws RuntimeException
      */
-    protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
+    protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(TopicName topicName,
             boolean createIfMissing, Map<String, String> properties) {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
@@ -1667,12 +1661,13 @@ public class BrokerService implements Closeable {
             return null;
         });
 
-        checkTopicNsOwnership(topic)
+        final var topic = topicName.toString();
+        checkTopicNsOwnership(topicName)
                 .thenRun(() -> {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
                     if (topicLoadSemaphore.tryAcquire()) {
-                        checkOwnershipAndCreatePersistentTopic(topic, createIfMissing, topicFuture,
+                        checkOwnershipAndCreatePersistentTopic(topicName, createIfMissing, topicFuture,
                                 properties);
                         topicFuture.handle((persistentTopic, ex) -> {
                             // release permit and process pending topic
@@ -1688,7 +1683,7 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic,
+                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topicName,
                                 createIfMissing, topicFuture, properties));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
@@ -1732,11 +1727,11 @@ public class BrokerService implements Closeable {
         }
     }
 
-    private void checkOwnershipAndCreatePersistentTopic(final String topic, boolean createIfMissing,
+    private void checkOwnershipAndCreatePersistentTopic(TopicName topicName, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        Map<String, String> properties) {
-        TopicName topicName = TopicName.get(topic);
-        checkTopicNsOwnership(topic).thenRun(() -> {
+        final var topic = topicName.toString();
+        checkTopicNsOwnership(topicName).thenRun(() -> {
             CompletableFuture<Map<String, String>> propertiesFuture;
             if (properties == null) {
                 //Read properties from storage when loading topic.
@@ -1746,7 +1741,7 @@ public class BrokerService implements Closeable {
             }
             propertiesFuture.thenAccept(finalProperties ->
                     //TODO add topicName in properties?
-                    createPersistentTopic0(topic, createIfMissing, topicFuture,
+                    createPersistentTopic0(topicName, createIfMissing, topicFuture,
                             finalProperties)
             ).exceptionally(throwable -> {
                 log.warn("[{}] Read topic property failed", topic, throwable);
@@ -1762,12 +1757,11 @@ public class BrokerService implements Closeable {
     }
 
     @VisibleForTesting
-    public void createPersistentTopic0(final String topic, boolean createIfMissing,
+    public void createPersistentTopic0(TopicName topicName, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        Map<String, String> properties) {
-        TopicName topicName = TopicName.get(topic);
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-
+        final var topic = topicName.toString();
         if (isTransactionInternalName(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
             log.warn(msg);
@@ -2354,8 +2348,7 @@ public class BrokerService implements Closeable {
                 });
     }
 
-    public CompletableFuture<Void> checkTopicNsOwnership(final String topic) {
-        TopicName topicName = TopicName.get(topic);
+    public CompletableFuture<Void> checkTopicNsOwnership(TopicName topicName) {
         final var namespaceService = pulsar.getNamespaceService();
 
         return namespaceService.getBundleAsync(topicName).thenCompose(bundle ->
@@ -2364,7 +2357,7 @@ public class BrokerService implements Closeable {
                         return CompletableFuture.completedFuture(null);
                     } else {
                         String msg = String.format("Namespace bundle (%s) for topic (%s) not served by this instance:"
-                                + "%s. Please redo the lookup.", bundle, topic, pulsar.getBrokerId());
+                                + "%s. Please redo the lookup.", bundle, topicName, pulsar.getBrokerId());
                         log.warn(msg);
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
@@ -3246,12 +3239,12 @@ public class BrokerService implements Closeable {
             return;
         }
 
-        final String topic = pendingTopic.getTopic();
-        checkTopicNsOwnership(topic).thenRun(() -> {
+        final var topicName = pendingTopic.topicName;
+        checkTopicNsOwnership(topicName).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            checkOwnershipAndCreatePersistentTopic(topic,
+            checkOwnershipAndCreatePersistentTopic(topicName,
                     pendingTopic.isCreateIfMissing(),
                     pendingFuture,
                     pendingTopic.getProperties());
@@ -3264,7 +3257,7 @@ public class BrokerService implements Closeable {
                 return null;
             });
         }).exceptionally(e -> {
-            log.error("Failed to create pending topic {}", topic, e);
+            log.error("Failed to create pending topic {}", topicName.toString(), e);
             pendingTopic.getTopicFuture()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
@@ -3824,7 +3817,7 @@ public class BrokerService implements Closeable {
     @AllArgsConstructor
     @Getter
     private static class TopicLoadingContext {
-        private final String topic;
+        private final TopicName topicName;
         private final boolean createIfMissing;
         private final CompletableFuture<Optional<Topic>> topicFuture;
         private final Map<String, String> properties;

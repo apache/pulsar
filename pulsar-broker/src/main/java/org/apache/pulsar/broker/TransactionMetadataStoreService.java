@@ -117,7 +117,7 @@ public class TransactionMetadataStoreService {
                 completableFuture.complete(null);
             } else {
                 pulsarService.getBrokerService().checkTopicNsOwnership(SystemTopicNames
-                        .TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString())
+                        .TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()))
                         .thenRun(() -> internalPinnedExecutor.execute(() -> {
                     final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
                             .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));

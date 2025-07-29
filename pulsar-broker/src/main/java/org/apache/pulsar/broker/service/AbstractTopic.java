@@ -762,7 +762,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                                                          CompletableFuture<Void> producerQueuedFuture) {
         checkArgument(producer.getTopic() == this);
 
-        return brokerService.checkTopicNsOwnership(getName())
+        return brokerService.checkTopicNsOwnership(TopicName.get(topic))
                 .thenCompose(__ ->
                         incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
                 .thenCompose(producerEpoch -> {

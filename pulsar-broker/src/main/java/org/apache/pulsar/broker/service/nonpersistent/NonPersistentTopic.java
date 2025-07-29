@@ -284,7 +284,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           Map<String, String> subscriptionProperties,
                                                           SchemaType schemaType) {
 
-        return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
+        return brokerService.checkTopicNsOwnership(TopicName.get(topic)).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
             if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
