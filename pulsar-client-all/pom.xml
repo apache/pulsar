@@ -192,7 +192,8 @@
                   <include>javax.xml.bind:jaxb-api</include>
                   <include>net.jcip:jcip-annotations</include>
                   <include>org.apache.avro:*</include>
-                  <include>org.apache.bookkeeper:*</include>
+                  <include>com.datastax.oss:bookkeeper-*</include>
+                  <include>com.datastax.oss:circe-checksum</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>com.datastax.oss:pulsar-client-admin-original</include>
@@ -361,6 +362,10 @@
                 <relocation>
                   <pattern>jersey</pattern>
                   <shadedPattern>org.apache.pulsar.shade.jersey</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.scurrilous.circe</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/core/</pattern>

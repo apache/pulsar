@@ -177,7 +177,8 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.27.1</commons-compress.version>
 
-    <bookkeeper.version>4.17.2</bookkeeper.version>
+    <datastax.bookkeeper.version>4.17.1.0.0.3</datastax.bookkeeper.version>
+    <apache.bookkeeper.version>4.17.2</apache.bookkeeper.version>
     <zookeeper.version>3.9.3</zookeeper.version>
     <commons-cli.version>1.9.0</commons-cli.version>
     <commons-text.version>1.13.1</commons-text.version>
@@ -515,9 +516,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>bookkeeper-server</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
         <exclusions>
           <exclusion>
             <groupId>org.bouncycastle</groupId>
@@ -548,9 +549,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>cpu-affinity</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
       </dependency>
 
       <dependency>
@@ -582,15 +583,15 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>bookkeeper-common-allocator</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>bookkeeper-tools-framework</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
       </dependency>
 
       <!-- reflection libs -->
@@ -602,9 +603,9 @@ flexible messaging model and an intuitive client API.</description>
 
       <!-- exclude the grpc version from bookkeeper and use the one defined here -->
       <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>stream-storage-java-client</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
         <exclusions>
           <exclusion>
             <groupId>io.grpc</groupId>
@@ -639,9 +640,9 @@ flexible messaging model and an intuitive client API.</description>
 
       <!-- exclude the grpc version from bookkeeper and use the one defined here -->
       <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>stream-storage-server</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
         <exclusions>
           <exclusion>
             <groupId>io.grpc</groupId>
@@ -678,21 +679,21 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>bookkeeper-common</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.bookkeeper.stats</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>bookkeeper-stats-api</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>datasketches-metrics-provider</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${apache.bookkeeper.version}</version>
         <exclusions>
           <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
@@ -702,9 +703,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.bookkeeper.stats</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>prometheus-metrics-provider</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
       </dependency>
 
       <dependency>
@@ -1354,13 +1355,13 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.distributedlog</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>distributedlog-core</artifactId>
-        <version>${bookkeeper.version}</version>
+        <version>${datastax.bookkeeper.version}</version>
         <exclusions>
           <!-- exclude bookkeeper, reply on the bookkeeper version that pulsar uses -->
           <exclusion>
-            <groupId>org.apache.bookkeeper</groupId>
+            <groupId>com.datastax.oss</groupId>
             <artifactId>bookkeeper-server</artifactId>
           </exclusion>
         </exclusions>
@@ -1778,9 +1779,9 @@ flexible messaging model and an intuitive client API.</description>
 
     <dependency>
       <!-- We use MockedBookKeeper in many unit tests -->
-      <groupId>org.apache.bookkeeper</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>bookkeeper-server</artifactId>
-      <version>${bookkeeper.version}</version>
+      <version>${datastax.bookkeeper.version}</version>
       <scope>test</scope>
       <classifier>tests</classifier>
       <exclusions>
@@ -1812,9 +1813,9 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
     <dependency>
       <!-- We use TestStatsProvider in many unit tests -->
-      <groupId>org.apache.bookkeeper</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>bookkeeper-common</artifactId>
-      <version>${bookkeeper.version}</version>
+      <version>${datastax.bookkeeper.version}</version>
       <scope>test</scope>
       <classifier>tests</classifier>
       <exclusions>
@@ -1951,6 +1952,7 @@ flexible messaging model and an intuitive client API.</description>
         <configuration>
           <licenseSets>
             <licenseSet>
+              <!--suppress UnresolvedMavenProperty -->
               <header>${pulsar.basedir}/src/license-header.txt</header>
               <excludes>
                 <exclude>LICENSE</exclude>

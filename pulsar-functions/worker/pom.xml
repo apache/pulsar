@@ -114,7 +114,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.distributedlog</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>distributedlog-core</artifactId>
       <exclusions>
         <exclusion>
@@ -125,7 +125,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>bookkeeper-server</artifactId>
     </dependency>
 
