@@ -65,6 +65,8 @@ import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -87,6 +89,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -105,6 +108,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class PrometheusMetricsTest extends BrokerTestBase {
 
@@ -683,14 +687,26 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("test")
+                .receiverQueueSize(0)
                 .subscribe();
         byte[] msg = new byte[2 * 1024 * 1024];
         new Random().nextBytes(msg);
+        // Block any cache evictions since the test will be flaky unless the test can control when the cache is evicted.
+        Runnable triggerPendingCacheEviction = ((ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory())
+                .blockPendingCacheEvictions();
+        log.info("Sending first message");
         producer.send(msg);
-        consumer.receive();
+        log.info("Receiving first message");
+        Message<byte[]> message = consumer.receive();
+        log.info("Sending second message");
+        producer.send(msg);
+        // trigger pending cache evictions
+        triggerPendingCacheEviction.run();
+        consumer.acknowledge(message);
+        log.info("Receiving second message");
         // when cacheEnable, the second msg will read cache miss
-        producer.send(msg);
-        consumer.receive();
+        message = consumer.receive();
+        consumer.acknowledge(message);
 
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
