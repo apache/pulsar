@@ -370,6 +370,7 @@ public final class SchemaUtils {
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.heapBuffer(dataLength);
         byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
         byteBuf.readBytes(schema);
+        byteBuf.release();
         return schema;
     }
 

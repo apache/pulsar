@@ -84,6 +84,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactor
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategyFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
+import org.apache.pulsar.broker.loadbalance.extensions.strategy.RoundRobinBrokerSelectionStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.broker.namespace.LookupOptions;
@@ -160,6 +161,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     @Getter
     private final BrokerSelectionStrategy brokerSelectionStrategy;
+
+    private final BrokerSelectionStrategy sheddingExcludedNamespaceSelectionStrategy;
 
     @Getter
     private final List<BrokerFilter> brokerFilterPipeline;
@@ -255,6 +258,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
         this.brokerSelectionStrategy = createBrokerSelectionStrategy();
+        this.sheddingExcludedNamespaceSelectionStrategy = new RoundRobinBrokerSelectionStrategy();
     }
 
     public static boolean isLoadManagerExtensionEnabled(PulsarService pulsar) {
@@ -638,9 +642,31 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                             return Optional.empty();
                         }
                         Set<String> candidateBrokers = availableBrokerCandidates.keySet();
-                        return getBrokerSelectionStrategy().select(candidateBrokers, bundle, context);
+                        return getBrokerSelectionStrategy(bundle).select(candidateBrokers, bundle, context);
                     });
                 });
+    }
+
+    /**
+     * For shedding excluded namespaces, use RoundRobinBrokerSelector to assign the ownership,
+     * it can make the assignment more average because these will not automatically rebalance to
+     * another broker unless manually unloaded it.
+     *
+     * @param bundle the bundle to assign
+     * @return the broker selection strategy
+     */
+    private BrokerSelectionStrategy getBrokerSelectionStrategy(ServiceUnitId bundle) {
+
+        Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+
+        var namespace = NamespaceBundle.getBundleNamespace(bundle.toString());
+        if (sheddingExcludedNamespaces.contains(namespace)) {
+            if (debug(conf, log)) {
+                log.info("Use round robin broker selector for {}", bundle);
+            }
+            return sheddingExcludedNamespaceSelectionStrategy;
+        }
+        return brokerSelectionStrategy;
     }
 
     @Override

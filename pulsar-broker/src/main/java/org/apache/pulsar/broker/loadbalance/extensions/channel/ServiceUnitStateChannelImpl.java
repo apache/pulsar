@@ -316,7 +316,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             pulsar.getConfiguration().getDefaultNumberOfNamespaceBundles());
 
             tableview = createServiceUnitStateTableView();
-            tableview.start(pulsar, this::handleEvent, this::handleExisting);
+            tableview.start(pulsar, this::handleEvent, this::handleExisting, this::handleInvalidate);
 
             if (debug) {
                 log.info("Successfully started the channel tableview.");
@@ -471,7 +471,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         // we return the owner without its activeness check.
         // This broker tries to serve lookups on a best efforts basis when metadata store connection is unstable.
         if (!brokerRegistry.isRegistered()) {
-            return CompletableFuture.completedFuture(owner);
+            if (tableview.isMetadataStoreBased()) {
+                return FutureUtil.failedFuture(new MetadataStoreException("broker is unavailable so far because it is"
+                    + " in the state that tries to reconnect to the metadata store."));
+            } else {
+                return CompletableFuture.completedFuture(owner);
+            }
         }
 
         return dedupeGetOwnerRequest(serviceUnit)
@@ -740,6 +745,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
         }
+    }
+
+    /***
+     * When the {@link #tableview} can not determine the ownership of the service-unit, this method will be called.
+     * Often happens when the current broker can not connect to others.
+     */
+    private void handleInvalidate(String serviceUnit, ServiceUnitStateData data) {
+        closeServiceUnit(serviceUnit, true).whenComplete((__, ex) -> {
+            if (ex == null) {
+                log.info("Unloaded serviceUnit:{} because the ownership is invalidate", serviceUnit);
+                return;
+            }
+            log.error("Failed to unload serviceUnit:{} after the ownership is invalidate", serviceUnit, ex);
+        });
     }
 
     private static boolean isTransferCommand(ServiceUnitStateData data) {

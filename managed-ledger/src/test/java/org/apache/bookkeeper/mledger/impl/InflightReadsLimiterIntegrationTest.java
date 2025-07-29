@@ -86,14 +86,14 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         final RangeEntryCacheManagerImpl rangeEntryCacheManager =
                 (RangeEntryCacheManagerImpl) factory.getEntryCacheManager();
         final InflightReadsLimiter limiter = rangeEntryCacheManager.getInflightReadsLimiter();
-        final long totalCapacity =limiter.getRemainingBytes();
+        final long totalCapacity = limiter.getRemainingBytes();
         // final ManagedCursorImpl c1 = (ManagedCursorImpl) ml.openCursor("c1");
         for (byte i = 1; i < 127; i++) {
             log.info("add entry: " + i);
             ml.addEntry(new byte[]{i});
         }
         // Evict cached entries.
-        entryCache.evictEntries(ml.currentLedgerSize);
+        entryCache.clear();
         Assert.assertEquals(entryCache.getSize(), 0);
 
         CountDownLatch readCompleteSignal1 = new CountDownLatch(1);
@@ -111,7 +111,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
                 readCompleteSignal1.await();
                 Object res = invocation.callRealMethod();
                 return res;
-            } else if(secondReadEntries.contains(firstEntry)) {
+            } else if (secondReadEntries.contains(firstEntry)) {
                 final CompletableFuture res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {

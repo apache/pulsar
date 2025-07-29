@@ -101,3 +101,6 @@ test-reports/
 .mvn/.develocity/
 .vscode
 effective-pom.xml
+
+# AI Tools
+CLAUDE.md

@@ -182,7 +182,7 @@
     </dependency>
 
     <dependency>
-      <groupId>io.streamnative.oxia</groupId>
+      <groupId>io.github.oxia-db</groupId>
       <artifactId>oxia-testcontainers</artifactId>
       <scope>test</scope>
     </dependency>
@@ -360,11 +360,6 @@
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_hotspot</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.prometheus</groupId>
-      <artifactId>simpleclient_caffeine</artifactId>
     </dependency>
 
     <dependency>

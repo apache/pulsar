@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -40,17 +47,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
-
-import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.fail;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link MessageImpl}.
@@ -115,7 +112,8 @@ public class MessageImplTest {
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
         foo.setField2("field2");
@@ -202,7 +200,8 @@ public class MessageImplTest {
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -269,13 +268,14 @@ public class MessageImplTest {
 
     @Test
     public void testDefaultJSONVersionGetProducerDataAssigned() {
-        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
-                SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(
-                SchemaTestUtils.Bar.class).build());
+        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -342,13 +342,14 @@ public class MessageImplTest {
 
     @Test
     public void testDefaultAVROJSONVersionGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
-                SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(
-                SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -428,7 +429,7 @@ public class MessageImplTest {
 
     @Test(timeOut = 30000)
     public void testMessageBrokerAndEntryMetadataTimestampMissed() {
-        int MOCK_BATCH_SIZE = 10;
+        int mockBatchSize = 10;
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
@@ -441,7 +442,7 @@ public class MessageImplTest {
                     .setSequenceId(1);
             byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
             BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
-                            .setIndex(MOCK_BATCH_SIZE - 1);
+                            .setIndex(mockBatchSize - 1);
 
             int brokerMetaSize = brokerMetadata.getSerializedSize();
             ByteBuf  brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
@@ -466,7 +467,7 @@ public class MessageImplTest {
             long brokerEntryTimestamp = System.currentTimeMillis();
             brokerMetadata = new BrokerEntryMetadata()
                     .setBrokerTimestamp(brokerEntryTimestamp)
-                    .setIndex(MOCK_BATCH_SIZE - 1);
+                    .setIndex(mockBatchSize - 1);
 
             brokerMetaSize = brokerMetadata.getSerializedSize();
             brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
@@ -486,7 +487,7 @@ public class MessageImplTest {
 
     @Test(timeOut = 30000)
     public void testParseMessageMetadataWithBrokerEntryMetadata() {
-        int MOCK_BATCH_SIZE = 10;
+        int mockBatchSize = 10;
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
@@ -502,7 +503,7 @@ public class MessageImplTest {
 
         // build broker entry metadata
         BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
-                .setIndex(MOCK_BATCH_SIZE - 1);
+                .setIndex(mockBatchSize - 1);
 
         // build final data which contains broker entry metadata
         int brokerMetaSize = brokerMetadata.getSerializedSize();

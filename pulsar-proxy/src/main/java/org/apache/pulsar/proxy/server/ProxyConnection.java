@@ -734,6 +734,8 @@ public class ProxyConnection extends PulsarHandler {
         ProxyConfiguration proxyConfig = service.getConfiguration();
         initialConf.setServiceUrl(
                 proxyConfig.isTlsEnabledWithBroker() ? service.getServiceUrlTls() : service.getServiceUrl());
+        /** The proxy service does not need to automatically clean up idling connections, so set to false. **/
+        initialConf.setConnectionMaxIdleSeconds(-1);
 
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
@@ -742,8 +744,6 @@ public class ProxyConnection extends PulsarHandler {
                 .filterAndMapProperties(proxyConfig.getProperties(), "brokerClient_");
         ClientConfigurationData clientConf = ConfigurationDataUtils
                 .loadData(overrides, initialConf, ClientConfigurationData.class);
-        /** The proxy service does not need to automatically clean up invalid connections, so set false. **/
-        initialConf.setConnectionMaxIdleSeconds(-1);
         clientConf.setAuthentication(this.getClientAuthentication());
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);

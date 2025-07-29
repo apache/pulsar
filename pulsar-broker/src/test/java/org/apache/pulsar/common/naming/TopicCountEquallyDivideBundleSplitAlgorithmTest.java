@@ -50,7 +50,8 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(Lists.newArrayList("a")))
                 .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
-        assertNull(algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join());
+        assertNull(algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService,
+                mockNamespaceBundle, null)).join());
     }
 
     @SuppressWarnings("UnstableApiUsage")
@@ -91,7 +92,7 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
             doReturn(hashValue)
                     .when(mockNamespaceBundleFactory).getLongHashCode(topic);
         });
-        assertEquals((long) algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join().get(0),
-                splitMiddleForMockResult);
+        assertEquals((long) algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService,
+                        mockNamespaceBundle, null)).join().get(0), splitMiddleForMockResult);
     }
 }

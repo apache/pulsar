@@ -83,7 +83,8 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
 
         // configure dispatch throttling rate
         BrokerService brokerService = pulsar.getBrokerService();
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", String.valueOf(rateInMsg));
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate",
+                String.valueOf(rateInMsg));
         Awaitility.await().untilAsserted(() -> {
             PublishRateLimiterImpl publishRateLimiter =
                     (PublishRateLimiterImpl) brokerService.getBrokerPublishRateLimiter();
@@ -113,7 +114,8 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
             if (elapsedFullSeconds > 0 && lastCalculatedSecond.compareAndSet(elapsedFullSeconds - 1,
                     elapsedFullSeconds)) {
                 int messagesCountForPreviousSecond = currentSecondMessagesCount.getAndSet(0);
-                log.info("Rate for second {}: {} msg/s {}", elapsedFullSeconds, messagesCountForPreviousSecond, TimeUnit.NANOSECONDS.toMillis(durationNanos));
+                log.info("Rate for second {}: {} msg/s {}", elapsedFullSeconds, messagesCountForPreviousSecond,
+                        TimeUnit.NANOSECONDS.toMillis(durationNanos));
                 collectedRatesForEachSecond.add(messagesCountForPreviousSecond);
             }
         };

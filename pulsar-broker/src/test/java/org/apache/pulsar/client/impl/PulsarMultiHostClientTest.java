@@ -128,7 +128,8 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         final String subscriptionName = "my-subscriber-name";
 
         // Multi hosts included an unreached port and the actual port for verify retry logic
-        String urlsWithUnreached = "http://localhost:51000,localhost:" + new URI(pulsar.getWebServiceAddress()).getPort();
+        String urlsWithUnreached = "http://localhost:51000,localhost:"
+                + new URI(pulsar.getWebServiceAddress()).getPort();
         if (isTcpLookup) {
             urlsWithUnreached = "pulsar://localhost:51000,localhost" + new URI(pulsar.getBrokerServiceUrl()).getPort();
         }

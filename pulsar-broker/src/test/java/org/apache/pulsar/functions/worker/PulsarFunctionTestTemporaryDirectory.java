@@ -30,7 +30,7 @@ import org.testng.Assert;
  * Creates a temporary directory that contains 4 subdirectories,
  * "narExtractionDirectory", "downloadDirectory", "connectorsDirectory" and "functionsDirectory",
  * which are assigned to the provided workerConfig's respective settings with
- * the {@link #useTemporaryDirectoriesForWorkerConfig(WorkerConfig)} method
+ * the {@link #useTemporaryDirectoriesForWorkerConfig(WorkerConfig)} method.
  */
 public class PulsarFunctionTestTemporaryDirectory {
     private final File tempDirectory;

@@ -84,7 +84,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public Producer<T> create() throws PulsarClientException {
         try {
-            return createAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(createAsync(), Producer::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }

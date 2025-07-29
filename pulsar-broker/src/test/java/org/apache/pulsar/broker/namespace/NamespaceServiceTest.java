@@ -126,11 +126,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testSplitAndOwnBundles() throws Exception {
 
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
-        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+        ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
@@ -196,16 +197,17 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testSplitMapWithRefreshedStatMap() throws Exception {
 
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(new ArrayList<>());
         when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
 
-        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
-        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+        ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
@@ -251,15 +253,16 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testIsServiceUnitDisabled() throws Exception {
 
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
-        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
-        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+        ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
@@ -279,7 +282,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
-        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), ownershipCache);
@@ -338,7 +342,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // add mock topic
         topics.put(topicName, topicFuture);
         // return uncompleted future as close-topic result.
-        doAnswer((Answer<CompletableFuture<Void>>) invocation -> new CompletableFuture<Void>()).when(spyTopic).close(false);
+        doAnswer((Answer<CompletableFuture<Void>>) invocation -> new CompletableFuture<Void>())
+                .when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         // try to unload bundle whose topic will be stuck
@@ -401,8 +406,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String listenerUrlTls = "pulsar://localhost:8000";
         final String listener = "listenerName";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
-        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker, null, brokerUrl, null, advertisedListeners);
+        advertisedListeners.put(listener, AdvertisedListener.builder()
+                .brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
+        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker,
+                null, brokerUrl, null, advertisedListeners);
         String path = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker);
 
         pulsar.getLocalMetadataStore().put(path,
@@ -410,8 +417,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 Optional.empty(),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
-        LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
-        LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();
+        LookupResult noListener = pulsar.getNamespaceService()
+                .createLookupResult(candidateBroker, false, null).get();
+        LookupResult withListener = pulsar.getNamespaceService()
+                .createLookupResult(candidateBroker, false, listener).get();
 
         Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), brokerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrl(), listenerUrl);
@@ -421,11 +430,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testCreateNamespaceWithDefaultNumberOfBundles() throws Exception {
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
-        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+        ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
@@ -433,7 +443,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
 
         try {
             result.get();
@@ -483,7 +494,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testRemoveOwnershipAndSplitBundle() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
 
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
@@ -495,7 +507,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
-        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
+        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
         try {
             result1.get();
         } catch (Exception e) {
@@ -514,7 +527,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
             }
         });
 
-        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
+        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
         try {
             result2.get();
         } catch (Exception e) {
@@ -527,7 +541,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testSplitBundleAndRemoveOldBundleFromOwnerShipCache() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
 
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
@@ -540,7 +555,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         NamespaceBundle splitBundle1 = bundles.findBundle(topicName);
         ownershipCache.tryAcquiringOwnership(splitBundle1);
-        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(splitBundle1, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
+        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(splitBundle1, false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
         try {
             result1.get();
         } catch (Exception e) {
@@ -553,7 +569,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         assertNotNull(bundles);
         NamespaceBundle splitBundle2 = bundles.findBundle(topicName);
-        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splitBundle2, true, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
+        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splitBundle2, true,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null);
         try {
             result2.get();
         } catch (Exception e) {
@@ -696,7 +713,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testHeartbeatNamespaceMatch() throws Exception {
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), conf);
-        NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
+        NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(namespaceName);
         assertTrue(NamespaceService.isSystemServiceNamespace(
                         NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
     }
@@ -738,7 +756,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceName nsname = NamespaceName.get(namespace);
         NamespaceBundles bundles = pulsar.getNamespaceService().getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle oldBundle = bundles.findBundle(TopicName.get(topic1));
-        pulsar.getNamespaceService().splitAndOwnBundle(oldBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null).get();
+        pulsar.getNamespaceService().splitAndOwnBundle(oldBundle, false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null).get();
 
         // update broker bundle report to zk
         pulsar.getBrokerService().updateRates();
@@ -747,7 +766,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         Field loadDataFiled = ModularLoadManagerImpl.class.getDeclaredField("loadData");
         loadDataFiled.setAccessible(true);
-        LoadData loadData = (LoadData)loadDataFiled
+        LoadData loadData = (LoadData) loadDataFiled
                 .get((ModularLoadManagerImpl) ((ModularLoadManagerWrapper) loadManager).getLoadManager());
         MetadataCache<BundleData> bundlesCache = pulsar.getLocalMetadataStore().getMetadataCache(BundleData.class);
 
@@ -799,7 +818,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertTrue(getResult.isPresent());
 
         //delete namespace which will remove bundle and load
-        pulsar.getAdminClient().namespaces().deleteNamespace(nsname.toString(),true);
+        pulsar.getAdminClient().namespaces().deleteNamespace(nsname.toString(), true);
 
         TimeUnit.SECONDS.sleep(5);
 
@@ -884,7 +903,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         Namespaces namespaces = admin.namespaces();
         for (String cluster : clusters) {
-            pulsar.getPulsarResources().getClusterResources().createCluster(cluster, ClusterData.builder().build());
+            pulsar.getPulsarResources().getClusterResources()
+                    .createCluster(cluster, ClusterData.builder().build());
         }
         // 2. Verify
         // 2.1 Replication clusters should be included in the allowed clusters.
@@ -944,7 +964,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void checkTopicExistsForNonPartitionedTopic(String topicDomain) throws Exception {
         TopicName topicName = TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID());
         admin.topics().createNonPartitionedTopic(topicName.toString());
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -961,7 +981,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topicName.toString(), 3);
 
         // Check the topic exists by the partitions.
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -972,7 +992,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 });
 
         // Check the specific partition.
-        result = pulsar.getNamespaceService().checkTopicExists(topicName.getPartition(2));
+        result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName.getPartition(2));
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -983,7 +1003,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 });
 
         // Partition index is out of range.
-        result = pulsar.getNamespaceService().checkTopicExists(topicName.getPartition(10));
+        result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName.getPartition(10));
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -997,7 +1017,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test(dataProvider = "topicDomain")
     public void checkTopicExistsForNonExistentNonPartitionedTopic(String topicDomain) {
         TopicName topicName = TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID());
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {
@@ -1014,7 +1034,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void checkTopicExistsForNonExistentPartitionTopic(String topicDomain) {
         TopicName topicName =
                 TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID() + "-partition-10");
-        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .satisfies(n -> {

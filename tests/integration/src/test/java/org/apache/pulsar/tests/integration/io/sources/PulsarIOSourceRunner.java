@@ -21,10 +21,11 @@ package org.apache.pulsar.tests.integration.io.sources;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.gson.Gson;
 import dev.failsafe.Failsafe;
 import java.util.Map;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -42,20 +43,15 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarTestBase;
 import org.testcontainers.containers.GenericContainer;
 
-import com.google.gson.Gson;
-
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 public class PulsarIOSourceRunner extends PulsarIOTestRunner {
 
     public PulsarIOSourceRunner(PulsarCluster cluster, String functionRuntimeType) {
-		super(cluster, functionRuntimeType);
-	}
+        super(cluster, functionRuntimeType);
+    }
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public <T extends GenericContainer> void testSource(SourceTester<T> tester)  throws Exception {
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public <T extends GenericContainer> void testSource(SourceTester<T> tester)  throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"
@@ -113,12 +109,12 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
     }
 
     @SuppressWarnings("rawtypes")
-	protected void prepareSource(SourceTester tester) throws Exception {
+    protected void prepareSource(SourceTester tester) throws Exception {
         tester.prepareSource();
     }
 
     @SuppressWarnings("rawtypes")
-	protected void submitSourceConnector(SourceTester tester,
+    protected void submitSourceConnector(SourceTester tester,
                                          String tenant,
                                          String namespace,
                                          String sourceName,
@@ -143,7 +139,7 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
     }
 
     @SuppressWarnings("rawtypes")
-	protected void updateSourceConnector(SourceTester tester,
+    protected void updateSourceConnector(SourceTester tester,
                                          String tenant,
                                          String namespace,
                                          String sourceName,
@@ -169,7 +165,7 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
     }
 
     @SuppressWarnings("rawtypes")
-	protected void getSourceInfoSuccess(SourceTester tester,
+    protected void getSourceInfoSuccess(SourceTester tester,
                                         String tenant,
                                         String namespace,
                                         String sourceName) throws Exception {

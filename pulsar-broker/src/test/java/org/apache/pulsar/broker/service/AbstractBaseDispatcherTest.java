@@ -108,7 +108,9 @@ public class AbstractBaseDispatcherTest {
 
         List<Entry> entries = new ArrayList<>();
 
-        Entry e = EntryImpl.create(1, 2, createMessage("message1", 1));
+        ByteBuf message = createMessage("message1", 1);
+        Entry e = EntryImpl.create(1, 2, message);
+        message.release();
         long expectedBytePermits = e.getLength();
         entries.add(e);
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
@@ -116,7 +118,8 @@ public class AbstractBaseDispatcherTest {
 
         ManagedCursor cursor = mock(ManagedCursor.class);
 
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo,
+                null, cursor, false, null);
         assertEquals(size, 0);
         verify(subscriptionDispatchRateLimiter).consumeDispatchQuota(1, expectedBytePermits);
     }
@@ -124,7 +127,9 @@ public class AbstractBaseDispatcherTest {
     @Test
     public void testFilterEntriesForConsumerOfTxnMsgAbort() {
         List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createTnxAbortMessage("message1", 1)));
+        ByteBuf message = createTnxAbortMessage("message1", 1);
+        entries.add(EntryImpl.create(1, 1, message));
+        message.release();
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
@@ -140,7 +145,9 @@ public class AbstractBaseDispatcherTest {
         when(mockTopic.isTxnAborted(any(TxnID.class), any())).thenReturn(true);
 
         List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createTnxMessage("message1", 1)));
+        ByteBuf message = createTnxMessage("message1", 1);
+        entries.add(EntryImpl.create(1, 1, message));
+        message.release();
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
@@ -154,6 +161,7 @@ public class AbstractBaseDispatcherTest {
         ByteBuf markerMessage =
                 Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
         entries.add(EntryImpl.create(1, 1, markerMessage));
+        markerMessage.release();
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
@@ -164,7 +172,9 @@ public class AbstractBaseDispatcherTest {
     @Test
     public void testFilterEntriesForConsumerOfDelayedMsg() {
         List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createDelayedMessage("message1", 1)));
+        ByteBuf message = createDelayedMessage("message1", 1);
+        entries.add(EntryImpl.create(1, 1, message));
+        message.release();
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());

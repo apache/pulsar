@@ -151,6 +151,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Strategy used to determine where new topics should be placed.
     private ModularLoadManagerStrategy placementStrategy;
 
+    private ModularLoadManagerStrategy sheddingExcludedNamespaceSelectionStrategy;
+
     // Policies used to determine which brokers are available for particular namespaces.
     private SimpleResourceAllocationPolicies policies;
 
@@ -255,6 +257,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
         placementStrategy = ModularLoadManagerStrategy.create(conf);
+        sheddingExcludedNamespaceSelectionStrategy = new RoundRobinBrokerSelector();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerLoadManagerClassFilter());
         filterPipeline.add(new BrokerVersionFilter());
@@ -636,6 +639,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
+        Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
         final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
         bundlesToUnload.asMap().forEach((broker, bundles) -> {
@@ -643,6 +647,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             bundles.forEach(bundle -> {
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                if (sheddingExcludedNamespaces.contains(namespaceName)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Skipping load shedding for namespace {}",
+                                loadSheddingStrategy.getClass().getSimpleName(), namespaceName);
+                    }
+                    return;
+                }
                 if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
                     return;
                 }
@@ -920,8 +931,22 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         brokerTopicLoadingPredicate);
             }
 
-            // Choose a broker among the potentially smaller filtered list, when possible
-            Optional<String> broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+            Optional<String> broker;
+            // For shedding excluded namespaces, use RoundRobinBrokerSelector to assign the ownership,
+            // it can make the assignment more average because these will not automatically rebalance to
+            // another broker unless manually unloaded it.
+            Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+            String namespaceNameFromBundleName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+            if (sheddingExcludedNamespaces.contains(namespaceNameFromBundleName)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Use round robin broker selector for {}", bundle);
+                }
+                broker = sheddingExcludedNamespaceSelectionStrategy
+                        .selectBroker(brokerCandidateCache, data, loadData, conf);
+            } else {
+                // Choose a broker among the potentially smaller filtered list, when possible
+                broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+            }
             if (log.isDebugEnabled()) {
                 log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
             }
@@ -1141,7 +1166,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     private int selectTopKBundle() {
         bundleArr.clear();
-        bundleArr.addAll(loadData.getBundleData().entrySet());
+        Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
+            String bundle = entry.getKey();
+            String namespace = NamespaceBundle.getBundleNamespace(bundle);
+            if (sheddingExcludedNamespaces.contains(namespace)) {
+                continue;
+            }
+            bundleArr.add(entry);
+        }
 
         int maxNumberOfBundlesInBundleLoadReport = pulsar.getConfiguration()
                 .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();

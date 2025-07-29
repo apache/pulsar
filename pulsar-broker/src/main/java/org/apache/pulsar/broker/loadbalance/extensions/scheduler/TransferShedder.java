@@ -493,12 +493,21 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 }
 
                 int remainingTopBundles = maxBrokerTopBundlesLoadData.size();
+                Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
                 for (var e : maxBrokerTopBundlesLoadData) {
                     String bundle = e.bundleName();
                     if (channel != null && !channel.isOwner(bundle, maxBroker)) {
                         if (debugMode) {
                             log.warn(String.format(CANNOT_UNLOAD_BUNDLE_MSG
                                     + " MaxBroker:%s is not the owner.", bundle, maxBroker));
+                        }
+                        continue;
+                    }
+                    final String namespaceName = NamespaceBundle.getBundleNamespace(bundle);
+                    if (sheddingExcludedNamespaces.contains(namespaceName)) {
+                        if (debugMode) {
+                            log.info(String.format(CANNOT_UNLOAD_BUNDLE_MSG
+                                    + " Bundle namespace has been found in sheddingExcludedNamespaces", bundle));
                         }
                         continue;
                     }

@@ -116,7 +116,7 @@ public class TopicResources {
                 Matcher matcher = entry.getValue().matcher(notification.getPath());
                 if (matcher.matches()) {
                     TopicName topicName = TopicName.get(
-                            matcher.group(2), NamespaceName.get(matcher.group(1)), matcher.group(3));
+                            matcher.group(2), NamespaceName.get(matcher.group(1)), decode(matcher.group(3)));
                     entry.getKey().accept(topicName.toString(), notification.getType());
                 }
             }

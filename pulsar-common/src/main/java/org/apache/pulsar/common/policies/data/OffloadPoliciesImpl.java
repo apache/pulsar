@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -64,18 +63,18 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         CONFIGURATION_FIELDS = Collections.unmodifiableList(temp);
     }
 
-    public static final ImmutableList<String> INTERNAL_SUPPORTED_DRIVER = ImmutableList.of("S3",
+    public static final List<String> INTERNAL_SUPPORTED_DRIVER = List.of("S3",
         "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
-    public static final ImmutableList<String> DRIVER_NAMES;
+    public static final List<String> DRIVER_NAMES;
     static {
         String extraDrivers = System.getProperty("pulsar.extra.offload.drivers", "");
         if (extraDrivers.trim().isEmpty()) {
             DRIVER_NAMES = INTERNAL_SUPPORTED_DRIVER;
         } else {
-            DRIVER_NAMES = ImmutableList.<String>builder()
-                .addAll(INTERNAL_SUPPORTED_DRIVER)
-                .addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
-                    .map(String::trim).collect(Collectors.toSet())).build();
+            List<String> driverList = new ArrayList<>(INTERNAL_SUPPORTED_DRIVER);
+            driverList.addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
+                    .map(String::trim).collect(Collectors.toSet()));
+            DRIVER_NAMES = Collections.unmodifiableList(driverList);
         }
     }
 

@@ -38,6 +38,17 @@
     <jaxb-api.version>2.3.0</jaxb-api.version>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <!-- enforce kafka client version that gets pulled transitively -->
+      <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>${kafka-client.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -106,6 +117,13 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
+    </dependency>
+
+    <!-- add utils to fix jackson parsing issue -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>utils</artifactId>
+      <version>2.22.12</version>
     </dependency>
 
     <dependency>
