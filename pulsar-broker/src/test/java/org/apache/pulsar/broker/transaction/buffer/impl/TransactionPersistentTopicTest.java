@@ -22,9 +22,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +37,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -69,7 +68,7 @@ public class TransactionPersistentTopicTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testNoOrphanClosedTopicIfTxnInternalFailed() {
+    public void testNoOrphanClosedTopicIfTxnInternalFailed() throws PulsarAdminException {
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
 
         BrokerService brokerService = pulsar.getBrokerService();
@@ -89,13 +88,7 @@ public class TransactionPersistentTopicTest extends ProducerConsumerBase {
         pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
 
         // 2. Trigger create topic and assert topic load success.
-        CompletableFuture<Optional<Topic>> firstLoad = brokerService.getTopic(tpName, true);
-        Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS)
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    assertTrue(firstLoad.isDone());
-                    assertFalse(firstLoad.isCompletedExceptionally());
-                });
+        admin.topics().createNonPartitionedTopic(tpName);
 
         // 3. Assert topic removed from cache
         Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS)
