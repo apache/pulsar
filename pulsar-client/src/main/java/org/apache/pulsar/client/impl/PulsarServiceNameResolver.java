@@ -142,7 +142,12 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             hostAvailabilityMap.keySet().retainAll(allAddressSet);
             allAddressSet.forEach(
                     address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
-            availableAddressList = new ArrayList<>(hostAvailabilityMap.keySet());
+            // inherited availability status
+            availableAddressList = hostAvailabilityMap.entrySet()
+                    .stream()
+                    .filter(entry -> entry.getValue().isAvailable() && allAddressSet.contains(entry.getKey()))
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
         }
     }
 
