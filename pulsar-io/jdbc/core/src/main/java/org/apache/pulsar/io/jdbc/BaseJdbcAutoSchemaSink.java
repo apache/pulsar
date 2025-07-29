@@ -293,7 +293,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
         }
 
         // Check for array types first, before other type checks
-        if (value instanceof GenericData.Array) {
+        if (value instanceof GenericData.Array || value instanceof Object[]) {
             handleArrayValue(statement, index, value, targetSqlType);
             return;
         }
