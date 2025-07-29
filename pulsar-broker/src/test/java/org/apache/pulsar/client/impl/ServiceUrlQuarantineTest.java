@@ -53,8 +53,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithBinaryServiceUrlDisableQuarantine;
     private PulsarClientImpl pulsarClientWithHttpServiceUrl;
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
-    private final int BROKER_SERVICE_PORT = PortManager.nextLockedFreePort();
-    private final int WEB_SERVICE_PORT = PortManager.nextLockedFreePort();
+    private final int brokerServicePort = PortManager.nextLockedFreePort();
+    private final int webServicePort = PortManager.nextLockedFreePort();
     private final Set<Integer> lockedFreePortSet = new HashSet<>();
     private static final int UNAVAILABLE_NODES = 20;
     private static final int TIMEOUT_MS = 500;
@@ -103,8 +103,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        this.conf.setBrokerServicePort(Optional.of(BROKER_SERVICE_PORT));
-        this.conf.setWebServicePort(Optional.of(WEB_SERVICE_PORT));
+        this.conf.setBrokerServicePort(Optional.of(brokerServicePort));
+        this.conf.setWebServicePort(Optional.of(webServicePort));
     }
 
     @Override
@@ -130,9 +130,9 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
             pulsarClientWithHttpServiceUrlDisableQuarantine.close();
         }
-        PortManager.releaseLockedPort(BROKER_SERVICE_PORT);
-        PortManager.releaseLockedPort(WEB_SERVICE_PORT);
-        for(Integer port : lockedFreePortSet) {
+        PortManager.releaseLockedPort(brokerServicePort);
+        PortManager.releaseLockedPort(webServicePort);
+        for (Integer port : lockedFreePortSet) {
             PortManager.releaseLockedPort(port);
         }
     }
@@ -210,18 +210,18 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     @Test(invocationCount = 10)
     public void testServiceUrlHealthCheck() throws Exception {
         doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrl,
-                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
-                InetSocketAddress.createUnresolved("127.0.0.1", BROKER_SERVICE_PORT), true);
+                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + brokerServicePort,
+                InetSocketAddress.createUnresolved("127.0.0.1", brokerServicePort), true);
         doTestServiceUrlResolve(pulsarClientWithHttpServiceUrl,
-                "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
-                InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), true);
+                "http://host1:6651,host2:6651,127.0.0.1:" + webServicePort,
+                InetSocketAddress.createUnresolved("127.0.0.1", webServicePort), true);
 
         doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrlDisableQuarantine,
-                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
-                InetSocketAddress.createUnresolved("127.0.0.1", BROKER_SERVICE_PORT), false);
+                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + brokerServicePort,
+                InetSocketAddress.createUnresolved("127.0.0.1", brokerServicePort), false);
         doTestServiceUrlResolve(pulsarClientWithHttpServiceUrlDisableQuarantine,
-                "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
-                InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), false);
+                "http://host1:6651,host2:6651,127.0.0.1:" + webServicePort,
+                InetSocketAddress.createUnresolved("127.0.0.1", webServicePort), false);
     }
 
     private void doTestServiceUrlResolve(PulsarClientImpl pulsarClient, String serviceUrl,
