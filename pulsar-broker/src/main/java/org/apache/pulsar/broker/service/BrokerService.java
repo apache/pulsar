@@ -3804,7 +3804,6 @@ public class BrokerService implements Closeable {
         return null;
     }
 
-    @Getter
     private record TopicLoadingContext(TopicName topicName, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture, Map<String, String> properties) {
     }
