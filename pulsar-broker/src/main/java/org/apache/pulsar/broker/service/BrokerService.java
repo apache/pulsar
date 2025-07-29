@@ -1728,8 +1728,9 @@ public class BrokerService implements Closeable {
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        @Nullable Map<String, String> properties) {
         final var topic = topicName.toString();
+        final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         checkTopicNsOwnership(topicName).thenRun(() ->
-                createPersistentTopic0(topicName, createIfMissing, topicFuture, properties)
+                createPersistentTopic0(topicName, createIfMissing, topicFuture, properties, topicCreateTimeMs)
         ).exceptionally(ex -> {
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(ex);
@@ -1740,9 +1741,16 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void createPersistentTopic0(TopicName topicName, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
-                                       @Nullable Map<String, String> originalProperties) {
-
+                                       @Nullable Map<String, String> originalProperties,
+                                       long topicCreateTimeMs) {
+        final var beforeGetManagedLedgerConfig = System.currentTimeMillis();
         final var mlConfigFuture = getManagedLedgerConfig(topicName);
+        mlConfigFuture.thenRun(() -> {
+            // Log the latency specially for getManagedLedgerConfig() because it needs to load the topic policies,
+            // which could be a time-consuming task with no metrics yet.
+            final var latencyMs = System.currentTimeMillis() - beforeGetManagedLedgerConfig;
+            log.info("Got managed ledger config for {} after {} ms", topicName, latencyMs);
+        });
         final var partitionedMetadataFuture = fetchPartitionedTopicMetadataAsync(topicName.isPartitioned()
                 ? TopicName.get(topicName.getPartitionedTopicName()) : topicName);
         final CompletableFuture<Map<String, String>> propertiesFuture;
@@ -1752,7 +1760,6 @@ public class BrokerService implements Closeable {
         } else {
             propertiesFuture = CompletableFuture.completedFuture(originalProperties);
         }
-        final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         final var topic = topicName.toString();
 
         // The validations can be performed concurrently
@@ -1761,7 +1768,6 @@ public class BrokerService implements Closeable {
                 checkTopicAlreadyMigrated(topicName),
                 validateTopicConsistency(topicName, partitionedMetadataFuture));
         validateFuture.thenRun(() -> {
-            log.info("Finished topic validation on {}", topicName);
             final var managedLedgerConfig = mlConfigFuture.join();
             final var properties = propertiesFuture.join();
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
@@ -1857,20 +1863,18 @@ public class BrokerService implements Closeable {
                                                     + " Removing topic from topics list {}, {}", topic, ex);
                                             executor().submit(() -> {
                                                 persistentTopic.close().whenComplete((ignore, closeEx) -> {
-                                                    topics.remove(topic, topicFuture);
                                                     if (closeEx != null) {
                                                         log.warn("[{}] Get an error when closing topic.",
                                                                 topic, closeEx);
                                                     }
-                                                    topicFuture.completeExceptionally(ex);
+                                                    failTopicFuture(topic, topicFuture, ex);
                                                 });
                                             });
                                             return null;
                                         });
                             } catch (Exception e) {
                                 log.warn("Failed to create topic {}: {}", topic, e.getMessage());
-                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                                topicFuture.completeExceptionally(e);
+                                failTopicFuture(topic, topicFuture, e);
                             }
                         }
 
@@ -1883,8 +1887,7 @@ public class BrokerService implements Closeable {
                                 topicFuture.complete(Optional.empty());
                             } else {
                                 log.warn("Failed to create topic {}", topic, exception);
-                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                                topicFuture.completeExceptionally(new PersistenceException(exception));
+                                failTopicFuture(topic, topicFuture, new PersistenceException(exception));
                             }
                         }
                     }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
@@ -1894,11 +1897,7 @@ public class BrokerService implements Closeable {
             String msg = migrationFailure ? "Topic is already migrated" :
                 "Failed to get topic configuration:";
             log.warn("[{}] {} {}", topic, msg, exception.getMessage(), exception);
-            // remove topic from topics-map in different thread to avoid possible deadlock if
-            // createPersistentTopic-thread only tries to handle this future-result
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-            topicFuture.completeExceptionally(exception);
-            return null;
+            return failTopicFuture(topic, topicFuture, exception);
         });
     }
 
@@ -3797,6 +3796,14 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
         this.pulsarChannelInitFactory = factory;
+    }
+
+    private Void failTopicFuture(String topic, CompletableFuture<Optional<Topic>> topicFuture, Throwable throwable) {
+        // remove topic from topics-map in different thread to avoid possible deadlock if
+        // createPersistentTopic-thread only tries to handle this future-result
+        pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+        topicFuture.completeExceptionally(throwable);
+        return null;
     }
 
     @AllArgsConstructor
