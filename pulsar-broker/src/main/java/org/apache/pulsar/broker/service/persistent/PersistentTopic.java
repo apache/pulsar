@@ -4632,7 +4632,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         try {
             Position lastPosition = ledger.getLastConfirmedEntry();
-            if (lastPosition == null) {
+            if (lastPosition == null || lastPosition.getEntryId() < 0) {
                 future.complete(0L);
                 return future;
             }
