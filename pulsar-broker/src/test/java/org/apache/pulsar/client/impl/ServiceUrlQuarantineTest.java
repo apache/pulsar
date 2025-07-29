@@ -53,8 +53,9 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithBinaryServiceUrlDisableQuarantine;
     private PulsarClientImpl pulsarClientWithHttpServiceUrl;
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
-    private static final int BROKER_SERVICE_PORT = PortManager.nextLockedFreePort();
-    private static final int WEB_SERVICE_PORT = PortManager.nextLockedFreePort();
+    private final int BROKER_SERVICE_PORT = PortManager.nextLockedFreePort();
+    private final int WEB_SERVICE_PORT = PortManager.nextLockedFreePort();
+    private final Set<Integer> lockedFreePortSet = new HashSet<>();
     private static final int UNAVAILABLE_NODES = 20;
     private static final int TIMEOUT_MS = 500;
 
@@ -67,8 +68,12 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
         for (int i = 0; i < UNAVAILABLE_NODES; i++) {
-            binaryServiceUrlBuilder.append(",127.0.0.1:").append(PortManager.nextLockedFreePort());
-            httpServiceUrlBuilder.append(",127.0.0.1:").append(PortManager.nextLockedFreePort());
+            int newLockedFreePort = PortManager.nextLockedFreePort();
+            lockedFreePortSet.add(newLockedFreePort);
+            binaryServiceUrlBuilder.append(",127.0.0.1:").append(newLockedFreePort);
+            newLockedFreePort = PortManager.nextLockedFreePort();
+            lockedFreePortSet.add(newLockedFreePort);
+            httpServiceUrlBuilder.append(",127.0.0.1:").append(newLockedFreePort);
         }
         this.binaryServiceUrlWithUnavailableNodes = binaryServiceUrlBuilder.toString();
         this.httpServiceUrlWithUnavailableNodes = httpServiceUrlBuilder.toString();
@@ -127,6 +132,9 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         }
         PortManager.releaseLockedPort(BROKER_SERVICE_PORT);
         PortManager.releaseLockedPort(WEB_SERVICE_PORT);
+        for(Integer port : lockedFreePortSet) {
+            PortManager.releaseLockedPort(port);
+        }
     }
 
     @Test
