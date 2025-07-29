@@ -1155,6 +1155,11 @@ public class BrokerService implements Closeable {
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
+                if (isTransactionInternalName(topicName)) {
+                    String msg = String.format("Can not create transaction system topic %s", topicName);
+                    log.warn(msg);
+                    return CompletableFuture.failedFuture(new NotAllowedException(msg));
+                }
                 if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Broker is unable to load persistent topic {}", topicName);
@@ -1745,13 +1750,6 @@ public class BrokerService implements Closeable {
                                        Map<String, String> properties) {
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         final var topic = topicName.toString();
-        if (isTransactionInternalName(topicName)) {
-            String msg = String.format("Can not create transaction system topic %s", topic);
-            log.warn(msg);
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-            topicFuture.completeExceptionally(new NotAllowedException(msg));
-            return;
-        }
 
         CompletableFuture<Void> maxTopicsCheck = createIfMissing
                 ? checkMaxTopicsPerNamespace(topicName)
