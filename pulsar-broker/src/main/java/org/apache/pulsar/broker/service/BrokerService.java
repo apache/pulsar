@@ -1161,17 +1161,17 @@ public class BrokerService implements Closeable {
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
-                if (isTransactionInternalName(topicName)) {
-                    String msg = String.format("Can not create transaction system topic %s", topicName);
-                    log.warn(msg);
-                    return CompletableFuture.failedFuture(new NotAllowedException(msg));
-                }
                 if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Broker is unable to load persistent topic {}", topicName);
                     }
                     return FutureUtil.failedFuture(new NotAllowedException(
                             "Broker is unable to load persistent topic"));
+                }
+                if (isTransactionInternalName(topicName)) {
+                    String msg = String.format("Can not create transaction system topic %s", topicName);
+                    log.warn(msg);
+                    return CompletableFuture.failedFuture(new NotAllowedException(msg));
                 }
                 return checkNonPartitionedTopicExists(topicName).thenCompose(exists -> {
                     if (!exists && !createIfMissing) {
@@ -1732,8 +1732,7 @@ public class BrokerService implements Closeable {
         checkTopicNsOwnership(topicName).thenRun(() ->
                 createPersistentTopic0(topicName, createIfMissing, topicFuture, properties, topicCreateTimeMs)
         ).exceptionally(ex -> {
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-            topicFuture.completeExceptionally(ex);
+            failTopicFuture(topic, topicFuture, ex);
             return null;
         });
     }
