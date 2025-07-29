@@ -62,10 +62,10 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
         this.brokerServicePort = nextLockedFreePort();
         this.webServicePort = nextLockedFreePort();
+        super.internalSetup();
+        super.producerBaseSetup();
         // Create a Pulsar client with some unavailable nodes
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
