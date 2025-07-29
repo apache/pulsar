@@ -22,6 +22,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -34,7 +35,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class OpReadEntry implements ReadEntriesCallback {
-
+    static final OpReadEntry WAITING_READ_OP_FOR_CLOSED_CURSOR = new OpReadEntry();
+    private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
+    /**
+     * id for this read operation. Value can be negative when integer value overflow happens.
+     * Used for waitingReadOp consistency so the the correct instance is handled after the instance has already been
+     * recycled.
+     */
+    int id;
     ManagedCursorImpl cursor;
     Position readPosition;
     private int count;
@@ -51,6 +59,7 @@ class OpReadEntry implements ReadEntriesCallback {
     public static OpReadEntry create(ManagedCursorImpl cursor, Position readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
         OpReadEntry op = RECYCLER.get();
+        op.id = opReadIdGenerator.getAndIncrement();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
         op.count = count;
@@ -123,7 +132,7 @@ class OpReadEntry implements ReadEntriesCallback {
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
             complete(ctx);
-        } else if (cursor.getConfig().isAutoSkipNonRecoverableData()
+        } else if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
@@ -200,6 +209,22 @@ class OpReadEntry implements ReadEntriesCallback {
         this.recyclerHandle = recyclerHandle;
     }
 
+    // no-op constructor for EMPTY instance
+    private OpReadEntry() {
+        this.recyclerHandle = null;
+        this.callback = new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                // no-op
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                // no-op
+            }
+        };
+    }
+
     private static final Recycler<OpReadEntry> RECYCLER = new Recycler<>() {
         @Override
         protected OpReadEntry newObject(Recycler.Handle<OpReadEntry> recyclerHandle) {
@@ -208,6 +233,11 @@ class OpReadEntry implements ReadEntriesCallback {
     };
 
     public void recycle() {
+        if (recyclerHandle == null) {
+            // This is the no-op instance, do not recycle
+            return;
+        }
+        id = -1;
         count = 0;
         cursor = null;
         readPosition = null;
