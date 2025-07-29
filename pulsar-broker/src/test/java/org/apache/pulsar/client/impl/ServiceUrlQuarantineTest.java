@@ -53,8 +53,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithBinaryServiceUrlDisableQuarantine;
     private PulsarClientImpl pulsarClientWithHttpServiceUrl;
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
-    private final int brokerServicePort = PortManager.nextLockedFreePort();
-    private final int webServicePort = PortManager.nextLockedFreePort();
+    private int brokerServicePort;
+    private int webServicePort;
     private final Set<Integer> lockedFreePortSet = new HashSet<>();
     private static final int UNAVAILABLE_NODES = 20;
     private static final int TIMEOUT_MS = 500;
@@ -64,16 +64,14 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        this.brokerServicePort = nextLockedFreePort();
+        this.webServicePort = nextLockedFreePort();
         // Create a Pulsar client with some unavailable nodes
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
         for (int i = 0; i < UNAVAILABLE_NODES; i++) {
-            int newLockedFreePort = PortManager.nextLockedFreePort();
-            lockedFreePortSet.add(newLockedFreePort);
-            binaryServiceUrlBuilder.append(",127.0.0.1:").append(newLockedFreePort);
-            newLockedFreePort = PortManager.nextLockedFreePort();
-            lockedFreePortSet.add(newLockedFreePort);
-            httpServiceUrlBuilder.append(",127.0.0.1:").append(newLockedFreePort);
+            binaryServiceUrlBuilder.append(",127.0.0.1:").append(nextLockedFreePort());
+            httpServiceUrlBuilder.append(",127.0.0.1:").append(nextLockedFreePort());
         }
         this.binaryServiceUrlWithUnavailableNodes = binaryServiceUrlBuilder.toString();
         this.httpServiceUrlWithUnavailableNodes = httpServiceUrlBuilder.toString();
@@ -98,6 +96,12 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                         .operationTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
                         .lookupTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
                         .build();
+    }
+
+    private int nextLockedFreePort() {
+        int newLockedFreePort = PortManager.nextLockedFreePort();
+        this.lockedFreePortSet.add(newLockedFreePort);
+        return newLockedFreePort;
     }
 
     @Override
@@ -130,8 +134,6 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
             pulsarClientWithHttpServiceUrlDisableQuarantine.close();
         }
-        PortManager.releaseLockedPort(brokerServicePort);
-        PortManager.releaseLockedPort(webServicePort);
         for (Integer port : lockedFreePortSet) {
             PortManager.releaseLockedPort(port);
         }
