@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -48,6 +49,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -139,7 +141,9 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         }
 
         @Override
-        protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
+        protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(
+                TopicName topicName, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+                CompletableFuture<PartitionedTopicMetadata> partitionedMetadataFuture) {
             return CompletableFuture.completedFuture(Collections.emptyMap());
         }
     }

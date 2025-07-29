@@ -196,6 +196,7 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1082,13 +1083,18 @@ public class BrokerService implements Closeable {
      * completes exceptionally with NotAllowedException if validation fails
      */
     private CompletableFuture<Void> validateTopicConsistency(TopicName topicName) {
+        final var partitionMetadataFuture = fetchPartitionedTopicMetadataAsync(topicName.isPartitioned()
+                ? TopicName.get(topicName.getPartitionedTopicName()) : topicName);
+        return validateTopicConsistency(topicName, partitionMetadataFuture);
+    }
+
+    private CompletableFuture<Void> validateTopicConsistency(
+            TopicName topicName, CompletableFuture<PartitionedTopicMetadata> partitionedMetadataFuture) {
         if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             // Skip validation for heartbeat namespace.
             return CompletableFuture.completedFuture(null);
         }
-        TopicName baseTopicName =
-                topicName.isPartitioned() ? TopicName.get(topicName.getPartitionedTopicName()) : topicName;
-        return fetchPartitionedTopicMetadataAsync(baseTopicName)
+        return partitionedMetadataFuture
                 .thenCompose(metadata -> {
                     if (topicName.isPartitioned()) {
                         if (metadata.partitions == 0) {
@@ -1146,7 +1152,7 @@ public class BrokerService implements Closeable {
      * @return CompletableFuture with an Optional of the topic if found or created, otherwise empty.
      */
     public CompletableFuture<Optional<Topic>> getTopic(final TopicName topicName, boolean createIfMissing,
-                                                       Map<String, String> properties) {
+                                                       @Nullable Map<String, String> properties) {
         try {
             // If topic future exists in the cache returned directly regardless of whether it fails or timeout.
             CompletableFuture<Optional<Topic>> tp = topics.get(topicName.toString());
@@ -1318,11 +1324,13 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<ManagedLedgerFactory> getManagedLedgerFactoryForTopic(TopicName topicName) {
-        return getManagedLedgerConfig(topicName)
-                .thenApply(config -> {
-                    String storageClassName = config.getStorageClassName();
-                    return getManagedLedgerFactoryForTopic(topicName, storageClassName);
-                });
+        return getManagedLedgerFactoryForTopic(topicName, getManagedLedgerConfig(topicName));
+    }
+
+    private CompletableFuture<ManagedLedgerFactory> getManagedLedgerFactoryForTopic(
+            TopicName topicName, CompletableFuture<ManagedLedgerConfig> mlConfigFuture) {
+        return mlConfigFuture.thenApply(config -> getManagedLedgerFactoryForTopic(topicName,
+                config.getStorageClassName()));
     }
 
     public ManagedLedgerFactory getManagedLedgerFactoryForTopic(TopicName topicName, String storageClassName) {
@@ -1384,8 +1392,9 @@ public class BrokerService implements Closeable {
             topicFuture.completeExceptionally(e);
             return topicFuture;
         }
-        checkTopicNsOwnership(TopicName.get(topic))
-                .thenCompose((__) -> validateTopicConsistency(TopicName.get(topic)))
+        final var topicName = TopicName.get(topic);
+        checkTopicNsOwnership(topicName)
+                .thenCompose((__) -> validateTopicConsistency(topicName))
                 .thenRun(() -> {
             nonPersistentTopic.initialize()
                     .thenCompose(__ -> nonPersistentTopic.checkReplication())
@@ -1646,7 +1655,7 @@ public class BrokerService implements Closeable {
      * loading and puts them into queue once in-process topics are created.
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(TopicName topicName,
-            boolean createIfMissing, Map<String, String> properties) {
+            boolean createIfMissing, @Nullable Map<String, String> properties) {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
@@ -1687,17 +1696,17 @@ public class BrokerService implements Closeable {
     }
 
     @VisibleForTesting
-    protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
+    protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(
+            TopicName topicName, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+            CompletableFuture<PartitionedTopicMetadata> partitionMetadataFuture) {
         if (!topicName.isPartitioned()) {
-            return getManagedLedgerFactoryForTopic(topicName).thenCompose(
-                    managedLedgerFactory -> managedLedgerFactory.getManagedLedgerPropertiesAsync(
-                            topicName.getPersistenceNamingEncoding()));
+            return getManagedLedgerFactoryForTopic(topicName, mlConfigFuture).thenCompose(managedLedgerFactory ->
+                    managedLedgerFactory.getManagedLedgerPropertiesAsync(topicName.getPersistenceNamingEncoding()));
         } else {
-            TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-            return fetchPartitionedTopicMetadataAsync(partitionedTopicName)
+            return partitionMetadataFuture
                     .thenCompose(metadata -> {
                         if (metadata.partitions == PartitionedTopicMetadata.NON_PARTITIONED) {
-                            return getManagedLedgerFactoryForTopic(topicName).thenCompose(
+                            return getManagedLedgerFactoryForTopic(topicName, mlConfigFuture).thenCompose(
                                     managedLedgerFactory -> managedLedgerFactory.getManagedLedgerPropertiesAsync(
                                             topicName.getPersistenceNamingEncoding()));
                         } else {
@@ -1717,27 +1726,11 @@ public class BrokerService implements Closeable {
 
     private void checkOwnershipAndCreatePersistentTopic(TopicName topicName, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
-                                       Map<String, String> properties) {
+                                       @Nullable Map<String, String> properties) {
         final var topic = topicName.toString();
-        checkTopicNsOwnership(topicName).thenRun(() -> {
-            CompletableFuture<Map<String, String>> propertiesFuture;
-            if (properties == null) {
-                //Read properties from storage when loading topic.
-                propertiesFuture = fetchTopicPropertiesAsync(topicName);
-            } else {
-                propertiesFuture = CompletableFuture.completedFuture(properties);
-            }
-            propertiesFuture.thenAccept(finalProperties ->
-                    //TODO add topicName in properties?
-                    createPersistentTopic0(topicName, createIfMissing, topicFuture,
-                            finalProperties)
-            ).exceptionally(throwable -> {
-                log.warn("[{}] Read topic property failed", topic, throwable);
-                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                topicFuture.completeExceptionally(throwable);
-                return null;
-            });
-        }).exceptionally(ex -> {
+        checkTopicNsOwnership(topicName).thenRun(() ->
+                createPersistentTopic0(topicName, createIfMissing, topicFuture, properties)
+        ).exceptionally(ex -> {
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(ex);
             return null;
@@ -1747,19 +1740,30 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void createPersistentTopic0(TopicName topicName, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
-                                       Map<String, String> properties) {
+                                       @Nullable Map<String, String> originalProperties) {
+
+        final var mlConfigFuture = getManagedLedgerConfig(topicName);
+        final var partitionedMetadataFuture = fetchPartitionedTopicMetadataAsync(topicName.isPartitioned()
+                ? TopicName.get(topicName.getPartitionedTopicName()) : topicName);
+        final CompletableFuture<Map<String, String>> propertiesFuture;
+        if (originalProperties == null) {
+            //Read properties from storage when loading topic.
+            propertiesFuture = fetchTopicPropertiesAsync(topicName, mlConfigFuture, partitionedMetadataFuture);
+        } else {
+            propertiesFuture = CompletableFuture.completedFuture(originalProperties);
+        }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         final var topic = topicName.toString();
 
-        CompletableFuture<Void> maxTopicsCheck = createIfMissing
-                ? checkMaxTopicsPerNamespace(topicName)
-                : CompletableFuture.completedFuture(null);
-
-        CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
-        maxTopicsCheck.thenCompose(partitionedTopicMetadata -> validateTopicConsistency(topicName))
-                .thenCompose(__ -> isTopicAlreadyMigrated)
-                .thenCompose(__ -> getManagedLedgerConfig(topicName))
-        .thenAccept(managedLedgerConfig -> {
+        // The validations can be performed concurrently
+        final var validateFuture = CompletableFuture.allOf(mlConfigFuture, propertiesFuture, partitionedMetadataFuture,
+                createIfMissing ? checkMaxTopicsPerNamespace(topicName) : CompletableFuture.completedFuture(null),
+                checkTopicAlreadyMigrated(topicName),
+                validateTopicConsistency(topicName, partitionedMetadataFuture));
+        validateFuture.thenRun(() -> {
+            log.info("Finished topic validation on {}", topicName);
+            final var managedLedgerConfig = mlConfigFuture.join();
+            final var properties = propertiesFuture.join();
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
