@@ -1054,12 +1054,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             callback.deleteCursorFailed(new ManagedLedgerException.CursorNotFoundException("ManagedCursor not found: "
                     + consumerName), ctx);
             return;
-        } else if (!cursor.isDurable()) {
-            cursor.setState(ManagedCursorImpl.State.Closed);
-            cursor.cancelPendingReadRequest();
+        }
+
+        // Non-durable cursors can be closed and removed immediately
+        if (!cursor.isDurable()) {
+            try {
+                cursor.close();
+            } catch (Exception e) {
+                log.warn("[{}] Failed to close non-durable cursor {}", name, consumerName, e);
+            }
             cursors.removeCursor(consumerName);
-            deactivateCursorByName(consumerName);
             callback.deleteCursorComplete(ctx);
+            return;
+        }
+
+        // If the cursor is active, we need to deactivate it first
+        cursor.setInactive();
+        // Set the state to deleting (which is a closed state) to avoid any new writes
+        ManagedCursorImpl.State beforeChangingState = cursor.changeStateToDeletingIfNotDeleted();
+        if (beforeChangingState.isDeletingOrDeleted()) {
+            log.warn("[{}] [{}] Cursor is already being deleted or has been deleted.", name, consumerName);
             return;
         }
 
@@ -1070,7 +1084,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(Void result, Stat stat) {
                 cursor.asyncDeleteCursorLedger();
                 cursors.removeCursor(consumerName);
-                deactivateCursorByName(consumerName);
 
                 trimConsumedLedgersInBackground();
 
@@ -1080,7 +1093,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                handleBadVersion(e);
+                cursor.getAndSetState(ManagedCursorImpl.State.DeletingFailed);
                 callback.deleteCursorFailed(e, ctx);
             }
 
@@ -2442,7 +2455,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (waitingCursor == null) {
                 break;
             }
-
+            waitingCursor.notifyWaitingCursorDequeued();
             executor.execute(waitingCursor::notifyEntriesAvailable);
         }
     }
@@ -3930,11 +3943,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
 
     public void removeWaitingCursor(ManagedCursor cursor) {
-        this.waitingCursors.remove(cursor);
+        ((ManagedCursorImpl) cursor).removeWaitingCursorRequested(() -> {
+            // remove only if the cursor has been registered
+            this.waitingCursors.remove(cursor);
+        });
     }
 
     public void addWaitingCursor(ManagedCursorImpl cursor) {
-        this.waitingCursors.add(cursor);
+        cursor.addWaitingCursorRequested(() -> {
+            // add only if the cursor has not been registered
+            this.waitingCursors.add(cursor);
+        });
     }
 
     public boolean isCursorActive(ManagedCursor cursor) {

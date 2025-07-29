@@ -111,6 +111,8 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     @Override
     public void asyncClose(CloseCallback callback, Object ctx) {
         STATE_UPDATER.set(this, State.Closed);
+        closeWaitingCursor();
+        setInactive();
         callback.closeComplete(ctx);
     }
 
