@@ -229,8 +229,8 @@ public class GrowableArrayBlockingQueueTest {
                     fail("thread should have been interrupted");
                 } catch (InterruptedException e) {
                     // Expected interruption, record and notify
-                    terminateCompletedLatch.countDown();
                     interruptedThreadCount.incrementAndGet();
+                    terminateCompletedLatch.countDown();
                 }
             }).start();
         }
@@ -263,8 +263,8 @@ public class GrowableArrayBlockingQueueTest {
                     Integer poll = queue.poll(1, TimeUnit.HOURS);
                     // should return a null value if queue is terminated
                     assertNull(poll);
-                    terminateCompletedLatch.countDown();
                     terminateThreadCount.incrementAndGet();
+                    terminateCompletedLatch.countDown();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
@@ -298,15 +298,15 @@ public class GrowableArrayBlockingQueueTest {
                     try {
                         queue.take();
                     } catch (InterruptedException e) {
-                        terminateCompletedLatch.countDown();
                         terminateThreadCount.incrementAndGet();
+                        terminateCompletedLatch.countDown();
                     }
                 } else {
                     try {
                         Integer poll = queue.poll(1, TimeUnit.HOURS);
                         assertNull(poll);
-                        terminateCompletedLatch.countDown();
                         terminateThreadCount.incrementAndGet();
+                        terminateCompletedLatch.countDown();
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
