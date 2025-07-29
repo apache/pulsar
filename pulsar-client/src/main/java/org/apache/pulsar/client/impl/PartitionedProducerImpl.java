@@ -390,7 +390,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 return future;
             }
 
-            client.getPartitionsForTopic(topic).thenCompose(list -> {
+            client.getPartitionsForTopic(topic, false).thenCompose(list -> {
                 int oldPartitionNumber = topicMetadata.numPartitions();
                 int currentPartitionNumber = list.size();
 
