@@ -231,10 +231,6 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jpountz</shadedPattern>
                                 </relocation>
                                 <relocation>
-                                    <pattern>commons-configuration</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-configuration</shadedPattern>
-                                </relocation>
-                                <relocation>
                                     <pattern>org.tukaani</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.tukaani</shadedPattern>
                                 </relocation>

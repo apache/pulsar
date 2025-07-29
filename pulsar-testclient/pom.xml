@@ -92,11 +92,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>commons-configuration</groupId>
-			<artifactId>commons-configuration</artifactId>
-		</dependency>
-
-		<dependency>
 			<groupId>info.picocli</groupId>
 			<artifactId>picocli</artifactId>
 			<scope>compile</scope>
