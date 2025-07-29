@@ -51,17 +51,18 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final boolean enabled;
     private final int maxDelayMillis;
     private final int maxOperations;
-    private final int maxSize;
+    protected final int maxPutSize;
+    protected int maxGetSize = -1;
     private MetadataEventSynchronizer synchronizer;
     private final BatchMetadataStoreStats batchMetadataStoreStats;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
-        super(conf.getMetadataStoreName(), conf.getOpenTelemetry());
+        super(conf.getMetadataStoreName(), conf.getOpenTelemetry(), conf.getNodePayloadLenEstimator());
 
         this.enabled = conf.isBatchingEnabled();
         this.maxDelayMillis = conf.getBatchingMaxDelayMillis();
         this.maxOperations = conf.getBatchingMaxOperations();
-        this.maxSize = conf.getBatchingMaxSizeKb() * 1_024;
+        this.maxPutSize = conf.getBatchingMaxSizeKb() * 1_024;
 
         if (enabled) {
             readOps = new MpscUnboundedArrayQueue<>(10_000);
@@ -100,16 +101,40 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     private void flush() {
-        while (!readOps.isEmpty()) {
-            List<MetadataOp> ops = new ArrayList<>();
-            for (int i = 0; i < maxOperations; i++) {
-                MetadataOp op = readOps.poll();
-                if (op == null) {
-                    break;
+        if (maxGetSize < 0) {
+            while (!readOps.isEmpty()) {
+                List<MetadataOp> ops = new ArrayList<>();
+                for (int i = 0; i < maxOperations; i++) {
+                    MetadataOp op = readOps.poll();
+                    if (op == null) {
+                        break;
+                    }
+                    ops.add(op);
                 }
-                ops.add(op);
+                internalBatchOperation(ops);
             }
-            internalBatchOperation(ops);
+        } else {
+            while (!readOps.isEmpty()) {
+                int batchSize = 0;
+                List<MetadataOp> ops = new ArrayList<>();
+                for (int i = 0; i < maxOperations; i++) {
+                    MetadataOp op = readOps.peek();
+                    if (op == null) {
+                        break;
+                    }
+                    if (op.getType() == MetadataOp.Type.GET_CHILDREN) {
+                        batchSize += payloadLenRegistrar.estimateGetChildrenResPayloadLen(op.getPath());
+                    } else if (op.getType() == MetadataOp.Type.GET) {
+                        batchSize += payloadLenRegistrar.estimateGetResPayloadLen(op.getPath());
+                    }
+                    if (i > 0 && batchSize > maxGetSize) {
+                        // We have already reached the max size, so flush the current batch.
+                        break;
+                    }
+                    ops.add(readOps.poll());
+                }
+                internalBatchOperation(ops);
+            }
         }
 
         while (!writeOps.isEmpty()) {
@@ -122,7 +147,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                     break;
                 }
 
-                if (i > 0 && (batchSize + op.size()) > maxSize) {
+                if (i > 0 && (batchSize + op.size()) > maxPutSize) {
                     // We have already reached the max size, so flush the current batch
                     break;
                 }

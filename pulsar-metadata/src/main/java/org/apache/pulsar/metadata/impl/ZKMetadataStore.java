@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -66,6 +66,8 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.client.ConnectStringParser;
+import org.apache.zookeeper.client.ZKClientConfig;
+import org.apache.zookeeper.common.ZKConfig;
 
 @Slf4j
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
@@ -104,6 +106,9 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .watchers(Collections.singleton(this::processSessionWatcher))
                     .configPath(metadataStoreConfig.getConfigFilePath())
                     .build();
+            this.maxGetSize = zkc.getClientConfig().getInt(
+                    ZKConfig.JUTE_MAXBUFFER,
+                    ZKClientConfig.CLIENT_MAX_PACKET_LENGTH_DEFAULT);
             if (enableSessionWatcher) {
                 sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
             } else {
@@ -142,6 +147,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         this.metadataStoreConfig = null;
         this.isZkManaged = isZkManaged;
         this.zkc = zkc;
+        // Do not rewrite the value that use set.
+        this.maxGetSize = zkc.getClientConfig().getInt(
+                ZKConfig.JUTE_MAXBUFFER,
+                ZKClientConfig.CLIENT_MAX_PACKET_LENGTH_DEFAULT);
         this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
         zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
     }
@@ -204,19 +213,29 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
                         // Build the log warning message
                         // summarize the operations by type
+                        final int logThresholdPut = maxGetSize >> 3;
+                        final int logThresholdGet = maxGetSize >> 3;
                         String countsByType = ops.stream().collect(
                                         Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
-                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name() + " entries")
+                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name())
                                 .collect(Collectors.joining(", "));
-                        List<Pair> opsForLog = ops.stream()
-                                .filter(item -> item.size() > 256 * 1024)
-                                .map(op -> Pair.of(op.getPath(), op.size()))
+                        List<Triple<String, String, Integer>> opsForLog = ops.stream()
+                                .filter(item -> switch (item.getType()) {
+                                    case PUT -> item.asPut().getData().length > logThresholdPut;
+                                    case GET -> payloadLenRegistrar
+                                            .estimateGetResPayloadLen(item.getPath()) > logThresholdGet;
+                                    case GET_CHILDREN -> payloadLenRegistrar
+                                            .estimateGetChildrenResPayloadLen(item.getPath()) > logThresholdGet;
+                                    default -> false;
+                                })
+                                .map(op -> Triple.of(op.getPath(), op.getType().toString(), op.size()))
                                 .collect(Collectors.toList());
                         Long totalSize = ops.stream().collect(Collectors.summingLong(MetadataOp::size));
                         log.warn("Connection loss while executing batch operation of {} "
-                                + "of total data size of {}. "
-                                + "Retrying individual operations one-by-one. ops whose size > 256KB: {}",
-                                countsByType, totalSize, opsForLog);
+                                + "of total requested data size of {}. "
+                                + "Retrying individual operations one-by-one."
+                                + " ops whose req size > {} or resp size > {}: {}",
+                                countsByType, totalSize, logThresholdPut, logThresholdGet, opsForLog);
 
                         // Retry with the individual operations
                         executor.schedule(() -> {
