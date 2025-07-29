@@ -1662,38 +1662,31 @@ public class BrokerService implements Closeable {
         });
 
         final var topic = topicName.toString();
-        checkTopicNsOwnership(topicName)
-                .thenRun(() -> {
-                    final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
+        final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
-                    if (topicLoadSemaphore.tryAcquire()) {
-                        checkOwnershipAndCreatePersistentTopic(topicName, createIfMissing, topicFuture,
-                                properties);
-                        topicFuture.handle((persistentTopic, ex) -> {
-                            // release permit and process pending topic
-                            topicLoadSemaphore.release();
-                            // do not recreate topic if topic is already migrated and deleted by broker
-                            // so, avoid creating a new topic if migration is already started
-                            if (ex != null && (ex.getCause() instanceof TopicMigratedException)) {
-                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                                topicFuture.completeExceptionally(ex.getCause());
-                                return null;
-                            }
-                            createPendingLoadTopic();
-                            return null;
-                        });
-                    } else {
-                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topicName,
-                                createIfMissing, topicFuture, properties));
-                        if (log.isDebugEnabled()) {
-                            log.debug("topic-loading for {} added into pending queue", topic);
-                        }
-                    }
-                }).exceptionally(ex -> {
+        if (topicLoadSemaphore.tryAcquire()) {
+            checkOwnershipAndCreatePersistentTopic(topicName, createIfMissing, topicFuture,
+                    properties);
+            topicFuture.handle((persistentTopic, ex) -> {
+                // release permit and process pending topic
+                topicLoadSemaphore.release();
+                // do not recreate topic if topic is already migrated and deleted by broker
+                // so, avoid creating a new topic if migration is already started
+                if (ex != null && (ex.getCause() instanceof TopicMigratedException)) {
                     pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                     topicFuture.completeExceptionally(ex.getCause());
                     return null;
-                });
+                }
+                createPendingLoadTopic();
+                return null;
+            });
+        } else {
+            pendingTopicLoadingQueue.add(new TopicLoadingContext(topicName,
+                    createIfMissing, topicFuture, properties));
+            if (log.isDebugEnabled()) {
+                log.debug("topic-loading for {} added into pending queue", topic);
+            }
+        }
 
         return topicFuture;
     }
