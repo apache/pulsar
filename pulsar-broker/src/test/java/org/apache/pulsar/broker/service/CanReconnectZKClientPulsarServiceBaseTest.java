@@ -198,7 +198,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         log.info("--- OneWayReplicatorTestBase::setup completed ---");
     }
 
-    private void setConfigDefaults(ServiceConfiguration config, String clusterName,
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                    LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
@@ -226,8 +226,6 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
-
-        stopLocalMetadataStoreConnectionTermination();
 
         // Stop brokers.
         if (client != null) {
