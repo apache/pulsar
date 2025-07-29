@@ -228,9 +228,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile boolean isActive = false;
 
     // This is a lock used to update the registration state of the cursor in the managed ledger.
-    private final Object waitingRegistrationLock = new Object();
-    // This is used to track if the cursor is waiting for registration in the managed ledger.
-    boolean waitingRegistered = false;
+    private final Object registerToWaitingCursorsLock = new Object();
+    // This is used to track if the cursor is registered in the managed ledger's waitingCursors queue
+    boolean registeredToWaitingCursors = false;
 
     class MarkDeleteEntry {
         final Position newPosition;
@@ -2949,8 +2949,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     protected void closeWaitingCursor() {
-        synchronized (waitingRegistrationLock) {
-            if (waitingRegistered) {
+        synchronized (registerToWaitingCursorsLock) {
+            if (registeredToWaitingCursors) {
                 ledger.removeWaitingCursor(this);
             }
         }
@@ -4042,8 +4042,8 @@ public class ManagedCursorImpl implements ManagedCursor {
      * The cursor state is set to unregistered, and it can be registered again for waiting in ManagedLedgerImpl.
      */
     void removeWaitingCursorRequested(Runnable removeWaitingCursorRunnable) {
-        synchronized (waitingRegistrationLock) {
-            if (!waitingRegistered) {
+        synchronized (registerToWaitingCursorsLock) {
+            if (!registeredToWaitingCursors) {
                 // The cursor hasn't been registered, do not attempt to remove
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Skipping removing cursor {} from waiting cursors since it's not registered.",
@@ -4055,7 +4055,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] Removing cursor {} from waiting cursors", ledger.getName(), name);
             }
             removeWaitingCursorRunnable.run();
-            waitingRegistered = false;
+            registeredToWaitingCursors = false;
         }
     }
 
@@ -4063,8 +4063,8 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Called by ManagedLedgerImpl to notify that the cursor has been dequeued from the waiting cursors list.
      */
     void notifyWaitingCursorDequeued() {
-        synchronized (waitingRegistrationLock) {
-            waitingRegistered = false;
+        synchronized (registerToWaitingCursorsLock) {
+            registeredToWaitingCursors = false;
         }
     }
 
@@ -4074,8 +4074,8 @@ public class ManagedCursorImpl implements ManagedCursor {
      * This method is used to ensure that the cursor is not already registered, resulting in duplicates.
      */
     void addWaitingCursorRequested(Runnable addWaitingCursorRunnable) {
-        synchronized (waitingRegistrationLock) {
-            if (waitingRegistered || isClosed()) {
+        synchronized (registerToWaitingCursorsLock) {
+            if (registeredToWaitingCursors || isClosed()) {
                 // The cursor is already registered or closed, do not register again.
                 return;
             }
@@ -4083,7 +4083,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] Adding cursor {} to waiting cursors", ledger.getName(), name);
             }
             addWaitingCursorRunnable.run();
-            waitingRegistered = true;
+            registeredToWaitingCursors = true;
         }
     }
 }
