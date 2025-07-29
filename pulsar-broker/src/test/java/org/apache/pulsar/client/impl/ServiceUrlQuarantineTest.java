@@ -68,8 +68,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
         for (int i = 0; i < UNAVAILABLE_NODES; i++) {
-            binaryServiceUrlBuilder.append(",127.0.0.1:").append(ThreadLocalRandom.current().nextInt(100, 1000));
-            httpServiceUrlBuilder.append(",127.0.0.1:").append(ThreadLocalRandom.current().nextInt(100, 1000));
+            binaryServiceUrlBuilder.append(",127.0.0.1:").append(PortManager.nextLockedFreePort());
+            httpServiceUrlBuilder.append(",127.0.0.1:").append(PortManager.nextLockedFreePort());
         }
         this.binaryServiceUrlWithUnavailableNodes = binaryServiceUrlBuilder.toString();
         this.httpServiceUrlWithUnavailableNodes = httpServiceUrlBuilder.toString();
@@ -83,16 +83,16 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                                 .serviceUrl(binaryServiceUrlWithUnavailableNodes)
                                 .serviceUrlQuarantineInitDuration(0, TimeUnit.MILLISECONDS)
                                 .serviceUrlQuarantineMaxDuration(0, TimeUnit.MILLISECONDS)
-                                .operationTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
-                                .lookupTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
+                                .operationTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                                .lookupTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
                                 .build();
         this.pulsarClientWithHttpServiceUrlDisableQuarantine =
                 (PulsarClientImpl) PulsarClient.builder()
                         .serviceUrl(httpServiceUrlWithUnavailableNodes)
                         .serviceUrlQuarantineInitDuration(0, TimeUnit.MILLISECONDS)
                         .serviceUrlQuarantineMaxDuration(0, TimeUnit.MILLISECONDS)
-                        .operationTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
-                        .lookupTimeout(TIMEOUT_MS, TimeUnit.SECONDS)
+                        .operationTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                        .lookupTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
                         .build();
     }
 
