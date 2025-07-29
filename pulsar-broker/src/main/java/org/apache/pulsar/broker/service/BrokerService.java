@@ -1677,8 +1677,7 @@ public class BrokerService implements Closeable {
                 // do not recreate topic if topic is already migrated and deleted by broker
                 // so, avoid creating a new topic if migration is already started
                 if (ex != null && (ex.getCause() instanceof TopicMigratedException)) {
-                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                    topicFuture.completeExceptionally(ex.getCause());
+                    failTopicFuture(topic, topicFuture, ex.getCause());
                     return null;
                 }
                 createPendingLoadTopic();
@@ -3800,7 +3799,14 @@ public class BrokerService implements Closeable {
     private Void failTopicFuture(String topic, CompletableFuture<Optional<Topic>> topicFuture, Throwable throwable) {
         // remove topic from topics-map in different thread to avoid possible deadlock if
         // createPersistentTopic-thread only tries to handle this future-result
-        pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+        pulsar.getExecutor().execute(() -> {
+            if (topics.remove(topic, topicFuture)) {
+                log.info("Removed cached topic {} for failure {}", topic, throwable.getMessage());
+            } else {
+                log.warn("Cached failed topic {} was not removed because it's outdated (failure: {})", topic,
+                        throwable.getMessage());
+            }
+        });
         topicFuture.completeExceptionally(throwable);
         return null;
     }
