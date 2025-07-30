@@ -20,7 +20,6 @@ package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertSame;
 
 import org.testng.annotations.Test;
 
