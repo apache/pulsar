@@ -29,7 +29,12 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
     // Default to max int value, let the first query command do not execute with batch.
     public static final int DEFAULT_LEN = Integer.MAX_VALUE;
     public static final int UNSET = -1;
-    public static final int ZK_PACKET_HEADER_LEN = 160;
+    // xid: int, zxid: long, err: int, len: int -> 20
+    // Node stat:
+    //   czxid: long, mzxid: long, ctime: long, mtime: long, version: int, cversion: int, aversion: int, -> 44
+    //   ephemeralOwner: long, dataLength: int, numChildren: int, pzxid: long -> 24
+    // total: 88, let's double it to cover different serialization versions.
+    public static final int ZK_PACKET_SYSTEM_PROPS_LEN = 176;
     private static final SplitPathRes MEANINGLESS_SPLIT_PATH_RES = new SplitPathRes();
     private final int[] maxLenOfGetMapping;
     private final int[] maxLenOfListMapping;
@@ -63,19 +68,28 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
     @Override
     public void recordGetChildrenRes(String path, List<String> list) {
         PathType pathType = getPathType(path);
-        int totalLen = list.stream().mapToInt(String::length).sum();
+        // ZK serialize each string with 4 bytes length prefix, so we add 4 bytes for each string.
+        int totalLen = list.stream().mapToInt(String::length).sum() + list.size() * 4;
         maxLenOfListMapping[pathType.ordinal()] = Math.max(maxLenOfListMapping[pathType.ordinal()], totalLen);
     }
 
     @Override
     public int estimateGetResPayloadLen(String path) {
+        return internalEstimateGetResPayloadLen(path) + ZK_PACKET_SYSTEM_PROPS_LEN;
+    }
+
+    @Override
+    public int estimateGetChildrenResPayloadLen(String path) {
+        return internalEstimateGetChildrenResPayloadLen(path) + ZK_PACKET_SYSTEM_PROPS_LEN;
+    }
+
+    public int internalEstimateGetResPayloadLen(String path) {
         PathType pathType = getPathType(path);
         int res = maxLenOfGetMapping[pathType.ordinal()];
         return res == UNSET ? DEFAULT_LEN : res;
     }
 
-    @Override
-    public int estimateGetChildrenResPayloadLen(String path) {
+    public int internalEstimateGetChildrenResPayloadLen(String path) {
         PathType pathType = getPathType(path);
         int res = maxLenOfListMapping[pathType.ordinal()];
         return res == UNSET ? DEFAULT_LEN : res;
