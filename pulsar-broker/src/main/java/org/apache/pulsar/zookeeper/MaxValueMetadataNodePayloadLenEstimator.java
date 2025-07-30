@@ -128,7 +128,10 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         return switch (splitPathRes.partCount) {
             case 4 -> PathType.ML_NAMESPACE;
             case 5 -> PathType.TOPIC;
+            // v2 subscription and v1 topic.
             case 6 -> PathType.SUBSCRIPTION;
+            // v1 subscription.
+            case 7 -> PathType.SUBSCRIPTION;
             default -> PathType.OTHERS;
         };
     }
