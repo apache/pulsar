@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.zookeeper;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.StringSplitter;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataNodePayloadLenEstimator;
 
@@ -74,37 +71,37 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
     public int estimateGetResPayloadLen(String path) {
         PathType pathType = getPathType(path);
         int res = maxLenOfGetMapping[pathType.ordinal()];
-        return res == UNSET ? DEFAULT_LEN : res + ZK_PACKET_HEADER_LEN;
+        return res == UNSET ? DEFAULT_LEN : res;
     }
 
     @Override
     public int estimateGetChildrenResPayloadLen(String path) {
         PathType pathType = getPathType(path);
         int res = maxLenOfListMapping[pathType.ordinal()];
-        return res == UNSET ? DEFAULT_LEN : res + ZK_PACKET_HEADER_LEN;
+        return res == UNSET ? DEFAULT_LEN : res;
     }
 
     private PathType getPathType(String path) {
-        String[] parts = StringSplitter.splitByChar(path, '/', 6).toArray(new String[0]);
-        if (parts.length < 2) {
+        SplitPathRes splitPathRes = splitPath(path);
+        if (splitPathRes.partCount < 2) {
             return PathType.OTHERS;
         }
-        return switch (parts[0]) {
-            case "admin" -> getAdminPathType(parts);
-            case "managed-ledgers" -> getMlPathType(parts);
+        return switch (splitPathRes.parts[0]) {
+            case "admin" -> getAdminPathType(splitPathRes);
+            case "managed-ledgers" -> getMlPathType(splitPathRes);
             default -> PathType.OTHERS;
         };
     }
 
-    private PathType getAdminPathType(String[] parts) {
-        return switch (parts[1]) {
+    private PathType getAdminPathType(SplitPathRes splitPathRes) {
+        return switch (splitPathRes.parts[1]) {
             case "clusters" -> PathType.CLUSTER;
-            case "policies" -> switch (parts.length) {
+            case "policies" -> switch (splitPathRes.partCount) {
                 case 2 -> PathType.TENANT;
                 case 3 -> PathType.NAMESPACE_POLICIES;
                 default -> PathType.OTHERS;
             };
-            case "partitioned-topics" -> switch (parts.length) {
+            case "partitioned-topics" -> switch (splitPathRes.partCount) {
                 case 5 -> PathType.PARTITIONED_NAMESPACE;
                 case 6 -> PathType.PARTITIONED_TOPIC;
                 default -> PathType.OTHERS;
@@ -113,8 +110,8 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         };
     }
 
-    private PathType getMlPathType(String[] parts) {
-        return switch (parts.length) {
+    private PathType getMlPathType(SplitPathRes splitPathRes) {
+        return switch (splitPathRes.partCount) {
             case 4 -> PathType.ML_NAMESPACE;
             case 5 -> PathType.TOPIC;
             case 6 -> PathType.SUBSCRIPTION;
@@ -170,7 +167,10 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
                 count++;
             }
         }
-        if (start < length - 1) {
+        if (start < length) {
+            if (count < 2) {
+                parts[count] = path.substring(start);
+            }
             count++;
         }
         res.partCount = count;
