@@ -43,7 +43,7 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
     }
 
     @Test
-    public void testRecordPutAndEstimateGetResPayloadLen() {
+    public void testRecordPutAndInternalEstimateGetResPayloadLen() {
         // Test with cluster path
         String clusterPath = "/admin/clusters/test-cluster";
         byte[] smallData = "small".getBytes(StandardCharsets.UTF_8);
@@ -51,19 +51,19 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
 
         // Record small data first
         estimator.recordPut(clusterPath, smallData);
-        assertEquals(estimator.estimateGetResPayloadLen(clusterPath), smallData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(clusterPath), smallData.length);
 
         // Record larger data - should update the max
         estimator.recordPut(clusterPath, largeData);
-        assertEquals(estimator.estimateGetResPayloadLen(clusterPath), largeData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(clusterPath), largeData.length);
 
         // Record smaller data again - should not change the max
         estimator.recordPut(clusterPath, smallData);
-        assertEquals(estimator.estimateGetResPayloadLen(clusterPath), largeData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(clusterPath), largeData.length);
     }
 
     @Test
-    public void testRecordGetResAndEstimateGetResPayloadLen() {
+    public void testRecordGetResAndInternalEstimateGetResPayloadLen() {
         String tenantPath = "/admin/policies/test-tenant";
         byte[] data1 = "data1".getBytes(StandardCharsets.UTF_8);
         byte[] data2 = "much longer data payload".getBytes(StandardCharsets.UTF_8);
@@ -75,46 +75,46 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
 
         // Record first result
         estimator.recordGetRes(tenantPath, getResult1);
-        assertEquals(estimator.estimateGetResPayloadLen(tenantPath), data1.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(tenantPath), data1.length);
 
         // Record larger result - should update the max
         estimator.recordGetRes(tenantPath, getResult2);
-        assertEquals(estimator.estimateGetResPayloadLen(tenantPath), data2.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(tenantPath), data2.length);
 
         // Record smaller result again - should not change the max
         estimator.recordGetRes(tenantPath, getResult1);
-        assertEquals(estimator.estimateGetResPayloadLen(tenantPath), data2.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(tenantPath), data2.length);
     }
 
     @Test
-    public void testRecordGetChildrenResAndEstimateGetChildrenResPayloadLen() {
+    public void testRecordGetChildrenResAndInternalEstimateGetChildrenResPayloadLen() {
         String namespacePath = "/admin/policies/test-tenant/test-namespace";
         List<String> smallList = Arrays.asList("a", "b", "c");
         List<String> largeList = Arrays.asList("longer-name-1", "longer-name-2", "longer-name-3", "longer-name-4");
 
         // Calculate expected lengths
-        int smallListLength = smallList.stream().mapToInt(String::length).sum();
-        int largeListLength = largeList.stream().mapToInt(String::length).sum();
+        int smallListLength = smallList.stream().mapToInt(String::length).sum() + smallList.size() * 4;
+        int largeListLength = largeList.stream().mapToInt(String::length).sum() + largeList.size() * 4;
 
         // Record small list first
         estimator.recordGetChildrenRes(namespacePath, smallList);
-        assertEquals(estimator.estimateGetChildrenResPayloadLen(namespacePath), smallListLength);
+        assertEquals(estimator.internalEstimateGetChildrenResPayloadLen(namespacePath), smallListLength);
 
         // Record larger list - should update the max
         estimator.recordGetChildrenRes(namespacePath, largeList);
-        assertEquals(estimator.estimateGetChildrenResPayloadLen(namespacePath), largeListLength);
+        assertEquals(estimator.internalEstimateGetChildrenResPayloadLen(namespacePath), largeListLength);
 
         // Record smaller list again - should not change the max
         estimator.recordGetChildrenRes(namespacePath, smallList);
-        assertEquals(estimator.estimateGetChildrenResPayloadLen(namespacePath), largeListLength);
+        assertEquals(estimator.internalEstimateGetChildrenResPayloadLen(namespacePath), largeListLength);
     }
 
     @Test
     public void testDefaultLengthForUnknownPaths() {
         // Test that unknown paths return the default length
         String unknownPath = "/some/unknown/path";
-        assertEquals(estimator.estimateGetResPayloadLen(unknownPath), DEFAULT_LEN);
-        assertEquals(estimator.estimateGetChildrenResPayloadLen(unknownPath), DEFAULT_LEN);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(unknownPath), DEFAULT_LEN);
+        assertEquals(estimator.internalEstimateGetChildrenResPayloadLen(unknownPath), DEFAULT_LEN);
     }
 
     @Test
@@ -125,40 +125,40 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
         String clusterPath = "/admin/clusters/test-cluster";
         byte[] clusterData = "cluster-data".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(clusterPath, clusterData);
-        assertEquals(estimator.estimateGetResPayloadLen(clusterPath), clusterData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(clusterPath), clusterData.length);
 
         // Tenant paths
         String tenantPath = "/admin/policies/test-tenant";
         byte[] tenantData = "tenant-data".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(tenantPath, tenantData);
-        assertEquals(estimator.estimateGetResPayloadLen(tenantPath), tenantData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(tenantPath), tenantData.length);
 
         // Namespace policy paths
         String namespacePath = "/admin/policies/test-tenant/test-namespace";
         byte[] namespaceData = "namespace-data".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(namespacePath, namespaceData);
-        assertEquals(estimator.estimateGetResPayloadLen(namespacePath), namespaceData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(namespacePath), namespaceData.length);
 
         // Partitioned topic paths
         String partitionedTopicPath = "/admin/partitioned-topics/persistent/test-tenant/test-namespace/test-topic";
         byte[] partitionedTopicData = "partitioned-topic-data".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(partitionedTopicPath, partitionedTopicData);
-        assertEquals(estimator.estimateGetResPayloadLen(partitionedTopicPath), partitionedTopicData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(partitionedTopicPath), partitionedTopicData.length);
 
         // Managed ledger paths
         String mlTopicPath = "/managed-ledgers/test-tenant/test-namespace/persistent/test-topic";
         byte[] mlTopicData = "ml-topic-data".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(mlTopicPath, mlTopicData);
-        assertEquals(estimator.estimateGetResPayloadLen(mlTopicPath), mlTopicData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(mlTopicPath), mlTopicData.length);
 
         // Subscription paths
         String subscriptionPath = "/managed-ledgers/test-tenant/test-namespace/persistent/test-topic/test-subscription";
         byte[] subscriptionData = "subscription-data".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(subscriptionPath, subscriptionData);
-        assertEquals(estimator.estimateGetResPayloadLen(subscriptionPath), subscriptionData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(subscriptionPath), subscriptionData.length);
 
         // Verify that different path types maintain separate max values
-        assertTrue(estimator.estimateGetResPayloadLen(clusterPath) != estimator.estimateGetResPayloadLen(tenantPath));
+        assertTrue(estimator.internalEstimateGetResPayloadLen(clusterPath) != estimator.internalEstimateGetResPayloadLen(tenantPath));
     }
 
     @Test
@@ -168,12 +168,12 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
         // Test with empty data
         byte[] emptyData = new byte[0];
         estimator.recordPut(testPath, emptyData);
-        assertEquals(estimator.estimateGetResPayloadLen(testPath), 0);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(testPath), 0);
 
         // Test with empty list
         List<String> emptyList = Collections.emptyList();
         estimator.recordGetChildrenRes(testPath, emptyList);
-        assertEquals(estimator.estimateGetChildrenResPayloadLen(testPath), 0);
+        assertEquals(estimator.internalEstimateGetChildrenResPayloadLen(testPath), 0);
     }
 
     @Test
@@ -183,19 +183,19 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
         // Record via put
         byte[] putData = "put-data".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(testPath, putData);
-        assertEquals(estimator.estimateGetResPayloadLen(testPath), putData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(testPath), putData.length);
 
         // Record via get with larger data - should update max
         byte[] largerData = "much larger get result data".getBytes(StandardCharsets.UTF_8);
         Stat mockStat = Mockito.mock(Stat.class);
         GetResult getResult = new GetResult(largerData, mockStat);
         estimator.recordGetRes(testPath, getResult);
-        assertEquals(estimator.estimateGetResPayloadLen(testPath), largerData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(testPath), largerData.length);
 
         // Record via put with smaller data - should not change max
         byte[] smallerData = "small".getBytes(StandardCharsets.UTF_8);
         estimator.recordPut(testPath, smallerData);
-        assertEquals(estimator.estimateGetResPayloadLen(testPath), largerData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(testPath), largerData.length);
     }
 
     @Test
@@ -210,12 +210,12 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
         estimator.recordPut(shortPath2, data);
         
         // Both should use the OTHERS path type and return the recorded length
-        assertEquals(estimator.estimateGetResPayloadLen(shortPath1), data.length);
-        assertEquals(estimator.estimateGetResPayloadLen(shortPath2), data.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(shortPath1), data.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(shortPath2), data.length);
         
         // They should share the same path type, so the max should be the same
-        assertEquals(estimator.estimateGetResPayloadLen(shortPath1), 
-                     estimator.estimateGetResPayloadLen(shortPath2));
+        assertEquals(estimator.internalEstimateGetResPayloadLen(shortPath1),
+                     estimator.internalEstimateGetResPayloadLen(shortPath2));
     }
 
     @Test
@@ -225,7 +225,7 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
         byte[] data = "unknown-admin-data".getBytes(StandardCharsets.UTF_8);
         
         estimator.recordPut(unknownAdminPath, data);
-        assertEquals(estimator.estimateGetResPayloadLen(unknownAdminPath), data.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(unknownAdminPath), data.length);
     }
 
     @Test
@@ -244,8 +244,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
         estimator.recordPut(mlSubscriptionPath, subscriptionData);
         
         // Each should maintain its own max value based on path type
-        assertEquals(estimator.estimateGetResPayloadLen(mlNamespacePath), namespaceData.length);
-        assertEquals(estimator.estimateGetResPayloadLen(mlTopicPath), topicData.length);
-        assertEquals(estimator.estimateGetResPayloadLen(mlSubscriptionPath), subscriptionData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(mlNamespacePath), namespaceData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(mlTopicPath), topicData.length);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(mlSubscriptionPath), subscriptionData.length);
     }
 }
