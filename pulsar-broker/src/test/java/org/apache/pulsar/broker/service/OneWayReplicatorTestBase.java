@@ -399,16 +399,16 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
                 assertTrue(remoteTp.isPresent());
             }
             if (remoteTp.isPresent()) {
-                PersistentTopic remoteTp_ = (PersistentTopic) remoteTp.get();
-                for (org.apache.pulsar.broker.service.Producer p : remoteTp_.getProducers().values()) {
+                PersistentTopic remoteTp1 = (PersistentTopic) remoteTp.get();
+                for (org.apache.pulsar.broker.service.Producer p : remoteTp1.getProducers().values()) {
                     assertFalse(p.getProducerName().startsWith(remoteCluster.getConfig().getReplicatorPrefix()));
                 }
             }
             Optional<Topic> sourceTp = sourceCluster.getBrokerService().getTopic(topicName, false).get();
             assertTrue(sourceTp.isPresent());
-            PersistentTopic sourceTp_ = (PersistentTopic) sourceTp.get();
-            assertTrue(sourceTp_.getReplicators().isEmpty()
-                    || !sourceTp_.getReplicators().get(remoteCluster.getConfig().getClusterName()).isConnected());
+            PersistentTopic sourceTp1 = (PersistentTopic) sourceTp.get();
+            assertTrue(sourceTp1.getReplicators().isEmpty()
+                    || !sourceTp1.getReplicators().get(remoteCluster.getConfig().getClusterName()).isConnected());
         });
     }
 

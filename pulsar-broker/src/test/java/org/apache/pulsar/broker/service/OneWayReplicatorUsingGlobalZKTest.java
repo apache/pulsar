@@ -87,12 +87,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // Remove topic from a cluster.
         admin1.topicPolicies(true).setReplicationClusters(topicName, Arrays.asList(cluster1));
         Awaitility.await().untilAsserted(() -> {
-            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied1_.contains(cluster1));
-            assertFalse(clustersApplied1_.contains(cluster2));
-            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied2_.contains(cluster1));
-            assertFalse(clustersApplied2_.contains(cluster2));
+            Set<String> clustersApplied1a = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1a.contains(cluster1));
+            assertFalse(clustersApplied1a.contains(cluster2));
+            Set<String> clustersApplied2a = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied2a.contains(cluster1));
+            assertFalse(clustersApplied2a.contains(cluster2));
 
             Set<String> local1 = admin1.topicPolicies(false).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(local1));
@@ -116,12 +116,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         Producer<byte[]> producer2 = client1.newProducer().topic(topicName).create();
         producer2.close();
         Awaitility.await().untilAsserted(() -> {
-            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied1_.contains(cluster1));
-            assertTrue(clustersApplied1_.contains(cluster2));
-            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied2_.contains(cluster1));
-            assertTrue(clustersApplied2_.contains(cluster2));
+            Set<String> clustersApplied1a = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1a.contains(cluster1));
+            assertTrue(clustersApplied1a.contains(cluster2));
+            Set<String> clustersApplied2a = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied2a.contains(cluster1));
+            assertTrue(clustersApplied2a.contains(cluster2));
 
             Set<String> clusters1 = admin1.topicPolicies(true).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(clusters1));
@@ -165,12 +165,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // Cluster2: Global policy never overwrite namespace policy.
         admin1.topicPolicies(true).setReplicationClusters(topicName, Arrays.asList(cluster1));
         Awaitility.await().untilAsserted(() -> {
-            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied1_.contains(cluster1));
-            assertFalse(clustersApplied1_.contains(cluster2));
-            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
-            assertFalse(clustersApplied2_.contains(cluster1));
-            assertTrue(clustersApplied2_.contains(cluster2));
+            Set<String> clustersApplied1a = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1a.contains(cluster1));
+            assertFalse(clustersApplied1a.contains(cluster2));
+            Set<String> clustersApplied2a = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2a.contains(cluster1));
+            assertTrue(clustersApplied2a.contains(cluster2));
 
             Set<String> local1 = admin1.topicPolicies(false).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(local1));
@@ -195,12 +195,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         Producer<byte[]> producer2 = client1.newProducer().topic(topicName).create();
         producer2.close();
         Awaitility.await().untilAsserted(() -> {
-            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied1_.contains(cluster1));
-            assertTrue(clustersApplied1_.contains(cluster2));
-            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
-            assertFalse(clustersApplied2_.contains(cluster1));
-            assertTrue(clustersApplied2_.contains(cluster2));
+            Set<String> clustersApplied1a = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1a.contains(cluster1));
+            assertTrue(clustersApplied1a.contains(cluster2));
+            Set<String> clustersApplied2a = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2a.contains(cluster1));
+            assertTrue(clustersApplied2a.contains(cluster2));
 
             Set<String> local2 = admin2.topicPolicies(false).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isNotEmpty(local2));
@@ -219,12 +219,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         Producer<byte[]> producer3 = client1.newProducer().topic(topicName).create();
         producer3.close();
         Awaitility.await().untilAsserted(() -> {
-            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied1_.contains(cluster1));
-            assertFalse(clustersApplied1_.contains(cluster2));
-            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
-            assertFalse(clustersApplied2_.contains(cluster1));
-            assertTrue(clustersApplied2_.contains(cluster2));
+            Set<String> clustersApplied1a = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1a.contains(cluster1));
+            assertFalse(clustersApplied1a.contains(cluster2));
+            Set<String> clustersApplied2a = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2a.contains(cluster1));
+            assertTrue(clustersApplied2a.contains(cluster2));
 
             Set<String> global1 = admin1.topicPolicies(true).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(global1));
@@ -248,12 +248,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         Producer<byte[]> producer4 = client1.newProducer().topic(topicName).create();
         producer4.close();
         Awaitility.await().untilAsserted(() -> {
-            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
-            assertTrue(clustersApplied1_.contains(cluster1));
-            assertTrue(clustersApplied1_.contains(cluster2));
-            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
-            assertFalse(clustersApplied2_.contains(cluster1));
-            assertTrue(clustersApplied2_.contains(cluster2));
+            Set<String> clustersApplied1a = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1a.contains(cluster1));
+            assertTrue(clustersApplied1a.contains(cluster2));
+            Set<String> clustersApplied2a = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2a.contains(cluster1));
+            assertTrue(clustersApplied2a.contains(cluster2));
 
             Set<String> local1 = admin1.topicPolicies(false).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(local1));
