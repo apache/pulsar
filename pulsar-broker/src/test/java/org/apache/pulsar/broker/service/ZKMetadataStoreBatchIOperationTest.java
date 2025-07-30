@@ -78,7 +78,7 @@ public class ZKMetadataStoreBatchIOperationTest extends CanReconnectZKClientPuls
         }
 
         int len = pulsar.getLocalMetadataStore().getChildren("/managed-ledgers/" + nsArray[0] + "/persistent").join()
-                .stream().map(str -> str.length()).reduce(0, Integer::sum);
+                .stream().mapToInt(str -> str.length()).sum();
         log.info("Packet len of list topics of per namespace: {}", len);
 
         long start = System.currentTimeMillis();
