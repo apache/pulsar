@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import io.netty.util.concurrent.FastThreadLocal;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -36,6 +37,12 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
     // total: 88, let's double it to cover different serialization versions.
     public static final int ZK_PACKET_SYSTEM_PROPS_LEN = 176;
     private static final SplitPathRes MEANINGLESS_SPLIT_PATH_RES = new SplitPathRes();
+    private static final FastThreadLocal<SplitPathRes> LOCAL_SPLIT_PATH_RES = new FastThreadLocal<SplitPathRes>() {
+        @Override
+        protected SplitPathRes initialValue() {
+            return new SplitPathRes();
+        }
+    };
     private final int[] maxLenOfGetMapping;
     private final int[] maxLenOfListMapping;
 
@@ -154,6 +161,12 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
     static class SplitPathRes {
         String[] parts = new String[2];
         int partCount;
+
+        void reset() {
+            parts[0] = null;
+            parts[1] = null;
+            partCount = 0;
+        }
     }
 
     /**
@@ -163,7 +176,8 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         if (path == null || path.length() <= 1) {
             return MEANINGLESS_SPLIT_PATH_RES;
         }
-        SplitPathRes res = new SplitPathRes();
+        SplitPathRes res = LOCAL_SPLIT_PATH_RES.get();
+        res.reset();
         String[] parts = res.parts;
         char delimiter = '/';
         int length = path.length();
