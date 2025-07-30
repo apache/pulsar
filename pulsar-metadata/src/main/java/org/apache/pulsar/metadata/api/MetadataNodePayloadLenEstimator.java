@@ -22,13 +22,31 @@ import java.util.List;
 
 public interface MetadataNodePayloadLenEstimator {
 
+    /**
+     * Record the payload length of put operation, to let the estimator know the max payload length, which benefits the
+     * accuracy of estimation.
+     */
     void recordPut(String path, byte[] data);
 
+    /**
+     * Record the payload length of get result, to let the estimator know the max payload length, which benefits the
+     * accuracy of estimation.
+     */
     void recordGetRes(String path, GetResult getResult);
 
+    /**
+     * Record the payload length of list result, to let the estimator know the max payload length, which benefits the
+     * accuracy of estimation.
+     */
     void recordGetChildrenRes(String path, List<String> list);
 
+    /**
+     * Estimate the payload length of get result.
+     */
     int estimateGetResPayloadLen(String path);
 
+    /**
+     * Estimate the payload length of list result.
+     */
     int estimateGetChildrenResPayloadLen(String path);
 }

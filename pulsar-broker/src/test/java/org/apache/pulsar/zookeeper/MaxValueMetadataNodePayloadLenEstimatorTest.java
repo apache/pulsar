@@ -157,8 +157,16 @@ public class MaxValueMetadataNodePayloadLenEstimatorTest {
         estimator.recordPut(subscriptionPath, subscriptionData);
         assertEquals(estimator.internalEstimateGetResPayloadLen(subscriptionPath), subscriptionData.length);
 
+        // V1 subscription paths
+        String v1SubscriptionPath = "/managed-ledgers/test-tenant/cluster/test-namespace/persistent/test-topic"
+                + "/test-subscription";
+        byte[] v1SubscriptionData = "v1-subscription-data".getBytes(StandardCharsets.UTF_8);
+        estimator.recordPut(v1SubscriptionPath, v1SubscriptionData);
+        assertEquals(estimator.internalEstimateGetResPayloadLen(v1SubscriptionPath), v1SubscriptionData.length);
+
         // Verify that different path types maintain separate max values
-        assertTrue(estimator.internalEstimateGetResPayloadLen(clusterPath) != estimator.internalEstimateGetResPayloadLen(tenantPath));
+        assertTrue(estimator.internalEstimateGetResPayloadLen(clusterPath)
+                != estimator.internalEstimateGetResPayloadLen(tenantPath));
     }
 
     @Test
