@@ -1669,7 +1669,12 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         try {
             admin1.topics().createNonPartitionedTopic(topicName);
         } catch (PulsarAdminException.ConflictException e) {
-            // Maybe the topic has been created by the replicator.
+            if (usingGlobalZK) {
+                // Since brokers shared namespace level policies, which triggers enabling a binary-way replication
+                // if using a global ZK.
+                // So the topic has been created by the replicator.
+            }
+            throw e;
         }
         admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
 
