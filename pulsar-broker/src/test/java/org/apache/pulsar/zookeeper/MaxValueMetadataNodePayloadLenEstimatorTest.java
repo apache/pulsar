@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import static org.apache.pulsar.zookeeper.MaxValueMetadataNodePayloadLenEstimator.DEFAULT_LEN;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -35,7 +36,6 @@ import org.testng.annotations.Test;
 public class MaxValueMetadataNodePayloadLenEstimatorTest {
 
     private MaxValueMetadataNodePayloadLenEstimator estimator;
-    private static final int DEFAULT_LEN = 1024;
 
     @BeforeMethod
     public void setUp() {
