@@ -25,14 +25,16 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
-import org.apache.bookkeeper.mledger.util.RangeCache;
 
-public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>,
-        RangeCache.ValueWithKeyValidation<Position> {
+public final class EntryImpl extends AbstractCASReferenceCounted
+        implements ReferenceCountedEntry, Comparable<EntryImpl> {
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -42,7 +44,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     };
 
     private final Handle<EntryImpl> recyclerHandle;
-    private long timestamp;
     private long ledgerId;
     private long entryId;
     private Position position;
@@ -52,7 +53,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
         entry.data = ledgerEntry.getEntryBuffer();
@@ -61,10 +61,30 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         return entry;
     }
 
+    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor) {
+        ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
+        if (interceptor != null) {
+            ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
+            processorHandle = interceptor
+                    .processPayloadBeforeEntryCache(duplicateBuffer);
+            if (processorHandle != null) {
+                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(),
+                        ledgerEntry.getLength(), processorHandle.getProcessedPayload());
+            } else {
+                duplicateBuffer.release();
+            }
+        }
+        EntryImpl returnEntry = create(ledgerEntry);
+        if (processorHandle != null) {
+            processorHandle.release();
+            ledgerEntry.close();
+        }
+        return returnEntry;
+    }
+
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
@@ -74,7 +94,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = data;
@@ -85,7 +104,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     public static EntryImpl create(Position position, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
+        entry.position = PositionFactory.create(position);
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data;
@@ -94,12 +113,33 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         return entry;
     }
 
+    public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = PositionFactory.create(position);
+        entry.ledgerId = position.getLedgerId();
+        entry.entryId = position.getEntryId();
+        entry.data = data.retainedDuplicate();
+        entry.setRefCnt(1);
+        return entry;
+    }
+
     public static EntryImpl create(EntryImpl other) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
+        // handle case where other.position is null due to lazy initialization
+        entry.position = other.position != null ? PositionFactory.create(other.position) : null;
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    public static EntryImpl create(Entry other) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = PositionFactory.create(other.getPosition());
+        entry.ledgerId = other.getLedgerId();
+        entry.entryId = other.getEntryId();
+        entry.data = other.getDataBuffer().retainedDuplicate();
         entry.setRefCnt(1);
         return entry;
     }
@@ -122,10 +162,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
                 }
             };
         }
-    }
-
-    public long getTimestamp() {
-        return timestamp;
     }
 
     @Override
@@ -201,7 +237,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         }
         data.release();
         data = null;
-        timestamp = -1;
         ledgerId = -1;
         entryId = -1;
         position = null;
@@ -209,7 +244,13 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     }
 
     @Override
-    public boolean matchesKey(Position key) {
-        return key.compareTo(ledgerId, entryId) == 0;
+    public boolean matchesPosition(Position key) {
+        return key != null && key.compareTo(ledgerId, entryId) == 0;
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getName() + "@" + System.identityHashCode(this)
+                + "{ledgerId=" + ledgerId + ", entryId=" + entryId + '}';
     }
 }

@@ -16,22 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl.cache;
+package org.apache.bookkeeper.mledger;
 
-import java.util.List;
+import io.netty.util.ReferenceCounted;
 
 /**
- * Cache eviction policy abstraction interface.
- *
+ * An Entry that is also reference counted.
  */
-public interface EntryCacheEvictionPolicy {
-    /**
-     * Perform the cache eviction of at least sizeToFree bytes on the supplied list of caches.
-     *
-     * @param caches
-     *            the list of caches to consider
-     * @param sizeToFree
-     *            the minimum size in bytes to be freed
-     */
-    void doEviction(List<EntryCache> caches, long sizeToFree);
+public interface ReferenceCountedEntry extends Entry, ReferenceCounted {
+
 }

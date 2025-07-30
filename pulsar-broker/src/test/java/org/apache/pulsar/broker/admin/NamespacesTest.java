@@ -1722,6 +1722,19 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getHttpError(), "Exceed maximum number of topics in namespace.");
         }
 
+        // Unload the topic to remove this non-partitioned topic from `BrokerService#topics`, so when creating the
+        // consumer, it will trigger the topic loading.
+        admin.topics().unload(topic + "4");
+        final var consumers = new ArrayList<Consumer<byte[]>>();
+        for (int i = 1; i <= 4; i++) {
+            consumers.add(pulsarClient.newConsumer().topic(topic + i).subscriptionName("sub").subscribe());
+        }
+        final var topics = admin.topics().getList(namespace);
+        assertEquals(topics.size(), 10);
+        for (final var consumer : consumers) {
+            consumer.close();
+        }
+
         // remove namespace policy limit, use broker configuration instead.
         admin.namespaces().removeMaxTopicsPerNamespace(namespace);
         admin.topics().createPartitionedTopic(topic + "6", 4);
