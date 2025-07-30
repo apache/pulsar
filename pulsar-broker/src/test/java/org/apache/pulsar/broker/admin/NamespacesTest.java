@@ -2285,18 +2285,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteNamespaceUsesRemoteClusterTlsConfig() throws Exception {
-        // Test for verifying that namespace deletion redirect uses remote cluster's TLS config
-        // not local broker's TLS config when determining which service URL to use
-        String localCluster = "local-cluster";
         String remoteCluster = "remote-cluster-tls";
-
-        // Create local cluster - TLS setting here should NOT affect remote cluster URL selection
-        ClusterData localClusterData = ClusterDataImpl.builder()
-                .serviceUrl("http://localhost:8080")
-                .serviceUrlTls("https://localhost:8443")
-                .build();
-        admin.clusters().createCluster(localCluster, localClusterData);
-
         // Test case 1: Remote cluster with TLS disabled - should use regular serviceUrl
         ClusterData remoteClusterNoTls = ClusterDataImpl.builder()
                 .serviceUrl("http://remote:8080")
@@ -2307,14 +2296,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // Create tenant
         String tenant = "test-tenant";
-        Set<String> allowedClusters = Sets.newHashSet(localCluster, remoteCluster);
+        Set<String> allowedClusters = Sets.newHashSet(conf.getClusterName(), remoteCluster);
         TenantInfoImpl tenantInfo = TenantInfoImpl.builder()
                 .allowedClusters(allowedClusters)
                 .build();
         admin.tenants().createTenant(tenant, tenantInfo);
 
         // Create global namespace with replication only to remote cluster
-        String globalNamespace = tenant + "/global/test-ns-tls";
+        String globalNamespace = tenant + "/test-ns-tls";
         admin.namespaces().createNamespace(globalNamespace);
 
         Set<String> replicationClusters = Sets.newHashSet(remoteCluster);
@@ -2351,14 +2340,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster(remoteClusterTls, remoteClusterWithTls);
 
         // Update tenant to include new cluster
-        Set<String> allowedClustersWithTls = Sets.newHashSet(localCluster, remoteCluster, remoteClusterTls);
+        Set<String> allowedClustersWithTls = Sets.newHashSet(conf.getClusterName(), remoteCluster, remoteClusterTls);
         TenantInfoImpl tenantInfoWithTls = TenantInfoImpl.builder()
                 .allowedClusters(allowedClustersWithTls)
                 .build();
         admin.tenants().updateTenant(tenant, tenantInfoWithTls);
 
         // Create another global namespace
-        String globalNamespaceTls = tenant + "/global/test-ns-tls-enabled";
+        String globalNamespaceTls = tenant + "/test-ns-tls-enabled";
         admin.namespaces().createNamespace(globalNamespaceTls);
         Set<String> replicationClustersTls = Sets.newHashSet(remoteClusterTls);
         admin.namespaces().setNamespaceReplicationClusters(globalNamespaceTls, replicationClustersTls);
@@ -2386,7 +2375,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster(remoteClusterNoTlsUrl, remoteClusterMissingTlsUrl);
 
         // Update tenant to include new cluster
-        Set<String> allowedClustersNoTlsUrl = Sets.newHashSet(localCluster, remoteCluster,
+        Set<String> allowedClustersNoTlsUrl = Sets.newHashSet(conf.getClusterName(), remoteCluster,
                                                              remoteClusterTls, remoteClusterNoTlsUrl);
         TenantInfoImpl tenantInfoNoTlsUrl = TenantInfoImpl.builder()
                 .allowedClusters(allowedClustersNoTlsUrl)
@@ -2394,7 +2383,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.tenants().updateTenant(tenant, tenantInfoNoTlsUrl);
 
         // Create another global namespace
-        String globalNamespaceNoTlsUrl = tenant + "/global/test-ns-no-tls-url";
+        String globalNamespaceNoTlsUrl = tenant + "/test-ns-no-tls-url";
         admin.namespaces().createNamespace(globalNamespaceNoTlsUrl);
         Set<String> replicationClustersNoTlsUrl = Sets.newHashSet(remoteClusterNoTlsUrl);
         admin.namespaces().setNamespaceReplicationClusters(globalNamespaceNoTlsUrl, replicationClustersNoTlsUrl);
