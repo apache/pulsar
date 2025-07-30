@@ -102,6 +102,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -2854,6 +2855,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
+        Producer<byte[]> producer3 = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/myrsa-topic1")
+                .addEncryptionKey("client-rsa-pkcs8.pem")
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
 
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
@@ -2863,6 +2869,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             producer2.send(message.getBytes());
         }
+        for (int i = totalMsg * 2; i < totalMsg * 3; i++) {
+            String message = "my-message-" + i;
+            producer3.send(message.getBytes());
+        }
 
         MessageImpl<byte[]> msg;
 
@@ -2870,13 +2880,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // should not able to read message using normal message.
         assertNull(msg);
 
-        for (int i = 0; i < totalMsg * 2; i++) {
+        for (int i = 0; i < totalMsg * 3; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             // verify that encrypted message contains encryption-context
             msg.getEncryptionCtx()
                     .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.info("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
