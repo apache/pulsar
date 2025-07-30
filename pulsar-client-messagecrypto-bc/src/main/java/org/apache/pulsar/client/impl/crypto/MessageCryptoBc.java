@@ -270,6 +270,9 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
                 privateKey = pemConverter.getPrivateKey(pKeyInfo);
 
+            } else if (pemObj instanceof PrivateKeyInfo) {
+                JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
+                privateKey = pemConverter.getPrivateKey((PrivateKeyInfo) pemObj);
             }
 
             // if our private key is EC type and we have parameters specified
