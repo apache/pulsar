@@ -47,10 +47,10 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
     private final int[] maxLenOfListMapping;
 
     {
-        int PathTypeCount = PathType.values().length;
-        maxLenOfGetMapping = new int[PathTypeCount];
-        maxLenOfListMapping = new int[PathTypeCount];
-        for (int i = 0; i < PathTypeCount; i++) {
+        int pathTypeCount = PathType.values().length;
+        maxLenOfGetMapping = new int[pathTypeCount];
+        maxLenOfListMapping = new int[pathTypeCount];
+        for (int i = 0; i < pathTypeCount; i++) {
             maxLenOfGetMapping[i] = UNSET;
             maxLenOfListMapping[i] = UNSET;
         }

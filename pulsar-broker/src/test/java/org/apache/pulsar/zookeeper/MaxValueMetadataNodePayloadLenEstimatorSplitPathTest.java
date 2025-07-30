@@ -20,7 +20,6 @@ package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
 import org.testng.annotations.Test;
 
 public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
@@ -119,8 +118,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSixParts() {
         // Test path with six parts: /admin/partitioned-topics/persistent/tenant/namespace/topic
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin/partitioned-topics/persistent/tenant/namespace/topic");
+        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result = MaxValueMetadataNodePayloadLenEstimator
+                .splitPath("/admin/partitioned-topics/persistent/tenant/namespace/topic");
 
         assertEquals(result.partCount, 6);
         assertEquals(result.parts[0], "admin");
@@ -141,8 +140,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSubscriptionPath() {
         // Test subscription path: /managed-ledgers/tenant/namespace/persistent/topic/subscription
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/managed-ledgers/tenant/namespace/persistent/topic/subscription");
+        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result = MaxValueMetadataNodePayloadLenEstimator
+                .splitPath("/managed-ledgers/tenant/namespace/persistent/topic/subscription");
 
         assertEquals(result.partCount, 6);
         assertEquals(result.parts[0], "managed-ledgers");
