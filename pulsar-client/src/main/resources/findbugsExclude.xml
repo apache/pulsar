@@ -1043,4 +1043,8 @@
         <Method name="getStats"/>
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
+        <Bug pattern="VO_VOLATILE_INCREMENT"/>
+    </Match>
 </FindBugsFilter>

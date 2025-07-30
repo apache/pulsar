@@ -24,7 +24,6 @@ import io.netty.buffer.ByteBuf;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -77,7 +76,7 @@ public class TopicLookupBase extends PulsarWebResource {
                         return CompletableFuture.completedFuture(true);
                     }
                     // Case-2: Persistent topic.
-                    return pulsar().getNamespaceService().checkTopicExists(topicName).thenCompose(info -> {
+                    return pulsar().getNamespaceService().checkTopicExistsAsync(topicName).thenCompose(info -> {
                         boolean exists = info.isExists();
                         info.recycle();
                         if (exists) {
@@ -160,32 +159,6 @@ public class TopicLookupBase extends PulsarWebResource {
     }
 
     /**
-     * Lookup broker-service address for a given namespace-bundle which contains given topic.
-     *
-     * a. Returns broker-address if namespace-bundle is already owned by any broker
-     * b. If current-broker receives lookup-request and if it's not a leader then current broker redirects request
-     * to leader by returning leader-service address.
-     * c. If current-broker is leader then it finds out least-loaded broker to
-     * own namespace bundle and redirects request
-     * by returning least-loaded broker.
-     * d. If current-broker receives request to own the namespace-bundle then
-     * it owns a bundle and returns success(connect)
-     * response to client.
-     *
-     * @param pulsarService
-     * @param topicName
-     * @param authoritative
-     * @param clientAppId
-     * @param requestId
-     * @return
-     */
-    public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
-            boolean authoritative, String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
-        return lookupTopicAsync(pulsarService, topicName, authoritative, clientAppId,
-                authenticationData, requestId, null, Collections.emptyMap());
-    }
-
-    /**
      *
      * Lookup broker-service address for a given namespace-bundle which contains given topic.
      *
@@ -209,6 +182,7 @@ public class TopicLookupBase extends PulsarWebResource {
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
                                                               boolean authoritative, String clientAppId,
+                                                              String originalPrinciple,
                                                               AuthenticationDataSource authenticationData,
                                                               long requestId, final String advertisedListenerName,
                                                               Map<String, String> properties) {
@@ -231,7 +205,8 @@ public class TopicLookupBase extends PulsarWebResource {
                         requestId, false));
             } else {
                 // (2) authorize client
-                checkAuthorizationAsync(pulsarService, topicName, clientAppId, authenticationData).thenRun(() -> {
+                checkAuthorizationAsync(pulsarService, topicName, clientAppId, originalPrinciple,
+                        authenticationData).thenRun(() -> {
                         // (3) validate global namespace
                         // It is necessary for system topic operations because system topics are used to store metadata
                         // and other vital information. Even after namespace starting deletion,
@@ -318,6 +293,7 @@ public class TopicLookupBase extends PulsarWebResource {
                             }
 
                             LookupData lookupData = lookupResult.get().getLookupData();
+                            printWarnLogIfLookupResUnexpected(topicName, lookupData, options, pulsarService);
                             if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
                                 lookupfuture.complete(
@@ -340,6 +316,24 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         return lookupfuture;
+    }
+
+    /**
+     * Check if a internal client will get a null lookup result.
+     */
+    private static void printWarnLogIfLookupResUnexpected(TopicName topic, LookupData lookupData, LookupOptions options,
+                                                          PulsarService pulsar) {
+        if (!pulsar.getBrokerService().isSystemTopic(topic)) {
+            return;
+        }
+        boolean tlsEnabled = pulsar.getConfig().isBrokerClientTlsEnabled();
+        if (!tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrl())) {
+            log.warn("[{}] Unexpected lookup result: brokerUrl is required when TLS isn't enabled. options: {},"
+                + " result {}", topic, options, lookupData);
+        } else if (tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrlTls())) {
+            log.warn("[{}] Unexpected lookup result: brokerUrlTls is required when TLS is enabled. options: {},"
+                    + " result {}", topic, options, lookupData);
+        }
     }
 
     private static void handleLookupError(CompletableFuture<ByteBuf> lookupFuture, String topicName, String clientAppId,

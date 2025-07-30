@@ -31,6 +31,7 @@
   <artifactId>pulsar-client-auth-athenz</artifactId>
   <packaging>jar</packaging>
   <description>Athenz authentication plugin for java client</description>
+  <name>Pulsar Client Auth Athenz</name>
 
   <dependencies>
 
@@ -44,6 +45,11 @@
     <dependency>
       <groupId>com.yahoo.athenz</groupId>
       <artifactId>athenz-zts-java-client-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.ws.rs</groupId>
+      <artifactId>jakarta.ws.rs-api</artifactId>
     </dependency>
 
     <dependency>
@@ -113,7 +119,7 @@
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
           <failOnViolations>true</failOnViolations>
-          <javaVersion>8</javaVersion>
+          <javaVersion>17</javaVersion>
         </configuration>
         <executions>
           <execution>

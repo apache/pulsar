@@ -50,6 +50,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -60,7 +61,8 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.awaitility.Awaitility;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -174,6 +176,24 @@ public class JavaInstanceRunnableTest {
     }
 
     @Test
+    public void testFunctionAsyncTime() throws Exception {
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setProcessingGuarantees(org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.MANUAL)
+                .build();
+        JavaInstanceRunnable javaInstanceRunnable = createRunnable(functionDetails);
+        FunctionStatsManager manager = mock(FunctionStatsManager.class);
+        javaInstanceRunnable.setStats(manager);
+        JavaExecutionResult javaExecutionResult = new JavaExecutionResult();
+        Thread.sleep(500);
+        Record record = mock(Record.class);
+        javaInstanceRunnable.handleResult(record, javaExecutionResult);
+        ArgumentCaptor<Long> timeCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(manager).processTimeEnd(timeCaptor.capture());
+        Assert.assertEquals(timeCaptor.getValue(), javaExecutionResult.getStartTime());
+    }
+
+    @Test
     public void testFunctionResultNull() throws Exception {
         JavaExecutionResult javaExecutionResult = new JavaExecutionResult();
 
@@ -200,9 +220,9 @@ public class JavaInstanceRunnableTest {
         verify(record, times(1)).ack();
     }
 
-    @NotNull
+    @NonNull
     private JavaInstanceRunnable getJavaInstanceRunnable(boolean autoAck,
-                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
+               org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setAutoAck(autoAck)
                 .setProcessingGuarantees(processingGuarantees).build();

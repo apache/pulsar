@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<project
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+        xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.apache.pulsar</groupId>
+    <artifactId>pulsar</artifactId>
+    <version>4.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>pulsar-client-dependencies-minimized</artifactId>
+  <name>Apache Pulsar :: Client :: Dependencies minimized</name>
+  <description>This module is used in `pulsar-client-all`, `pulsar-client-shaded`, and `pulsar-client-admin-shaded`
+    to minimize the number of classes included in the shaded jars for specific dependencies.
+    Currently, it is used to minimize the classes included from `fastutil`.
+  </description>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <finalName>${project.artifactId}-${project.version}</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <!-- Skips the deployment of the minimized dependencies to Maven Central as this is an intermediate
+ module used for building the shaded client jars -->
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>true</createDependencyReducedPom>
+              <promoteTransitiveDependencies>false</promoteTransitiveDependencies>
+              <!-- minimize the classes included in the shaded jar -->
+              <minimizeJar>true</minimizeJar>
+              <artifactSet>
+                <includes>
+                  <!-- The Pulsar module that references the library being minimized -->
+                  <include>org.apache.pulsar:pulsar-client-original</include>
+                  <!-- Currently, only fastutil is minimized -->
+                  <include>it.unimi.dsi:fastutil</include>
+                </includes>
+              </artifactSet>
+              <filters>
+                <!--
+                This filter specifies the classes that use the dependencies.
+                Both includes and excludes are set to **.
+                -->
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                  <excludes>
+                    <exclude>**</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

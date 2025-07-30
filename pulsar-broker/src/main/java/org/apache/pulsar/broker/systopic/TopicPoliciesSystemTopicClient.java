@@ -73,6 +73,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
                 .subscriptionRolePrefix(SystemTopicNames.SYSTEM_READER_PREFIX)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
+                .poolMessages(true)
                 .createAsync()
                 .thenApply(reader -> {
                     if (log.isDebugEnabled()) {

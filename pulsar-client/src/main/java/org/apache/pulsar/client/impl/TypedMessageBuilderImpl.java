@@ -186,7 +186,6 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> eventTime(long timestamp) {
-        checkArgument(timestamp > 0, "Invalid timestamp : '%s'", timestamp);
         msgMetadata.setEventTime(timestamp);
         return this;
     }

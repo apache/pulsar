@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -88,7 +89,6 @@ import org.slf4j.LoggerFactory;
     configClass = KinesisSinkConfig.class
 )
 public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObject> {
-
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSink.class);
 
     private KinesisProducer kinesisProducer;
@@ -151,12 +151,13 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
     }
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws IOException {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         kinesisSinkConfig = KinesisSinkConfig.load(config, sinkContext);
         this.sinkContext = sinkContext;
 
-        KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration();
+        KinesisProducerConfiguration kinesisConfig = KinesisSinkConfig
+                .loadExtraKinesisProducerConfig(kinesisSinkConfig.getExtraKinesisProducerConfig());
         if (isNotBlank(kinesisSinkConfig.getAwsEndpoint())) {
             kinesisConfig.setKinesisEndpoint(kinesisSinkConfig.getAwsEndpoint());
         }
@@ -166,10 +167,26 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
         if (kinesisSinkConfig.getAwsEndpointPort() != null) {
             kinesisConfig.setKinesisPort(kinesisSinkConfig.getAwsEndpointPort());
         }
+        if (kinesisSinkConfig.getAwsStsEndpoint() != null) {
+            kinesisConfig.setStsEndpoint(kinesisSinkConfig.getAwsStsEndpoint());
+        }
+        if (kinesisSinkConfig.getAwsStsPort() != null) {
+            kinesisConfig.setStsPort(kinesisSinkConfig.getAwsStsPort());
+        }
         kinesisConfig.setRegion(kinesisSinkConfig.getAwsRegion());
         kinesisConfig.setThreadingModel(ThreadingModel.POOLED);
-        kinesisConfig.setThreadPoolSize(4);
-        kinesisConfig.setCollectionMaxCount(1);
+        if (kinesisConfig.getThreadPoolSize() == 0) {
+            kinesisConfig.setThreadPoolSize(4);
+        }
+        kinesisConfig.setCollectionMaxCount(kinesisSinkConfig.getCollectionMaxCount());
+        kinesisConfig.setCollectionMaxSize(kinesisSinkConfig.getCollectionMaxSize());
+        kinesisConfig.setConnectTimeout(kinesisSinkConfig.getConnectTimeout());
+        kinesisConfig.setCredentialsRefreshDelay(kinesisSinkConfig.getCredentialsRefreshDelay());
+        kinesisConfig.setMaxConnections(kinesisSinkConfig.getMaxConnections());
+        kinesisConfig.setMinConnections(kinesisSinkConfig.getMinConnections());
+        kinesisConfig.setRateLimit(kinesisSinkConfig.getRateLimit());
+        kinesisConfig.setRecordTtl(kinesisSinkConfig.getRecordTtl());
+        kinesisConfig.setRequestTimeout(kinesisSinkConfig.getRequestTimeout());
         if (kinesisSinkConfig.getSkipCertificateValidation() != null
                 && kinesisSinkConfig.getSkipCertificateValidation()) {
             kinesisConfig.setVerifyCertificate(false);
@@ -179,6 +196,8 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
                 kinesisSinkConfig.getAwsCredentialPluginParam())
             .getCredentialProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
+        kinesisConfig.setNativeExecutable(StringUtils.trimToEmpty(kinesisSinkConfig.getNativeExecutable()));
+        kinesisConfig.setAggregationEnabled(kinesisSinkConfig.isAggregationEnabled());
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
         this.kinesisProducer = new KinesisProducer(kinesisConfig);

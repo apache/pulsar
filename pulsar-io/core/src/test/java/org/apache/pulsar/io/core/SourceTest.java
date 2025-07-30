@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.apache.pulsar.functions.api.Record;
-import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.functions.api.Record;
+import org.testng.annotations.Test;
 
 public class SourceTest {
     public static class TestSource implements Source<String> {

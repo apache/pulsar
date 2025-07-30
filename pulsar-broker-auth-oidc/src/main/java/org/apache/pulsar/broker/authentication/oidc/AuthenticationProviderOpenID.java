@@ -53,7 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import okhttp3.OkHttpClient;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -183,6 +183,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                     .build();
         }
         AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
+                .setCookieStore(null)
                 .setConnectTimeout(connectionTimeout)
                 .setReadTimeout(readTimeout)
                 .setSslContext(sslContext)

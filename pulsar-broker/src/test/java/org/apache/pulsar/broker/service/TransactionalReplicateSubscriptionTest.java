@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -38,16 +46,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
     @Override
     @BeforeClass(timeOut = 300000)
@@ -64,7 +62,7 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
-     * enable transaction coordinator for the cluster1
+     * enable transaction coordinator for the cluster1.
      */
     @Override
     public void setConfig1DefaultValue(){
@@ -72,7 +70,8 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
         config1.setTransactionCoordinatorEnabled(true);
     }
 
-    protected void createTransactionCoordinatorAssign(int numPartitionsOfTC, PulsarService pulsarService) throws MetadataStoreException {
+    protected void createTransactionCoordinatorAssign(int numPartitionsOfTC, PulsarService pulsarService)
+            throws MetadataStoreException {
         pulsarService.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()

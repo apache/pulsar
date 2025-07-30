@@ -19,15 +19,20 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.DisabledPublishRateLimiter;
+import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EntryFilters;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.jspecify.annotations.NonNull;
 
 public class SystemTopic extends PersistentTopic {
 
@@ -46,7 +51,7 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
+    public CompletableFuture<Boolean> checkTimeBacklogExceeded(boolean shouldUpdateOldPositionInfo) {
         return CompletableFuture.completedFuture(false);
     }
 
@@ -110,5 +115,20 @@ public class SystemTopic extends PersistentTopic {
     @Override
     public List<EntryFilter> getEntryFilters() {
         return null;
+    }
+
+    @Override
+    public PublishRateLimiter getBrokerPublishRateLimiter() {
+        return DisabledPublishRateLimiter.INSTANCE;
+    }
+
+    @Override
+    public void updateResourceGroupLimiter(@NonNull Policies namespacePolicies) {
+        // nothing todo.
+    }
+
+    @Override
+    public Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
     }
 }

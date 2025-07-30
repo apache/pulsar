@@ -21,6 +21,7 @@ package org.apache.bookkeeper.client;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -40,28 +41,36 @@ class PulsarMockReadHandle implements ReadHandle {
     private final long ledgerId;
     private final LedgerMetadata metadata;
     private final List<LedgerEntryImpl> entries;
+    private final Supplier<PulsarMockReadHandleInterceptor> readHandleInterceptorSupplier;
 
     PulsarMockReadHandle(PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata,
-                         List<LedgerEntryImpl> entries) {
+                         List<LedgerEntryImpl> entries,
+                         Supplier<PulsarMockReadHandleInterceptor> readHandleInterceptorSupplier) {
         this.bk = bk;
         this.ledgerId = ledgerId;
         this.metadata = metadata;
         this.entries = entries;
+        this.readHandleInterceptorSupplier = readHandleInterceptorSupplier;
     }
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         return bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
-                List<LedgerEntry> seq = new ArrayList<>();
-                long entryId = firstEntry;
-                while (entryId <= lastEntry && entryId < entries.size()) {
-                    seq.add(entries.get((int) entryId++).duplicate());
-                }
-                log.debug("Entries read: {}", seq);
-
-                return FutureUtils.value(LedgerEntriesImpl.create(seq));
-            });
+            log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
+            List<LedgerEntry> seq = new ArrayList<>();
+            long entryId = firstEntry;
+            while (entryId <= lastEntry && entryId < entries.size()) {
+                seq.add(entries.get((int) entryId++).duplicate());
+            }
+            log.debug("Entries read: {}", seq);
+            LedgerEntriesImpl ledgerEntries = LedgerEntriesImpl.create(seq);
+            PulsarMockReadHandleInterceptor pulsarMockReadHandleInterceptor = readHandleInterceptorSupplier.get();
+            if (pulsarMockReadHandleInterceptor != null) {
+                return pulsarMockReadHandleInterceptor.interceptReadAsync(ledgerId, firstEntry, lastEntry,
+                        ledgerEntries);
+            }
+            return FutureUtils.value(ledgerEntries);
+        });
     }
 
     @Override

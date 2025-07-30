@@ -22,13 +22,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import net.jcip.annotations.NotThreadSafe;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 
 @NotThreadSafe
-@Slf4j
 public class MessagesImpl<T> implements Messages<T> {
 
     private final List<Message<T>> messageList;
@@ -51,14 +49,10 @@ public class MessagesImpl<T> implements Messages<T> {
             return true;
         }
         if (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 > maxNumberOfMessages) {
-            log.warn("can't add message to the container, has exceeded the maxNumberOfMessages : {} ",
-                    maxNumberOfMessages);
             return false;
         }
 
         if (maxSizeOfMessages > 0 && currentSizeOfMessages + message.size() > maxSizeOfMessages) {
-            log.warn("can't add message to the container, has exceeded the maxSizeOfMessages : {} ",
-                    maxSizeOfMessages);
             return false;
         }
 

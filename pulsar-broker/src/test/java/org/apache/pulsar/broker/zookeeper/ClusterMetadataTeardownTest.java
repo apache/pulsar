@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.zookeeper;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import java.util.SortedMap;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.PulsarClusterMetadataTeardown;
@@ -54,7 +55,7 @@ public class ClusterMetadataTeardownTest {
     @Test
     public void testSetupClusterMetadataAndTeardown() throws Exception {
         String[] args1 = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
+                "--cluster", "cluster1",
                 "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
                 "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
                 "--configuration-metadata-store-config-path", "src/test/resources/conf/zk_client_enable_sasl.conf",
@@ -65,7 +66,7 @@ public class ClusterMetadataTeardownTest {
         };
         PulsarClusterMetadataSetup.main(args1);
         SortedMap<String, String> data1 = localZkS.dumpData();
-        String clusterDataJson = data1.get("/admin/clusters/testReSetupClusterMetadata-cluster");
+        String clusterDataJson = data1.get("/admin/clusters/cluster1");
         assertNotNull(clusterDataJson);
         ClusterData clusterData = ObjectMapperFactory
                 .getMapper()
@@ -78,13 +79,78 @@ public class ClusterMetadataTeardownTest {
         assertFalse(clusterData.isBrokerClientTlsEnabled());
 
         String[] args2 = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
+                "--cluster", "cluster1",
                 "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
                 "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
                 "--configuration-metadata-store-config-path", "src/test/resources/conf/zk_client_enable_sasl.conf",
         };
         PulsarClusterMetadataTeardown.main(args2);
         SortedMap<String, String> data2 = localZkS.dumpData();
-        assertFalse(data2.containsKey("/admin/clusters/testReSetupClusterMetadata-cluster"));
+        assertFalse(data2.containsKey("/admin/clusters/cluster1"));
+    }
+
+    @Test
+    public void testSetupMultipleClusterMetadataAndTeardown() throws Exception {
+        String[] cluster1Args = {
+                "--cluster", "cluster1",
+                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--configuration-metadata-store-config-path", "src/test/resources/conf/zk_client_enable_sasl.conf",
+                "--web-service-url", "http://127.0.0.1:8080",
+                "--web-service-url-tls", "https://127.0.0.1:8443",
+                "--broker-service-url", "pulsar://127.0.0.1:6650",
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+        };
+        PulsarClusterMetadataSetup.main(cluster1Args);
+        String[] cluster2Args = {
+                "--cluster", "cluster2",
+                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--configuration-metadata-store-config-path", "src/test/resources/conf/zk_client_enable_sasl.conf",
+                "--web-service-url", "http://127.0.0.1:8081",
+                "--web-service-url-tls", "https://127.0.0.1:8445",
+                "--broker-service-url", "pulsar://127.0.0.1:6651",
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6652"
+        };
+        PulsarClusterMetadataSetup.main(cluster2Args);
+        SortedMap<String, String> data1 = localZkS.dumpData();
+        String clusterDataJson = data1.get("/admin/clusters/cluster1");
+        assertNotNull(clusterDataJson);
+        ClusterData clusterData = ObjectMapperFactory
+                .getMapper()
+                .reader()
+                .readValue(clusterDataJson, ClusterData.class);
+        assertEquals(clusterData.getServiceUrl(), "http://127.0.0.1:8080");
+        assertEquals(clusterData.getServiceUrlTls(), "https://127.0.0.1:8443");
+        assertEquals(clusterData.getBrokerServiceUrl(), "pulsar://127.0.0.1:6650");
+        assertEquals(clusterData.getBrokerServiceUrlTls(), "pulsar+ssl://127.0.0.1:6651");
+        assertFalse(clusterData.isBrokerClientTlsEnabled());
+
+        String[] args2 = {
+                "--cluster", "cluster1",
+                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--configuration-metadata-store-config-path", "src/test/resources/conf/zk_client_enable_sasl.conf",
+        };
+        PulsarClusterMetadataTeardown.main(args2);
+        SortedMap<String, String> data2 = localZkS.dumpData();
+        assertFalse(data2.containsKey("/admin/clusters/cluster1"));
+        assertTrue(data2.containsKey("/admin/clusters/cluster2"));
+
+        assertTrue(data2.containsKey("/admin/policies/public"));
+        assertFalse(data2.get("/admin/policies/public").contains("cluster1"));
+        assertTrue(data2.get("/admin/policies/public").contains("cluster2"));
+
+        assertTrue(data2.containsKey("/admin/policies/pulsar"));
+        assertFalse(data2.get("/admin/policies/pulsar").contains("cluster1"));
+        assertTrue(data2.get("/admin/policies/pulsar").contains("cluster2"));
+
+        assertTrue(data2.containsKey("/admin/policies/public/default"));
+        assertFalse(data2.get("/admin/policies/public/default").contains("cluster1"));
+        assertTrue(data2.get("/admin/policies/public/default").contains("cluster2"));
+
+        assertTrue(data2.containsKey("/admin/policies/pulsar/system"));
+        assertFalse(data2.get("/admin/policies/pulsar/system").contains("cluster1"));
+        assertTrue(data2.get("/admin/policies/pulsar/system").contains("cluster2"));
     }
 }

@@ -17,24 +17,20 @@
 # under the License.
 #
 
-# build go lang examples first in a separate layer
 ARG PULSAR_ALL_IMAGE
-ARG PULSAR_IMAGE
 
-FROM golang:1.21-alpine as pulsar-function-go
+# build go lang examples first in a separate layer
+FROM golang:1.23-alpine as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
 
-# Reference pulsar-all to copy connectors from there
-FROM $PULSAR_ALL_IMAGE as pulsar-all
-
 ########################################
 ###### Main image build
 ########################################
-FROM $PULSAR_IMAGE
+FROM $PULSAR_ALL_IMAGE
 
 # Switch to run as the root user to simplify building container and then running
 # supervisord. Each of the pulsar components are spawned by supervisord and their
@@ -68,6 +64,9 @@ RUN chmod g+rx /pulsar/examples/python-examples/
 # copy java test examples
 COPY target/java-test-functions.jar /pulsar/examples/
 
+# copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
+COPY target/buildtools.jar /pulsar/lib/
+
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
 
@@ -77,20 +76,6 @@ COPY target/certificate-authority /pulsar/certificate-authority/
 
 # copy broker plugins
 COPY target/plugins/ /pulsar/examples/
-
-# Include all offloaders
-COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders
-
-# Include only the connectors needed by integration tests
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-batch-data-generator-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kinesis-*.nar /pulsar/connectors/
 
 # download Oracle JDBC driver for Oracle Debezium Connector tests
 RUN mkdir -p META-INF/bundled-dependencies

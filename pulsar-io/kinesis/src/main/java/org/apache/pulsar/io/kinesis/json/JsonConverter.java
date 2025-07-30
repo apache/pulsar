@@ -23,9 +23,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -45,18 +47,18 @@ public class JsonConverter {
     private static final Map<String, LogicalTypeConverter<?>> logicalTypeConverters = new HashMap<>();
     private static final JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
 
-    public static JsonNode toJson(GenericRecord genericRecord) {
+    public static JsonNode toJson(GenericRecord genericRecord, boolean convertBytesToString) {
         if (genericRecord == null) {
             return null;
         }
         ObjectNode objectNode = jsonNodeFactory.objectNode();
         for (Schema.Field field : genericRecord.getSchema().getFields()) {
-            objectNode.set(field.name(), toJson(field.schema(), genericRecord.get(field.name())));
+            objectNode.set(field.name(), toJson(field.schema(), genericRecord.get(field.name()), convertBytesToString));
         }
         return objectNode;
     }
 
-    public static JsonNode toJson(Schema schema, Object value) {
+    public static JsonNode toJson(Schema schema, Object value, boolean convertBytesToString) {
         if (schema.getLogicalType() != null && logicalTypeConverters.containsKey(schema.getLogicalType().getName())) {
             return logicalTypeConverters.get(schema.getLogicalType().getName()).toJson(schema, value);
         }
@@ -77,8 +79,18 @@ public class JsonConverter {
             case BOOLEAN:
                 return jsonNodeFactory.booleanNode((Boolean) value);
             case BYTES:
-                return jsonNodeFactory.binaryNode((byte[]) value);
+                byte[] bytes = new byte[((ByteBuffer) value).remaining()];
+                ((ByteBuffer) value).get(bytes);
+                // Workaround for https://github.com/wnameless/json-flattener/issues/91
+                if (convertBytesToString) {
+                    return jsonNodeFactory.textNode(Base64.getEncoder().encodeToString(bytes));
+                }
+                return jsonNodeFactory.binaryNode(bytes);
             case FIXED:
+                // Workaround for https://github.com/wnameless/json-flattener/issues/91
+                if (convertBytesToString) {
+                    return jsonNodeFactory.textNode(Base64.getEncoder().encodeToString(((GenericFixed) value).bytes()));
+                }
                 return jsonNodeFactory.binaryNode(((GenericFixed) value).bytes());
             case ENUM: // GenericEnumSymbol
             case STRING:
@@ -93,7 +105,7 @@ public class JsonConverter {
                     iterable = (Object[]) value;
                 }
                 for (Object elem : iterable) {
-                    JsonNode fieldValue = toJson(elementSchema, elem);
+                    JsonNode fieldValue = toJson(elementSchema, elem, convertBytesToString);
                     arrayNode.add(fieldValue);
                 }
                 return arrayNode;
@@ -102,7 +114,7 @@ public class JsonConverter {
                 Map<Object, Object> map = (Map<Object, Object>) value;
                 ObjectNode objectNode = jsonNodeFactory.objectNode();
                 for (Map.Entry<Object, Object> entry : map.entrySet()) {
-                    JsonNode jsonNode = toJson(schema.getValueType(), entry.getValue());
+                    JsonNode jsonNode = toJson(schema.getValueType(), entry.getValue(), convertBytesToString);
                     // can be a String or org.apache.avro.util.Utf8
                     final String entryKey = entry.getKey() == null ? null : entry.getKey().toString();
                     objectNode.set(entryKey, jsonNode);
@@ -110,13 +122,13 @@ public class JsonConverter {
                 return objectNode;
             }
             case RECORD:
-                return toJson((GenericRecord) value);
+                return toJson((GenericRecord) value, convertBytesToString);
             case UNION:
                 for (Schema s : schema.getTypes()) {
                     if (s.getType() == Schema.Type.NULL) {
                         continue;
                     }
-                    return toJson(s, value);
+                    return toJson(s, value, convertBytesToString);
                 }
                 // this case should not happen
                 return jsonNodeFactory.textNode(value.toString());

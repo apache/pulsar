@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -35,6 +34,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
@@ -42,45 +42,50 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Test Token authentication with:
  *    client: org.apache.pulsar.client.impl.auth.AuthenticationToken
- *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
+ *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken.
  */
 @Test(groups = "broker-api")
 public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenAuthenticatedProducerConsumerTest.class);
 
-    private final String ADMIN_TOKEN;
-    private final String TOKEN_PUBLIC_KEY;
+    private static final String ADMIN_ROLE = "admin";
+    private final String adminToken;
+    private final String userToken;
+    private final String tokenPublicKey;
+    private final KeyPair kp;
 
     TokenAuthenticatedProducerConsumerTest() throws NoSuchAlgorithmException {
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        KeyPair kp = kpg.generateKeyPair();
+        kp = kpg.generateKeyPair();
 
         byte[] encodedPublicKey = kp.getPublic().getEncoded();
-        TOKEN_PUBLIC_KEY = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
-        ADMIN_TOKEN = generateToken(kp);
+        tokenPublicKey = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
+        adminToken = generateToken(ADMIN_ROLE);
+        userToken = generateToken("user");
     }
 
-    private String generateToken(KeyPair kp) {
+    private String generateToken(String subject) {
         PrivateKey pkey = kp.getPrivate();
         long expMillis = System.currentTimeMillis() + Duration.ofHours(1).toMillis();
         Date exp = new Date(expMillis);
 
         return Jwts.builder()
-            .setSubject("admin")
+            .setSubject(subject)
             .setExpiration(exp)
             .signWith(pkey, SignatureAlgorithm.forSigningKey(pkey))
             .compact();
     }
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
@@ -94,13 +99,13 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        conf.setBrokerClientAuthenticationParameters("token:" + adminToken);
 
         conf.setClusterName("test");
 
         // Set provider domain name
         Properties properties = new Properties();
-        properties.setProperty("tokenPublicKey", TOKEN_PUBLIC_KEY);
+        properties.setProperty("tokenPublicKey", tokenPublicKey);
 
         conf.setProperties(properties);
         super.init();
@@ -110,15 +115,15 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     protected final void clientSetup() throws Exception {
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
+                .authentication(AuthenticationFactory.token(adminToken))
                 .build());
 
         replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN)));
+                .authentication(AuthenticationFactory.token(adminToken)));
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -133,7 +138,8 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/my-topic");
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
@@ -172,4 +178,53 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @DataProvider
+    public static Object[][] provider() {
+        // The 1st element specifies whether to use TCP service URL
+        // The 2nd element specifies whether to use a token with correct permission
+        return new Object[][] {
+                { true, true },
+                { true, false },
+                { false, true },
+                { false, false },
+        };
+    }
+
+    @Test(dataProvider = "provider")
+    public void testTenantNotExist(boolean useTcpServiceUrl, boolean useCorrectToken) throws Exception {
+        final var operationTimeoutMs = 10000;
+        final var url = useTcpServiceUrl ? pulsar.getBrokerServiceUrl() : pulsar.getWebServiceAddress();
+        final var token = useCorrectToken ? adminToken : userToken;
+        @Cleanup final var client = PulsarClient.builder().serviceUrl(url)
+                .operationTimeout(operationTimeoutMs, TimeUnit.MILLISECONDS)
+                .authentication(AuthenticationFactory.token(token)).build();
+        final var topic = "non-exist/not-exist/tp"; // the namespace does not exist
+        var start = System.currentTimeMillis();
+        try {
+            client.newProducer().topic(topic).create();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            final var elapsedMs = System.currentTimeMillis() - start;
+            log.info("Failed to create producer after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
+            Assert.assertTrue(elapsedMs < operationTimeoutMs);
+            if (useTcpServiceUrl) {
+                Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+            } else {
+                Assert.assertTrue(e instanceof PulsarClientException.NotFoundException);
+            }
+        }
+        start = System.currentTimeMillis();
+        try {
+            client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+        } catch (PulsarClientException e) {
+            final var elapsedMs = System.currentTimeMillis() - start;
+            log.info("Failed to subscribe after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
+            Assert.assertTrue(elapsedMs < operationTimeoutMs);
+            if (useTcpServiceUrl) {
+                Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+            } else {
+                Assert.assertTrue(e instanceof PulsarClientException.NotFoundException);
+            }
+        }
+    }
 }

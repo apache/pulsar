@@ -70,10 +70,12 @@ public class HttpClient implements Closeable {
 
     protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this.authentication = conf.getAuthentication();
-        this.serviceNameResolver = new PulsarServiceNameResolver();
+        this.serviceNameResolver = new PulsarServiceNameResolver(conf.getServiceUrlQuarantineInitDurationMs(),
+                conf.getServiceUrlQuarantineMaxDurationMs());
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(conf.getMaxLookupRedirects());
@@ -96,7 +98,8 @@ public class HttpClient implements Closeable {
                 this.executorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
                                 .ExtendedThreadFactory("httpclient-ssl-refresh"));
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf);
+                PulsarSslConfiguration sslConfiguration =
+                        buildSslConfiguration(conf, serviceNameResolver.resolveHostUri().getHost());
                 this.sslFactory = (PulsarSslFactory) Class.forName(conf.getSslFactoryPlugin())
                         .getConstructor().newInstance();
                 this.sslFactory.initialize(sslConfiguration);
@@ -110,7 +113,6 @@ public class HttpClient implements Closeable {
                         .resolveHostUri().getHost();
                 SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(this.sslFactory, hostname);
                 confBuilder.setSslEngineFactory(sslEngineFactory);
-
 
 
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
@@ -166,6 +168,8 @@ public class HttpClient implements Closeable {
             // auth complete, do real request
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
+                    serviceNameResolver.markHostAvailability(
+                            InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
                     log.warn("[{}] Failed to perform http request at authentication stage: {}",
                         requestUrl, ex.getMessage());
                     future.completeExceptionally(new PulsarClientException(ex));
@@ -192,10 +196,14 @@ public class HttpClient implements Closeable {
 
                 builder.execute().toCompletableFuture().whenComplete((response2, t) -> {
                     if (t != null) {
+                        serviceNameResolver.markHostAvailability(
+                                InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
                         log.warn("[{}] Failed to perform http request: {}", requestUrl, t.getMessage());
                         future.completeExceptionally(new PulsarClientException(t));
                         return;
                     }
+                    serviceNameResolver.markHostAvailability(
+                            InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), true);
 
                     // request not success
                     if (response2.getStatusCode() != HttpURLConnection.HTTP_OK) {
@@ -232,7 +240,7 @@ public class HttpClient implements Closeable {
         return future;
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config)
+    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config, String host)
             throws PulsarClientException {
         return PulsarSslConfiguration.builder()
                 .tlsProvider(config.getSslProvider())
@@ -251,7 +259,7 @@ public class HttpClient implements Closeable {
                 .requireTrustedClientCertOnConnect(false)
                 .tlsEnabledWithKeystore(config.isUseKeyStoreTls())
                 .tlsCustomParams(config.getSslFactoryPluginParams())
-                .authData(config.getAuthentication().getAuthData())
+                .authData(config.getAuthentication().getAuthData(host))
                 .serverMode(false)
                 .isHttps(true)
                 .build();
@@ -264,4 +272,5 @@ public class HttpClient implements Closeable {
             log.error("Failed to refresh SSL context", e);
         }
     }
+
 }

@@ -35,6 +35,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -48,6 +49,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -59,7 +61,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -86,7 +87,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, persistentTopic, managedLedger);
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, persistentTopic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         String producerName1 = "producer1";
@@ -99,20 +101,24 @@ public class MessageDuplicationTest extends BrokerTestBase {
 
         MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+        byteBuf1.release();
 
         Long lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 0);
 
         status = messageDeduplication.isDuplicate(publishContext2, byteBuf2);
+        byteBuf2.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
 
+
         byteBuf1 = getMessage(producerName1, 1);
         publishContext1 = getPublishContext(producerName1, 1);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -121,6 +127,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 5);
         publishContext1 = getPublishContext(producerName1, 5);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -129,6 +136,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 0);
         publishContext1 = getPublishContext(producerName1, 0);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         // should expect unknown because highestSequencePersisted is empty
         assertEquals(status, MessageDeduplication.MessageDupStatus.Unknown);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
@@ -141,6 +149,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 0);
         publishContext1 = getPublishContext(producerName1, 0);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         // now that highestSequencedPersisted, message with seqId of zero can be classified as a dup
         assertEquals(status, MessageDeduplication.MessageDupStatus.Dup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
@@ -160,6 +169,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
 
         publishContext1 = getPublishContext(producerName1, 4, 8);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.Unknown);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -179,7 +189,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
-        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, topic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         ManagedCursor managedCursor = mock(ManagedCursor.class);
@@ -250,7 +261,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         doReturn(mock(CompactionServiceFactory.class)).when(pulsarService).getCompactionServiceFactory();
 
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
+        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService,
+                mock(PersistentTopic.class), managedLedger));
         doReturn(true).when(messageDeduplication).isEnabled();
 
 
@@ -268,9 +280,10 @@ public class MessageDuplicationTest extends BrokerTestBase {
         doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(pulsarService).when(brokerService).getPulsar();
         doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
-        doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicSnapshotClock();
+        doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicClock();
 
-        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
+        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class,
+                "topic-1", brokerService, managedLedger, messageDeduplication);
 
         String producerName1 = "producer1";
         ByteBuf byteBuf1 = getMessage(producerName1, 0);
@@ -296,9 +309,12 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
+        byteBuf2.release();
+
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
+        byteBuf1.release();
 
         byteBuf1 = getMessage(producerName1, 1);
         publishContext1 = getPublishContext(producerName1, 1);
@@ -311,6 +327,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
+        byteBuf1.release();
 
         byteBuf1 = getMessage(producerName1, 5);
         publishContext1 = getPublishContext(producerName1, 5);
@@ -323,6 +340,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
+        byteBuf1.release();
 
         // publish dup
         byteBuf1 = getMessage(producerName1, 0);
@@ -333,6 +351,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
         verify(publishContext1, times(1)).completed(eq(null), eq(-1L), eq(-1L));
+        byteBuf1.release();
 
         // publish message unknown dup status
         byteBuf1 = getMessage(producerName1, 6);
@@ -346,16 +365,19 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
+        byteBuf1.release();
 
         // publish same message again
         byteBuf1 = getMessage(producerName1, 6);
         publishContext1 = getPublishContext(producerName1, 6);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
         verify(managedLedger, times(5)).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
-        verify(publishContext1, times(1)).completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
+        verify(publishContext1, times(1))
+                .completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
 
         // complete seq 6 message eventually
         persistentTopic.addComplete(PositionFactory.create(0, 5), null, publishContext1);
+        byteBuf1.release();
 
         // simulate failure
         byteBuf1 = getMessage(producerName1, 7);
@@ -376,6 +398,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName2);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         verify(messageDeduplication, times(1)).resetHighestSequenceIdPushed();
+        byteBuf1.release();
 
         // try dup
         byteBuf1 = getMessage(producerName1, 6);
@@ -386,6 +409,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 6);
+        byteBuf1.release();
 
         // try new message
         byteBuf1 = getMessage(producerName1, 8);
@@ -399,6 +423,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
+        byteBuf1.release();
 
     }
 
@@ -408,8 +433,11 @@ public class MessageDuplicationTest extends BrokerTestBase {
                 .setSequenceId(seqId)
                 .setPublishTime(System.currentTimeMillis());
 
-        return serializeMetadataAndPayload(
-                Commands.ChecksumType.Crc32c, messageMetadata, io.netty.buffer.Unpooled.copiedBuffer(new byte[0]));
+        ByteBuf payload = Unpooled.copiedBuffer(new byte[0]);
+        ByteBuf byteBuf = serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, payload);
+        payload.release();
+        return byteBuf;
     }
 
     public Topic.PublishContext getPublishContext(String producerName, long seqId) {
@@ -482,7 +510,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         final MessageDeduplication messageDeduplication = persistentTopic.getMessageDeduplication();
         assertFalse(messageDeduplication.getInactiveProducers().containsKey(producerName));
         producer.close();
-        Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication.getInactiveProducers().containsKey(producerName)));
+        Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication
+                .getInactiveProducers().containsKey(producerName)));
         admin.topicPolicies().setDeduplicationStatus(topicName, false);
         Awaitility.await().untilAsserted(() -> {
                     final Boolean deduplicationStatus = admin.topicPolicies().getDeduplicationStatus(topicName);

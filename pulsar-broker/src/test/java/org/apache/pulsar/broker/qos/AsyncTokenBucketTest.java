@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.qos;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,14 +29,14 @@ import org.testng.annotations.Test;
 
 public class AsyncTokenBucketTest {
     private AtomicLong manualClockSource;
-    private MonotonicSnapshotClock clockSource;
+    private MonotonicClock clockSource;
 
     private AsyncTokenBucket asyncTokenBucket;
 
     @BeforeMethod
     public void setup() {
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        clockSource = requestSnapshot -> manualClockSource.get();
+        clockSource = () -> manualClockSource.get();
     }
 
 
@@ -50,7 +51,8 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldAddTokensWithConfiguredRate() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
+                AsyncTokenBucket.builder()
+                        .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
         incrementSeconds(5);
         assertEquals(asyncTokenBucket.getTokens(), 50);
         incrementSeconds(1);
@@ -64,7 +66,7 @@ public class AsyncTokenBucketTest {
 
         // Consume all and verify none available and then wait 1 period and check replenished
         asyncTokenBucket.consumeTokens(100);
-        assertEquals(asyncTokenBucket.tokens(true), 0);
+        assertEquals(asyncTokenBucket.getTokens(), 0);
         incrementSeconds(1);
         assertEquals(asyncTokenBucket.getTokens(), 10);
     }
@@ -91,13 +93,106 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
+                AsyncTokenBucket.builder().capacity(100)
+                        .rate(10)
+                        .initialTokens(0)
+                        .clock(clockSource)
+                        .build();
         for (int i = 0; i < 150; i++) {
             incrementMillis(1);
         }
         assertEquals(asyncTokenBucket.getTokens(), 1);
         incrementMillis(150);
         assertEquals(asyncTokenBucket.getTokens(), 3);
+        incrementMillis(1);
+        assertEquals(asyncTokenBucket.getTokens(), 3);
+        incrementMillis(99);
+        assertEquals(asyncTokenBucket.getTokens(), 4);
     }
 
+    @Test
+    void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens2() {
+        asyncTokenBucket =
+                AsyncTokenBucket.builder().capacity(100)
+                        .rate(1)
+                        .initialTokens(0)
+                        .clock(clockSource)
+                        .build();
+        for (int i = 0; i < 150; i++) {
+            incrementMillis(1);
+            assertEquals(asyncTokenBucket.getTokens(), 0);
+        }
+        incrementMillis(150);
+        assertEquals(asyncTokenBucket.getTokens(), 0);
+        incrementMillis(699);
+        assertEquals(asyncTokenBucket.getTokens(), 0);
+        incrementMillis(1);
+        assertEquals(asyncTokenBucket.getTokens(), 1);
+        incrementMillis(1000);
+        assertEquals(asyncTokenBucket.getTokens(), 2);
+    }
+
+    @Test
+    void shouldHandleNegativeBalanceWithEventuallyConsistentTokenUpdates() {
+        asyncTokenBucket =
+                AsyncTokenBucket.builder()
+                        .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
+        // assert that the token balance is 0 initially
+        assertThat(asyncTokenBucket.getTokens()).isEqualTo(0);
+
+        // consume tokens without exceeding the rate
+        for (int i = 0; i < 10000; i++) {
+            asyncTokenBucket.consumeTokens(500);
+            incrementSeconds(50);
+        }
+
+        // let 9 seconds pass
+        incrementSeconds(9);
+
+        // there should be 90 tokens available
+        assertThat(asyncTokenBucket.getTokens()).isEqualTo(90);
+    }
+
+    @Test
+    void shouldNotExceedTokenBucketSizeWithNegativeTokens() {
+        asyncTokenBucket =
+                AsyncTokenBucket.builder()
+                        .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
+        // assert that the token balance is 0 initially
+        assertThat(asyncTokenBucket.getTokens()).isEqualTo(0);
+
+        // consume tokens without exceeding the rate
+        for (int i = 0; i < 100; i++) {
+            asyncTokenBucket.consumeTokens(600);
+            incrementSeconds(50);
+            // let tokens accumulate back to 0 every 10 seconds
+            if ((i + 1) % 10 == 0) {
+                incrementSeconds(100);
+            }
+        }
+
+        // let 9 seconds pass
+        incrementSeconds(9);
+
+        // there should be 90 tokens available
+        assertThat(asyncTokenBucket.getTokens()).isEqualTo(90);
+    }
+
+    @Test
+    void shouldHandleEventualConsistency() {
+        long initialTokens = 500L;
+        asyncTokenBucket =
+                AsyncTokenBucket.builder()
+                        .capacity(100000).rate(1000).initialTokens(initialTokens).clock(clockSource).build();
+        for (int i = 0; i < 100000; i++) {
+            // increment the clock by 1ms, since rate is 1000 tokens/s, this should make 1 token available
+            incrementMillis(1);
+            // consume 1 token
+            asyncTokenBucket.consumeTokens(1);
+        }
+        assertThat(asyncTokenBucket.getTokens())
+                // since the rate is 1/ms and the test increments the clock by 1ms and consumes 1 token in each
+                // iteration, the tokens should be equal to the initial tokens
+                .isEqualTo(initialTokens);
+    }
 }

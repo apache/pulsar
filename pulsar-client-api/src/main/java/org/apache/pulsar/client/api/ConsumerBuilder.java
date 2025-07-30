@@ -128,6 +128,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
+     * <p>Will ignore the topic domain("persistent://" or "non-persistent://") when pattern matching.
+     *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
      *
@@ -143,7 +145,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>It accepts a regular expression that is compiled into a pattern internally. E.g.,
-     * "persistent://public/default/pattern-topic-.*"
+     * "persistent://public/default/pattern-topic-.*" or "public/default/pattern-topic-.*"
+     *
+     * <p>Will ignore the topic domain("persistent://" or "non-persistent://") when pattern matching.
      *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
@@ -242,6 +246,19 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @see Consumer#negativeAcknowledge(Message)
      */
     ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit);
+
+    /**
+     * Sets the redelivery time precision bit count. The lower bits of the redelivery time will be
+     * trimmed to reduce the memory occupation. The default value is 8, which means the redelivery time
+     * will be bucketed by 256ms, the redelivery time could be earlier(no later) than the expected time,
+     * but no more than 256ms. If set to k, the redelivery time will be bucketed by 2^k ms.
+     * If the value is 0, the redelivery time will be accurate to ms.
+     *
+     * @param negativeAckPrecisionBitCnt
+     *            The redelivery time precision bit count.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount);
 
     /**
      * Select the subscription type to be used when subscribing to a topic.
@@ -716,6 +733,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Enable or disable batch index acknowledgment. To enable this feature, ensure batch index acknowledgment
      * is enabled on the broker side.
+     * Default: true
      */
     ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled);
 
@@ -884,13 +902,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If this is enabled, the consumer receiver queue size is initialized as a very small value, 1 by default,
-     * and will double itself until it reaches the value set by {@link #receiverQueueSize(int)}, if and only if:
+     * and will double itself until it reaches either the value set by {@link #receiverQueueSize(int)} or the client
+     * memory limit set by {@link ClientBuilder#memoryLimit(long, SizeUnit)}.
+     *
+     * <p>The consumer receiver queue size will double if and only if:
      * <p>1) User calls receive() and there are no messages in receiver queue.
      * <p>2) The last message we put in the receiver queue took the last space available in receiver queue.
      *
-     * This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
+     * <p>This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
      *
-     * The feature should be able to reduce client memory usage.
+     * <p>The feature should be able to reduce client memory usage.
      *
      * @param enabled whether to enable AutoScaledReceiverQueueSize.
      */

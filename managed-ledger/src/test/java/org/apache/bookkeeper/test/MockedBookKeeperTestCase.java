@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -84,9 +85,16 @@ public abstract class MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         initManagedLedgerFactoryConfig(managedLedgerFactoryConfig);
-        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        initManagedLedgerConfig(managedLedgerConfig);
+        factory =
+                new ManagedLedgerFactoryImpl(metadataStore, bkc, managedLedgerFactoryConfig, managedLedgerConfig);
 
         setUpTestCase();
+    }
+
+    protected ManagedLedgerConfig initManagedLedgerConfig(ManagedLedgerConfig config) {
+        return config;
     }
 
     protected void initManagedLedgerFactoryConfig(ManagedLedgerFactoryConfig config) {
@@ -108,14 +116,19 @@ public abstract class MockedBookKeeperTestCase {
         }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
-            try {
-                factory.shutdownAsync().get(10, TimeUnit.SECONDS);
-            } catch (ManagedLedgerException.ManagedLedgerFactoryClosedException e) {
-                // ignore
+            if (factory != null) {
+                try {
+                    factory.shutdownAsync().get(10, TimeUnit.SECONDS);
+                } catch (ManagedLedgerException.ManagedLedgerFactoryClosedException e) {
+                    // ignore
+                }
+                factory = null;
             }
-            factory = null;
             stopBookKeeper();
-            metadataStore.close();
+            if (metadataStore != null) {
+                metadataStore.close();
+                metadataStore = null;
+            }
             LOG.info("--------- stopped {}", method);
         } catch (Exception e) {
             LOG.error("tearDown Error", e);
@@ -143,13 +156,13 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     /**
-     * Start cluster
+     * Start cluster.
      *
      * @throws Exception
      */
     protected void startBookKeeper() throws Exception {
         for (int i = 0; i < numBookies; i++) {
-            metadataStore.put( "/ledgers/available/192.168.1.1:" + (5000 + i), new byte[0], Optional.empty()).join();
+            metadataStore.put("/ledgers/available/192.168.1.1:" + (5000 + i), new byte[0], Optional.empty()).join();
         }
 
         metadataStore.put("/ledgers/LAYOUT", "1\nflat:1".getBytes(), Optional.empty()).join();
@@ -158,7 +171,10 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     protected void stopBookKeeper() {
-        bkc.shutdown();
+        if (bkc != null) {
+            bkc.shutdown();
+            bkc = null;
+        }
     }
 
     protected void stopMetadataStore() {

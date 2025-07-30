@@ -91,19 +91,18 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
-        final String TEST1 = "test1";
-        final String TEST2 = "test2";
-        final String TEST3 = "test3";
+        final String test1 = "test1";
+        final String test2 = "test2";
+        final String test3 = "test3";
 
-        producer.newMessage().value(TEST1.getBytes()).send();
-        producer.newMessage(txn).value(TEST2.getBytes()).send();
-        producer.newMessage().value(TEST3.getBytes()).send();
+        producer.newMessage().value(test1.getBytes()).send();
+        producer.newMessage(txn).value(test2.getBytes()).send();
+        producer.newMessage().value(test3.getBytes()).send();
 
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST1);
+        assertEquals(new String(message.getData()), test1);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
@@ -111,10 +110,10 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         txn.commit().get();
 
         message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST2);
+        assertEquals(new String(message.getData()), test2);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST3);
+        assertEquals(new String(message.getData()), test3);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
@@ -139,19 +138,18 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
-        final String TEST1 = "test1";
-        final String TEST2 = "test2";
-        final String TEST3 = "test3";
+        final String test1 = "test1";
+        final String test2 = "test2";
+        final String test3 = "test3";
 
-        producer.newMessage().value(TEST1.getBytes()).send();
-        producer.newMessage(txn).value(TEST2.getBytes()).send();
-        producer.newMessage().value(TEST3.getBytes()).send();
+        producer.newMessage().value(test1.getBytes()).send();
+        producer.newMessage(txn).value(test2.getBytes()).send();
+        producer.newMessage().value(test3.getBytes()).send();
 
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST1);
+        assertEquals(new String(message.getData()), test1);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
@@ -159,7 +157,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         txn.abort().get();
 
         message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST3);
+        assertEquals(new String(message.getData()), test3);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);

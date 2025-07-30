@@ -40,7 +40,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
     @BeforeMethod(alwaysRun = true)
-    public void beforeMethod(Method m) throws Exception {
+    public void setTestMethodName(Method m) throws Exception {
         methodName = m.getName();
     }
 

@@ -36,7 +36,16 @@ class DLOutputStream {
 
     private final DistributedLogManager distributedLogManager;
     private final AsyncLogWriter writer;
-    private final byte[] readBuffer = new byte[8192];
+    /*
+     * The LogRecord structure is:
+     * -------------------
+     * Bytes 0 - 7                      : Metadata (Long)
+     * Bytes 8 - 15                     : TxId (Long)
+     * Bytes 16 - 19                    : Payload length (Integer)
+     * Bytes 20 - 20+payload.length-1   : Payload (Byte[])
+     * So the max buffer size should be LogRecord.MAX_LOGRECORD_SIZE - 2 * (Long.SIZE / 8) - Integer.SIZE / 8
+     */
+    private final byte[] readBuffer = new byte[LogRecord.MAX_LOGRECORD_SIZE - 2 * (Long.SIZE / 8) - Integer.SIZE / 8];
     private long offset = 0L;
 
     private DLOutputStream(DistributedLogManager distributedLogManager, AsyncLogWriter writer) {
@@ -51,9 +60,9 @@ class DLOutputStream {
 
     private void writeAsyncHelper(InputStream is, CompletableFuture<DLOutputStream> result) {
         try {
-            int read = is.read(readBuffer);
-            if (read != -1) {
-                log.info("write something into the ledgers offset: {}, length: {}", offset, read);
+            int read = is.readNBytes(readBuffer, 0, readBuffer.length);
+            if (read > 0) {
+                log.debug("write something into the ledgers offset: {}, length: {}", offset, read);
                 final ByteBuf writeBuf = Unpooled.wrappedBuffer(readBuffer, 0, read);
                 offset += writeBuf.readableBytes();
                 final LogRecord record = new LogRecord(offset, writeBuf);

@@ -107,7 +107,17 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         }
     }
 
-
+    protected String getFunctionLogs(String name) {
+        try {
+            String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+            return container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                return IOUtils.toString(inputStream, "utf-8");
+            });
+        } catch (Throwable err) {
+            log.info("Cannot get {} logs", name, err);
+            return "";
+        }
+    }
 
     protected void dumpFunctionLogs(String name) {
         try {

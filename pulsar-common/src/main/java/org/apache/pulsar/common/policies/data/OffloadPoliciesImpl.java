@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -64,18 +63,18 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         CONFIGURATION_FIELDS = Collections.unmodifiableList(temp);
     }
 
-    public static final ImmutableList<String> INTERNAL_SUPPORTED_DRIVER = ImmutableList.of("S3",
+    public static final List<String> INTERNAL_SUPPORTED_DRIVER = List.of("S3",
         "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
-    public static final ImmutableList<String> DRIVER_NAMES;
+    public static final List<String> DRIVER_NAMES;
     static {
         String extraDrivers = System.getProperty("pulsar.extra.offload.drivers", "");
         if (extraDrivers.trim().isEmpty()) {
             DRIVER_NAMES = INTERNAL_SUPPORTED_DRIVER;
         } else {
-            DRIVER_NAMES = ImmutableList.<String>builder()
-                .addAll(INTERNAL_SUPPORTED_DRIVER)
-                .addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
-                    .map(String::trim).collect(Collectors.toSet())).build();
+            List<String> driverList = new ArrayList<>(INTERNAL_SUPPORTED_DRIVER);
+            driverList.addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
+                    .map(String::trim).collect(Collectors.toSet()));
+            DRIVER_NAMES = Collections.unmodifiableList(driverList);
         }
     }
 
@@ -83,6 +82,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     public static final int DEFAULT_GCS_MAX_BLOCK_SIZE_IN_BYTES = 128 * 1024 * 1024;   // 128MiB
     public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MiB
     public static final int DEFAULT_OFFLOAD_MAX_THREADS = 2;
+    public static final int DEFAULT_OFFLOAD_READ_THREADS = 2;
     public static final int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
     public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
@@ -94,8 +94,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public static final String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
     public static final String DATA_READ_PRIORITY_NAME_IN_CONF_FILE = "managedLedgerDataReadPriority";
-    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY =
-            OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = null;
 
     // common config
     @Configuration
@@ -107,6 +106,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Integer managedLedgerOffloadReadThreads = DEFAULT_OFFLOAD_READ_THREADS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
@@ -497,6 +499,11 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         public OffloadPoliciesImplBuilder managedLedgerOffloadMaxThreads(Integer managedLedgerOffloadMaxThreads) {
             impl.managedLedgerOffloadMaxThreads = managedLedgerOffloadMaxThreads;
+            return this;
+        }
+
+        public OffloadPoliciesImplBuilder managedLedgerOffloadReadThreads(Integer managedLedgerOffloadReadThreads) {
+            impl.managedLedgerOffloadReadThreads = managedLedgerOffloadReadThreads;
             return this;
         }
 

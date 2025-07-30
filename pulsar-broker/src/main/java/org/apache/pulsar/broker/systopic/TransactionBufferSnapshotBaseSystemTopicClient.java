@@ -205,6 +205,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
                 .subscriptionRolePrefix(SystemTopicNames.SYSTEM_READER_PREFIX)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
+                .poolMessages(true)
                 .createAsync()
                 .thenApply(reader -> {
                     if (log.isDebugEnabled()) {

@@ -25,6 +25,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.Collector;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -364,19 +365,24 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         }
     }
 
-    private ByteBuf allocateMultipartCompositeDirectBuffer() {
+    ByteBuf allocateMultipartCompositeDirectBuffer() {
         // use composite buffer with pre-allocated buffers to ensure that the pooled allocator can be used
         // for allocating the buffers
         ByteBufAllocator byteBufAllocator = PulsarByteBufAllocator.DEFAULT;
-        int chunkSize = resolveChunkSize(byteBufAllocator);
-        CompositeByteBuf buf = byteBufAllocator.compositeDirectBuffer(
+        ByteBuf buf;
+        if (PlatformDependent.hasUnsafe()) {
+            int chunkSize = resolveChunkSize(byteBufAllocator);
+            buf = byteBufAllocator.compositeDirectBuffer(
                 Math.max(MINIMUM_FOR_MAX_COMPONENTS, (initialBufferSize / chunkSize) + 1));
-        int totalLen = 0;
-        while (totalLen < initialBufferSize) {
-            totalLen += chunkSize;
-            // increase the capacity in increments of chunkSize to preallocate the buffers
-            // in the composite buffer
-            buf.capacity(totalLen);
+            int totalLen = 0;
+            while (totalLen < initialBufferSize) {
+                totalLen += chunkSize;
+                // increase the capacity in increments of chunkSize to preallocate the buffers
+                // in the composite buffer
+                buf.capacity(totalLen);
+            }
+        } else {
+            buf = byteBufAllocator.directBuffer(initialBufferSize);
         }
         return buf;
     }

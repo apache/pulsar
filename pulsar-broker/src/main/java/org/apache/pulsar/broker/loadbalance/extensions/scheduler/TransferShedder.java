@@ -463,8 +463,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                 Optional<TopBundlesLoadData> bundlesLoadData = context.topBundleLoadDataStore().get(maxBroker);
                 if (bundlesLoadData.isEmpty() || bundlesLoadData.get().getTopBundlesLoadData().isEmpty()) {
-                    log.error(String.format(CANNOT_UNLOAD_BROKER_MSG
-                            + " TopBundlesLoadData is empty.", maxBroker));
+                    if (debugMode) {
+                        log.info(String.format(CANNOT_UNLOAD_BROKER_MSG
+                                + " TopBundlesLoadData is empty.", maxBroker));
+                    }
                     numOfBrokersWithEmptyLoadData++;
                     continue;
                 }
@@ -491,12 +493,21 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 }
 
                 int remainingTopBundles = maxBrokerTopBundlesLoadData.size();
+                Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
                 for (var e : maxBrokerTopBundlesLoadData) {
                     String bundle = e.bundleName();
                     if (channel != null && !channel.isOwner(bundle, maxBroker)) {
                         if (debugMode) {
                             log.warn(String.format(CANNOT_UNLOAD_BUNDLE_MSG
                                     + " MaxBroker:%s is not the owner.", bundle, maxBroker));
+                        }
+                        continue;
+                    }
+                    final String namespaceName = NamespaceBundle.getBundleNamespace(bundle);
+                    if (sheddingExcludedNamespaces.contains(namespaceName)) {
+                        if (debugMode) {
+                            log.info(String.format(CANNOT_UNLOAD_BUNDLE_MSG
+                                    + " Bundle namespace has been found in sheddingExcludedNamespaces", bundle));
                         }
                         continue;
                     }
@@ -528,6 +539,13 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                     var bundleData = e.stats();
                     double maxBrokerBundleThroughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
+                    if (maxBrokerBundleThroughput == 0) {
+                        if (debugMode) {
+                            log.info(String.format(CANNOT_UNLOAD_BUNDLE_MSG
+                                    + " It has zero throughput.", bundle));
+                        }
+                        continue;
+                    }
                     boolean swap = false;
                     List<Unload> minToMaxUnloads = new ArrayList<>();
                     double minBrokerBundleSwapThroughput = 0.0;
@@ -549,6 +567,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                 var minBrokerBundleThroughput =
                                         minBrokerBundleData.stats().msgThroughputIn
                                                 + minBrokerBundleData.stats().msgThroughputOut;
+                                if (minBrokerBundleThroughput == 0) {
+                                    continue;
+                                }
                                 var maxBrokerNewThroughputTmp = maxBrokerNewThroughput + minBrokerBundleThroughput;
                                 var minBrokerNewThroughputTmp = minBrokerNewThroughput - minBrokerBundleThroughput;
                                 if (maxBrokerNewThroughputTmp < maxBrokerThroughput

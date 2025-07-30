@@ -223,7 +223,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         Transaction abortTxn = pulsarClient.newTransaction()
@@ -336,7 +335,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Exclusive)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         for (int a = 0; a < messageCount; a++) {
@@ -447,7 +445,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         Transaction abortTxn = pulsarClient.newTransaction()
@@ -534,7 +531,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         consumer.close();
@@ -563,7 +559,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Failover)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         consumer1.close();
@@ -573,7 +568,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Failover)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         consumer2.close();
@@ -644,7 +638,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
-                        ((MessageIdImpl)message.getMessageId()).getEntryId()));
+                        ((MessageIdImpl) message.getMessageId()).getEntryId()));
         // 7 more acks. Will find that there are still only two records in the map.
         Transaction transaction1 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -661,7 +655,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Assert.assertEquals(maxIndexLag, 5);
         //add new index
         for (int i = 0; i < 9; i++) {
-            message0= consumer.receive(5, TimeUnit.SECONDS);
+            message0 = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
         }
 
@@ -673,7 +667,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Message<byte[]> message1 = message0;
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
-                        ((MessageIdImpl)message1.getMessageId()).getEntryId()));
+                        ((MessageIdImpl) message1.getMessageId()).getEntryId()));
 
         Transaction transaction2 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -699,7 +693,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         @Cleanup
@@ -827,7 +820,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .isAckReceiptEnabled(true)
                 .topic(topic)

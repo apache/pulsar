@@ -91,8 +91,18 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public String getSecret(String secretName) {
+        return this.context.getSecret(secretName);
+    }
+
+    @Override
     public void incrCounter(String key, long amount) {
         this.context.incrCounter(key, amount);
+    }
+
+    @Override
+    public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+        return this.context.incrCounterAsync(key, amount);
     }
 
     @Override
@@ -101,13 +111,38 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public CompletableFuture<Long> getCounterAsync(String key) {
+        return this.context.getCounterAsync(key);
+    }
+
+    @Override
     public void putState(String key, ByteBuffer value) {
         this.context.putState(key, value);
     }
 
     @Override
+    public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+        return this.context.putStateAsync(key, value);
+    }
+
+    @Override
     public ByteBuffer getState(String key) {
         return this.context.getState(key);
+    }
+
+    @Override
+    public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+        return this.context.getStateAsync(key);
+    }
+
+    @Override
+    public void deleteState(String key) {
+        this.context.deleteState(key);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteStateAsync(String key) {
+        return this.context.deleteStateAsync(key);
     }
 
     @Override
@@ -128,6 +163,11 @@ public class WindowContextImpl implements WindowContext {
     @Override
     public void recordMetric(String metricName, double value) {
         this.context.recordMetric(metricName, value);
+    }
+
+    @Override
+    public void fatal(Throwable t) {
+        this.context.fatal(t);
     }
 
     @Override

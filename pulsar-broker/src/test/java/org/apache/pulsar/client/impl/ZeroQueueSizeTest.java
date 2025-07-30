@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -74,7 +75,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void InvalidQueueSizeConfig() {
+    public void invalidQueueSizeConfig() {
         pulsarClient.newConsumer().receiverQueueSize(-1);
     }
 
@@ -157,7 +158,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).messageListener((cons, msg) -> {
                     assertEquals(((ConsumerImpl) cons).numMessagesInQueue(), 0);
-                    synchronized(messages) {
+                    synchronized (messages) {
                         messages.add(msg);
                     }
                     log.info("Consumer received: " + new String(msg.getData()));
@@ -386,7 +387,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
     @Test
-    public void testZeroQueueSizeMessageRedeliveryForAsyncReceive() throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testZeroQueueSizeMessageRedeliveryForAsyncReceive()
+            throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForAsyncReceive";
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
             .topic(topic)
@@ -419,6 +421,38 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testZeroQueueGetExceptionWhenReceiveBatchMessage() throws PulsarClientException {
+
+        int batchMessageDelayMs = 100;
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-xyz/use/ns-abc/topic1")
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+                .subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://prop-xyz/use/ns-abc/topic1")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
+
+        producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(5);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        // send a batch message to trigger zeroQueueConsumer to close
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+
+        // when zeroQueueConsumer receive a batch message, it will close and receive method will throw exception
+        assertThatThrownBy(
+                consumer::receive
+        )
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessage("java.lang.InterruptedException: Queue is terminated")
+                .hasCauseInstanceOf(InterruptedException.class);
     }
 
     @Test(timeOut = 30000)

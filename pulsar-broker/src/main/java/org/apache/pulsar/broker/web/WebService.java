@@ -41,6 +41,8 @@ import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
@@ -258,7 +260,17 @@ public class WebService implements AutoCloseable {
                 // Enable PreInterceptFilter only when interceptors are enabled
                 filterHolders.add(
                         new FilterHolder(new PreInterceptFilter(pulsarService.getBrokerInterceptor(), handler)));
-                filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService.getBrokerInterceptor())));
+                // The `ProcessHandlerFilter` is used to overwrite `doFilter` method, which cannot be called multiple
+                // times inside one `Filter`, so we cannot use one `ProcessHandlerFilter` with a `BrokerInterceptors` to
+                // hold all interceptors, instead we need to create a `ProcessHandlerFilter` for each `interceptor`.
+                if (pulsarService.getBrokerInterceptor() instanceof BrokerInterceptors) {
+                    for (BrokerInterceptor interceptor: ((BrokerInterceptors) pulsarService.getBrokerInterceptor())
+                            .getInterceptors().values()) {
+                        filterHolders.add(new FilterHolder(new ProcessHandlerFilter(interceptor)));
+                    }
+                } else {
+                    filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService.getBrokerInterceptor())));
+                }
             }
 
             if (config.isAuthenticationEnabled()) {

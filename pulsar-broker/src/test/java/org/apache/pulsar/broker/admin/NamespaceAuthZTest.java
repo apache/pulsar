@@ -36,10 +36,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -96,6 +98,9 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     private static final String TENANT_ADMIN_TOKEN = Jwts.builder()
             .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
 
+    private volatile Consumer<InvocationOnMock> allowNamespacePolicyOperationAsyncHandler;
+    private volatile Consumer<InvocationOnMock> allowNamespaceOperationAsyncHandler;
+
     @SneakyThrows
     @BeforeClass
     public void setup() {
@@ -118,9 +123,28 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
                 .build();
         this.pulsarClient = super.getPulsarService().getClient();
-        this.authorizationService = Mockito.spy(getPulsarService().getBrokerService().getAuthorizationService());
+        this.authorizationService = BrokerTestUtil.spyWithoutRecordingInvocations(
+                getPulsarService().getBrokerService().getAuthorizationService());
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 authorizationService, true);
+        Mockito.doAnswer(invocationOnMock -> {
+            Consumer<InvocationOnMock> localAllowNamespacePolicyOperationAsyncHandler =
+                    allowNamespacePolicyOperationAsyncHandler;
+            if (localAllowNamespacePolicyOperationAsyncHandler != null) {
+                localAllowNamespacePolicyOperationAsyncHandler.accept(invocationOnMock);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(authorizationService).allowNamespacePolicyOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.any());
+        Mockito.doAnswer(invocationOnMock -> {
+            Consumer<InvocationOnMock> localAllowNamespaceOperationAsyncHandler =
+                    allowNamespaceOperationAsyncHandler;
+            if (localAllowNamespaceOperationAsyncHandler != null) {
+                localAllowNamespaceOperationAsyncHandler.accept(invocationOnMock);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(authorizationService).allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any());
     }
 
 
@@ -144,44 +168,40 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     public void after() throws Exception {
         deleteNamespaceWithRetry("public/default", true, superUserAdmin);
         superUserAdmin.namespaces().createNamespace("public/default");
+        allowNamespacePolicyOperationAsyncHandler = null;
+        allowNamespaceOperationAsyncHandler = null;
     }
 
     private AtomicBoolean setAuthorizationOperationChecker(String role, NamespaceOperation operation) {
         AtomicBoolean execFlag = new AtomicBoolean(false);
-        Mockito.doAnswer(invocationOnMock -> {
-            String role_ = invocationOnMock.getArgument(2);
-            if (role.equals(role_)) {
-                NamespaceOperation operation_ = invocationOnMock.getArgument(1);
-                Assert.assertEquals(operation_, operation);
+        allowNamespaceOperationAsyncHandler = invocationOnMock -> {
+            String role1 = invocationOnMock.getArgument(2);
+            if (role.equals(role1)) {
+                NamespaceOperation operation1 = invocationOnMock.getArgument(1);
+                Assert.assertEquals(operation1, operation);
             }
             execFlag.set(true);
-            return invocationOnMock.callRealMethod();
-        }).when(authorizationService).allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                Mockito.any());
-         return execFlag;
+        };
+        return execFlag;
     }
 
     private void clearAuthorizationOperationChecker() {
-        Mockito.doAnswer(InvocationOnMock::callRealMethod).when(authorizationService)
-                .allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                        Mockito.any());
+        allowNamespaceOperationAsyncHandler = null;
     }
 
     private AtomicBoolean setAuthorizationPolicyOperationChecker(String role, Object policyName, Object operation) {
         AtomicBoolean execFlag = new AtomicBoolean(false);
         if (operation instanceof PolicyOperation) {
-            Mockito.doAnswer(invocationOnMock -> {
-                String role_ = invocationOnMock.getArgument(3);
-                if (role.equals(role_)) {
-                    PolicyName policyName_ = invocationOnMock.getArgument(1);
-                    PolicyOperation operation_ = invocationOnMock.getArgument(2);
-                    assertEquals(operation_, operation);
-                    assertEquals(policyName_, policyName);
+            allowNamespacePolicyOperationAsyncHandler = invocationOnMock -> {
+                String role1 = invocationOnMock.getArgument(3);
+                if (role.equals(role1)) {
+                    PolicyName policyName1 = invocationOnMock.getArgument(1);
+                    PolicyOperation operation1 = invocationOnMock.getArgument(2);
+                    assertEquals(operation1, operation);
+                    assertEquals(policyName1, policyName);
                 }
                 execFlag.set(true);
-                return invocationOnMock.callRealMethod();
-            }).when(authorizationService).allowNamespacePolicyOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                    Mockito.any(), Mockito.any());
+            };
         } else {
             throw new IllegalArgumentException("");
         }
@@ -841,7 +861,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     public void testUnsubscribeNamespaceBundle() throws Exception {
         final String random = UUID.randomUUID().toString();
         final String namespace = "public/default";
-        final String topic = "persistent://" + namespace + "/" + random ;
+        final String topic = "persistent://" + namespace + "/" + random;
         final String subject = UUID.randomUUID().toString();
         final String token = Jwts.builder()
                 .claim("sub", subject).signWith(SECRET_KEY).compact();
@@ -1175,8 +1195,10 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 () -> subAdmin.namespaces().getSubscriptionDispatchRate(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RATE, PolicyOperation.WRITE);
-        DispatchRate dispatchRate = DispatchRate.builder().dispatchThrottlingRateInMsg(10).dispatchThrottlingRateInByte(10).build();
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.RATE, PolicyOperation.WRITE);
+        DispatchRate dispatchRate = DispatchRate.builder().dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(10).build();
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate));
         Assert.assertTrue(execFlag.get());
@@ -1206,7 +1228,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
 
         execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.COMPACTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setCompactionThreshold(namespace, 100L * 1024L *1024L));
+                () -> subAdmin.namespaces().setCompactionThreshold(namespace, 100L * 1024L * 1024L));
         Assert.assertTrue(execFlag.get());
 
         execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.COMPACTION, PolicyOperation.WRITE);
@@ -1412,18 +1434,21 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.BACKLOG, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.BACKLOG, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getBacklogQuotaMap(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.BACKLOG, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.BACKLOG, PolicyOperation.WRITE);
         BacklogQuota backlogQuota = BacklogQuota.builder().limitTime(10).limitSize(10).build();
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setBacklogQuota(namespace, backlogQuota));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.BACKLOG, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.BACKLOG,
+                PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeBacklogQuota(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1440,17 +1465,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getDeduplicationSnapshotInterval(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setDeduplicationSnapshotInterval(namespace, 100));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeDeduplicationSnapshotInterval(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1468,17 +1496,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setMaxSubscriptionsPerTopic(namespace, 10));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeMaxSubscriptionsPerTopic(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1496,17 +1527,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getMaxProducersPerTopic(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setMaxProducersPerTopic(namespace, 10));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeMaxProducersPerTopic(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1524,17 +1558,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getMaxConsumersPerTopic(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setMaxConsumersPerTopic(namespace, 10));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeMaxConsumersPerTopic(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1552,12 +1589,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.REPLICATION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getNamespaceReplicationClusters(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.REPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test")));
         Assert.assertTrue(execFlag.get());
@@ -1575,19 +1614,23 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION_RATE, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.REPLICATION_RATE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getReplicatorDispatchRate(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         DispatchRate build =
-                    DispatchRate.builder().dispatchThrottlingRateInByte(10).dispatchThrottlingRateInMsg(10).build();
+                    DispatchRate.builder().dispatchThrottlingRateInByte(10)
+                            .dispatchThrottlingRateInMsg(10).build();
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setReplicatorDispatchRate(namespace, build));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeReplicatorDispatchRate(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1605,17 +1648,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getMaxConsumersPerSubscription(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setMaxConsumersPerSubscription(namespace, 10));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeMaxConsumersPerSubscription(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1632,12 +1678,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getOffloadThreshold(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setOffloadThreshold(namespace, 10));
         Assert.assertTrue(execFlag.get());
@@ -1654,18 +1702,22 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getOffloadPolicies(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.WRITE);
-        OffloadPolicies offloadPolicies = OffloadPolicies.builder().managedLedgerOffloadThresholdInBytes(10L).build();
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        OffloadPolicies offloadPolicies = OffloadPolicies.builder()
+                .managedLedgerOffloadThresholdInBytes(10L).build();
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setOffloadPolicies(namespace, offloadPolicies));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeOffloadPolicies(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1682,17 +1734,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_TOPICS, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_TOPICS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getMaxTopicsPerNamespace(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setMaxTopicsPerNamespace(namespace, 10));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeMaxTopicsPerNamespace(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1710,17 +1765,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.DEDUPLICATION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getDeduplicationStatus(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setDeduplicationStatus(namespace, true));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeDeduplicationStatus(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1738,17 +1796,21 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.PERSISTENCE, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.PERSISTENCE, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getPersistence(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setPersistence(namespace, new PersistencePolicies(10, 10, 10, 10)));
+                () -> subAdmin.namespaces().setPersistence(namespace,
+                        new PersistencePolicies(10, 10, 10, 10)));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removePersistence(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1765,17 +1827,20 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.TTL, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.TTL, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getNamespaceMessageTTL(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.TTL, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.TTL, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setNamespaceMessageTTL(namespace, 10));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.TTL, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.TTL, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeNamespaceMessageTTL(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1799,12 +1864,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 () -> subAdmin.namespaces().getSubscriptionExpirationTime(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setSubscriptionExpirationTime(namespace, 10));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeSubscriptionExpirationTime(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1823,7 +1890,8 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(token))
                 .build();
         AtomicBoolean execFlag =
-                setAuthorizationPolicyOperationChecker(subject, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
+                setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getDelayedDelivery(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1840,17 +1908,21 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RETENTION, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.RETENTION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getRetention(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RETENTION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.RETENTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setRetention(namespace, new RetentionPolicies(10, 10)));
+                () -> subAdmin.namespaces().setRetention(namespace,
+                        new RetentionPolicies(10, 10)));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.RETENTION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.RETENTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeRetention(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1867,19 +1939,23 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getInactiveTopicPolicies(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
         InactiveTopicPolicies inactiveTopicPolicies = new InactiveTopicPolicies(
-                InactiveTopicDeleteMode.delete_when_no_subscriptions, 10, false);
+                InactiveTopicDeleteMode.delete_when_no_subscriptions,
+                10, false);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setInactiveTopicPolicies(namespace, inactiveTopicPolicies));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeInactiveTopicPolicies(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1896,14 +1972,17 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getNamespaceAntiAffinityGroup(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setNamespaceAntiAffinityGroup(namespace, "invalid-group"));
+                () -> subAdmin.namespaces().setNamespaceAntiAffinityGroup(namespace,
+                        "invalid-group"));
         Assert.assertTrue(execFlag.get());
     }
 
@@ -1918,12 +1997,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getOffloadDeleteLagMs(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setOffloadDeleteLag(namespace, 100, TimeUnit.HOURS));
         Assert.assertTrue(execFlag.get());
@@ -1946,7 +2027,8 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 () -> subAdmin.namespaces().getOffloadThresholdInSeconds(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.OFFLOAD, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setOffloadThresholdInSeconds(namespace, 10000));
         Assert.assertTrue(execFlag.get());
@@ -1963,17 +2045,21 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ENTRY_FILTERS, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.ENTRY_FILTERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getNamespaceEntryFilters(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setNamespaceEntryFilters(namespace, new EntryFilters("filter1")));
+                () -> subAdmin.namespaces().setNamespaceEntryFilters(namespace,
+                        new EntryFilters("filter1")));
         Assert.assertTrue(execFlag.get());
 
-                execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE);
+                execFlag = setAuthorizationPolicyOperationChecker(subject,
+                        PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeNamespaceEntryFilters(namespace));
         Assert.assertTrue(execFlag.get());
@@ -1990,12 +2076,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ENCRYPTION, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.ENCRYPTION, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getEncryptionRequiredStatus(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.ENCRYPTION, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.ENCRYPTION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setEncryptionRequiredStatus(namespace, false));
         Assert.assertTrue(execFlag.get());
@@ -2018,12 +2106,15 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 () -> subAdmin.namespaces().getSubscriptionTypesEnabled(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setSubscriptionTypesEnabled(namespace, Sets.newHashSet(SubscriptionType.Failover)));
+                () -> subAdmin.namespaces().setSubscriptionTypesEnabled(namespace,
+                        Sets.newHashSet(SubscriptionType.Failover)));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeSubscriptionTypesEnabled(namespace));
         Assert.assertTrue(execFlag.get());
@@ -2040,12 +2131,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getIsAllowAutoUpdateSchema(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setIsAllowAutoUpdateSchema(namespace, true));
         Assert.assertTrue(execFlag.get());
@@ -2062,14 +2155,17 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, AutoUpdateDisabled));
+                () -> subAdmin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
+                        AutoUpdateDisabled));
         Assert.assertTrue(execFlag.get());
     }
 
@@ -2084,12 +2180,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
-        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
+        AtomicBoolean execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getSchemaValidationEnforced(namespace));
         Assert.assertTrue(execFlag.get());
 
-        execFlag = setAuthorizationPolicyOperationChecker(subject, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
+        execFlag = setAuthorizationPolicyOperationChecker(subject,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setSchemaValidationEnforced(namespace, true));
         Assert.assertTrue(execFlag.get());

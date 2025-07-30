@@ -206,6 +206,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         return brokerLookupDataMetadataCache.get(keyPath(broker));
     }
 
+    @Override
     public CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync() {
         this.checkState();
         return this.getAvailableBrokersAsync().thenCompose(availableBrokers -> {
@@ -224,6 +225,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         });
     }
 
+    @Override
     public synchronized void addListener(BiConsumer<String, NotificationType> listener) {
         this.checkState();
         this.listeners.add(listener);

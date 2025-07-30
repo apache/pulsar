@@ -43,7 +43,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.pool.TypePool;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -161,6 +161,10 @@ public class SinkConfigUtils {
                 }
                 if (spec.getCryptoConfig() != null) {
                     bldr.setCryptoSpec(CryptoUtils.convert(spec.getCryptoConfig()));
+                }
+                if (spec.getMessagePayloadProcessorConfig() != null) {
+                    bldr.setMessagePayloadProcessorSpec(
+                            MessagePayloadProcessorUtils.convert(spec.getMessagePayloadProcessorConfig()));
                 }
                 bldr.putAllConsumerProperties(spec.getConsumerProperties());
                 bldr.setPoolMessages(spec.isPoolMessages());
@@ -303,6 +307,10 @@ public class SinkConfigUtils {
             if (input.getValue().hasCryptoSpec()) {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
+            if (input.getValue().hasMessagePayloadProcessorSpec()) {
+                consumerConfig.setMessagePayloadProcessorConfig(MessagePayloadProcessorUtils.convertFromSpec(
+                        input.getValue().getMessagePayloadProcessorSpec()));
+            }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
             consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
@@ -352,7 +360,7 @@ public class SinkConfigUtils {
         if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
             TypeReference<HashMap<String, Object>> typeRef =
                     new TypeReference<HashMap<String, Object>>() {
-            };
+                    };
             Map<String, Object> configMap;
             try {
                 configMap =
@@ -513,9 +521,9 @@ public class SinkConfigUtils {
         }
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {
-           for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
-               ValidatorUtils.validateSerde(serdeClassName, typeArg, inputFunction.getTypePool(), true);
-           }
+            for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
+                ValidatorUtils.validateSerde(serdeClassName, typeArg, inputFunction.getTypePool(), true);
+            }
         }
 
         if (sinkConfig.getTopicToSchemaType() != null) {
@@ -543,6 +551,10 @@ public class SinkConfigUtils {
                 if (consumerSpec.getCryptoConfig() != null) {
                     ValidatorUtils.validateCryptoKeyReader(consumerSpec.getCryptoConfig(),
                             inputFunction.getTypePool(), false);
+                }
+                if (consumerSpec.getMessagePayloadProcessorConfig() != null) {
+                    ValidatorUtils.validateMessagePayloadProcessor(consumerSpec.getMessagePayloadProcessorConfig(),
+                            inputFunction.getTypePool());
                 }
             }
         }
@@ -724,7 +736,9 @@ public class SinkConfigUtils {
         if (newConfig.getTransformFunctionConfig() != null) {
             mergedConfig.setTransformFunctionConfig(newConfig.getTransformFunctionConfig());
         }
-
+        if (newConfig.getSourceSubscriptionPosition() != null) {
+            mergedConfig.setSourceSubscriptionPosition(newConfig.getSourceSubscriptionPosition());
+        }
         return mergedConfig;
     }
 

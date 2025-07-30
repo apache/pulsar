@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.web.RestException;
@@ -282,8 +283,14 @@ public class TopicsBase extends PersistentTopicsBase {
                         .remove(topicName.getPartitionIndex());
             } else {
                 try {
-                    t.get().publishMessage(messageToByteBuf(message),
-                            RestMessagePublishContext.get(publishResult, t.get(), System.nanoTime()));
+                    ByteBuf headersAndPayload = messageToByteBuf(message);
+                    try {
+                        Topic topicObj = t.get();
+                        topicObj.publishMessage(headersAndPayload,
+                                RestMessagePublishContext.get(publishResult, topicObj, System.nanoTime()));
+                    } finally {
+                        headersAndPayload.release();
+                    }
                 } catch (Exception e) {
                     if (log.isDebugEnabled()) {
                         log.debug("Fail to publish single messages to topic  {}: {} ",

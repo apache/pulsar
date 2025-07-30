@@ -159,6 +159,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         if (conf.getConnectionMaxIdleSeconds() > 0) {
             confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
         }
+        confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(false);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
@@ -190,7 +191,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         // Set client key and certificate if available
         sslRefresher = Executors.newScheduledThreadPool(1,
                 new DefaultThreadFactory("pulsar-admin-ssl-refresher"));
-        PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf);
+        PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf, serviceNameResolver
+                .resolveHostUri().getHost());
         this.sslFactory = (PulsarSslFactory) Class.forName(conf.getSslFactoryPlugin())
                 .getConstructor().newInstance();
         this.sslFactory.initialize(sslConfiguration);
@@ -272,7 +274,11 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 if (response.hasResponseBody()) {
                     jerseyResponse.setEntityStream(response.getResponseBodyAsStream());
                 }
-                callback.response(jerseyResponse);
+                try {
+                    callback.response(jerseyResponse);
+                } catch (Exception ex) {
+                    log.error("failed to handle the http response {}", jerseyResponse, ex);
+                }
             }
         }));
         return responseFuture;
@@ -514,7 +520,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         }
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData conf)
+    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData conf, String host)
             throws PulsarClientException {
         return PulsarSslConfiguration.builder()
                 .tlsProvider(conf.getSslProvider())
@@ -532,7 +538,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 .allowInsecureConnection(conf.isTlsAllowInsecureConnection())
                 .requireTrustedClientCertOnConnect(false)
                 .tlsEnabledWithKeystore(conf.isUseKeyStoreTls())
-                .authData(conf.getAuthentication().getAuthData())
+                .authData(conf.getAuthentication().getAuthData(host))
                 .tlsCustomParams(conf.getSslFactoryPluginParams())
                 .serverMode(false)
                 .isHttps(true)

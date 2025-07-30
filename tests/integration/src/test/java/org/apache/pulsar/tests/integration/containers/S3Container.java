@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.containers;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * S3 simulation container
+ * S3 simulation container.
  */
 @Slf4j
 public class S3Container extends ChaosContainer<S3Container> {

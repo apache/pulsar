@@ -279,13 +279,9 @@ public class SinkStatsManager extends ComponentStatsManager {
         statlastInvocationChild.set(ts);
     }
 
-    @Override
-    public void processTimeStart() {
-        //no-op
-    }
 
     @Override
-    public void processTimeEnd() {
+    public void processTimeEnd(long startTime) {
         //no-op
     }
 

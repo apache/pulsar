@@ -55,6 +55,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -98,7 +99,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
      *      5-1. Enabled the batch feature.
      *      5-1. Disabled the batch feature.
      */
-    @DataProvider(name= "mainProcessCasesProvider")
+    @DataProvider(name = "mainProcessCasesProvider")
     public Object[][] mainProcessCasesProvider(){
         return new Object [][]{
                 // Normal.
@@ -125,6 +126,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 {128, 1024 * 1024, 1, true, 512, 4, BookieErrorType.NO_ERROR, true},
                 {128, 1024 * 1024, 1, false, 512, 4, BookieErrorType.NO_ERROR, true}
         };
+    }
+
+    @Override
+    protected ManagedLedgerFactoryConfig createManagedLedgerFactoryConfig() {
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = super.createManagedLedgerFactoryConfig();
+        // disable the broker cache so that assertAllByteBufHasBeenReleased can work correctly.
+        managedLedgerFactoryConfig.setMaxCacheSize(0);
+        return managedLedgerFactoryConfig;
     }
 
     /**
@@ -204,7 +213,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 if (contextArrayOfCallback.contains(Integer.valueOf(String.valueOf(ctx)))){
                     return;
                 }
-                contextArrayOfCallback.add((int)ctx);
+                contextArrayOfCallback.add((int) ctx);
                 Position lightPosition = PositionFactory.create(position.getLedgerId(), position.getEntryId());
                 positionsOfCallback.computeIfAbsent(lightPosition,
                         p -> Collections.synchronizedList(new ArrayList<>()));
@@ -215,12 +224,12 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 if (contextArrayOfCallback.contains(Integer.valueOf(String.valueOf(ctx)))){
                     return;
                 }
-                contextArrayOfCallback.add((int)ctx);
-                exceptionArrayOfCallback.put((int)ctx, exception);
+                contextArrayOfCallback.add((int) ctx);
+                exceptionArrayOfCallback.put((int) ctx, exception);
             }
         };
         // Write many times.
-        int bufferedWriteCloseAtIndex = writeCmdExecuteCount/2
+        int bufferedWriteCloseAtIndex = writeCmdExecuteCount / 2
                 + new Random().nextInt(writeCmdExecuteCount / 4 + 1) - 1;
         for (int i = 0; i < writeCmdExecuteCount; i++){
             txnLogBufferedWriter.asyncAddData(i, callback, i);
@@ -390,12 +399,12 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Mockito.doAnswer(new Answer() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
-                ByteBuf byteBuf = (ByteBuf)invocation.getArguments()[0];
+                ByteBuf byteBuf = (ByteBuf) invocation.getArguments()[0];
                 byteBuf.skipBytes(4);
                 dataArrayFlushedToBookie.add(byteBuf.readInt());
                 AsyncCallbacks.AddEntryCallback callback =
                         (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
-                callback.addComplete(PositionFactory.create(1,1), byteBuf,
+                callback.addComplete(PositionFactory.create(1, 1), byteBuf,
                         invocation.getArguments()[2]);
                 return null;
             }
@@ -613,7 +622,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         @Override
         public ByteBuf serialize(ArrayList<Integer> dataArray) {
-            int sum = CollectionUtils.isEmpty(dataArray) ? 0 : dataArray.stream().reduce((a, b) -> a+b).get();
+            int sum = CollectionUtils.isEmpty(dataArray) ? 0 : dataArray.stream().reduce((a, b) -> a + b).get();
             ByteBuf byteBuf = Unpooled.buffer(4);
             byteBuf.writeInt(sum);
             holdsByteBuf(byteBuf);
@@ -785,13 +794,13 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
         assertEquals(expectedBatchFlushCount, actualBatchFlushCount);
-        verifyTheCounterMetrics(expectedBatchFlushCount,0,0,0);
+        verifyTheCounterMetrics(expectedBatchFlushCount, 0, 0, 0);
         verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
         // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0,0,0,0);
-        verifyTheHistogramMetrics(0,0,0);
+        verifyTheCounterMetrics(0, 0, 0, 0);
+        verifyTheHistogramMetrics(0, 0, 0);
     }
 
     @Test
@@ -817,13 +826,13 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
         assertEquals(expectedBatchFlushCount, actualBatchFlushCount);
-        verifyTheCounterMetrics(0, expectedBatchFlushCount,0,0);
+        verifyTheCounterMetrics(0, expectedBatchFlushCount, 0, 0);
         verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
         // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0,0,0,0);
-        verifyTheHistogramMetrics(0,0,0);
+        verifyTheCounterMetrics(0, 0, 0, 0);
+        verifyTheHistogramMetrics(0, 0, 0);
     }
 
     @Test
@@ -848,13 +857,13 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
         int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
         assertEquals(actualBatchFlushCount, expectFlushCount);
-        verifyTheCounterMetrics(0,0, actualBatchFlushCount,0);
+        verifyTheCounterMetrics(0, 0, actualBatchFlushCount, 0);
         verifyTheHistogramMetrics(actualBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
         // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0,0,0,0);
-        verifyTheHistogramMetrics(0,0,0);
+        verifyTheCounterMetrics(0, 0, 0, 0);
+        verifyTheHistogramMetrics(0, 0, 0);
     }
 
     @Test
@@ -886,14 +895,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         );
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
         assertEquals(txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get(), expectWriteBKCount);
-        verifyTheCounterMetrics(0,0,0,expectedBatchFlushTriggeredByLargeData);
+        verifyTheCounterMetrics(0, 0, 0, expectedBatchFlushTriggeredByLargeData);
         verifyTheHistogramMetrics(expectedBatchFlushTriggeredByLargeData,
                 writeCount - singleLargeDataRequestCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
         // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0,0,0,0);
-        verifyTheHistogramMetrics(0,0,0);
+        verifyTheCounterMetrics(0, 0, 0, 0);
+        verifyTheHistogramMetrics(0, 0, 0);
     }
 
     @Test
@@ -1023,7 +1032,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 writeCounter.incrementAndGet();
                 AsyncCallbacks.AddEntryCallback callback =
                         (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
-                callback.addComplete(PositionFactory.create(1,1), (ByteBuf)invocation.getArguments()[0],
+                callback.addComplete(PositionFactory.create(1, 1), (ByteBuf) invocation.getArguments()[0],
                         invocation.getArguments()[2]);
                 return null;
             }
@@ -1052,7 +1061,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 name + "_total",
                 metricsLabelNames,
                 metricsLabelValues);
-        return d == null ? 0: d.doubleValue();
+        return d == null ? 0 : d.doubleValue();
     }
 
     private double getHistogramCount(String name) {
@@ -1060,7 +1069,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 name + "_count",
                 metricsLabelNames,
                 metricsLabelValues);
-        return d == null ? 0: d.doubleValue();
+        return d == null ? 0 : d.doubleValue();
     }
 
     private double getHistogramSum(String name) {
@@ -1068,7 +1077,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 name + "_sum",
                 metricsLabelNames,
                 metricsLabelValues);
-        return d == null ? 0: d.doubleValue();
+        return d == null ? 0 : d.doubleValue();
     }
 
 }

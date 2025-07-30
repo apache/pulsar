@@ -50,6 +50,8 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -260,4 +262,50 @@ public class TestCmdTopics {
         mockTopics = mock(Topics.class);
     }
 
+    @Test
+    public void testSetRetentionCmd() throws Exception {
+        cmdTopics.run("set-retention public/default/topic -s 2T -t 200d".split("\\s+"));
+        verify(mockTopics, times(1)).setRetention("persistent://public/default/topic",
+                new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
+    }
+
+    @Test
+    public void testSetPersistenceWithDefaultMarkDeleteRate() throws Exception {
+        // Test that the default value is now -1 (unset) instead of 0
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithNegativeMarkDeleteRate() throws Exception {
+        // Test that negative values are now allowed (previously would throw exception)
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -5.0".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -5.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithZeroMarkDeleteRate() throws Exception {
+        // Test that zero is still allowed
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r 0".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, 0.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithPositiveMarkDeleteRate() throws Exception {
+        // Test that positive values still work
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r 10.5".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, 10.5, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithUnsetMarkDeleteRate() throws Exception {
+        // Test explicitly setting to -1 (unset)
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -1".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
 }

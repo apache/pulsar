@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.cli.converters.picocli.ByteUnitToIntegerConverter;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
 import org.apache.pulsar.cli.converters.picocli.TimeUnitToSecondsConverter;
@@ -546,8 +545,8 @@ public class CmdTopicPolicies extends CmdBase {
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
                 + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true,
-                converter = ByteUnitToIntegerConverter.class)
-        private Integer sizeLimit;
+                converter = ByteUnitToLongConverter.class)
+        private Long sizeLimit;
 
         @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy is replicated to other clusters asynchronously, "
@@ -560,8 +559,8 @@ public class CmdTopicPolicies extends CmdBase {
             final int retentionTimeInMin = retentionTimeInSec != -1
                     ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
                     : retentionTimeInSec.intValue();
-            final int retentionSizeInMB = sizeLimit != -1
-                    ? (int) (sizeLimit / (1024 * 1024))
+            final long retentionSizeInMB = sizeLimit != -1
+                    ? (sizeLimit / (1024 * 1024))
                     : sizeLimit;
             getTopicPolicies(isGlobal).setRetention(persistentTopic,
                     new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
@@ -1189,9 +1188,12 @@ public class CmdTopicPolicies extends CmdBase {
                 description = "Number of acks (guaranteed copies) to wait for each entry")
         private int bookkeeperAckQuorum = 2;
 
-        @Option(names = { "-r", "--ml-mark-delete-max-rate" },
-                description = "Throttling rate of mark-delete operation (0 means no throttle)")
-        private double managedLedgerMaxMarkDeleteRate = 0;
+        @Option(names = { "-r",
+                "--ml-mark-delete-max-rate" },
+                description = "Throttling rate of mark-delete operation "
+                        + "(0 means no throttle, -1 means unset which will use "
+                        + "the configuration from namespace or broker)")
+        private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously", arity = "0")
@@ -1208,9 +1210,6 @@ public class CmdTopicPolicies extends CmdBase {
             if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
-            }
-            if (managedLedgerMaxMarkDeleteRate < 0) {
-                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getTopicPolicies(isGlobal).setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,

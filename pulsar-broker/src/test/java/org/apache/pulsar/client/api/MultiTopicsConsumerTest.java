@@ -23,11 +23,10 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -241,7 +240,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                 .subscribe();
 
         producer.newMessage()
-                .value(1l)
+                .value(1L)
                 .send();
 
         // first batch receive
@@ -392,7 +391,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             }
             Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
             assertTrue(unwrapEx instanceof IllegalArgumentException);
-            assertTrue(e.getMessage().contains( "Subscription topics include duplicate items"
+            assertTrue(e.getMessage().contains("Subscription topics include duplicate items"
                     + " or invalid names"));
         }
         // cleanup.
@@ -413,8 +412,9 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                     .isAckReceiptEnabled(true)
                     .subscribe();
             assertTrue(singleTopicConsumer instanceof ConsumerImpl);
+        } catch (PulsarClientException.SubscriptionNotFoundException ignore) {
         } catch (Throwable t) {
-            assertTrue(t.getCause().getCause() instanceof PulsarClientException.SubscriptionNotFoundException);
+            fail("Should throw PulsarClientException.SubscriptionNotFoundException instead");
         }
 
         try {
@@ -424,8 +424,9 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                     .isAckReceiptEnabled(true)
                     .subscribe();
             assertTrue(multiTopicsConsumer instanceof MultiTopicsConsumerImpl);
+        } catch (PulsarClientException.SubscriptionNotFoundException ignore) {
         } catch (Throwable t) {
-            assertTrue(t.getCause().getCause() instanceof PulsarClientException.SubscriptionNotFoundException);
+            fail("Should throw PulsarClientException.SubscriptionNotFoundException instead");
         }
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);

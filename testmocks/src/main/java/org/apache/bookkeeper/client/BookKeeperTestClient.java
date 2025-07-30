@@ -71,14 +71,14 @@ public class BookKeeperTestClient extends BookKeeper {
         return bookieClient;
     }
 
-    public Future<?> waitForReadOnlyBookie(BookieId b)
+    public Future<?> waitForReadOnlyBookie(BookieId id)
             throws Exception {
-        return waitForBookieInSet(b, false);
+        return waitForBookieInSet(id, false);
     }
 
-    public Future<?> waitForWritableBookie(BookieId b)
+    public Future<?> waitForWritableBookie(BookieId id)
             throws Exception {
-        return waitForBookieInSet(b, true);
+        return waitForBookieInSet(id, true);
     }
 
     /**
@@ -86,23 +86,23 @@ public class BookKeeperTestClient extends BookKeeper {
      * or the read only set of bookies. Also ensure that it doesn't exist
      * in the other set before completing.
      */
-    private Future<?> waitForBookieInSet(BookieId b,
+    private Future<?> waitForBookieInSet(BookieId id,
                                          boolean writable) throws Exception {
         log.info("Wait for {} to become {}",
-                b, writable ? "writable" : "readonly");
+                id, writable ? "writable" : "readonly");
 
         CompletableFuture<Void> readOnlyFuture = new CompletableFuture<>();
         CompletableFuture<Void> writableFuture = new CompletableFuture<>();
 
         RegistrationListener readOnlyListener = (bookies) -> {
-            boolean contains = bookies.getValue().contains(b);
-            if ((!writable && contains) || (writable && !contains)) {
+            boolean containsId = bookies.getValue().contains(id);
+            if ((!writable && containsId) || (writable && !containsId)) {
                 readOnlyFuture.complete(null);
             }
         };
         RegistrationListener writableListener = (bookies) -> {
-            boolean contains = bookies.getValue().contains(b);
-            if ((writable && contains) || (!writable && !contains)) {
+            boolean containsId = bookies.getValue().contains(id);
+            if ((writable && containsId) || (!writable && !containsId)) {
                 writableFuture.complete(null);
             }
         };
@@ -114,7 +114,7 @@ public class BookKeeperTestClient extends BookKeeper {
             return writableFuture
                     .thenCompose(ignored -> getMetadataClientDriver().getRegistrationClient().getReadOnlyBookies())
                     .thenCompose(readonlyBookies -> {
-                        if (readonlyBookies.getValue().contains(b)) {
+                        if (readonlyBookies.getValue().contains(id)) {
                             // if the bookie still shows up at readonly path, wait for it to disappear
                             return readOnlyFuture;
                         } else {
@@ -125,7 +125,7 @@ public class BookKeeperTestClient extends BookKeeper {
             return readOnlyFuture
                     .thenCompose(ignored -> getMetadataClientDriver().getRegistrationClient().getWritableBookies())
                     .thenCompose(writableBookies -> {
-                        if (writableBookies.getValue().contains(b)) {
+                        if (writableBookies.getValue().contains(id)) {
                             // if the bookie still shows up at writable path, wait for it to disappear
                             return writableFuture;
                         } else {
@@ -139,7 +139,7 @@ public class BookKeeperTestClient extends BookKeeper {
      * Force a read to zookeeper to get list of bookies.
      *
      * @throws InterruptedException
-     * @throws KeeperException
+     * @throws BKException
      */
     public void readBookiesBlocking() throws InterruptedException, BKException {
         bookieWatcher.initialBlockingBookieRead();

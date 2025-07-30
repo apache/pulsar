@@ -21,6 +21,7 @@ package org.apache.pulsar.common.naming;
 import com.google.common.base.Splitter;
 import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -170,9 +171,9 @@ public class TopicName implements ServiceUnitId {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
 
-
-            if (localName == null || localName.isEmpty()) {
-                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
+            if (StringUtils.isBlank(localName)) {
+                throw new IllegalArgumentException(String.format("Invalid topic name: %s. Topic local name must not"
+                        + " be blank.", completeTopicName));
             }
 
         } catch (NullPointerException e) {
@@ -441,5 +442,79 @@ public class TopicName implements ServiceUnitId {
      */
     public boolean isV2() {
         return cluster == null;
+    }
+
+    /**
+     * Convert a topic name to a full topic name.
+     * In Pulsar, a full topic name is "<domain>://<tenant>/<namespace>/<local-topic>" (v2) or
+     * "<domain>://<tenant>/<cluster>/<namespace>/<local-topic>" (v1). However, for convenient, it's allowed for clients
+     * to pass a short topic name with v2 format:
+     * - "<local-topic>", which represents "persistent://public/default/<local-topic>"
+     * - "<tenant>/<namespace>/<local-topic>, which represents "persistent://<tenant>/<namespace>/<local-topic>"
+     *
+     * @param topic the topic name from client
+     * @return the full topic name.
+     */
+    public static String toFullTopicName(String topic) {
+        final int index = topic.indexOf("://");
+        if (index >= 0) {
+            TopicDomain.getEnum(topic.substring(0, index));
+            final List<String> parts = splitBySlash(topic.substring(index + "://".length()), 4);
+            if (parts.size() != 3 && parts.size() != 4) {
+                throw new IllegalArgumentException(topic + " is invalid");
+            }
+            if (parts.size() == 3) {
+                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1));
+                if (StringUtils.isBlank(parts.get(2))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+            } else {
+                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1), parts.get(2));
+                if (StringUtils.isBlank(parts.get(3))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+            }
+            return topic; // it's a valid full topic name
+        } else {
+            List<String> parts = splitBySlash(topic, 0);
+            if (parts.size() != 1 && parts.size() != 3) {
+                throw new IllegalArgumentException(topic + " is invalid");
+            }
+            if (parts.size() == 1) {
+                if (StringUtils.isBlank(parts.get(0))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+                return "persistent://public/default/" + parts.get(0);
+            } else {
+                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1));
+                if (StringUtils.isBlank(parts.get(2))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+                return "persistent://" + topic;
+            }
+        }
+    }
+
+    private static List<String> splitBySlash(String topic, int limit) {
+        final List<String> tokens = new ArrayList<>(3);
+        final int loopCount = (limit <= 0) ? Integer.MAX_VALUE : limit - 1;
+        int beginIndex = 0;
+        for (int i = 0; i < loopCount; i++) {
+            final int endIndex = topic.indexOf('/', beginIndex);
+            if (endIndex < 0) {
+                tokens.add(topic.substring(beginIndex));
+                return tokens;
+            } else if (endIndex > beginIndex) {
+                tokens.add(topic.substring(beginIndex, endIndex));
+            } else {
+                throw new IllegalArgumentException("Invalid topic name " + topic);
+            }
+            beginIndex = endIndex + 1;
+        }
+        if (beginIndex >= topic.length()) {
+            throw new IllegalArgumentException("Invalid topic name " + topic);
+        }
+        tokens.add(topic.substring(beginIndex));
+        return tokens;
     }
 }

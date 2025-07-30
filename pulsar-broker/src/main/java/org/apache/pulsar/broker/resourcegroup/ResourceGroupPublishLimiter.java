@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
+import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -29,8 +29,8 @@ public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     private volatile long publishMaxMessageRate;
     private volatile long publishMaxByteRate;
 
-    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicSnapshotClock monotonicSnapshotClock) {
-        super(monotonicSnapshotClock);
+    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicClock monotonicClock) {
+        super(monotonicClock);
         update(resourceGroup);
     }
 

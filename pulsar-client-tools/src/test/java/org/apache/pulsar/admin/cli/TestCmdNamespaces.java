@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import java.io.IOException;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-import java.io.IOException;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class TestCmdNamespaces {
 
@@ -46,7 +46,8 @@ public class TestCmdNamespaces {
 
         CmdNamespaces cmd = new CmdNamespaces(() -> admin);
 
-        cmd.run("set-retention public/default -s 2T -t 2h".split("\\s+"));
-        verify(namespaces, times(1)).setRetention("public/default", new RetentionPolicies(120, 2 * 1024 * 1024));
+        cmd.run("set-retention public/default -s 2T -t 200d".split("\\s+"));
+        verify(namespaces, times(1)).setRetention("public/default",
+                new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
    }
 }

@@ -121,6 +121,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the service URL init quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     *  will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The init value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineInitDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineInitDuration the initial quarantine duration
+     * for unavailable endpoint. Defaults to 60 seconds.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration, TimeUnit unit);
+
+    /**
+     * Configure the service URL max quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     * will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The max value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineMaxDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineMaxDuration the maximum quarantine duration for
+     * unavailable endpoint. Defaults to 1 day.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration, TimeUnit unit);
+
+    /**
      * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
      *
      * @param name the listener name
@@ -439,9 +477,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
-     * Configure a limit on the amount of direct memory that will be allocated by this client instance.
-     * <p>
-     * <b>Note: at this moment this is only limiting the memory for producers.</b>
+     * Configure a limit on the amount of direct memory that will be allocated by this client instance
+     * <i>(default: 64 MB)</i>.
      * <p>
      * Setting this to 0 will disable the limit.
      *

@@ -127,8 +127,12 @@ public class ConnectionPool implements AutoCloseable {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
-        this.isSniProxy = clientConfig.isUseTls() && clientConfig.getProxyProtocol() != null
+        boolean sniProxyExpected = clientConfig.getProxyProtocol() != null
                 && StringUtils.isNotBlank(clientConfig.getProxyServiceUrl());
+        this.isSniProxy = clientConfig.isUseTls() && sniProxyExpected;
+        if (!this.isSniProxy && sniProxyExpected) {
+            log.warn("Disabling SNI proxy because tls is not enabled");
+        }
 
         pool = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap();
@@ -184,7 +188,9 @@ public class ConnectionPool implements AutoCloseable {
     private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
                                                                             EventLoopGroup eventLoopGroup) {
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
+                .traceEnabled(true)
+                .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup))
+                .socketChannelType(EventLoopUtil.getClientSocketChannelClass(eventLoopGroup), true);
         if (conf.getDnsLookupBindAddress() != null) {
             InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
                     conf.getDnsLookupBindPort());
@@ -208,6 +214,14 @@ public class ConnectionPool implements AutoCloseable {
             return -1;
         }
         return signSafeMod(random.nextInt(), maxConnectionsPerHosts);
+    }
+
+    public CompletableFuture<ClientCnx> getConnection(final ServiceNameResolver serviceNameResolver) {
+        InetSocketAddress address = serviceNameResolver.resolveHost();
+        CompletableFuture<ClientCnx> clientCnxCompletableFuture = getConnection(address);
+        clientCnxCompletableFuture.whenComplete(
+                (__, throwable) -> serviceNameResolver.markHostAvailability(address, throwable == null));
+        return clientCnxCompletableFuture;
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {

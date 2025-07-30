@@ -39,8 +39,8 @@ import org.testng.annotations.AfterMethod;
 public abstract class BlobStoreManagedLedgerOffloaderBase {
 
     public static final String BUCKET = "pulsar-unittest";
-    protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
-    protected static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
+    protected static final int DEFAULT_BLOCK_SIZE = 5 * 1024 * 1024;
+    protected static final int DEFAULT_READ_BUFFER_SIZE = 1 * 1024 * 1024;
 
     protected final OrderedScheduler scheduler;
     protected final PulsarMockBookKeeper bk;
@@ -141,15 +141,15 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     protected ReadHandle buildReadHandle(int maxBlockSize, int blockCount) throws Exception {
         Assert.assertTrue(maxBlockSize > DataBlockHeaderImpl.getDataStartOffset());
 
-        LedgerHandle lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+        LedgerHandle lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
 
         int i = 0;
         int bytesWrittenCurrentBlock = DataBlockHeaderImpl.getDataStartOffset();
         int blocksWritten = 1;
 
         while (blocksWritten < blockCount
-               || bytesWrittenCurrentBlock < maxBlockSize/2) {
-            byte[] entry = ("foobar"+i).getBytes();
+               || bytesWrittenCurrentBlock < maxBlockSize / 2) {
+            byte[] entry = ("foobar" + i).getBytes();
             int sizeInBlock = entry.length + 12 /* ENTRY_HEADER_SIZE */;
 
             if (bytesWrittenCurrentBlock + sizeInBlock > maxBlockSize) {

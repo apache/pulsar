@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -46,6 +47,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -59,6 +61,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -346,7 +349,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCreateNonPartitionedTopicAsync(authoritative, properties)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isConflictException(ex)) {
                         log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -946,7 +949,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!isRedirectException(t)) {
                         if (AdminResource.isNotFoundException(t)) {
-                            log.error("[{}] Failed to get partitioned metadata topic {}: {}",
+                            log.info("[{}] Failed to get partitioned metadata topic {}: {}",
                                     clientAppId(), topicName, ex.getMessage());
                         } else {
                             log.error("[{}] Failed to get partitioned metadata topic {}",
@@ -1708,6 +1711,17 @@ public class PersistentTopics extends PersistentTopicsBase {
     ) {
         try {
             validateTopicName(tenant, namespace, topic);
+            String decodedSubName = decode(encodedSubName);
+            // If subscription is as "a/b". The url of HTTP API that defined as
+            // "{tenant}/{namespace}/{topic}/{subscription}" will be like below:
+            // "public/default/tp/a/b", then the broker will assume it is a topic that
+            // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
+            // So denied to create a subscription that contains "/".
+            if (pulsar().getConfig().isStrictlyVerifySubscriptionName()
+                    && !NamedEntity.isAllowed(decodedSubName)) {
+                throw new RestException(Response.Status.BAD_REQUEST, "Please let the subscription only contains"
+                    + " '/w(a-zA-Z_0-9)' or '_', the current value is " + decodedSubName);
+            }
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
@@ -2332,7 +2346,26 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
-                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> preValidation(authoritative)).thenCompose(__ -> {
+                    // Set a topic-level replicated clusters that do not contain local cluster is not meaningful, except
+                    // the following scenario: User has two clusters, which enabled Geo-Replication through a global
+                    // metadata store, the resources named partitioned topic metadata and the resource namespace-level
+                    // "replicated clusters" are shared between multi clusters. Pulsar can hardly delete a specify
+                    // partitioned topic. To support this use case, the following steps can implement it:
+                    // 1. set a global topic-level replicated clusters that do not contain local cluster.
+                    // 2. the local cluster will remove the subtopics automatically, and remove the schemas and local
+                    //    topic policies. Just leave the global topic policies there, which prevents the namespace level
+                    //    replicated clusters policy taking affect.
+                    // TODO But the API "pulsar-admin topics set-replication-clusters" does not support global policy,
+                    //   to support this scenario, a PIP is needed.
+                    boolean clustersDoesNotContainsLocal = CollectionUtils.isEmpty(clusterIds)
+                            || !clusterIds.contains(pulsar().getConfig().getClusterName());
+                    if (clustersDoesNotContainsLocal) {
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                            "Can not remove local cluster from the topic-level replication clusters policy"));
+                    }
+                    return CompletableFuture.completedFuture(null);
+                })
                 .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -5011,6 +5044,39 @@ public class PersistentTopics extends PersistentTopicsBase {
                 })
                 .exceptionally(ex -> {
                     handleTopicPolicyException("removeAutoSubscriptionCreation", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/getMessageIdByIndex")
+    @ApiOperation(hidden = true, value = "Get Message ID by index.",
+            notes = "If the specified index is a system message, "
+                    + "it will return the message id of the later message.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or partitioned topic does not exist, "
+                    + "or the index is invalid"),
+            @ApiResponse(code = 406, message = "The topic is not a persistent topic"),
+            @ApiResponse(code = 412, message = "The broker is not enable broker entry metadata"),
+    })
+    public void getMessageIDByIndex(@Suspended final AsyncResponse asyncResponse,
+                                    @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    @PathParam("topic") @Encoded String encodedTopic,
+                                    @QueryParam("index") long index,
+                                    @QueryParam("authoritative") @DefaultValue("false")
+                                                   boolean authoritative){
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetMessageIDByIndexAsync(index, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message id by index for topic {}, index {}",
+                                clientAppId(), topicName, index, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }

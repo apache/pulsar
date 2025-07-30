@@ -37,7 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
+import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -108,8 +108,10 @@ public class ConsumerImplTest {
     public void testCorrectBackoffConfiguration() {
         final Backoff backoff = consumer.getConnectionHandler().backoff;
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
-        Assert.assertEquals(backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
-        Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.getMax(),
+                TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.next(),
+                TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
     @Test(invocationTimeOut = 1000)
@@ -208,7 +210,7 @@ public class ConsumerImplTest {
         Exception checkException = null;
         try {
             if (consumer != null) {
-                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
+                consumer.negativeAcknowledge(new MessageIdImpl(0, 0, -1));
                 consumer.close();
             }
         } catch (Exception e) {
@@ -295,5 +297,11 @@ public class ConsumerImplTest {
         assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testAutoGenerateConsumerName() {
+        Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
+        assertTrue(consumerNamePattern.matcher(consumer.getConsumerName()).matches());
     }
 }

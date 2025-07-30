@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static org.apache.commons.lang.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import java.security.Security;
 import java.util.concurrent.TimeUnit;
@@ -114,6 +114,35 @@ public class ProducerBuilderFactory {
                     builder.batcherBuilder(BatcherBuilder.KEY_BASED);
                 } else {
                     builder.batcherBuilder(BatcherBuilder.DEFAULT);
+                }
+            }
+            if (producerConfig.getBatchingConfig() != null) {
+                builder.enableBatching(producerConfig.getBatchingConfig().isEnabled());
+                if (producerConfig.getBatchingConfig().getBatchingMaxPublishDelayMs() != null
+                        && producerConfig.getBatchingConfig().getBatchingMaxPublishDelayMs() > 0) {
+                    builder.batchingMaxPublishDelay(producerConfig.getBatchingConfig().getBatchingMaxPublishDelayMs(),
+                            TimeUnit.MILLISECONDS);
+                }
+                if (producerConfig.getBatchingConfig().getRoundRobinRouterBatchingPartitionSwitchFrequency() != null
+                        && producerConfig.getBatchingConfig().getRoundRobinRouterBatchingPartitionSwitchFrequency()
+                        > 0) {
+                    builder.roundRobinRouterBatchingPartitionSwitchFrequency(
+                            producerConfig.getBatchingConfig().getRoundRobinRouterBatchingPartitionSwitchFrequency());
+                }
+                if (producerConfig.getBatchingConfig().getBatchingMaxMessages() != null
+                        && producerConfig.getBatchingConfig().getBatchingMaxMessages() > 0) {
+                    builder.batchingMaxMessages(producerConfig.getBatchingConfig().getBatchingMaxMessages());
+                }
+                if (producerConfig.getBatchingConfig().getBatchingMaxBytes() != null
+                        && producerConfig.getBatchingConfig().getBatchingMaxBytes() > 0) {
+                    builder.batchingMaxBytes(producerConfig.getBatchingConfig().getBatchingMaxBytes());
+                }
+                if (producerConfig.getBatchingConfig().getBatchBuilder() != null) {
+                    if (producerConfig.getBatchingConfig().getBatchBuilder().equals("KEY_BASED")) {
+                        builder.batcherBuilder(BatcherBuilder.KEY_BASED);
+                    } else {
+                        builder.batcherBuilder(BatcherBuilder.DEFAULT);
+                    }
                 }
             }
         }

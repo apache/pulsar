@@ -18,18 +18,24 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +49,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
     /**
      * verifies that messages whose size is larger than 2^14 bytes (max size of single TLS chunk) can be
-     * produced/consumed
+     * produced/consumed.
      *
      * @throws Exception
      */
@@ -51,8 +57,8 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     public void testTlsLargeSizeMessage() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size -- {}", MESSAGE_SIZE);
+        final int messageSize = 16 * 1024 + 1;
+        log.info("-- message size -- {}", messageSize);
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
@@ -63,7 +69,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
                 .create();
         for (int i = 0; i < 10; i++) {
-            byte[] message = new byte[MESSAGE_SIZE];
+            byte[] message = new byte[messageSize];
             Arrays.fill(message, (byte) i);
             producer.send(message);
         }
@@ -71,7 +77,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
-            byte[] expected = new byte[MESSAGE_SIZE];
+            byte[] expected = new byte[messageSize];
             Arrays.fill(expected, (byte) i);
             Assert.assertEquals(expected, msg.getData());
         }
@@ -85,8 +91,8 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size -- {}", MESSAGE_SIZE);
+        final int messageSize = 16 * 1024 + 1;
+        log.info("-- message size -- {}", messageSize);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
@@ -113,8 +119,8 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size -- {}", MESSAGE_SIZE);
+        final int messageSize = 16 * 1024 + 1;
+        log.info("-- message size -- {}", messageSize);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure
@@ -294,5 +300,68 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
+    }
+
+    @Test
+    public void testTlsWithFakeAuthentication() throws Exception {
+        Authentication authentication = spy(new Authentication() {
+            @Override
+            public String getAuthMethodName() {
+                return "fake";
+            }
+
+            @Override
+            public void configure(Map<String, String> authParams) {
+
+            }
+
+            @Override
+            public void start() {
+
+            }
+
+            @Override
+            public void close() {
+
+            }
+
+            @Override
+            public AuthenticationDataProvider getAuthData(String brokerHostName) {
+                return mock(AuthenticationDataProvider.class);
+            }
+        });
+
+        @Cleanup
+        PulsarAdmin pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsar().getWebServiceAddressTls())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .enableTlsHostnameVerification(false)
+                .tlsKeyFilePath(getTlsFileForClient("admin.key-pk8"))
+                .tlsCertificateFilePath(getTlsFileForClient("admin.cert"))
+                .authentication(authentication)
+                .build();
+        pulsarAdmin.tenants().getTenants();
+        verify(authentication, never()).getAuthData();
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPulsar().getBrokerServiceUrlTls())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .enableTlsHostnameVerification(false)
+                .tlsKeyFilePath(getTlsFileForClient("admin.key-pk8"))
+                .tlsCertificateFilePath(getTlsFileForClient("admin.cert"))
+                .authentication(authentication).build();
+        verify(authentication, never()).getAuthData();
+
+        final String topicName = "persistent://my-property/my-ns/my-topic-1";
+        internalSetUpForNamespace();
+        @Cleanup
+        Consumer<byte[]> ignoredConsumer =
+                pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name").subscribe();
+        verify(authentication, never()).getAuthData();
+        @Cleanup
+        Producer<byte[]> ignoredProducer = pulsarClient.newProducer().topic(topicName).create();
+        verify(authentication, never()).getAuthData();
     }
 }

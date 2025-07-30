@@ -77,6 +77,10 @@
           <artifactId>bcprov-jdk18on</artifactId>
           <groupId>org.bouncycastle</groupId>
         </exclusion>
+        <exclusion>
+          <groupId>javax.annotation</groupId>
+          <artifactId>javax.annotation-api</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -106,7 +110,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <!-- this task will copy config files to resources for the test to work -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

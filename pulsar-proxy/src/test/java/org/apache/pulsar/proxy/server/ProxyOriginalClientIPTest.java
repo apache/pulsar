@@ -39,7 +39,6 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
-    static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
     HttpClient httpClient;
     ProxyServiceStarter serviceStarter;
     String webServiceUrl;
@@ -49,7 +48,7 @@ public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
-        serviceStarter = new ProxyServiceStarter(ARGS, proxyConfig -> {
+        serviceStarter = new ProxyServiceStarter(ProxyServiceStarterTest.getArgs(), proxyConfig -> {
             proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
             proxyConfig.setBrokerWebServiceURL(pulsar.getWebServiceAddress());
             proxyConfig.setWebServicePort(Optional.of(0));

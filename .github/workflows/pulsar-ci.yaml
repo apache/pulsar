@@ -44,6 +44,8 @@ on:
         options:
           - '17'
           - '21'
+          - '24'
+          - '25'
         default: '21'
       trace_test_resource_cleanup:
         description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
@@ -59,13 +61,22 @@ on:
         required: true
         type: number
         default: 10000
+      netty_leak_detection:
+        description: 'Controls Netty leak detection. When set to "report", Netty leak detection is enabled. When set to "fail_on_leak", Netty leak detection is enabled and a build job will fail if leaks are detected. When set to "off", Netty leak detection is disabled.'
+        required: true
+        type: choice
+        options:
+          - 'report'
+          - 'fail_on_leak'
+          - 'off'
+        default: 'report'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xss1500k -Xmx1500m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  MAVEN_OPTS: -Xss1500k -Xmx2048m -XX:+UnlockDiagnosticVMOptions -XX:GCLockerRetryAllocationCount=100 -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
@@ -83,6 +94,7 @@ jobs:
       collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
       jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
       java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
+      netty_leak_detection: ${{ steps.netty_leak_detection.outputs.netty_leak_detection }}
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
@@ -134,6 +146,13 @@ jobs:
           || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
           }}"  >> $GITHUB_OUTPUT
 
+      - name: Set Netty leak detection mode
+        id: netty_leak_detection
+        run: |
+          echo "netty_leak_detection=${{ 
+          github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
+          }}" >> $GITHUB_OUTPUT
+
       - name: Check if the PR has been approved for testing
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
         env:
@@ -147,7 +166,7 @@ jobs:
     name: Build and License check
     env:
       JOB_NAME: Build and License check
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -224,12 +243,14 @@ jobs:
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
       TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
       THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -347,6 +368,10 @@ jobs:
             cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'
           fi
 
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v4
         if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
@@ -364,6 +389,7 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
             ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
             ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*
           retention-days: 7
@@ -472,7 +498,7 @@ jobs:
           - linux/amd64
           - linux/arm64
     env:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
@@ -550,8 +576,10 @@ jobs:
     env:
       JOB_NAME: CI - Integration - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -570,27 +598,24 @@ jobs:
             group: LOADBALANCE
             no_coverage: true
 
-          - name: Shade on Java 8
-            group: SHADE_RUN
-            runtime_jdk: 8
-            setup: ./build/run_integration_group.sh SHADE_BUILD
-            no_coverage: true
-
-          - name: Shade on Java 11
-            group: SHADE_RUN
-            runtime_jdk: 11
-            setup: ./build/run_integration_group.sh SHADE_BUILD
-            no_coverage: true
-
           - name: Shade on Java 17
             group: SHADE_RUN
+            upload_name: SHADE_RUN_17
             runtime_jdk: 17
             setup: ./build/run_integration_group.sh SHADE_BUILD
             no_coverage: true
 
           - name: Shade on Java 21
             group: SHADE_RUN
+            upload_name: SHADE_RUN_21
             runtime_jdk: 21
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
+
+          - name: Shade on Java 24
+            group: SHADE_RUN
+            upload_name: SHADE_RUN_24
+            runtime_jdk: 24
             setup: ./build/run_integration_group.sh SHADE_BUILD
             no_coverage: true
 
@@ -689,20 +714,37 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
-          name: Integration-${{ matrix.group }}-surefire-reports
+          name: Integration-${{ matrix.upload_name || matrix.group }}-surefire-reports
           path: surefire-reports
           retention-days: 7
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: Integration-${{ matrix.upload_name || matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload container logs
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
-          name: Integration-${{ matrix.group }}-container-logs
+          name: Integration-${{ matrix.upload_name || matrix.group }}-container-logs
           path: tests/integration/target/container-logs
           retention-days: 7
 
@@ -831,7 +873,7 @@ jobs:
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
@@ -957,8 +999,10 @@ jobs:
     env:
       JOB_NAME: CI - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -1066,6 +1110,10 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload container logs
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
@@ -1082,6 +1130,19 @@ jobs:
           name: System-${{ matrix.name }}-surefire-reports
           path: surefire-reports
           retention-days: 7
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: System-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -1187,8 +1248,10 @@ jobs:
     env:
       JOB_NAME: CI Flaky - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -1273,12 +1336,16 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload container logs
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
-          name: System-${{ matrix.group }}-container-logs
+          name: Flaky-System-${{ matrix.group }}-container-logs
           path: tests/integration/target/container-logs
           retention-days: 7
 
@@ -1286,9 +1353,22 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
-          name: System-${{ matrix.name }}-surefire-reports
+          name: Flaky-System-${{ matrix.name }}-surefire-reports
           path: surefire-reports
           retention-days: 7
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: Flaky-System-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -1330,7 +1410,7 @@ jobs:
     needs: ['preconditions', 'integration-tests']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
@@ -1370,7 +1450,7 @@ jobs:
       contents: read
       security-events: write
     env:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       CODEQL_LANGUAGE: java-kotlin
     steps:
@@ -1431,7 +1511,7 @@ jobs:
     needs: [ 'preconditions', 'integration-tests' ]
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
     env:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       NIST_NVD_API_KEY: ${{ secrets.NIST_NVD_API_KEY }}
     steps:
@@ -1494,15 +1574,21 @@ jobs:
           restore-keys: |
             owasp-dependency-check-data-
 
+      - name: Log warning when skipped
+        if: ${{ !steps.restore-owasp-dependency-check-data.outputs.cache-matched-key }}
+        run: |
+          echo "::warning::OWASP Dependency Check was skipped since the OWASP Dependency check data wasn't found in the cache. Run ci-owasp-dependency-check.yaml workflow to update the cache."
+
       # Projects dependent on flume, hdfs, and hbase currently excluded from the scan.
       - name: trigger dependency check
+        if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-matched-key }}
         run: |
           mvn -B -ntp verify -PskipDocker,skip-all,owasp-dependency-check -Dcheckstyle.skip=true -DskipTests \
             -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
         uses: actions/upload-artifact@v4
-        if: ${{ cancelled() || failure() }}
+        if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-matched-key && (cancelled() || failure()) }}
         continue-on-error: true
         with:
           name: dependency report

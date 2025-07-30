@@ -67,5 +67,4 @@ public class ProducerImplTest {
         assertTrue(producer.populateMessageSchema(msg, null));
         verify(msg).setSchemaState(MessageImpl.SchemaState.Ready);
     }
-
 }

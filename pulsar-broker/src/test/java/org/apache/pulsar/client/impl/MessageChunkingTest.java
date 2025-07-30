@@ -449,7 +449,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
-     * Validate that chunking is not supported with batching and non-persistent topic
+     * Validate that chunking is not supported with batching and non-persistent topic.
      *
      * @throws Exception
      */
@@ -492,7 +492,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
-        TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
+        TypedMessageBuilderImpl<byte[]> msg =
+                (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
         MessageMetadata msgMetadata = msg.getMetadataBuilder();
         msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L)
@@ -561,8 +562,12 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
     }
 
+    interface ThrowingBiConsumer<T, K> {
+        void accept(T t, K u) throws Exception;
+    }
+
     @Test
-    public void testSeekChunkMessages() throws PulsarClientException {
+    public void testSeekChunkMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
@@ -612,14 +617,17 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader()
-                .topic(topicName)
-                .startMessageIdInclusive()
-                .startMessageId(msgIds.get(1))
-                .create();
-
-        Message<byte[]> readMsg = reader.readNext(5, TimeUnit.SECONDS);
-        assertEquals(msgIds.get(1), readMsg.getMessageId());
+        ThrowingBiConsumer<Boolean, MessageId> assertStartMessageId = (inclusive, expectedFirstMsgId) -> {
+            final var builder = pulsarClient.newReader().topic(topicName).startMessageId(msgIds.get(1));
+            if (inclusive) {
+                builder.startMessageIdInclusive();
+            }
+            @Cleanup final var reader = builder.create();
+            final var readMsg = reader.readNext(5, TimeUnit.SECONDS);
+            assertEquals(expectedFirstMsgId, readMsg.getMessageId());
+        };
+        assertStartMessageId.accept(true, msgIds.get(1));
+        assertStartMessageId.accept(false, msgIds.get(2));
 
         consumer1.close();
         consumer2.close();
