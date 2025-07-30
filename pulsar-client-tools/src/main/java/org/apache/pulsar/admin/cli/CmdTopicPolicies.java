@@ -2030,7 +2030,6 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean applied = false;
 
         @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously. "
                 + "If set \"--applied\" to true, the current param will be ignored. ")
         private boolean isGlobal = false;
 

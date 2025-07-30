@@ -143,13 +143,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     /**
-     * @param keepGlobalPoliciesAfterDeleting only be used when a topic was deleted because users removes current
+     * @param keepGlobalPolicies only be used when a topic was deleted because users removes current
      *    cluster from the policy "replicatedClusters".
      *    See also https://github.com/apache/pulsar/blob/master/pip/pip-422.md
      */
     @Override
     public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName,
-                                                            boolean keepGlobalPoliciesAfterDeleting) {
+                                                            boolean keepGlobalPolicies) {
         if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject()) || isSelf(topicName)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -179,7 +179,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 return CompletableFuture.completedFuture(null);
             }
             return sendTopicPolicyEvent(topicName, ActionType.DELETE, null,
-                    keepGlobalPoliciesAfterDeleting);
+                    keepGlobalPolicies);
         });
     }
 

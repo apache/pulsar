@@ -53,11 +53,6 @@ public interface TopicPoliciesService extends AutoCloseable {
 
     default CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName,
                                                              boolean keepGlobalPoliciesAfterDeleting) {
-        if (keepGlobalPoliciesAfterDeleting) {
-            LOG.warn("The current implementation of TopicPoliciesService has not implemented the method"
-                + " deleteTopicPoliciesAsync(TopicName, boolean) yet, please implement it, see also"
-                + " https://github.com/apache/pulsar/blob/master/pip/pip-422.md");
-        }
         return deleteTopicPoliciesAsync(topicName);
     }
 
