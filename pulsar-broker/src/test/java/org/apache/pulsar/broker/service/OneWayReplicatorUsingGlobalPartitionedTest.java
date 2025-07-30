@@ -292,4 +292,15 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     public void testConcurrencyReplicationReadEntries() throws Exception {
         super.testConcurrencyReplicationReadEntries();
     }
+
+    @Test(enabled = false)
+    public void testCloseTopicAfterStartReplicationFailed() throws Exception {
+        super.testCloseTopicAfterStartReplicationFailed();
+    }
+
+    @Override
+    @Test
+    public void testPartitionedTopicWithTopicPolicyAndNoReplicationClusters() throws Exception {
+        super.testPartitionedTopicWithTopicPolicyAndNoReplicationClusters();
+    }
 }
