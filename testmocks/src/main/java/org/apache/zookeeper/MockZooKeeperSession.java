@@ -27,6 +27,7 @@ import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.AsyncCallback.VoidCallback;
+import org.apache.zookeeper.client.ZKClientConfig;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.objenesis.Objenesis;
@@ -50,6 +51,8 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private int sessionTimeout = -1;
 
+    private final ZKClientConfig zkClientConfig =new ZKClientConfig();
+
     public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper) {
         return newInstance(mockZooKeeper, true);
     }
@@ -72,6 +75,11 @@ public class MockZooKeeperSession extends ZooKeeper {
         super(quorum, 1, event -> {
         });
         assert false;
+    }
+
+    @Override
+    public ZKClientConfig getClientConfig() {
+        return zkClientConfig;
     }
 
     @Override
