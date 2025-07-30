@@ -80,6 +80,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -1665,7 +1666,16 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         final String subscriptionName = "s1";
         admin2.topics().createNonPartitionedTopic(topicName);
         admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-        admin1.topics().createNonPartitionedTopic(topicName);
+        try {
+            admin1.topics().createNonPartitionedTopic(topicName);
+        } catch (PulsarAdminException.ConflictException e) {
+            if (!usingGlobalZK) {
+                // Since brokers shared namespace level policies, which triggers enabling a binary-way replication
+                // if using a global ZK.
+                // So the topic has been created by the replicator.
+                throw e;
+            }
+        }
         admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
 
         // Publish messages.
