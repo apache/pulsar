@@ -213,8 +213,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
                         // Build the log warning message
                         // summarize the operations by type
-                        final int logThresholdPut = maxGetSize >> 3;
-                        final int logThresholdGet = maxGetSize >> 3;
+                        final int logThresholdPut = maxGetSize >> 4;
+                        final int logThresholdGet = maxGetSize >> 4;
                         String countsByType = ops.stream().collect(
                                         Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
                                 .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name())

@@ -18,63 +18,70 @@
  */
 package org.apache.pulsar.zookeeper;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.StringSplitter;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataNodePayloadLenEstimator;
 
+@Slf4j
 public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayloadLenEstimator {
 
-    private final HashMap<PathType, Integer> maxLenPerPathType = new HashMap<>();
-    private final HashMap<PathType, Integer> maxLenPerListPathType = new HashMap<>();
     // Default to max int value, let the first query command do not execute with batch.
-    private static final int DEFAULT_LEN = 1;//Integer.MAX_VALUE;
+    public static final int DEFAULT_LEN = Integer.MAX_VALUE;
+    public static final int UNSET = -1;
+    public static final int ZK_PACKET_HEADER_LEN = 160;
+    private static final SplitPathRes MEANINGLESS_SPLIT_PATH_RES = new SplitPathRes();
+    private final int[] maxLenOfGetMapping;
+    private final int[] maxLenOfListMapping;
+
+    {
+        int PathTypeCount = PathType.values().length;
+        maxLenOfGetMapping = new int[PathTypeCount];
+        maxLenOfListMapping = new int[PathTypeCount];
+        for (int i = 0; i < PathTypeCount; i++) {
+            maxLenOfGetMapping[i] = UNSET;
+            maxLenOfListMapping[i] = UNSET;
+        }
+    }
 
     @Override
     public void recordPut(String path, byte[] data) {
         PathType pathType = getPathType(path);
-        maxLenPerPathType.compute(pathType, (k, v) -> {
-            if (v == null) {
-                return data.length;
-            }
-            return Math.max(v, data.length);
-        });
+        maxLenOfGetMapping[pathType.ordinal()] = Math.max(maxLenOfGetMapping[pathType.ordinal()], data.length);
     }
 
     @Override
     public void recordGetRes(String path, GetResult getResult) {
         PathType pathType = getPathType(path);
-        maxLenPerPathType.compute(pathType, (k, v) -> {
-            if (v == null) {
-                return getResult.getValue().length;
-            }
-            return Math.max(v, getResult.getValue().length);
-        });
+        if (getResult == null) {
+            return;
+        }
+        maxLenOfGetMapping[pathType.ordinal()] = Math.max(maxLenOfGetMapping[pathType.ordinal()],
+                getResult.getValue().length);
     }
 
     @Override
     public void recordGetChildrenRes(String path, List<String> list) {
         PathType pathType = getPathType(path);
-        maxLenPerListPathType.compute(pathType, (k, v) -> {
-            if (v == null) {
-                return list.stream().map(String::length).reduce(0, Integer::sum);
-            }
-            return Math.max(v, list.stream().map(String::length).reduce(0, Integer::sum));
-        });
+        int totalLen = list.stream().map(String::length).reduce(0, Integer::sum);
+        maxLenOfListMapping[pathType.ordinal()] = Math.max(maxLenOfListMapping[pathType.ordinal()], totalLen);
     }
 
     @Override
     public int estimateGetResPayloadLen(String path) {
         PathType pathType = getPathType(path);
-        return maxLenPerPathType.getOrDefault(pathType, DEFAULT_LEN);
+        int res = maxLenOfGetMapping[pathType.ordinal()];
+        return res == UNSET ? DEFAULT_LEN : res + ZK_PACKET_HEADER_LEN;
     }
 
     @Override
     public int estimateGetChildrenResPayloadLen(String path) {
         PathType pathType = getPathType(path);
-        int maxValueCached = maxLenPerListPathType.getOrDefault(pathType, DEFAULT_LEN);
-        return maxValueCached + (maxValueCached >> 3);
+        int res = maxLenOfListMapping[pathType.ordinal()];
+        return res == UNSET ? DEFAULT_LEN : res + ZK_PACKET_HEADER_LEN;
     }
 
     private PathType getPathType(String path) {
@@ -128,5 +135,45 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         TOPIC,
         SUBSCRIPTION,
         OTHERS;
+    }
+
+    static class SplitPathRes {
+        String[] parts = new String[2];
+        int partCount;
+    }
+
+    /**
+     * Split the path by the delimiter '/', calculate pieces count and only keep the first two parts.
+     */
+    static SplitPathRes splitPath(String path) {
+        if (path == null || path.length() <= 1) {
+            return MEANINGLESS_SPLIT_PATH_RES;
+        }
+        SplitPathRes res = new SplitPathRes();
+        String[] parts = res.parts;
+        char delimiter = '/';
+        int length = path.length();
+        int start = 0;
+        int count = 0;
+        for (int i = 0; i < length; i++) {
+            if (path.charAt(i) == delimiter) {
+                // Skip the first and the latest delimiter.
+                if (start == i) {
+                    start = i + 1;
+                    continue;
+                }
+                // Only keep the first two parts.
+                if (count < 2) {
+                    parts[count] = path.substring(start, i);
+                }
+                start = i + 1;
+                count++;
+            }
+        }
+        if (start < length - 1) {
+            count++;
+        }
+        res.partCount = count;
+        return res;
     }
 }
