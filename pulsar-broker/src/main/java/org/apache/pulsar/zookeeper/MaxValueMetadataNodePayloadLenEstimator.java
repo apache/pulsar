@@ -63,7 +63,7 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
     @Override
     public void recordGetChildrenRes(String path, List<String> list) {
         PathType pathType = getPathType(path);
-        int totalLen = list.stream().map(String::length).reduce(0, Integer::sum);
+        int totalLen = list.stream().mapToInt(String::length).sum();
         maxLenOfListMapping[pathType.ordinal()] = Math.max(maxLenOfListMapping[pathType.ordinal()], totalLen);
     }
 
