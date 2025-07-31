@@ -89,13 +89,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NonNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
-        return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
-            if (schema != null && schema.schema.isDeleted()) {
-                return null;
-            } else {
-                return schema;
-            }
-        });
+        return getSchema(schemaId, SchemaVersion.Latest);
     }
 
     @Override
@@ -133,7 +127,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     } else {
                         return Functions.bytesToSchemaInfo(stored.data)
                                 .thenApply(Functions::schemaInfoToSchema)
-                                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version));
+                                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
+                                .thenApply((schema) -> {
+                                    if (version == SchemaVersion.Latest) {
+                                        if (schema != null && schema.schema.isDeleted()) {
+                                            return null;
+                                        } else {
+                                            return schema;
+                                        }
+                                    }
+                                    return schema;
+                                });
                     }
                 })
                 .whenComplete((v, t) -> {
