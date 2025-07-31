@@ -307,11 +307,13 @@ public class PersistentTopicsBase extends AdminResource {
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             future = future.thenComposeAsync(unused ->
-                                    getAuthorizationService().revokePermissionAsync(topicNamePartition, role));
+                                    getAuthorizationService().revokePermissionAsync(topicNamePartition, role),
+                                    pulsar().getOrderedExecutor().chooseThread(role));
                         }
                     }
                     return future.thenComposeAsync(unused ->
-                                    getAuthorizationService().revokePermissionAsync(topicName, role))
+                                    getAuthorizationService().revokePermissionAsync(topicName, role),
+                                    pulsar().getOrderedExecutor().chooseThread(role))
                                  .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                 })
                 ).exceptionally(ex -> {
