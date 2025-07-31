@@ -1277,19 +1277,15 @@ public class PersistentTopicsBase extends AdminResource {
             if (ex != null) {
                 log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
                         topicName, ex.getMessage());
-                if (ex instanceof PulsarAdminException) {
-                    PulsarAdminException pae = (PulsarAdminException) ex;
+                if (ex instanceof PulsarAdminException pae) {
                     if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                 "Internal topics have not been generated yet"));
-                        return;
                     } else {
                         asyncResponse.resume(new RestException(pae));
-                        return;
                     }
                 } else {
                     asyncResponse.resume(new RestException(ex));
-                    return;
                 }
             } else {
                 asyncResponse.resume(subscriptions);
@@ -1901,7 +1897,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSkipMessages(AsyncResponse asyncResponse, String subName, int numMessages,
-                                        boolean authoritative, Map<String, String> messageIds) {
+                                        boolean authoritative) {
         CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.SKIP, subName);
         future.thenCompose(__ -> {
             if (topicName.isGlobal()) {
@@ -1923,8 +1919,7 @@ public class PersistentTopicsBase extends AdminResource {
                      throw new RestException(new RestException(Status.NOT_FOUND,
                              getTopicNotFoundErrorMessage(topicName.toString())));
                  }
-                 if (subName.startsWith(topic.getReplicatorPrefix())
-                         && (messageIds.isEmpty() || numMessages == 0)) {
+                 if (subName.startsWith(topic.getReplicatorPrefix())) {
                      String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                      PersistentReplicator repl =
                              (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
@@ -1945,13 +1940,6 @@ public class PersistentTopicsBase extends AdminResource {
                                  new RestException(Status.NOT_FOUND,
                                          getSubNotFoundErrorMessage(topicName.toString(), subName)));
                      }
-                     if (!messageIds.isEmpty() && numMessages == 0) {
-                         return sub.skipMessages(messageIds).thenAccept(unused -> {
-                                     log.info("[{}] Skipped messages on {} {}", clientAppId(), topicName, subName);
-                                     asyncResponse.resume(Response.noContent().build());
-                                 }
-                         );
-                     }
                      return sub.skipMessages(numMessages).thenAccept(unused -> {
                          log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages,
                                  topicName, subName);
@@ -1970,6 +1958,109 @@ public class PersistentTopicsBase extends AdminResource {
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
+    }
+
+    protected void internalSkipByMessageIds(AsyncResponse asyncResponse, String subName, boolean authoritative,
+                                            Map<String, String> messageIds) {
+        CompletableFuture<Void> validationFuture = validateTopicOperationAsync(topicName, TopicOperation.SKIP, subName);
+        validationFuture = validationFuture.thenCompose(__ -> {
+            if (topicName.isGlobal()) {
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
+        validationFuture.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                .thenAccept(partitionMetadata -> {
+                    if (topicName.isPartitioned()) {
+                        internalSkipByMessageIdsForNonPartitionedTopic(asyncResponse, messageIds,
+                                subName, authoritative);
+                    } else {
+                        if (partitionMetadata.partitions > 0) {
+                            internalSkipByMessageIdsForPartitionedTopic(asyncResponse, partitionMetadata,
+                                    messageIds, subName);
+                        } else {
+                            internalSkipByMessageIdsForNonPartitionedTopic(asyncResponse, messageIds,
+                                    subName, authoritative);
+                        }
+                    }
+                }).exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error("[{}] Failed to ack messages on topic {}: {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    private void internalSkipByMessageIdsForPartitionedTopic(AsyncResponse asyncResponse,
+                                                             PartitionedTopicMetadata partitionMetadata,
+                                                             Map<String, String> messageIds,
+                                                             String subName) {
+        final List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
+        PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+        for (int i = 0; i < partitionMetadata.partitions; i++) {
+            TopicName topicNamePartition = topicName.getPartition(i);
+            futures.add(admin
+                    .topics()
+                    .skipMessagesAsync(topicNamePartition.toString(), subName, messageIds));
+        }
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            if (exception != null) {
+                Throwable t = FutureUtil.unwrapCompletionException(exception);
+                log.warn("[{}] Failed to ack messages on some partitions of {}: {}",
+                        clientAppId(), topicName, t.getMessage());
+                resumeAsyncResponseExceptionally(asyncResponse, t);
+            } else {
+                log.info("[{}] Successfully requested cancellation for delayed message on"
+                                + " all partitions of topic {}", clientAppId(), topicName);
+                asyncResponse.resume(Response.noContent().build());
+            }
+            return null;
+        });
+    }
+
+    private void internalSkipByMessageIdsForNonPartitionedTopic(AsyncResponse asyncResponse,
+                                                                Map<String, String> messageIds,
+                                                                String subName,
+                                                                boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(optTopic -> {
+                    if (!(optTopic instanceof PersistentTopic persistentTopic)) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED, "Cancel delayed message on a non-persistent"
+                                + " topic is not allowed");
+                    }
+                    log.info("[{}] Cancelling delayed message for subscription {} on topic {}", clientAppId(),
+                            subName, topicName);
+                    return internalSkipByMessageIdsForSubscriptionAsync(persistentTopic, subName, messageIds);
+                })
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (isNot307And404Exception(t)) {
+                        log.error("[{}] Error in internalSkipByMessageIdsForNonPartitionedTopic for {}: {}",
+                                clientAppId(), topicName, t.getMessage(), t);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, t);
+                    return null;
+                });
+    }
+
+    private CompletableFuture<Void> internalSkipByMessageIdsForSubscriptionAsync(
+            PersistentTopic topic, String subName, Map<String, String> messageIds) {
+        Subscription sub = topic.getSubscription(subName);
+        if (sub == null) {
+            return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                    getSubNotFoundErrorMessage(topic.getName(), subName)));
+        }
+        return sub.skipMessages(messageIds);
     }
 
     protected void internalExpireMessagesForAllSubscriptions(AsyncResponse asyncResponse, int expireTimeInSeconds,
@@ -2055,16 +2146,15 @@ public class PersistentTopicsBase extends AdminResource {
                                  getTopicNotFoundErrorMessage(topicName.toString())));
                          return;
                      }
-                    if (!(t instanceof PersistentTopic)) {
+                    if (!(t instanceof PersistentTopic topic)) {
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Expire messages for all subscriptions on a non-persistent topic is not allowed"));
                         return;
                     }
-                    PersistentTopic topic = (PersistentTopic) t;
                     final List<CompletableFuture<Void>> futures =
-                            new ArrayList<>((int) topic.getReplicators().size());
+                            new ArrayList<>(topic.getReplicators().size());
                     List<String> subNames =
-                            new ArrayList<>((int) topic.getSubscriptions().size());
+                            new ArrayList<>(topic.getSubscriptions().size());
                     subNames.addAll(topic.getSubscriptions().keySet().stream().filter(
                             subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList());
                     for (int i = 0; i < subNames.size(); i++) {
@@ -2837,12 +2927,11 @@ public class PersistentTopicsBase extends AdminResource {
             }).thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
             .thenCompose(__ -> getTopicReferenceAsync(topicName))
             .thenCompose(topic -> {
-                if (!(topic instanceof PersistentTopic)) {
+                if (!(topic instanceof PersistentTopic persistentTopic)) {
                     log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
                     throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Get message ID by timestamp on a non-persistent topic is not allowed");
                 }
-                final PersistentTopic persistentTopic = (PersistentTopic) topic;
 
                 return persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenCompose(lastEntry -> {
                     if (lastEntry == null) {
@@ -2983,13 +3072,12 @@ public class PersistentTopicsBase extends AdminResource {
             return CompletableFuture.completedFuture(null);
         }).thenCompose(__ -> getTopicReferenceAsync(topicName))
         .thenCompose(topic -> {
-            if (!(topic instanceof PersistentTopic)) {
+            if (!(topic instanceof PersistentTopic persistentTopic)) {
                 log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Examine messages on a non-persistent topic is not allowed");
             }
             try {
-                PersistentTopic persistentTopic = (PersistentTopic) topic;
                 long totalMessage = persistentTopic.getNumberOfEntries();
                 if (totalMessage <= 0) {
                     throw new RestException(Status.PRECONDITION_FAILED,
@@ -4013,12 +4101,11 @@ public class PersistentTopicsBase extends AdminResource {
                              getTopicNotFoundErrorMessage(topicName.toString())));
                      return;
                  }
-                if (!(t instanceof PersistentTopic)) {
+                if (!(t instanceof PersistentTopic topic)) {
                     resultFuture.completeExceptionally(new RestException(Status.METHOD_NOT_ALLOWED,
                             "Expire messages on a non-persistent topic is not allowed"));
                     return;
                 }
-                PersistentTopic topic = (PersistentTopic) t;
 
                 final MessageExpirer messageExpirer;
                 if (subName.startsWith(topic.getReplicatorPrefix())) {
@@ -4051,7 +4138,6 @@ public class PersistentTopicsBase extends AdminResource {
                             + "almost catch  up. If it's performed on a partitioned topic operation might"
                             + " succeeded on other partitions, please check stats of individual partition."
                     ));
-                    return;
                 }
             }).exceptionally(e -> {
                 resultFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
@@ -4280,12 +4366,10 @@ public class PersistentTopicsBase extends AdminResource {
                     } catch (AlreadyRunningException e) {
                         resumeAsyncResponseExceptionally(asyncResponse,
                                 new RestException(Status.CONFLICT, e.getMessage()));
-                        return;
                     } catch (Exception e) {
                         log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(),
                                 topicName, e);
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
-                        return;
                     }
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -4317,11 +4401,9 @@ public class PersistentTopicsBase extends AdminResource {
                     } catch (AlreadyRunningException e) {
                         resumeAsyncResponseExceptionally(asyncResponse,
                                 new RestException(Status.CONFLICT, e.getMessage()));
-                        return;
                     } catch (Exception e) {
                         log.warn("Unexpected error triggering offload", e);
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
-                        return;
                     }
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -4462,7 +4544,7 @@ public class PersistentTopicsBase extends AdminResource {
                         final String topicErrorType = partitionedTopicMetadata
                                 == null ? "has no metadata" : "has zero partitions";
                         throw new RestException(Status.NOT_FOUND, String.format(
-                                "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
+                                "Partitioned Topic not found: %s %s", topicName, topicErrorType));
                     }
                 })
                 .thenCompose(__ -> internalGetListAsync(Optional.empty()))

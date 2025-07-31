@@ -835,7 +835,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> skipMessagesAsync(String topic, String subName, Map<String, String> messageIds) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName, "skip", "0");
+        WebTarget path = topicPath(tn, "subscription", encodedSubName, "skipByMessageIds", "0");
         messageIds = messageIds == null ? new HashMap<>() : messageIds;
         return asyncPostRequest(path, Entity.entity(messageIds, MediaType.APPLICATION_JSON));
     }

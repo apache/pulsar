@@ -623,11 +623,33 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
             @PathParam("numMessages") int numMessages,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "The message ID to skip") Map<String, String> messageIds) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative, messageIds);
+            internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/{topic}/subscription/{subName}/skipByMessageIds")
+    @ApiOperation(hidden = true, value = "Skip messages on a topic subscription.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namesapce or topic or subscription does not exist") })
+    public void skipByMessageIds(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+                             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic,
+                             @PathParam("subName") String encodedSubName,
+                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                             @ApiParam(value = "The message ID to skip") Map<String, String> messageIds) {
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalSkipByMessageIds(asyncResponse, decode(encodedSubName), authoritative, messageIds);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
