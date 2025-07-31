@@ -29,7 +29,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -1351,12 +1350,12 @@ public class ServerCnxTest {
         assertEquals(((CommandLookupTopicResponse) lookupResponse).getRequestId(), 1);
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
         // This test is an example of https://github.com/apache/pulsar/issues/19332. Essentially, we're passing
         // the proxy's auth data because it is all we have. This test should be updated when we resolve that issue.
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
 
         // producer
         ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
@@ -1368,10 +1367,10 @@ public class ServerCnxTest {
         // See https://github.com/apache/pulsar/issues/19332 for justification of this assertion.
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
 
         // consumer
         String subscriptionName = "test-subscribe";
@@ -1384,20 +1383,34 @@ public class ServerCnxTest {
         assertEquals(((CommandError) subscribeResponse).getRequestId(), 3);
         verify(authorizationService, times(1)).allowTopicOperationAsync(
                 eq(topicName), eq(TopicOperation.CONSUME),
-                eq(clientRole), eq(proxyRole), isNull(), argThat(arg -> {
+                eq(clientRole), eq(proxyRole), argThat(arg -> {
                     assertTrue(arg instanceof AuthenticationDataSubscription);
                     // We assert that the role is clientRole and commandData is proxyRole due to
                     // https://github.com/apache/pulsar/issues/19332.
-                    assertEquals(arg.getCommandData(), proxyRole);
-                    assertEquals(arg.getSubscription(), subscriptionName);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
+                    return true;
+                }), argThat(arg -> {
+                    assertTrue(arg instanceof AuthenticationDataSubscription);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
                     return true;
                 }));
         verify(authorizationService, times(1)).allowTopicOperationAsync(
                 eq(topicName), eq(TopicOperation.CONSUME),
-                eq(clientRole), eq(proxyRole), isNull(), argThat(arg -> {
+                eq(clientRole), eq(proxyRole), argThat(arg -> {
                     assertTrue(arg instanceof AuthenticationDataSubscription);
-                    assertEquals(arg.getCommandData(), proxyRole);
-                    assertEquals(arg.getSubscription(), subscriptionName);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
+                    return true;
+                }), argThat(arg -> {
+                    assertTrue(arg instanceof AuthenticationDataSubscription);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
                     return true;
                 }));
     }
