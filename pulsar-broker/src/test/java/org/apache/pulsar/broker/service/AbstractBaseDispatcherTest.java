@@ -337,6 +337,11 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
+        public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions, long delayAtTime) {
+
+        }
+
+        @Override
         public void addUnAckedMessages(int unAckMessages) {
 
         }
