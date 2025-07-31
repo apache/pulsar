@@ -51,11 +51,12 @@ runs:
     - name: "Upload to Codecov (attempt #1)"
       id: codecov-upload-1
       if: steps.repo-check.outputs.passed == 'true'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       continue-on-error: true
       with:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
     - name: "Wait 15 seconds before next attempt"
       if: steps.codecov-upload-1.outcome == 'failure'
@@ -64,11 +65,12 @@ runs:
     - name: "Upload to Codecov (attempt #2)"
       id: codecov-upload-2
       if: steps.codecov-upload-1.outcome == 'failure'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       continue-on-error: true
       with:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
     - name: "Wait 60 seconds before next attempt"
       if: steps.codecov-upload-2.outcome == 'failure'
@@ -77,12 +79,13 @@ runs:
     - name: "Upload to Codecov (attempt #3)"
       id: codecov-upload-3
       if: steps.codecov-upload-2.outcome == 'failure'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       # fail on last attempt
       continue-on-error: false
       with:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
     - name: "Show link to Codecov report"
       shell: bash
