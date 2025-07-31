@@ -28,6 +28,10 @@ inputs:
   flags:
     # see https://github.com/codecov/codecov-action#arguments
     description: 'Flag the upload to group coverage metrics. Multiple flags are separated by a comma.'
+  token:
+    description: 'Codecov token to use for uploading coverage metrics.'
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
@@ -56,7 +60,7 @@ runs:
       with:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ inputs.token }}
         verbose: true
     - name: "Wait 15 seconds before next attempt"
       if: steps.codecov-upload-1.outcome == 'failure'
@@ -70,7 +74,7 @@ runs:
       with:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ inputs.token }}
         verbose: true
     - name: "Wait 60 seconds before next attempt"
       if: steps.codecov-upload-2.outcome == 'failure'
@@ -85,7 +89,7 @@ runs:
       with:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ inputs.token }}
         verbose: true
     - name: "Show link to Codecov report"
       shell: bash
