@@ -481,10 +481,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         CompletableFuture<Boolean> result = service.getAuthorizationService().allowTopicOperationAsync(
                 topicName, operation, originalPrincipal, authRole,
-                originalAuthDataSource != null ? originalAuthDataSource : authDataSource);
+                originalAuthDataSource, authDataSource);
         result.thenAccept(isAuthorized -> {
             if (!isAuthorized) {
-                log.warn("Role {} and OriginalRole {} is not authorized to perform operation {} on topic {}",
+                log.warn("Role {} or OriginalRole {} is not authorized to perform operation {} on topic {}",
                         authRole, originalPrincipal, operation, topicName);
             }
         });
