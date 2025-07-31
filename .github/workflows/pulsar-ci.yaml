@@ -472,6 +472,7 @@ jobs:
         uses: ./.github/actions/upload-coverage
         with:
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Delete coverage files from build artifacts
         run: |
@@ -829,6 +830,7 @@ jobs:
         uses: ./.github/actions/upload-coverage
         with:
           flags: inttests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Delete coverage files from build artifacts
         run: |
@@ -1226,6 +1228,7 @@ jobs:
         uses: ./.github/actions/upload-coverage
         with:
           flags: systests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Delete coverage files from build artifacts
         run: |
