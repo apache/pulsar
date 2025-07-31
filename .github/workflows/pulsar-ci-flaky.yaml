@@ -167,6 +167,7 @@ jobs:
         uses: ./.github/actions/upload-coverage
         with:
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Publish Test Report
         uses: apache/pulsar-test-infra/action-junit-report@master
