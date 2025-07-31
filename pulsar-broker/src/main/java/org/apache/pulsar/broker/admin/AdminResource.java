@@ -39,7 +39,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -90,10 +89,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected NamespaceName namespaceName;
     protected TopicName topicName;
-
-    protected BookKeeper bookKeeper() {
-        return pulsar().getBookKeeperClient();
-    }
 
     /**
      * Get the domain of the topic (whether it's persistent or non-persistent).
