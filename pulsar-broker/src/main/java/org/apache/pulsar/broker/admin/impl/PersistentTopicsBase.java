@@ -4345,10 +4345,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
             PulsarService pulsar, String clientAppId, String originalPrincipal,
-            AuthenticationDataSource authenticationData, TopicName topicName) {
+            AuthenticationDataSource authenticationData, AuthenticationDataSource originalAuthenticationData,
+            TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         CompletableFuture<Void> authorizationFuture = new CompletableFuture<>();
-        checkAuthorizationAsync(pulsar, topicName, clientAppId, originalPrincipal, authenticationData)
+        checkAuthorizationAsync(pulsar, topicName, clientAppId, originalPrincipal, authenticationData,
+                originalAuthenticationData)
                 .thenRun(() -> authorizationFuture.complete(null))
                 .exceptionally(e -> {
                     Throwable throwable = FutureUtil.unwrapCompletionException(e);
