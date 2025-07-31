@@ -51,7 +51,7 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private int sessionTimeout = -1;
 
-    private final ZKClientConfig zkClientConfig = new ZKClientConfig();
+    private ZKClientConfig zkClientConfig = new ZKClientConfig();
 
     public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper) {
         return newInstance(mockZooKeeper, true);
@@ -64,6 +64,7 @@ public class MockZooKeeperSession extends ZooKeeper {
         mockZooKeeperSession.mockZooKeeper = mockZooKeeper;
         mockZooKeeperSession.sessionId = sessionIdGenerator.getAndIncrement();
         mockZooKeeperSession.closeMockZooKeeperOnClose = closeMockZooKeeperOnClose;
+        mockZooKeeperSession.zkClientConfig = new ZKClientConfig();
         if (closeMockZooKeeperOnClose) {
             mockZooKeeper.increaseRefCount();
         }
