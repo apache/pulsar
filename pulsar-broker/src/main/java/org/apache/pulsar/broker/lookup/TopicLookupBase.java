@@ -36,7 +36,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.event.data.TopicLookupEventData;
-import org.apache.pulsar.broker.event.data.TopicLookupEventData.TopicLookupEventDataBuilder;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
@@ -133,7 +132,7 @@ public class TopicLookupBase extends AdminResource {
                             if (log.isDebugEnabled()) {
                                 log.debug("Redirect lookup for topic {} to {}", topicName, redirect);
                             }
-                            TopicLookupEventDataBuilder eventDataBuilder =
+                            var eventDataBuilder =
                                     TopicLookupEventData.builder().authoritative(newAuthoritative);
                             if (isRequestHttps()) {
                                 eventDataBuilder.httpUrlTls(redirect.toString());
