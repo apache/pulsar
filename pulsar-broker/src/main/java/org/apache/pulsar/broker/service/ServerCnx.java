@@ -552,7 +552,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         properties = Collections.emptyMap();
                     }
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
-                            authRole, originalPrincipal, authenticationData, originalAuthData,
+                            authRole, originalPrincipal, authenticationData,
+                            originalAuthData != null ? originalAuthData : authenticationData,
                             requestId, advertisedListenerName, properties).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     writeAndFlush(lookupResponse);
