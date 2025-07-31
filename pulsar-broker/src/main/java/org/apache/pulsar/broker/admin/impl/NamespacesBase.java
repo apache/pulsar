@@ -436,7 +436,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                             "Cluster " + replCluster + " does not exist"));
                                             URL replClusterUrl;
                                             try {
-                                                if (!config().isTlsEnabled() || !isRequestHttps()) {
+                                                if (!replClusterData.isBrokerClientTlsEnabled()) {
                                                     replClusterUrl = new URL(replClusterData.getServiceUrl());
                                                 } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                                                     replClusterUrl = new URL(replClusterData.getServiceUrlTls());
