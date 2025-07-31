@@ -57,6 +57,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1720,6 +1721,22 @@ public class Namespaces extends NamespacesBase {
                                 boolean migrated) {
         validateNamespaceName(property, cluster, namespace);
         internalEnableMigration(migrated);
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/migrationState")
+    @ApiOperation(hidden = true, value = "Update migration state for a namespace")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void updateMigrationState(@PathParam("property") String property,
+                                     @PathParam("cluster") String cluster,
+                                     @PathParam("namespace") String namespace,
+                                     @QueryParam("migrated") boolean migrated,
+                                     ClusterUrl clusterUrl) {
+        validateNamespaceName(property, cluster, namespace);
+        internalUpdateMigrationState(migrated, clusterUrl);
     }
 
     @PUT
