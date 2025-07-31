@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
-
+import java.util.Arrays;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.TopicEventsListener;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,9 +46,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class TopicEventsListenerTest extends BrokerTestBase {
@@ -84,14 +84,17 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         super.baseSetup();
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
-        pulsar.getBrokerService().addTopicEventListener((topic, event, stage, t) -> {
-            log.info("got event {}__{} for topic {}", event, stage, topic);
-            if (topic.equals(topicNameToWatch)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("got event {}__{} for topic {} with detailed stack",
-                            event, stage, topic, new Exception("tracing event source"));
+        pulsar.getBrokerService().addTopicEventListener(new TopicEventsListener() {
+            @Override
+            public void handleEvent(String topic, TopicEvent event, EventStage stage, Throwable t) {
+                log.info("got event {}__{} for topic {}", event, stage, topic);
+                if (topic.equals(topicNameToWatch)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("got event {}__{} for topic {} with detailed stack",
+                                event, stage, topic, new Exception("tracing event source"));
+                    }
+                    events.add(event.toString() + "__" + stage.toString());
                 }
-                events.add(event.toString() + "__" + stage.toString());
             }
         });
     }
@@ -136,12 +139,10 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         }
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
+                assertThat(events).containsAll(Arrays.asList("DELETE__BEFORE",
                         "UNLOAD__BEFORE",
                         "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
+                        "DELETE__SUCCESS"))
         );
     }
 
@@ -156,10 +157,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         admin.topics().unload(topicName);
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
+                assertThat(events.toArray()).containsAll(Arrays.asList("UNLOAD__BEFORE",
+                        "UNLOAD__SUCCESS"))
         );
 
         events.clear();
@@ -170,10 +169,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         }
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
+                assertThat(events.toArray()).containsAll(Arrays.asList("DELETE__BEFORE",
+                        "DELETE__SUCCESS"))
         );
     }
 
@@ -223,11 +220,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         }
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-            // only care about first 4 events max, the rest will be from client recreating deleted topic
-            String[] eventsToArray = (events.size() <= 4)
-                    ? events.toArray(new String[0])
-                    : ArrayUtils.subarray(events.toArray(new String[0]), 0, 4);
-            Assert.assertEquals(eventsToArray, expectedEvents);
+            assertThat(events.toArray(new String[0])).containsAll(Arrays.stream(expectedEvents).toList());
         });
 
         consumer.close();
@@ -306,7 +299,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         }
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), expectedEvents));
+                assertThat(events.toArray()).containsAll(Arrays.stream(expectedEvents).toList()));
     }
 
     private PulsarAdmin createPulsarAdmin() throws PulsarClientException {

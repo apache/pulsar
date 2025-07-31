@@ -27,7 +27,6 @@ import java.util.Date;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
@@ -228,7 +227,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         // To trigger the ledger rollover
         admin.topics().unload(topic);
         Topic topicRef = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        ((PersistentTopic) topicRef).getManagedLedger().trimConsumedLedgersInBackground(new CompletableFuture<>());
+        ((PersistentTopic) topicRef).getManagedLedger().asyncTrimConsumedLedgers();
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertEquals(stats.ledgers.size(), 1);

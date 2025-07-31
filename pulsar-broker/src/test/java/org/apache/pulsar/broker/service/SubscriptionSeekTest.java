@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -691,8 +692,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         for (long timestamp : timestamps) {
             MessageIdImpl messageId = (MessageIdImpl) timestampToMessageId.get(timestamp);
             consumer.seek(timestamp);
-            CompletableFuture<?> trimFuture = new CompletableFuture<>();
-            ledger.trimConsumedLedgersInBackground(trimFuture);
+            CompletableFuture<List<LedgerInfo>> trimFuture = ledger.asyncTrimConsumedLedgers();
             trimFuture.get();
             Position readPosition = cursor.getReadPosition();
             Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> firstLedger = ledger.getLedgersInfo().firstEntry();

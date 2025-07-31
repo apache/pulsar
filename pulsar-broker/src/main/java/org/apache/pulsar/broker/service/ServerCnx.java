@@ -82,6 +82,15 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.event.data.ConsumerConnectEventData;
+import org.apache.pulsar.broker.event.data.ConsumerDisconnectEventData;
+import org.apache.pulsar.broker.event.data.DisconnectInitiator;
+import org.apache.pulsar.broker.event.data.ProducerConnectEventData;
+import org.apache.pulsar.broker.event.data.ProducerConnectEventData.ProducerConnectEventDataBuilder;
+import org.apache.pulsar.broker.event.data.ProducerDisconnectEventData;
+import org.apache.pulsar.broker.event.data.SubscriptionDeleteEventData;
+import org.apache.pulsar.broker.event.data.SubscriptionDeleteEventData.SubscriptionDeleteReason;
+import org.apache.pulsar.broker.event.data.SubscriptionSeekEventData;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -90,6 +99,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -517,7 +527,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (isAuthorized) {
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             getPrincipal(), getAuthenticationData(),
-                            requestId, advertisedListenerName).handle((lookupResponse, ex) -> {
+                            requestId, advertisedListenerName, this).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     writeAndFlush(lookupResponse);
                                 } else {
@@ -1362,6 +1372,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 log.info("[{}] Created subscription on topic {} / {}",
                                         remoteAddress, topicName, subscriptionName);
                                 commandSender.sendSuccessResponse(requestId);
+                                newTopicEvent(topicName.toString(), TopicEvent.CONSUMER_CONNECT)
+                                        .data(ConsumerConnectEventData.builder()
+                                                .consumerId(consumer.consumerId())
+                                                .consumerName(consumer.consumerName())
+                                                .consumerAddress(consumer.getClientAddress())
+                                                .subscriptionType(subType)
+                                                .subscriptionName(subscriptionName)
+                                                .replicateSubscription(isReplicated)
+                                                .initialPosition(initialPosition)
+                                                .durable(isDurable)
+                                                .build())
+                                        .dispatch();
                                 if (brokerInterceptor != null) {
                                     try {
                                         brokerInterceptor.consumerCreated(this, consumer, metadata);
@@ -1720,6 +1742,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     commandSender.sendProducerSuccessResponse(requestId, producerName,
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);
+                    ProducerConnectEventDataBuilder producerConnectEventDataBuilder = ProducerConnectEventData.builder()
+                            .producerAccessMode(producerAccessMode)
+                            .producerId(producer.getProducerId())
+                            .producerName(producer.getProducerName());
+                    newTopicEpoch.ifPresent(producerConnectEventDataBuilder::epoch);
+                    newTopicEvent(topic.getName(), TopicEvent.PRODUCER_CONNECT)
+                            .data(producerConnectEventDataBuilder.build())
+                            .dispatch();
                     if (brokerInterceptor != null) {
                         try {
                             brokerInterceptor.producerCreated(this, producer, metadata);
@@ -1978,7 +2008,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Consumer> consumerFuture = consumers.get(unsubscribe.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).doUnsubscribe(unsubscribe.getRequestId());
+            Consumer consumer = consumerFuture.getNow(null);
+            String topicName = consumer.getSubscription().getTopicName();
+            String subscriptionName = consumer.getSubscription().getName();
+            SubType subscriptionType = consumer.getSubscription().getType();
+            consumer.doUnsubscribe(unsubscribe.getRequestId()).thenRun(() -> {
+                newTopicEvent(topicName, TopicEvent.SUBSCRIPTION_DELETE)
+                        .data(SubscriptionDeleteEventData.builder()
+                                .subscriptionName(subscriptionName)
+                                .subscriptionType(subscriptionType)
+                                .reason(SubscriptionDeleteReason.CLIENT)
+                                .build())
+                        .dispatch();
+            });
         } else {
             commandSender.sendErrorResponse(unsubscribe.getRequestId(), ServerError.MetadataError,
                     "Consumer not found");
@@ -2021,6 +2063,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.info("[{}] [{}][{}] Reset subscription to message id {}", remoteAddress,
                         subscription.getTopic().getName(), subscription.getName(), position);
                 commandSender.sendSuccessResponse(requestId);
+                newTopicEvent(subscription.getTopicName(), TopicEvent.SUBSCRIPTION_SEEK)
+                        .data(SubscriptionSeekEventData.builder()
+                                .subscriptionName(subscription.getName())
+                                .messageId(new BatchMessageIdImpl(msgIdData.getLedgerId(),
+                                        msgIdData.getEntryId(),
+                                        msgIdData.getPartition(),
+                                        msgIdData.getBatchIndex()))
+                                .build())
+                        .dispatch();
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}",
                         remoteAddress, subscription, ex.getMessage(), ex);
@@ -2037,6 +2088,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.info("[{}] [{}][{}] Reset subscription to publish time {}", remoteAddress,
                         subscription.getTopic().getName(), subscription.getName(), timestamp);
                 commandSender.sendSuccessResponse(requestId);
+                newTopicEvent(subscription.getTopicName(), TopicEvent.SUBSCRIPTION_SEEK)
+                        .data(SubscriptionSeekEventData.builder()
+                                .subscriptionName(subscription.getName())
+                                .timestamp(timestamp)
+                                .build())
+                        .dispatch();
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress,
                         subscription, ex.getMessage(), ex);
@@ -2108,10 +2165,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                      remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
             producers.remove(producerId, producerFuture);
+            dispatchCloseProducerEvent(producer, DisconnectInitiator.CLIENT);
             if (brokerInterceptor != null) {
                 brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
             }
         });
+    }
+
+    public TopicEventsDispatcher.TopicEventBuilder newTopicEvent(String topic, TopicEvent topicEvent) {
+        return getBrokerService().getTopicEventsDispatcher().newEvent(topic, topicEvent)
+                .role(authRole, originalPrincipal)
+                .proxyVersion(proxyVersion);
     }
 
     @Override
@@ -2154,6 +2218,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             consumers.remove(consumerId, consumerFuture);
             commandSender.sendSuccessResponse(requestId);
             log.info("[{}] Closed consumer, consumerId={}", remoteAddress, consumerId);
+            dispatchCloseConsumerEvent(consumer, DisconnectInitiator.CLIENT);
             if (brokerInterceptor != null) {
                 brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
             }
@@ -3129,9 +3194,32 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         safelyRemoveConsumer(consumer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
+            dispatchCloseConsumerEvent(consumer, DisconnectInitiator.BROKER);
         } else {
             close();
         }
+    }
+
+    private void dispatchCloseConsumerEvent(Consumer consumer, DisconnectInitiator initiator) {
+        newTopicEvent(consumer.getSubscription().getTopicName(), TopicEvent.CONSUMER_DISCONNECT)
+                .data(ConsumerDisconnectEventData.builder()
+                        .consumerId(consumer.consumerId())
+                        .consumerName(consumer.consumerName())
+                        .consumerAddress(consumer.getClientAddress())
+                        .initiator(initiator)
+                        .build())
+                .dispatch();
+    }
+
+    private void dispatchCloseProducerEvent(Producer producer, DisconnectInitiator initiator) {
+        newTopicEvent(producer.getTopic().getName(), TopicEvent.PRODUCER_DISCONNECT)
+                .data(ProducerDisconnectEventData.builder()
+                        .producerId(producer.getProducerId())
+                        .producerName(producer.getProducerName())
+                        .producerAddress(producer.getClientAddress())
+                        .initiator(initiator)
+                        .build())
+                .dispatch();
     }
 
     /**
@@ -3141,6 +3229,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void close() {
         if (ctx != null) {
             ctx.close();
+            consumers.forEach((n, f) -> {
+                if (f.isDone()) {
+                    f.thenAccept(c -> dispatchCloseConsumerEvent(c, DisconnectInitiator.BROKER));
+                }
+            });
+            producers.forEach((n, f) -> {
+                if (f.isDone()) {
+                    f.thenAccept(p -> dispatchCloseProducerEvent(p, DisconnectInitiator.BROKER));
+                }
+            });
         }
     }
 

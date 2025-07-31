@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -36,8 +37,8 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -182,14 +183,12 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         Assert.assertTrue(bkc.getLedgers().contains(firstLedgerId));
 
         clock.advance(2, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise);
+        CompletableFuture<List<LedgerInfo>> promise = ledger.asyncTrimConsumedLedgers();
         promise.join();
         Assert.assertTrue(bkc.getLedgers().contains(firstLedgerId));
 
         clock.advance(5, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise2 = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise2);
+        CompletableFuture<List<LedgerInfo>> promise2 = ledger.asyncTrimConsumedLedgers();
         promise2.join();
 
         // assert bk ledger is deleted
@@ -203,8 +202,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
         // move past retention, should be deleted from offloaded also
         clock.advance(5, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise3 = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise3);
+        CompletableFuture<List<LedgerInfo>> promise3 = ledger.asyncTrimConsumedLedgers();
         promise3.join();
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
@@ -271,7 +269,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
         // Trim offloaded BK ledger handles.
         Thread.sleep(offloadDeletionLagInSeconds * 2 * 1000);
-        CompletableFuture<Position> trimLedgerFuture = new CompletableFuture<Position>();
+        CompletableFuture<List<LedgerInfo>> trimLedgerFuture = new CompletableFuture<List<LedgerInfo>>();
         ml.internalTrimLedgers(false, trimLedgerFuture);
         trimLedgerFuture.join();
         MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo1 = ml.getLedgerInfo(ledger1).get();
@@ -370,8 +368,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
         // move past retention, should be deleted from offloaded also
         clock.advance(5, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise3 = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise3);
+        CompletableFuture<List<LedgerInfo>> promise3 = ledger.asyncTrimConsumedLedgers();
         promise3.join();
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
@@ -411,14 +408,12 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         Assert.assertTrue(bkc.getLedgers().contains(firstLedgerId));
 
         clock.advance(2, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise);
+        CompletableFuture<List<LedgerInfo>> promise = ledger.asyncTrimConsumedLedgers();
         promise.join();
         Assert.assertTrue(bkc.getLedgers().contains(firstLedgerId));
 
         clock.advance(5, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise2 = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise2);
+        CompletableFuture<List<LedgerInfo>> promise2 =  ledger.asyncTrimConsumedLedgers();
         promise2.join();
 
         // ensure it gets deleted from both bookkeeper and offloader
@@ -460,14 +455,11 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
         clock.advance(2, TimeUnit.MINUTES);
 
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise);
-        promise.join();
+        CompletableFuture<List<LedgerInfo>> promise = ledger.asyncTrimConsumedLedgers();
         Assert.assertTrue(bkc.getLedgers().contains(firstLedgerId));
 
         clock.advance(5, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise2 = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise2);
+        CompletableFuture<List<LedgerInfo>> promise2 = ledger.asyncTrimConsumedLedgers();
         promise2.join();
 
         // assert bk ledger is deleted

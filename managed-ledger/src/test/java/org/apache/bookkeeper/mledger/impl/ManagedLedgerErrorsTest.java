@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -409,16 +410,15 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
                         && op == FaultInjectionMetadataStore.OperationType.PUT
         );
 
-        CompletableFuture<?> handle = new CompletableFuture<>();
-        ledger.trimConsumedLedgersInBackground(handle);
+        CompletableFuture<List<LedgerInfo>> handle = ledger.asyncTrimConsumedLedgers();
+
         assertThat(expectThrows(ExecutionException.class, () -> handle.get()).getCause(),
                 instanceOf(ManagedLedgerException.BadVersionException.class));
 
         assertEquals(ManagedLedgerImpl.State.Fenced, ((ManagedLedgerImpl) ledger).getState());
 
         // if the task started after the ML moved to Fenced state, it must fail
-        CompletableFuture<?> handleAlreadyFenced = new CompletableFuture<>();
-        ledger.trimConsumedLedgersInBackground(handleAlreadyFenced);
+        CompletableFuture<List<LedgerInfo>> handleAlreadyFenced = ledger.asyncTrimConsumedLedgers();
         assertThat(expectThrows(ExecutionException.class, () -> handleAlreadyFenced.get()).getCause(),
                 instanceOf(ManagedLedgerException.ManagedLedgerFencedException.class));
 

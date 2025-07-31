@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -142,7 +141,7 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         });
         // step 3.
         producer.send("last message");
-        ml2.trimConsumedLedgersInBackground(new CompletableFuture<>());
+        ml2.asyncTrimConsumedLedgers();
         // step 4.
         Awaitility.await().untilAsserted(() -> {
             int snapshotCounter3 = WhiteboxImpl.getInternalState(deduplication2, "snapshotCounter");

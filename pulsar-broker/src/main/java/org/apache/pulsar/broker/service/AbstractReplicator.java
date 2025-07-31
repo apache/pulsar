@@ -29,8 +29,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.event.data.ReplicatorStopEventData;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -349,6 +351,14 @@ public abstract class AbstractReplicator implements Replicator {
                 this.producer = null;
                 // deactivate further read
                 disableReplicatorRead();
+                brokerService.getTopicEventsDispatcher()
+                        .newEvent(localTopicName, TopicEvent.REPLICATOR_STOP)
+                        .data(ReplicatorStopEventData.builder()
+                                .replicatorId(replicatorId)
+                                .localCluster(localCluster)
+                                .remoteCluster(remoteCluster)
+                                .build())
+                        .dispatch();
                 return;
             }
             if (setDisconnectedRes.getRight() == State.Terminating

@@ -83,6 +83,10 @@ public class LookupResult {
         return lookupData;
     }
 
+    public Type getType() {
+        return type;
+    }
+
     @Override
     public String toString() {
         return "LookupResult [type=" + type + ", lookupData=" + lookupData + "]";

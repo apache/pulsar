@@ -52,11 +52,13 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.event.data.ReplicatorStartEventData;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Replicator;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
@@ -188,6 +190,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
             cursor.rewind();
             waitForCursorRewinding = false;
 
+            localTopic.getBrokerService()
+                    .getTopicEventsDispatcher()
+                    .newEvent(localTopicName, TopicEvent.REPLICATOR_START)
+                    .data(ReplicatorStartEventData.builder()
+                            .replicatorId(replicatorId)
+                            .localCluster(localCluster)
+                            .remoteCluster(remoteCluster).build())
+                    .dispatch();
             // read entries
             readMoreEntries();
         } else {

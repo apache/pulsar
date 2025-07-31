@@ -24,6 +24,11 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventContext;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 
 /**
  * Utility class to dispatch topic events.
@@ -31,6 +36,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TopicEventsDispatcher {
     private final List<TopicEventsListener> topicEventListeners = new CopyOnWriteArrayList<>();
+    private final PulsarService pulsar;
+    private volatile String brokerId;
+
+    public TopicEventsDispatcher(PulsarService pulsar) {
+        this.pulsar = pulsar;
+    }
 
     /**
      * Adds listeners, ignores null listeners.
@@ -59,11 +70,13 @@ public class TopicEventsDispatcher {
      * @param topic
      * @param event
      * @param stage
+     * @deprecated Use {@link #newEvent(String, TopicEvent)} to create an event and then call.
      */
+    @Deprecated
     public void notify(String topic,
                        TopicEventsListener.TopicEvent event,
                        TopicEventsListener.EventStage stage) {
-        notify(topic, event, stage, null);
+        newEvent(topic, event).stage(stage).dispatch();
     }
 
     /**
@@ -72,13 +85,17 @@ public class TopicEventsDispatcher {
      * @param event
      * @param stage
      * @param t
+     * @deprecated Use {@link #newEvent(String, TopicEvent)} to create an event and then call.
      */
+    @Deprecated
     public void notify(String topic,
                        TopicEventsListener.TopicEvent event,
                        TopicEventsListener.EventStage stage,
                        Throwable t) {
         topicEventListeners
-                .forEach(listener -> notify(listener, topic, event, stage, t));
+                .forEach(listener -> {
+                    newEvent(topic, event).stage(stage).error(t).dispatch();
+                });
     }
 
     /**
@@ -92,10 +109,10 @@ public class TopicEventsDispatcher {
     public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
                                                        String topic,
                                                        TopicEventsListener.TopicEvent event) {
-        return future.whenComplete((r, ex) -> notify(topic,
-                event,
-                ex == null ? TopicEventsListener.EventStage.SUCCESS : TopicEventsListener.EventStage.FAILURE,
-                ex));
+        return future.whenComplete((r, ex) -> newEvent(topic, event)
+                .stage(ex == null ? TopicEventsListener.EventStage.SUCCESS : TopicEventsListener.EventStage.FAILURE)
+                .error(ex)
+                .dispatch());
     }
 
     /**
@@ -105,33 +122,117 @@ public class TopicEventsDispatcher {
      * @param event
      * @param stage
      * @param t
+     * @deprecated Use {@link #newEvent(String, TopicEvent)} to create an event and then call.
      */
+    @Deprecated
     public static void notify(TopicEventsListener[] listeners,
                               String topic,
                               TopicEventsListener.TopicEvent event,
                               TopicEventsListener.EventStage stage,
                               Throwable t) {
         Objects.requireNonNull(listeners);
-        for (TopicEventsListener listener: listeners) {
-            notify(listener, topic, event, stage, t);
+        for (TopicEventsListener listener : listeners) {
+            notify(listener, EventContext.builder()
+                    .topicName(topic)
+                    .event(event)
+                    .stage(stage)
+                    .error(t)
+                    .build());
         }
     }
 
     private static void notify(TopicEventsListener listener,
-                               String topic,
-                               TopicEventsListener.TopicEvent event,
-                               TopicEventsListener.EventStage stage,
-                               Throwable t) {
+                               TopicEventsListener.EventContext context) {
         if (listener == null) {
             return;
         }
 
         try {
-            listener.handleEvent(topic, event, stage, t);
+            listener.handleEvent(context);
         } catch (Throwable ex) {
-            log.error("TopicEventsListener {} exception while handling {}_{} for topic {}",
-                    listener, event, stage, topic, ex);
+            log.error("TopicEventsListener {} exception while handling {} for topic {}",
+                    listener, context.getEvent(), context.getTopicName(), ex);
         }
     }
 
+    public TopicEventBuilder newEvent(String topic, TopicEvent event) {
+        initBrokerId();
+        return new TopicEventBuilder(topic, event);
+    }
+
+    public class TopicEventBuilder {
+        private final EventContext.EventContextBuilder builder;
+
+        private TopicEventBuilder(String topic, TopicEvent event) {
+            builder = EventContext.builder()
+                    .topicName(topic)
+                    .brokerId(brokerId)
+                    .brokerVersion(pulsar.getBrokerVersion())
+                    .event(event)
+                    .stage(TopicEventsListener.EventStage.SUCCESS);
+        }
+
+        public TopicEventBuilder role(String role, String originalRole) {
+            // If originalRole is not null, it indicates the request is made via a proxy.
+            // In this case:
+            // - 'role' represents the role of the proxy entity
+            // - 'originalRole' represents the role of the original client
+            if (originalRole != null) {
+                builder.clientRole(originalRole);
+                builder.proxyRole(role);
+            } else {
+                builder.proxyRole(null);
+                builder.clientRole(role);
+            }
+            return this;
+        }
+
+        public TopicEventBuilder error(Throwable t) {
+            builder.error(t);
+            return this;
+        }
+
+        public TopicEventBuilder clientVersion(String version) {
+            builder.clientVersion(version);
+            return this;
+        }
+
+        public TopicEventBuilder proxyVersion(String version) {
+            builder.clientVersion(version);
+            return this;
+        }
+
+        public TopicEventBuilder data(EventData data) {
+            builder.data(data);
+            return this;
+        }
+
+        public TopicEventBuilder stage(EventStage stage) {
+            builder.stage(stage);
+            return this;
+        }
+
+        public void dispatch() {
+            EventContext context = builder.build();
+            for (TopicEventsListener listener : topicEventListeners) {
+                TopicEventsDispatcher.notify(listener, context);
+            }
+        }
+    }
+
+    private void initBrokerId() {
+        if (brokerId == null) {
+            // Lazy initialization of brokerId to avoid blocking the constructor
+            // in case of PulsarService not being fully initialized.
+            synchronized (this) {
+                if (brokerId == null) {
+                    try {
+                        brokerId = pulsar.getBrokerId();
+                    } catch (Exception ignored) {
+                        // If we cannot get the broker ID, we will leave it as null.
+                    }
+                }
+            }
+        }
+    }
 }

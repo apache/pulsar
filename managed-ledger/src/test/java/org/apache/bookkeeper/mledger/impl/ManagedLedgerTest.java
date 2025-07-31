@@ -3582,9 +3582,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         stateUpdater.setAccessible(true);
         stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
         ledger.rollCurrentLedgerIfFull();
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        ledger.trimConsumedLedgersInBackground(completableFuture);
-        completableFuture.get();
+        CompletableFuture<List<LedgerInfo>> completableFuture = ledger.asyncTrimConsumedLedgers();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getTotalSize(), 0));
     }
@@ -3658,7 +3656,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
         // Now we update the cursors that are still subscribing to ledgers that has been consumed completely
         managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
-        managedLedger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
+        managedLedger.asyncTrimConsumedLedgers();
         ManagedLedgerImpl finalManagedLedger = managedLedger;
         Awaitility.await().untilAsserted(() -> {
             // We only have one empty ledger at last [{entries=0}]
@@ -3762,7 +3760,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         cursor.clearBacklog();
         cursor2.clearBacklog();
-        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        ledger.asyncTrimConsumedLedgers();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 1);
             assertEquals(ledger.ledgerCache.size(), 0);
@@ -3791,8 +3789,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.ledgers.size() - 1, entries);
         assertEquals(ledger.ledgerCache.size() - 1, entries - 1);
         cursor.clearBacklog();
-        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
-        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        ledger.asyncTrimConsumedLedgers();
+        ledger.asyncTrimConsumedLedgers();
         // Cleanup fails because ManagedLedgerNotFoundException is thrown
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size() - 1, entries);
@@ -3876,7 +3874,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(ledgerOffloader);
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl)factory.open(
                 "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config));
-        doNothing().when(ledger).trimConsumedLedgersInBackground(any(CompletableFuture.class));
 
         // Retain the data.
         ledger.openCursor("test-cursor");
@@ -3891,7 +3888,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledgerOffloader = mock(NullLedgerOffloader.class);
         config.setLedgerOffloader(ledgerOffloader);
 
-        ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
+        ledger.internalTrimConsumedLedgers(new CompletableFuture<>());
         verify(ledgerOffloader, times(1)).isAppendable();
     }
 
@@ -4191,7 +4188,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Trim ledgers to make there is no entries in ML.
         ml.deleteCursor(cursorName);
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
         ml.trimConsumedLedgersInBackground(true, future);
         future.get();
         assertEquals(ml.ledgers.size(), 1);
@@ -4431,7 +4428,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> assertEquals(ml.ledgers.size(), 2));
 
         // Act: Trigger trimming to delete the previous current ledger.
-        ml.internalTrimLedgers(false, Futures.NULL_PROMISE);
+        ml.internalTrimLedgers(false, new CompletableFuture<>());
         // Verify: A new ledger will be opened after the current ledger is closed and the previous current ledger can be
         // deleted.
         Awaitility.await().untilAsserted(() -> {

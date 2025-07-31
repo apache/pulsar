@@ -92,6 +92,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.event.data.TopicPoliciesApplyEventData;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
@@ -124,6 +125,8 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -3218,10 +3221,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         applyPolicyTasks.add(applyUpdatedNamespacePolicies());
         return FutureUtil.waitForAll(applyPolicyTasks)
             .thenAccept(__ -> log.info("[{}] namespace-level policies updated successfully", topic))
+            .whenComplete((__, ex) -> notifyTopicPoliciesApplyEvent(ex))
             .exceptionally(ex -> {
                 log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
                 throw FutureUtil.wrapToCompletionException(ex);
             });
+    }
+
+    private void notifyTopicPoliciesApplyEvent(Throwable error) {
+        brokerService.getTopicEventsDispatcher()
+                .newEvent(topic, TopicEvent.POLICIES_APPLY)
+                .error(error)
+                .stage(error != null ? EventStage.FAILURE : EventStage.SUCCESS)
+                .data(TopicPoliciesApplyEventData.builder().policies(topicPolicies).build())
+                .dispatch();
     }
 
     private CompletableFuture<Void> applyUpdatedNamespacePolicies() {
@@ -4152,6 +4165,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Apply policies for components(not contains the specified policies which only defined in namespace policies).
         FutureUtil.waitForAll(applyUpdatedTopicPolicies())
             .thenAccept(__ -> log.info("[{}] topic-level policies updated successfully", topic))
+            .whenComplete((__, ex) -> notifyTopicPoliciesApplyEvent(ex))
             .exceptionally(e -> {
                 Throwable t = FutureUtil.unwrapCompletionException(e);
                 log.error("[{}] update topic-level policy error: {}", topic, t.getMessage(), t);

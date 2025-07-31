@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import lombok.Builder;
+import lombok.Value;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -38,6 +40,29 @@ public interface TopicEventsListener {
         LOAD,
         UNLOAD,
         DELETE,
+
+        LOOKUP,
+
+        TOPIC_METADATA_UPDATE,
+
+        MESSAGE_EXPIRE,
+        MESSAGE_PURGE,
+
+        POLICIES_UPDATE,
+        POLICIES_APPLY,
+
+        PRODUCER_CONNECT,
+        PRODUCER_DISCONNECT,
+
+        CONSUMER_CONNECT,
+        CONSUMER_DISCONNECT,
+
+        SUBSCRIPTION_CREATE,
+        SUBSCRIPTION_DELETE,
+        SUBSCRIPTION_SEEK,
+
+        REPLICATOR_START,
+        REPLICATOR_STOP
     }
 
     /**
@@ -50,6 +75,29 @@ public interface TopicEventsListener {
         FAILURE
     }
 
+    interface EventData {
+        // Marker interface for event data
+    }
+
+    @Builder
+    @Value
+    class EventContext {
+        String brokerId;
+        String proxyRole;
+        String clientRole;
+        String topicName;
+        TopicEvent event;
+        EventData data;
+        EventStage stage;
+        Throwable error;
+        String clientVersion;
+        String brokerVersion;
+        String proxyVersion;
+
+        @Builder.Default
+        long timestamp = System.currentTimeMillis();
+    }
+
     /**
      * Handle topic event.
      * Choice of the thread / maintenance of the thread pool is up to the event handlers.
@@ -57,6 +105,14 @@ public interface TopicEventsListener {
      * @param event - TopicEvent
      * @param stage - EventStage
      * @param t - exception in case of FAILURE, if present/known
+     * @deprecated Use {@link #handleEvent(EventContext)} instead.
      */
-    void handleEvent(String topicName, TopicEvent event, EventStage stage, Throwable t);
+    @Deprecated
+    default void handleEvent(String topicName, TopicEvent event, EventStage stage, Throwable t) {
+        // noop
+    }
+
+    default void handleEvent(EventContext context) {
+        handleEvent(context.getTopicName(), context.getEvent(), context.getStage(), context.getError());
+    }
 }

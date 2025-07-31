@@ -43,8 +43,10 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.event.data.TopicCreateEventData;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.service.TopicEventsDispatcher;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -168,25 +170,32 @@ public abstract class AdminResource extends PulsarWebResource {
     protected CompletableFuture<Void> tryCreatePartitionsAsync(int numPartitions) {
         if (!topicName.isPersistent()) {
             for (int i = 0; i < numPartitions; i++) {
-                pulsar().getBrokerService().getTopicEventsDispatcher()
-                        .notify(topicName.getPartition(i).toString(), TopicEvent.CREATE, EventStage.SUCCESS);
+                newTopicEvent(topicName.getPartition(i), TopicEvent.CREATE)
+                        .data(TopicCreateEventData.builder().partitions(numPartitions).build())
+                        .dispatch();
             }
             return CompletableFuture.completedFuture(null);
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i));
+            futures.add(tryCreatePartitionAsync(numPartitions, i));
         }
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition) {
+    private CompletableFuture<Void> tryCreatePartitionAsync(int numPartitions, final int partition) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Topic partition {} created.", clientAppId(), topicName.getPartition(partition));
                     }
+                    newTopicEvent(topicName.getPartition(partition), TopicEvent.CREATE)
+                            .data(TopicCreateEventData
+                                    .builder()
+                                    .partitions(numPartitions)
+                                    .build())
+                            .dispatch();
                     result.complete(null);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof AlreadyExistsException) {
@@ -200,14 +209,20 @@ public abstract class AdminResource extends PulsarWebResource {
                         // resource
                         result.complete(null);
                     } else {
+                        newTopicEvent(topicName.getPartition(partition), TopicEvent.CREATE)
+                                .error(ex)
+                                .data(TopicCreateEventData
+                                        .builder()
+                                        .partitions(numPartitions)
+                                        .build())
+                                .stage(EventStage.FAILURE)
+                                .dispatch();
                         log.error("[{}] Fail to create topic partition {}", clientAppId(),
                                 topicName.getPartition(partition), ex.getCause());
                         result.completeExceptionally(ex.getCause());
                     }
                     return null;
                 });
-        pulsar().getBrokerService().getTopicEventsDispatcher()
-                .notifyOnCompletion(result, topicName.getPartition(partition).toString(), TopicEvent.CREATE);
         return result;
     }
 
@@ -646,9 +661,14 @@ public abstract class AdminResource extends PulsarWebResource {
                         }))
                 .thenRun(() -> {
                     for (int i = 0; i < numPartitions; i++) {
-                        pulsar().getBrokerService().getTopicEventsDispatcher()
-                                .notify(topicName.getPartition(i).toString(), TopicEvent.CREATE,
-                                        EventStage.BEFORE);
+                        newTopicEvent(topicName.getPartition(i), TopicEvent.CREATE)
+                                .stage(EventStage.BEFORE)
+                                .data(TopicCreateEventData.builder()
+                                        .partitions(numPartitions)
+                                        .properties(properties)
+                                        .build()
+                                )
+                                .dispatch();
                     }
                 })
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
@@ -1050,5 +1070,12 @@ public abstract class AdminResource extends PulsarWebResource {
     protected String getReplicatorDispatchRateKey(String remoteCluster) {
         return DispatchRateLimiter.getReplicatorDispatchRateKey(pulsar().getConfiguration().getClusterName(),
                 remoteCluster);
+    }
+
+    protected TopicEventsDispatcher.TopicEventBuilder newTopicEvent(TopicName topic, TopicEvent topicEvent) {
+        return pulsar().getBrokerService().getTopicEventsDispatcher()
+                .newEvent(topic.toString(), topicEvent)
+                .role(clientAppId(), originalPrincipal())
+                .clientVersion(getClientVersion());
     }
 }

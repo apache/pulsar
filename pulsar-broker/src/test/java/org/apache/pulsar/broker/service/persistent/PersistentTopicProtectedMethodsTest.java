@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.testng.Assert.assertEquals;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
@@ -94,8 +96,7 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
             assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
             assertEquals(cursor.getMarkDeletedPosition(), ml.getLastConfirmedEntry());
         });
-        CompletableFuture completableFuture = new CompletableFuture();
-        ml.trimConsumedLedgersInBackground(completableFuture);
+        CompletableFuture<List<LedgerInfo>> completableFuture = ml.asyncTrimConsumedLedgers();
         completableFuture.join();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ml.getLedgersInfo().size(), 1);

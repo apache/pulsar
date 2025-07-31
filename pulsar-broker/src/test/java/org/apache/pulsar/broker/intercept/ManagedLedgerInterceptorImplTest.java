@@ -19,10 +19,17 @@
 package org.apache.pulsar.broker.intercept;
 
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,6 +48,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
@@ -52,15 +60,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
 
 @Test(groups = "broker")
 public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
@@ -189,8 +188,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         }
 
         // Trim ledgers.
-        CompletableFuture<Void> trimLedgerFuture = new CompletableFuture<>();
-        ledger.trimConsumedLedgersInBackground(trimLedgerFuture);
+        CompletableFuture<List<LedgerInfo>> trimLedgerFuture = ledger.asyncTrimConsumedLedgers();
         trimLedgerFuture.join();
 
         // verify.

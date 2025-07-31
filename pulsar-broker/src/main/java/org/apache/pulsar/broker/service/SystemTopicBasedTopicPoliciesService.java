@@ -41,9 +41,11 @@ import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.event.data.TopicPoliciesUpdateEventData;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.api.Message;
@@ -222,6 +224,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                       TopicPolicies policies) {
         PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
         if (!ActionType.DELETE.equals(actionType)) {
+            pulsarService.getBrokerService().getTopicEventsDispatcher()
+                    .newEvent(topicName.getPartitionedTopicName(), TopicEvent.POLICIES_UPDATE)
+                    .data(TopicPoliciesUpdateEventData.builder()
+                            .policiesClass(TopicPolicies.class.getName()).policies(policies).build())
+                    .dispatch();
             return writer.writeAsync(getEventKey(event, policies != null && policies.isGlobalPolicies()), event);
         }
         // When a topic is deleting, delete both non-global and global topic-level policies.

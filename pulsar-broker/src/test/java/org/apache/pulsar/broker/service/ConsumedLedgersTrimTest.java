@@ -23,12 +23,14 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -175,8 +177,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
         // force trimConsumedLedgers
         Thread.sleep(3000);
-        CompletableFuture f = new CompletableFuture();
-        managedLedger.trimConsumedLedgersInBackground(f);
+        CompletableFuture<List<LedgerInfo>> f = managedLedger.asyncTrimConsumedLedgers();
         f.join();
 
         // lastMessageId should be available even in this case, but is must

@@ -2586,19 +2586,34 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void trimConsumedLedgersInBackground() {
-        trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        asyncTrimConsumedLedgers();
     }
 
     @Override
     public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
-        executor.execute(() -> internalTrimConsumedLedgers(promise));
+        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
+        executor.execute(() -> internalTrimConsumedLedgers(future));
+        future.whenComplete((result, ex) -> {
+            if (ex != null) {
+                promise.completeExceptionally(ex);
+            } else {
+                promise.complete(null);
+            }
+        });
     }
 
-    public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
+    @Override
+    public CompletableFuture<List<LedgerInfo>> asyncTrimConsumedLedgers() {
+        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
+        executor.execute(() -> internalTrimConsumedLedgers(future));
+        return future;
+    }
+
+    public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<List<LedgerInfo>> promise) {
         executor.execute(() -> internalTrimLedgers(isTruncate, promise));
     }
 
-    private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
+    private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<List<LedgerInfo>> promise) {
         scheduledExecutor.schedule(() -> trimConsumedLedgersInBackground(isTruncate, promise),
                 100, TimeUnit.MILLISECONDS);
     }
@@ -2718,7 +2733,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *
      * @throws Exception
      */
-    void internalTrimConsumedLedgers(CompletableFuture<?> promise) {
+    void internalTrimConsumedLedgers(CompletableFuture<List<LedgerInfo>> promise) {
         internalTrimLedgers(false, promise);
     }
 
@@ -2783,7 +2798,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
+    void internalTrimLedgers(boolean isTruncate, CompletableFuture<List<LedgerInfo>> promise) {
 
         internalEvictOffloadedLedgers();
 
@@ -2991,7 +3006,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             return null;
                         });
                     }
-                    promise.complete(null);
+
+                    promise.complete(ledgersToDelete);
                 }
 
                 @Override
@@ -4560,14 +4576,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }, null);
             futures.add(future);
         }
-        CompletableFuture<Void> future = new CompletableFuture();
+        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture();
         FutureUtil.waitForAll(futures).thenAccept(p -> {
             internalTrimLedgers(true, future);
         }).exceptionally(e -> {
             future.completeExceptionally(e);
             return null;
         });
-        return future;
+        return future.thenRun(() -> {
+        });
     }
 
     @Override

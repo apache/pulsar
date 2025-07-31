@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -681,8 +683,19 @@ public interface ManagedLedger {
     /**
      * Trim consumed ledgers in background.
      * @param promise
+     * @deprecated Use {@link #asyncTrimConsumedLedgers()} instead.
      */
-    void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
+    @Deprecated
+    default void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
+        promise.completeExceptionally(new UnsupportedOperationException(
+                "trimConsumedLedgersInBackground is deprecated, use asyncTrimConsumedLedgers instead"));
+    }
+
+    default CompletableFuture<List<LedgerInfo>> asyncTrimConsumedLedgers() {
+        CompletableFuture<?> promise = new CompletableFuture<>();
+        trimConsumedLedgersInBackground(promise);
+        return promise.thenApply(v -> Collections.emptyList());
+    }
 
     /**
      * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is

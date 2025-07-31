@@ -161,11 +161,12 @@ public abstract class PulsarWebResource {
      * @return the web service caller identification
      */
     public String clientAppId() {
-        return (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
+        return httpRequest != null
+                ? (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName) : null;
     }
 
     public String originalPrincipal() {
-        return httpRequest.getHeader(ORIGINAL_PRINCIPAL_HEADER);
+        return httpRequest != null ? httpRequest.getHeader(ORIGINAL_PRINCIPAL_HEADER) : null;
     }
 
     public AuthenticationDataSource clientAuthData() {
@@ -1335,5 +1336,9 @@ public abstract class PulsarWebResource {
         } else {
             asyncResponse.resume(new RestException(realCause));
         }
+    }
+
+    protected String getClientVersion() {
+        return httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
     }
 }

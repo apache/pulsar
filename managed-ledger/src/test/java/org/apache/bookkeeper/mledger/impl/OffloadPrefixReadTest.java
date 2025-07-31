@@ -224,8 +224,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
         assertEventuallyTrue(() -> bkc.getLedgers().contains(secondLedger.getLedgerId()));
         clock.advance(6, TimeUnit.MINUTES);
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        ledger.internalTrimConsumedLedgers(promise);
+        CompletableFuture<List<LedgerInfo>> promise =  ledger.asyncTrimConsumedLedgers();
         promise.join();
 
         // assert bk ledger is deleted
@@ -253,8 +252,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
         config.setRetentionTime(0, TimeUnit.MILLISECONDS);
         config.setRetentionSizeInMB(0);
-        CompletableFuture trimFuture = new CompletableFuture();
-        ledger.trimConsumedLedgersInBackground(trimFuture);
+        CompletableFuture<List<LedgerInfo>> trimFuture = ledger.asyncTrimConsumedLedgers();
         trimFuture.join();
         Awaitility.await().untilAsserted(() -> {
             assertTrue(offloader.offloads.size() <= 1);

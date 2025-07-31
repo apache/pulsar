@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -75,12 +76,20 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.event.data.SubscriptionCreateEventData;
+import org.apache.pulsar.broker.event.data.SubscriptionDeleteEventData;
+import org.apache.pulsar.broker.event.data.SubscriptionSeekEventData;
+import org.apache.pulsar.broker.event.data.TopicCreateEventData;
+import org.apache.pulsar.broker.event.data.TopicDeleteEventData;
+import org.apache.pulsar.broker.event.data.TopicMetadataUpdateEventData;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -95,6 +104,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -420,7 +430,12 @@ public class PersistentTopicsBase extends AdminResource {
                }
                return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties);
            })
-           .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
+           .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName))
+           .thenRun(()->{
+                newTopicEvent(topicName, TopicEvent.CREATE)
+                        .data(TopicCreateEventData.builder().partitions(0).properties(properties).build())
+                        .dispatch();
+            });
     }
 
     /**
@@ -499,8 +514,13 @@ public class PersistentTopicsBase extends AdminResource {
                             // update current cluster topic metadata
                             : namespaceResources().getPartitionedTopicResources()
                             .updatePartitionedTopicAsync(topicName, m ->
-                                    new PartitionedTopicMetadata(expectPartitions, m.properties));
-                return updateMetadataFuture
+                                    new PartitionedTopicMetadata(expectPartitions, m.properties))
+                            .thenRun(() -> newTopicEvent(topicName, TopicEvent.TOPIC_METADATA_UPDATE)
+                                    .data(TopicMetadataUpdateEventData.builder()
+                                            .oldPartitions(currentMetadataPartitions)
+                                            .newPartitions(expectPartitions)
+                                            .build()));
+                    return updateMetadataFuture
                     // create missing partitions
                     .thenCompose(__ -> tryCreatePartitionsAsync(expectPartitions))
                     // because we should consider the compatibility.
@@ -864,6 +884,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenAccept(__ -> {
                     log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
                     asyncResponse.resume(Response.noContent().build());
+                    newTopicEvent(topicName, TopicEvent.DELETE)
+                            .data(TopicDeleteEventData.builder().force(force).build()).dispatch();
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof PreconditionFailedException) {
@@ -1196,11 +1218,17 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalUnloadNonPartitionedTopicAsync(AsyncResponse asyncResponse, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                        .thenCompose(topic -> topic.close(false))
-                        .thenRun(() -> {
-                            log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-                            asyncResponse.resume(Response.noContent().build());
-                        })
+                .thenCompose(topic -> {
+                    newTopicEvent(topicName, TopicEvent.UNLOAD)
+                            .stage(EventStage.BEFORE)
+                            .dispatch();
+                    return topic.close(false)
+                            .thenRun(() -> newTopicEvent(topicName, TopicEvent.UNLOAD).dispatch());
+                })
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
@@ -1236,7 +1264,9 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalDeleteTopicAsync(boolean authoritative, boolean force) {
         return validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC)
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force));
+                .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force))
+                .thenRun(() -> newTopicEvent(topicName, TopicEvent.DELETE)
+                        .data(TopicDeleteEventData.builder().force(force).build()).dispatch());
     }
 
     /**
@@ -1749,7 +1779,13 @@ public class PersistentTopicsBase extends AdminResource {
                         throw new RestException(Status.NOT_FOUND,
                                 getSubNotFoundErrorMessage(topicName.toString(), subName));
                     }
-                    return force ? sub.deleteForcefully() : sub.delete();
+                    CompletableFuture<Void> future = force ? sub.deleteForcefully() : sub.delete();
+                    return future.thenRun(() -> newTopicEvent(topicName, TopicEvent.SUBSCRIPTION_DELETE)
+                            .data(SubscriptionDeleteEventData.builder()
+                                    .subscriptionName(subName)
+                                    .subscriptionType(sub.getType())
+                                    .force(force)
+                                    .build()));
                 });
     }
 
@@ -2379,7 +2415,15 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_FOUND,
                         getSubNotFoundErrorMessage(topicName.toString(), subName));
                 }
-                return sub.resetCursor(timestamp);
+                return sub.resetCursor(timestamp)
+                        .thenRun(() -> newTopicEvent(topicName, TopicEvent.SUBSCRIPTION_SEEK)
+                                .data(SubscriptionSeekEventData.builder()
+                                        .subscriptionName(subName)
+                                        .subscriptionType(sub.getType())
+                                        .timestamp(timestamp)
+                                        .build())
+                                .dispatch()
+                        );
             })
             .thenRun(() ->
                 log.info("[{}][{}] Reset cursor on subscription {} to time {}",
@@ -2521,7 +2565,20 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
             }
 
-            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated, properties);
+            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated, properties)
+                    .thenApply((s) -> {
+                        newTopicEvent(topicName, TopicEvent.SUBSCRIPTION_CREATE)
+                                .data(SubscriptionCreateEventData.builder()
+                                        .subscriptionName(subscriptionName)
+                                        .durable(true)
+                                        .replicateSubscriptionState(replicated)
+                                        .subscriptionInitialPosition(InitialPosition.Latest)
+                                        .messageId(new MessageIdImpl(targetMessageId.getLedgerId(),
+                                                targetMessageId.getEntryId(), -1))
+                                        .build())
+                                .dispatch();
+                        return s;
+                    });
         }).thenCompose(subscription -> {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             ((PersistentSubscription) subscription).deactivateCursor();
@@ -2806,6 +2863,15 @@ public class PersistentTopicsBase extends AdminResource {
                                                 + " to position {}", clientAppId(),
                                         topicName, subName, messageId);
                                 asyncResponse.resume(Response.noContent().build());
+                                newTopicEvent(topicName, TopicEvent.SUBSCRIPTION_SEEK)
+                                        .data(SubscriptionSeekEventData.builder()
+                                                .subscriptionName(subName)
+                                                .subscriptionType(sub.getType())
+                                                .messageId(new BatchMessageIdImpl(messageId.getLedgerId(),
+                                                        messageId.getEntryId(), messageId.getPartitionIndex(),
+                                                        batchIndex))
+                                                .build())
+                                        .dispatch();
                             }).exceptionally(ex -> {
                                 Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
                                 log.warn("[{}][{}] Failed to reset cursor on subscription {}"
@@ -4911,15 +4977,17 @@ public class PersistentTopicsBase extends AdminResource {
                         asyncResponse.resume(null);
                         return CompletableFuture.completedFuture(null);
                     }
-                    CompletableFuture<Void> result = new CompletableFuture<>();
-                    managedLedger.trimConsumedLedgersInBackground(result);
-                    return result.whenComplete((res, e) -> {
-                        if (e != null) {
-                            asyncResponse.resume(e);
-                        } else {
-                            asyncResponse.resume(res);
-                        }
-                    });
+                    CompletableFuture<List<LedgerInfo>> result = managedLedger.asyncTrimConsumedLedgers();
+                    return result
+                            .thenRun(() -> {
+                            })
+                            .whenComplete((res, e) -> {
+                                if (e != null) {
+                                    asyncResponse.resume(e);
+                                } else {
+                                    asyncResponse.resume(Response.noContent().build());
+                                }
+                            });
                 });
     }
 
