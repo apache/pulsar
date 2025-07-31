@@ -25,7 +25,7 @@
     <parent>
         <groupId>com.datastax.oss.tests</groupId>
         <artifactId>tests-parent</artifactId>
-        <version>3.1.4.18-SNAPSHOT</version>
+        <version>3.1.4.18</version>
     </parent>
 
     <artifactId>bc_2_0_0</artifactId>
