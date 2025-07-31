@@ -948,7 +948,7 @@ public class ServerCnxTest {
         assertEquals(((CommandLookupTopicResponse) lookupResponse).getRequestId(), 1);
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // producer
         ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
@@ -959,7 +959,7 @@ public class ServerCnxTest {
         assertEquals(((CommandError) producerResponse).getRequestId(), 2);
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // consumer
         String subscriptionName = "test-subscribe";
@@ -977,7 +977,7 @@ public class ServerCnxTest {
                     assertEquals(arg.getCommandData(), clientRole);
                     assertEquals(arg.getSubscription(), subscriptionName);
                     return true;
-                }));
+                }), any());
     }
 
     @Test
@@ -1749,7 +1749,7 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
-                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
@@ -2536,7 +2536,7 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
-                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
@@ -2559,7 +2559,7 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
-                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
