@@ -866,6 +866,27 @@ public class AuthorizationService {
                                                                TopicOperation operation,
                                                                String originalRole,
                                                                String role,
+                                                               AuthenticationDataSource originalAuthData,
+                                                               AuthenticationDataSource authData) {
+        if (!isValidOriginalPrincipal(role, originalRole, originalAuthData)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
+                    topicName, operation, role, authData);
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTopicOperationAsync(
+                    topicName, operation, originalRole, originalAuthData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowTopicOperationAsync(topicName, operation, role, authData);
+        }
+    }
+
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
+                                                               TopicOperation operation,
+                                                               String originalRole,
+                                                               String role,
                                                                AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
