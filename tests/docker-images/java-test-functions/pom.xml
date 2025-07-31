@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.datastax.oss.tests</groupId>
     <artifactId>docker-images</artifactId>
-    <version>3.1.4.18</version>
+    <version>3.1.4.19-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>java-test-functions</artifactId>
