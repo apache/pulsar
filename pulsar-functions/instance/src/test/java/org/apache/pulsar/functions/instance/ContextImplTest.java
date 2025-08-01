@@ -335,6 +335,7 @@ public class ContextImplTest {
             Assert.fail("Expected exception");
         } catch (PulsarClientException e) {
             // pass
+            Assert.assertTrue(e.getMessage().contains("No Partioned topic present"));
         }
     }
 
