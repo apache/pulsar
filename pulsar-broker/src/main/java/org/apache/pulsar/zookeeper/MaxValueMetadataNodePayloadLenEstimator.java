@@ -20,6 +20,7 @@ package org.apache.pulsar.zookeeper;
 
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataNodePayloadLenEstimator;
@@ -43,23 +44,23 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
             return new SplitPathRes();
         }
     };
-    private final int[] maxLenOfGetMapping;
-    private final int[] maxLenOfListMapping;
+    private final AtomicReferenceArray<Integer> maxLenOfGetMapping;
+    private final AtomicReferenceArray<Integer> maxLenOfListMapping;
 
    public MaxValueMetadataNodePayloadLenEstimator() {
         int pathTypeCount = PathType.values().length;
-        maxLenOfGetMapping = new int[pathTypeCount];
-        maxLenOfListMapping = new int[pathTypeCount];
+        maxLenOfGetMapping = new AtomicReferenceArray<>(pathTypeCount);
+        maxLenOfListMapping = new AtomicReferenceArray<>(pathTypeCount);
         for (int i = 0; i < pathTypeCount; i++) {
-            maxLenOfGetMapping[i] = UNSET;
-            maxLenOfListMapping[i] = UNSET;
+            maxLenOfGetMapping.set(i, UNSET);
+            maxLenOfListMapping.set(i, UNSET);
         }
     }
 
     @Override
     public void recordPut(String path, byte[] data) {
         PathType pathType = getPathType(path);
-        maxLenOfGetMapping[pathType.ordinal()] = Math.max(maxLenOfGetMapping[pathType.ordinal()], data.length);
+        maxLenOfGetMapping.set(pathType.ordinal(), Math.max(maxLenOfGetMapping.get(pathType.ordinal()), data.length));
     }
 
     @Override
@@ -68,8 +69,8 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         if (getResult == null) {
             return;
         }
-        maxLenOfGetMapping[pathType.ordinal()] = Math.max(maxLenOfGetMapping[pathType.ordinal()],
-                getResult.getValue().length);
+        maxLenOfGetMapping.set(pathType.ordinal(), Math.max(maxLenOfGetMapping.get(pathType.ordinal()),
+                getResult.getValue().length));
     }
 
     @Override
@@ -77,7 +78,7 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         PathType pathType = getPathType(path);
         // ZK serialize each string with 4 bytes length prefix, so we add 4 bytes for each string.
         int totalLen = list.stream().mapToInt(String::length).sum() + list.size() * 4;
-        maxLenOfListMapping[pathType.ordinal()] = Math.max(maxLenOfListMapping[pathType.ordinal()], totalLen);
+        maxLenOfListMapping.set(pathType.ordinal(), Math.max(maxLenOfListMapping.get(pathType.ordinal()), totalLen));
     }
 
     @Override
@@ -92,13 +93,13 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
 
     public int internalEstimateGetResPayloadLen(String path) {
         PathType pathType = getPathType(path);
-        int res = maxLenOfGetMapping[pathType.ordinal()];
+        int res = maxLenOfGetMapping.get(pathType.ordinal());
         return res == UNSET ? DEFAULT_LEN : res;
     }
 
     public int internalEstimateGetChildrenResPayloadLen(String path) {
         PathType pathType = getPathType(path);
-        int res = maxLenOfListMapping[pathType.ordinal()];
+        int res = maxLenOfListMapping.get(pathType.ordinal());
         return res == UNSET ? DEFAULT_LEN : res;
     }
 
