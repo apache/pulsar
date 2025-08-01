@@ -28,6 +28,8 @@ import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Topic policies service.
@@ -38,6 +40,8 @@ public interface TopicPoliciesService extends AutoCloseable {
 
     String GLOBAL_POLICIES_MSG_KEY_PREFIX = "__G__";
 
+    Logger LOG = LoggerFactory.getLogger(TopicPoliciesService.class);
+
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
 
     /**
@@ -46,6 +50,11 @@ public interface TopicPoliciesService extends AutoCloseable {
      * @param topicName topic name
      */
     CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
+
+    default CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName,
+                                                             boolean keepGlobalPoliciesAfterDeleting) {
+        return deleteTopicPoliciesAsync(topicName);
+    }
 
     /**
      * Update policies for a topic asynchronously.

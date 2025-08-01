@@ -26,6 +26,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Arrays;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -371,12 +373,57 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void waitReplicatorStarted(String topicName) {
+        waitReplicatorStarted(topicName, pulsar2);
+    }
+
+    protected void waitReplicatorStarted(String topicName, PulsarService remoteCluster) {
         Awaitility.await().untilAsserted(() -> {
-            Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
+            Optional<Topic> topicOptional2 = remoteCluster.getBrokerService().getTopic(topicName, false).get();
             assertTrue(topicOptional2.isPresent());
             PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
             assertFalse(persistentTopic2.getProducers().isEmpty());
         });
+    }
+
+    protected void waitReplicatorStopped(String topicName, boolean remoteTopicExpectedDeleted) {
+        waitReplicatorStopped(topicName, pulsar1, pulsar2, remoteTopicExpectedDeleted);
+    }
+
+    protected void waitReplicatorStopped(String topicName, PulsarService sourceCluster, PulsarService remoteCluster,
+                                         boolean remoteTopicExpectedDeleted) {
+        Awaitility.await().untilAsserted(() -> {
+            Optional<Topic> remoteTp = remoteCluster.getBrokerService().getTopic(topicName, false).get();
+            if (remoteTopicExpectedDeleted) {
+                assertTrue(remoteTp.isEmpty());
+            } else {
+                assertTrue(remoteTp.isPresent());
+            }
+            if (remoteTp.isPresent()) {
+                PersistentTopic remoteTp1 = (PersistentTopic) remoteTp.get();
+                for (org.apache.pulsar.broker.service.Producer p : remoteTp1.getProducers().values()) {
+                    assertFalse(p.getProducerName().startsWith(remoteCluster.getConfig().getReplicatorPrefix()));
+                }
+            }
+            Optional<Topic> sourceTp = sourceCluster.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(sourceTp.isPresent());
+            PersistentTopic sourceTp1 = (PersistentTopic) sourceTp.get();
+            assertTrue(sourceTp1.getReplicators().isEmpty()
+                    || !sourceTp1.getReplicators().get(remoteCluster.getConfig().getClusterName()).isConnected());
+        });
+    }
+
+    /**
+     * Override "AbstractReplicator.producer" by {@param producer} and return the original value.
+     */
+    protected ProducerImpl overrideProducerForReplicator(AbstractReplicator replicator, ProducerImpl newProducer)
+            throws Exception {
+        Field producerField = AbstractReplicator.class.getDeclaredField("producer");
+        producerField.setAccessible(true);
+        ProducerImpl originalValue = (ProducerImpl) producerField.get(replicator);
+        synchronized (replicator) {
+            producerField.set(replicator, newProducer);
+        }
+        return originalValue;
     }
 
     protected PulsarClient initClient(ClientBuilder clientBuilder) throws Exception {
