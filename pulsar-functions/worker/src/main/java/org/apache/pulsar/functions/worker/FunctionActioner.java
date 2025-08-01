@@ -432,16 +432,18 @@ public class FunctionActioner {
                     // for debugging purposes
                     List<Map<String, String>> existingConsumers = Collections.emptyList();
                     SubscriptionStats sub = null;
-                    try {
-                        TopicStats stats = pulsarAdmin.topics().getStats(topic);
-                        sub = stats.getSubscriptions().get(subscriptionName);
-                        if (sub != null) {
-                            existingConsumers = sub.getConsumers().stream()
-                              .map(consumerStats -> consumerStats.getMetadata())
-                              .collect(Collectors.toList());
-                        }
-                    } catch (PulsarAdminException e1) {
+                    if (!isRegex) {
+                        try {
+                            TopicStats stats = pulsarAdmin.topics().getStats(topic);
+                            sub = stats.getSubscriptions().get(subscriptionName);
+                            if (sub != null) {
+                                existingConsumers = sub.getConsumers().stream()
+                                        .map(consumerStats -> consumerStats.getMetadata())
+                                        .collect(Collectors.toList());
+                            }
+                        } catch (PulsarAdminException e1) {
 
+                        }
                     }
 
                     String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
@@ -449,7 +451,7 @@ public class FunctionActioner {
                     if (sub != null) {
                         try {
                             finalErrorMsg = String.format("%s - existing consumers: %s",
-                              errorMsg, ObjectMapperFactory.getMapper().writer().writeValueAsString(sub));
+                              errorMsg, ObjectMapperFactory.getMapper().writer().writeValueAsString(existingConsumers));
                         } catch (JsonProcessingException jsonProcessingException) {
                             finalErrorMsg = errorMsg;
                         }
