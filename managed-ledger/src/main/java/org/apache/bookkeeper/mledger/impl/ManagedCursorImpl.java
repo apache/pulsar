@@ -20,15 +20,15 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
+import static org.apache.bookkeeper.mledger.AsyncCallbacks.BatchMsgAckResType;
+import static org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
+import static org.apache.bookkeeper.mledger.AsyncCallbacks.PositionAckState;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
-import static org.apache.bookkeeper.mledger.AsyncCallbacks.BatchMsgAckResType;
-import static org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
-import static org.apache.bookkeeper.mledger.AsyncCallbacks.PositionAckState;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Collections2;
