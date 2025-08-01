@@ -4383,7 +4383,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             timeoutSec = timeoutSec <= 0
                     ? Math.max(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds())
                     : timeoutSec;
-            this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(
+            this.timeoutTask = this.scheduledExecutor.scheduleWithFixedDelay(
                     this::checkTimeouts, timeoutSec, timeoutSec, TimeUnit.SECONDS);
         }
     }

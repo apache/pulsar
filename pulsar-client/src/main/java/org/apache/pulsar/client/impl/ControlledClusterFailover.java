@@ -110,7 +110,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         this.pulsarClient = (PulsarClientImpl) client;
 
         // start to check service url every 30 seconds
-        this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+        this.executor.scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
             ControlledConfiguration controlledConfiguration = null;
             try {
                 controlledConfiguration = fetchControlledConfiguration();

@@ -70,7 +70,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         this.pulsarClient = (PulsarClientImpl) client;
         this.executor = EventLoopUtil.newEventLoopGroup(1, false,
                 new ExecutorProvider.ExtendedThreadFactory("broker-service-url-check"));
-        scheduledCheckTask = executor.scheduleAtFixedRate(() -> {
+        scheduledCheckTask = executor.scheduleWithFixedDelay(() -> {
             if (closed) {
                 return;
             }
