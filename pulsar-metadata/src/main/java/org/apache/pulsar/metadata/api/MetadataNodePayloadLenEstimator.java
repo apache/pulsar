@@ -20,6 +20,12 @@ package org.apache.pulsar.metadata.api;
 
 import java.util.List;
 
+/***
+ * The interface to estimate the payload length of metadata node, which used to limit the response of batching query
+ * from metadata store. For example, the ZK client limits the max length of response packet to 1MB by default, if the
+ * response packet is larger than the limitation, the ZK client will throw an error "Packet len {len} is out of range!"
+ * and reconnects.
+ */
 public interface MetadataNodePayloadLenEstimator {
 
     /**

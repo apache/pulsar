@@ -45,6 +45,7 @@ public class ZKMetadataStoreBatchIOperationTest extends CanReconnectZKClientPuls
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
     public void cleanup() throws Exception {
+        System.clearProperty("jute.maxbuffer");
         super.cleanup();
     }
 
