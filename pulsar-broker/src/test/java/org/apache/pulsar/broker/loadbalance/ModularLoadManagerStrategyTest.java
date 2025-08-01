@@ -113,6 +113,31 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
     }
 
+    // Test that least long term throughput rate works correctly.
+    public void testLeastLongTermthroughput() {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setSelectBrokerByThroughput(true);
+
+        BundleData bundleData = new BundleData();
+        BrokerData brokerData1 = initBrokerData();
+        BrokerData brokerData2 = initBrokerData();
+        BrokerData brokerData3 = initBrokerData();
+        brokerData1.getTimeAverageData().setLongTermMsgThroughputIn(100);
+        brokerData2.getTimeAverageData().setLongTermMsgThroughputIn(200);
+        brokerData3.getTimeAverageData().setLongTermMsgThroughputIn(300);
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate();
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+        brokerData1.getTimeAverageData().setLongTermMsgThroughputIn(400);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+    }
+
     // Test that least resource usage with weight works correctly.
     public void testLeastResourceUsageWithWeight() {
         BundleData bundleData = new BundleData();
