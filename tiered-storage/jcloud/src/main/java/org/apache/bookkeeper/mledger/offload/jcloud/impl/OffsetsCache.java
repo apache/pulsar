@@ -51,7 +51,7 @@ public class OffsetsCache implements AutoCloseable {
                     Executors.newSingleThreadScheduledExecutor(
                             new ThreadFactoryBuilder().setNameFormat("jcloud-offsets-cache-eviction").build());
             int period = Math.max(CACHE_TTL_SECONDS / 2, 1);
-            cacheEvictionExecutor.scheduleAtFixedRate(() -> {
+            cacheEvictionExecutor.scheduleWithFixedDelay(() -> {
                 entryOffsetsCache.cleanUp();
             }, period, period, TimeUnit.SECONDS);
         } else {

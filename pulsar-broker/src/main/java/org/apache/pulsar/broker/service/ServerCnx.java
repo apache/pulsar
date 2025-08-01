@@ -974,7 +974,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // Authentication is disabled or there's no local state to refresh
             return;
         }
-        authRefreshTask = ctx.executor().scheduleAtFixedRate(this::refreshAuthenticationCredentials,
+        authRefreshTask = ctx.executor().scheduleWithFixedDelay(this::refreshAuthenticationCredentials,
                 service.getPulsar().getConfig().getAuthenticationRefreshCheckSeconds(),
                 service.getPulsar().getConfig().getAuthenticationRefreshCheckSeconds(),
                 TimeUnit.SECONDS);
@@ -1404,13 +1404,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}",
-                                        remoteAddress, topicName, subscriptionName);
+                                        remoteAddress, topicName, subscriptionName); // TODO consumer id.
                                 commandSender.sendSuccessResponse(requestId);
                                 if (brokerInterceptor != null) {
                                     try {
                                         brokerInterceptor.consumerCreated(this, consumer, metadata);
                                     } catch (Throwable t) {
-                                        log.error("Exception occur when intercept consumer created.", t);
+                                        log.error("Exception occur when intercept consumer created.", t);  // TODO consumer id.
                                     }
                                 }
                             } else {
@@ -1436,7 +1436,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             "[{}][{}][{}] Failed to create consumer because exclusive consumer"
                                                     + " is already connected: {}",
                                             remoteAddress, topicName, subscriptionName,
-                                            exception.getCause().getMessage());
+                                            exception.getCause().getMessage());  // TODO consumer id.
                                 }
                             } else if (exception.getCause() instanceof BrokerServiceException.TopicMigratedException) {
                                 Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(),
@@ -2114,13 +2114,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             subscription.resetCursor(position).thenRun(() -> {
                 log.info("[{}] [{}][{}] Reset subscription to message id {}", remoteAddress,
-                        subscription.getTopic().getName(), subscription.getName(), position);
+                        subscription.getTopic().getName(), subscription.getName(), position); // TODO consumer id
                 commandSender.sendSuccessResponse(requestId);
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}",
                         remoteAddress, subscription, ex.getMessage(), ex);
                 commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
-                        "Error when resetting subscription: " + ex.getCause().getMessage());
+                        "Error when resetting subscription: " + ex.getCause().getMessage()); // TODO consumer id
                 return null;
             });
         } else if (consumerCreated && seek.hasMessagePublishTime()){
@@ -2130,13 +2130,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             subscription.resetCursor(timestamp).thenRun(() -> {
                 log.info("[{}] [{}][{}] Reset subscription to publish time {}", remoteAddress,
-                        subscription.getTopic().getName(), subscription.getName(), timestamp);
+                        subscription.getTopic().getName(), subscription.getName(), timestamp); // TODO consumer id
                 commandSender.sendSuccessResponse(requestId);
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress,
-                        subscription, ex.getMessage(), ex);
+                        subscription, ex.getMessage(), ex); // TODO consumer id
                 commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
-                        "Reset subscription to publish time error: " + ex.getCause().getMessage());
+                        "Reset subscription to publish time error: " + ex.getCause().getMessage()); // TODO consumer id
                 return null;
             });
         } else {

@@ -1574,7 +1574,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Lazy task scheduling to expire incomplete chunk message
         if (expireTimeOfIncompleteChunkedMessageMillis > 0 && expireChunkMessageTaskScheduled.compareAndSet(false,
                 true)) {
-            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).scheduleAtFixedRate(
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).scheduleWithFixedDelay(
                     () -> internalPinnedExecutor
                             .execute(catchingAndLoggingThrowables(this::removeExpireIncompleteChunkedMessages)),
                     expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
