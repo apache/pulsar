@@ -345,7 +345,7 @@ public class TopicsBase extends PersistentTopicsBase {
         List<String> redirectAddresses = Collections.synchronizedList(new ArrayList<>());
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         List<CompletableFuture<Void>> lookupFutures = new ArrayList<>();
-        if (!topicName.isPartitioned() && metadata.partitions > 1) {
+        if (!topicName.isPartitioned() && metadata.partitions > 0) {
             // Partitioned topic with multiple partitions, need to do look up for each partition.
             for (int index = 0; index < metadata.partitions; index++) {
                 lookupFutures.add(lookUpBrokerForTopic(topicName.getPartition(index),
