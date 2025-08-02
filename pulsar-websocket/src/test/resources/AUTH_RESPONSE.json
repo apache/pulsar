@@ -1,0 +1,11 @@
+{
+    "type": "AUTH_RESPONSE",
+    "authResponse": {
+        "clientVersion": "v21",
+        "protocolVersion": 21,
+        "response": {
+            "authMethodName": "token",
+            "authData": "NewAccessToken"
+        }
+    }
+}
