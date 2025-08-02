@@ -70,6 +70,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private final Map<BookieId, Versioned<BookieServiceInfo>> writableBookieInfo;
     private final Map<BookieId, Versioned<BookieServiceInfo>> readOnlyBookieInfo;
     private final FutureUtil.Sequencer<Void> sequencer;
+    private final Runnable cancelMetadataStoreListener;
+    private final Runnable cancelSessionListener;
     private SessionEvent lastMetadataSessionEvent;
 
     public PulsarRegistrationClient(MetadataStore store,
@@ -90,12 +92,14 @@ public class PulsarRegistrationClient implements RegistrationClient {
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-registration-client"));
 
-        store.registerListener(this::updatedBookies);
-        this.store.registerSessionListener(this::refreshBookies);
+        cancelMetadataStoreListener = store.registerCancellableListener(this::updatedBookies);
+        cancelSessionListener = this.store.registerCancellableSessionListener(this::refreshBookies);
     }
 
     @Override
     public void close() {
+        cancelMetadataStoreListener.run();
+        cancelSessionListener.run();
         executor.shutdownNow();
     }
 

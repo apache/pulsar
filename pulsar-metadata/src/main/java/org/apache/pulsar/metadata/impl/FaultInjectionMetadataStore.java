@@ -146,8 +146,8 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
-        store.registerListener(listener);
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
+        return store.registerCancellableListener(listener);
     }
 
     @Override
@@ -178,9 +178,13 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        store.registerSessionListener(listener);
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        Runnable unregisterCallback = store.registerCancellableSessionListener(listener);
         sessionListeners.add(listener);
+        return () -> {
+            unregisterCallback.run();
+            sessionListeners.remove(listener);
+        };
     }
 
     @Override

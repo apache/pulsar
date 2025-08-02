@@ -148,7 +148,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         replicasCheckCtimePath = basePath + '/' + BookKeeperConstants.REPLICAS_CHECK_CTIME;
 
         this.store = store;
-        store.registerListener(this::handleNotification);
+        store.registerCancellableListener(this::handleNotification);
 
         checkLayout();
     }

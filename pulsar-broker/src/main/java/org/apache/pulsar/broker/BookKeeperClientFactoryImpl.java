@@ -27,10 +27,13 @@ import static org.apache.bookkeeper.net.CommonConfigurationKeys.NET_TOPOLOGY_SCR
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -52,6 +55,7 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 @Slf4j
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
+    private final List<Runnable> cleanupCallbacks = new CopyOnWriteArrayList<>();
 
     @Override
     public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
@@ -70,6 +74,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
+        bkConf.setProperty(BookieRackAffinityMapping.ADD_TO_CLEANUP_CONSUMER_INSTANCE, getAddToCleanupConsumer());
         if (properties != null) {
             properties.forEach(bkConf::setProperty);
         }
@@ -241,8 +246,14 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
     }
 
+    // handles cancelling a Metadata Store listener that was registered in BookieRackAffinityMapping
+    Consumer<Runnable> getAddToCleanupConsumer() {
+        return cleanupCallbacks::add;
+    }
+
     @Override
     public void close() {
-        // Nothing to do
+        cleanupCallbacks.forEach(Runnable::run);
+        cleanupCallbacks.clear();
     }
 }

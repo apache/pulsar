@@ -1082,7 +1082,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public CompletableFuture<Void> registryBrokerDataChangeNotice() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
-        pulsar.getLocalMetadataStore().registerListener(notice -> {
+        pulsar.getLocalMetadataStore().registerCancellableListener(notice -> {
             if (brokerDataPath.equals(notice.getPath())){
                 if (!completableFuture.isDone()) {
                     completableFuture.complete(null);
