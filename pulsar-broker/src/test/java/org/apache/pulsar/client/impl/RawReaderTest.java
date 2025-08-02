@@ -22,6 +22,8 @@ import static org.apache.pulsar.client.impl.RawReaderImpl.DEFAULT_RECEIVER_QUEUE
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
@@ -37,6 +39,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -618,5 +622,127 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         producer.close();
         reader.closeAsync().get();
         admin.topics().delete(topic, false);
+    }
+
+    @Test(timeOut = 100000)
+    public void testPauseAndResume() throws Exception {
+        log.info("-- Starting testPauseAndResume test --");
+
+        int receiverQueueSize = 20;     // number of permits broker has when consumer initially subscribes
+
+        String topic = "persistent://my-property/my-ns/my-topic-pr";
+        String subscription = "my-subscriber-name";
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(receiverQueueSize));
+        AtomicInteger received = new AtomicInteger();
+        ConsumerConfigurationData<byte[]> consumerConfiguration = new ConsumerConfigurationData<>();
+        consumerConfiguration.getTopicNames().add(topic);
+        consumerConfiguration.setSubscriptionName(subscription);
+        consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
+        consumerConfiguration.setReceiverQueueSize(receiverQueueSize);
+        RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true, true).get();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        reader.pause();
+
+        for (int i = 0; i < receiverQueueSize * 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+
+        new Thread(() -> {
+            try {
+                while (reader.hasMessageAvailableAsync().get()) {
+                    var msg = reader.readNextAsync().get();
+                    received.incrementAndGet();
+                    msg.getHeadersAndPayload().release();
+                    latch.get().countDown();
+                    log.info("Received message [{}] in the reader", msg.getMessageId());
+                }
+            } catch (Exception e) {
+
+            }
+        }).start();
+
+        log.info("Waiting for message listener to ack " + receiverQueueSize + " messages");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        log.info("Giving message listener an opportunity to receive messages while paused");
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(received.intValue(), receiverQueueSize,
+                        "Consumer received messages while paused"));
+
+        latch.set(new CountDownLatch(receiverQueueSize));
+
+        reader.resume();
+
+        log.info("Waiting for message listener to ack all messages");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        reader.closeAsync();
+        producer.close();
+        log.info("-- Exiting testPauseAndResume test --");
+    }
+
+    @Test(timeOut = 30000)
+    public void testPauseAndResumeWithUnloading() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/pause-and-resume-with-unloading";
+        final String subName = "sub";
+        final int receiverQueueSize = 20;
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(receiverQueueSize));
+        AtomicInteger received = new AtomicInteger();
+
+        ConsumerConfigurationData<byte[]> consumerConfiguration = new ConsumerConfigurationData<>();
+        consumerConfiguration.getTopicNames().add(topicName);
+        consumerConfiguration.setSubscriptionName(subName);
+        consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
+        consumerConfiguration.setReceiverQueueSize(receiverQueueSize);
+        RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true, true).get();
+
+        reader.pause();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+
+        for (int i = 0; i < receiverQueueSize * 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+
+        new Thread(() -> {
+            try {
+                while (reader.hasMessageAvailableAsync().get()) {
+                    var msg = reader.readNextAsync().get();
+                    received.incrementAndGet();
+                    msg.getHeadersAndPayload().release();
+                    latch.get().countDown();
+                    log.info("Received message [{}] in the reader", msg.getMessageId());
+                }
+            } catch (Exception e) {
+                //
+            }
+        }).start();
+
+        // Paused consumer receives only `receiverQueueSize` messages
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        // Make sure no flow permits are sent when the consumer reconnects to the topic
+        admin.topics().unload(topicName);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused"));
+
+
+        latch.set(new CountDownLatch(receiverQueueSize));
+        reader.resume();
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        reader.closeAsync();
+        producer.close();
     }
 }
