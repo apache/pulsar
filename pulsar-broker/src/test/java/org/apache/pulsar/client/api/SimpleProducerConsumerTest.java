@@ -542,7 +542,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscriber-name").messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.info("Received message [{}] in the listener", receivedMessage);
+                    log.debug("Received message [{}] in the listener", receivedMessage);
                     c1.acknowledgeAsync(msg);
                     received.incrementAndGet();
                     latch.get().countDown();
