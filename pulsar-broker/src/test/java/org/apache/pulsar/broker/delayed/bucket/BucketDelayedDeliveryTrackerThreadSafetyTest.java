@@ -113,7 +113,7 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
     @Test
     public void testConcurrentContainsMessageWithWrites() throws Exception {
         final int numThreads = 16;
-        final int operationsPerThread = 1000;  // Restore to test bucket creation properly
+        final int operationsPerThread = 10000;  // Restore to test bucket creation properly
         final CountDownLatch startLatch = new CountDownLatch(1);
         final CountDownLatch doneLatch = new CountDownLatch(numThreads);
         final AtomicInteger errors = new AtomicInteger(0);
