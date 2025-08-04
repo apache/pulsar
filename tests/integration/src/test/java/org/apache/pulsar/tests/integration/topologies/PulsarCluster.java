@@ -66,7 +66,7 @@ public class PulsarCluster {
     public static final String CURL = "/usr/bin/curl";
 
     /**
-     * Pulsar Cluster Spec
+     * Pulsar Cluster Spec.
      *
      * @param spec pulsar cluster spec.
      * @return the built pulsar cluster
@@ -718,6 +718,21 @@ public class PulsarCluster {
         return runAdminCommandOnAnyBroker(
                 "namespaces", "set-deduplication", "public/" + nsName,
                 enabled ? "--enable" : "--disable");
+    }
+
+    public String getFunctionLogs(String name) {
+        StringBuilder logs = new StringBuilder();
+        for (WorkerContainer container : getAlWorkers()) {
+            try {
+                String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+                logs.append(container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                    return IOUtils.toString(inputStream, "utf-8");
+                }));
+            } catch (Exception e) {
+                log.error("Failed to get function logs from container {}", container.getContainerName(), e);
+            }
+        }
+        return logs.toString();
     }
 
     public void dumpFunctionLogs(String name) {

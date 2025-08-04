@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.PrimitiveIterator;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.DrainingHash;
@@ -35,6 +37,11 @@ import org.roaringbitmap.RoaringBitmap;
 
 /**
  * A thread-safe map to store draining hashes in the consumer.
+ * The implementation uses read-write locks for ensuring thread-safe access. The high-level strategy to prevent
+ * deadlocks is to perform side-effects (calls to other collaborators which could have other exclusive locks)
+ * outside of the write lock. Early versions of this class had a problem where deadlocks could occur when
+ * a consumer operations happened at the same time as another thread requested topic stats which include
+ * the draining hashes state. This problem is avoided with the current implementation.
  */
 @Slf4j
 public class DrainingHashesTracker {
@@ -42,6 +49,7 @@ public class DrainingHashesTracker {
     private final UnblockingHandler unblockingHandler;
     // optimize the memory consumption of the map by using primitive int keys
     private final Int2ObjectOpenHashMap<DrainingHashEntry> drainingHashes = new Int2ObjectOpenHashMap<>();
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     int batchLevel;
     boolean unblockedWhileBatching;
     private final Map<ConsumerIdentityWrapper, ConsumerDrainingHashesStats> consumerDrainingHashesStatsMap =
@@ -52,9 +60,14 @@ public class DrainingHashesTracker {
      */
     @ToString
     public static class DrainingHashEntry {
+        private static final AtomicIntegerFieldUpdater<DrainingHashEntry> REF_COUNT_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(DrainingHashEntry.class, "refCount");
+        private static final AtomicIntegerFieldUpdater<DrainingHashEntry> BLOCKED_COUNT_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(DrainingHashEntry.class, "blockedCount");
+
         private final Consumer consumer;
-        private int refCount;
-        private int blockedCount;
+        private volatile int refCount;
+        private volatile int blockedCount;
 
         /**
          * Constructs a new DrainingHashEntry with the specified Consumer.
@@ -81,7 +94,7 @@ public class DrainingHashesTracker {
          * Increments the reference count.
          */
         void incrementRefCount() {
-            refCount++;
+            REF_COUNT_UPDATER.incrementAndGet(this);
         }
 
         /**
@@ -90,14 +103,14 @@ public class DrainingHashesTracker {
          * @return true if the reference count is zero, false otherwise
          */
         boolean decrementRefCount() {
-            return --refCount == 0;
+            return REF_COUNT_UPDATER.decrementAndGet(this) == 0;
         }
 
         /**
          * Increments the blocked count.
          */
         void incrementBlockedCount() {
-            blockedCount++;
+            BLOCKED_COUNT_UPDATER.incrementAndGet(this);
         }
 
         /**
@@ -108,51 +121,89 @@ public class DrainingHashesTracker {
         boolean isBlocking() {
             return blockedCount > 0;
         }
+
+        /**
+         * Gets the current reference count.
+         *
+         * @return the current reference count
+         */
+        int getRefCount() {
+            return refCount;
+        }
+
+        /**
+         * Gets the current blocked count.
+         *
+         * @return the current blocked count
+         */
+        int getBlockedCount() {
+            return blockedCount;
+        }
     }
 
     private class ConsumerDrainingHashesStats {
         private final RoaringBitmap drainingHashes = new RoaringBitmap();
-        long drainingHashesClearedTotal;
+        private long drainingHashesClearedTotal;
+        private final ReentrantReadWriteLock statsLock = new ReentrantReadWriteLock();
 
-        public synchronized void addHash(int stickyHash) {
-            drainingHashes.add(stickyHash);
-        }
-
-        public synchronized boolean clearHash(int hash) {
-            drainingHashes.remove(hash);
-            drainingHashesClearedTotal++;
-            boolean empty = drainingHashes.isEmpty();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Cleared hash {} in stats. empty={} totalCleared={} hashes={}",
-                        dispatcherName, hash, empty, drainingHashesClearedTotal, drainingHashes.getCardinality());
+        public void addHash(int stickyHash) {
+            statsLock.writeLock().lock();
+            try {
+                drainingHashes.add(stickyHash);
+            } finally {
+                statsLock.writeLock().unlock();
             }
-            return empty;
         }
 
-        public synchronized void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
-            int drainingHashesUnackedMessages = 0;
-            List<DrainingHash> drainingHashesStats = new ArrayList<>();
-            PrimitiveIterator.OfInt hashIterator = drainingHashes.stream().iterator();
-            while (hashIterator.hasNext()) {
-                int hash = hashIterator.nextInt();
-                DrainingHashEntry entry = getEntry(hash);
-                if (entry == null) {
-                    log.warn("[{}] Draining hash {} not found in the tracker for consumer {}", dispatcherName, hash,
-                            consumer);
-                    continue;
+        public boolean clearHash(int hash) {
+            statsLock.writeLock().lock();
+            try {
+                drainingHashes.remove(hash);
+                drainingHashesClearedTotal++;
+                boolean empty = drainingHashes.isEmpty();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Cleared hash {} in stats. empty={} totalCleared={} hashes={}",
+                            dispatcherName, hash, empty, drainingHashesClearedTotal, drainingHashes.getCardinality());
                 }
-                int unackedMessages = entry.refCount;
-                DrainingHashImpl drainingHash = new DrainingHashImpl();
-                drainingHash.hash = hash;
-                drainingHash.unackMsgs = unackedMessages;
-                drainingHash.blockedAttempts = entry.blockedCount;
-                drainingHashesStats.add(drainingHash);
-                drainingHashesUnackedMessages += unackedMessages;
+                if (empty) {
+                    // reduce memory usage by trimming the bitmap when the RoaringBitmap instance is empty
+                    drainingHashes.trim();
+                }
+                return empty;
+            } finally {
+                statsLock.writeLock().unlock();
             }
-            consumerStats.drainingHashesCount = drainingHashesStats.size();
-            consumerStats.drainingHashesClearedTotal = drainingHashesClearedTotal;
-            consumerStats.drainingHashesUnackedMessages = drainingHashesUnackedMessages;
-            consumerStats.drainingHashes = drainingHashesStats;
+        }
+
+        public void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
+            statsLock.readLock().lock();
+            try {
+                int drainingHashesUnackedMessages = 0;
+                List<DrainingHash> drainingHashesStats = new ArrayList<>();
+                PrimitiveIterator.OfInt hashIterator = drainingHashes.stream().iterator();
+                while (hashIterator.hasNext()) {
+                    int hash = hashIterator.nextInt();
+                    DrainingHashEntry entry = getEntry(hash);
+                    if (entry == null) {
+                        log.warn("[{}] Draining hash {} not found in the tracker for consumer {}", dispatcherName, hash,
+                                consumer);
+                        continue;
+                    }
+                    int unackedMessages = entry.getRefCount();
+                    DrainingHashImpl drainingHash = new DrainingHashImpl();
+                    drainingHash.hash = hash;
+                    drainingHash.unackMsgs = unackedMessages;
+                    drainingHash.blockedAttempts = entry.getBlockedCount();
+                    drainingHashesStats.add(drainingHash);
+                    drainingHashesUnackedMessages += unackedMessages;
+                }
+                consumerStats.drainingHashesCount = drainingHashesStats.size();
+                consumerStats.drainingHashesClearedTotal = drainingHashesClearedTotal;
+                consumerStats.drainingHashesUnackedMessages = drainingHashesUnackedMessages;
+                consumerStats.drainingHashes = drainingHashesStats;
+            } finally {
+                statsLock.readLock().unlock();
+            }
         }
     }
 
@@ -179,49 +230,79 @@ public class DrainingHashesTracker {
      * @param consumer the consumer
      * @param stickyHash the sticky hash
      */
-    public synchronized void addEntry(Consumer consumer, int stickyHash) {
+    public void addEntry(Consumer consumer, int stickyHash) {
         if (stickyHash == 0) {
             throw new IllegalArgumentException("Sticky hash cannot be 0");
         }
-        DrainingHashEntry entry = drainingHashes.get(stickyHash);
-        if (entry == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Adding and incrementing draining hash {} for consumer id:{} name:{}", dispatcherName,
-                        stickyHash, consumer.consumerId(), consumer.consumerName());
+
+        DrainingHashEntry entry;
+        ConsumerDrainingHashesStats addedStatsForNewEntry = null;
+        lock.writeLock().lock();
+        try {
+            entry = drainingHashes.get(stickyHash);
+            if (entry == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Adding and incrementing draining hash {} for consumer id:{} name:{}",
+                            dispatcherName, stickyHash, consumer.consumerId(), consumer.consumerName());
+                }
+                entry = new DrainingHashEntry(consumer);
+                drainingHashes.put(stickyHash, entry);
+                // add the consumer specific stats
+                addedStatsForNewEntry = consumerDrainingHashesStatsMap
+                        .computeIfAbsent(new ConsumerIdentityWrapper(consumer), k -> new ConsumerDrainingHashesStats());
+            } else if (entry.getConsumer() != consumer) {
+                throw new IllegalStateException(
+                        "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
+                                + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
+                                + ".");
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Draining hash {} incrementing {} consumer id:{} name:{}", dispatcherName,
+                            stickyHash, entry.getRefCount() + 1, consumer.consumerId(), consumer.consumerName());
+                }
             }
-            entry = new DrainingHashEntry(consumer);
-            drainingHashes.put(stickyHash, entry);
-            // update the consumer specific stats
-            consumerDrainingHashesStatsMap.computeIfAbsent(new ConsumerIdentityWrapper(consumer),
-                    k -> new ConsumerDrainingHashesStats()).addHash(stickyHash);
-        } else if (entry.getConsumer() != consumer) {
-            throw new IllegalStateException(
-                    "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
-                            + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
-                            + ".");
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Draining hash {} incrementing {} consumer id:{} name:{}", dispatcherName, stickyHash,
-                        entry.refCount + 1, consumer.consumerId(), consumer.consumerName());
-            }
+        } finally {
+            lock.writeLock().unlock();
         }
+        // increment the reference count of the entry (applies to both new and existing entries)
         entry.incrementRefCount();
+
+        // perform side-effects outside of the lock to reduce chances for deadlocks
+        if (addedStatsForNewEntry != null) {
+            // add hash to added stats
+            addedStatsForNewEntry.addHash(stickyHash);
+        }
     }
 
     /**
      * Start a batch operation. There could be multiple nested batch operations.
      * The unblocking of sticky key hashes will be done only when the last batch operation ends.
      */
-    public synchronized void startBatch() {
-        batchLevel++;
+    public void startBatch() {
+        lock.writeLock().lock();
+        try {
+            batchLevel++;
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     /**
      * End a batch operation.
      */
-    public synchronized void endBatch() {
-        if (--batchLevel == 0 && unblockedWhileBatching) {
-            unblockedWhileBatching = false;
+    public void endBatch() {
+        boolean notifyUnblocking = false;
+        lock.writeLock().lock();
+        try {
+            if (--batchLevel == 0 && unblockedWhileBatching) {
+                unblockedWhileBatching = false;
+                notifyUnblocking = true;
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+        // notify unblocking of the hash outside the lock
+        if (notifyUnblocking) {
             unblockingHandler.stickyKeyHashUnblocked(-1);
         }
     }
@@ -231,13 +312,14 @@ public class DrainingHashesTracker {
      *
      * @param consumer   the consumer
      * @param stickyHash the sticky hash
-     * @param closing
+     * @param closing    whether the consumer is closing
      */
-    public synchronized void reduceRefCount(Consumer consumer, int stickyHash, boolean closing) {
+    public void reduceRefCount(Consumer consumer, int stickyHash, boolean closing) {
         if (stickyHash == 0) {
             return;
         }
-        DrainingHashEntry entry = drainingHashes.get(stickyHash);
+
+        DrainingHashEntry entry = getEntry(stickyHash);
         if (entry == null) {
             return;
         }
@@ -252,24 +334,40 @@ public class DrainingHashesTracker {
                 log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
                         consumer.consumerId(), consumer.consumerName());
             }
-            DrainingHashEntry removed = drainingHashes.remove(stickyHash);
+
+            DrainingHashEntry removed;
+            boolean notifyUnblocking = false;
+            lock.writeLock().lock();
+            try {
+                removed = drainingHashes.remove(stickyHash);
+                if (!closing && removed.isBlocking()) {
+                    if (batchLevel > 0) {
+                        unblockedWhileBatching = true;
+                    } else {
+                        notifyUnblocking = true;
+                    }
+                }
+            } finally {
+                lock.writeLock().unlock();
+            }
+
+            // perform side-effects outside of the lock to reduce chances for deadlocks
+
             // update the consumer specific stats
             ConsumerDrainingHashesStats drainingHashesStats =
                     consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
             if (drainingHashesStats != null) {
                 drainingHashesStats.clearHash(stickyHash);
             }
-            if (!closing && removed.isBlocking()) {
-                if (batchLevel > 0) {
-                    unblockedWhileBatching = true;
-                } else {
-                    unblockingHandler.stickyKeyHashUnblocked(stickyHash);
-                }
+
+            // notify unblocking of the hash outside the lock
+            if (notifyUnblocking) {
+                unblockingHandler.stickyKeyHashUnblocked(stickyHash);
             }
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Draining hash {} decrementing {} consumer id:{} name:{}", dispatcherName, stickyHash,
-                        entry.refCount, consumer.consumerId(), consumer.consumerName());
+                log.debug("[{}] Draining hash {} decrementing {} consumer id:{} name:{}", dispatcherName,
+                        stickyHash, entry.getRefCount(), consumer.consumerId(), consumer.consumerName());
             }
         }
     }
@@ -281,12 +379,12 @@ public class DrainingHashesTracker {
      * @param stickyKeyHash the sticky key hash
      * @return true if the sticky key hash should be blocked, false otherwise
      */
-    public synchronized boolean shouldBlockStickyKeyHash(Consumer consumer, int stickyKeyHash) {
+    public boolean shouldBlockStickyKeyHash(Consumer consumer, int stickyKeyHash) {
         if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
             log.warn("[{}] Sticky key hash is not set. Allowing dispatching", dispatcherName);
             return false;
         }
-        DrainingHashEntry entry = drainingHashes.get(stickyKeyHash);
+        DrainingHashEntry entry = getEntry(stickyKeyHash);
         // if the entry is not found, the hash is not draining. Don't block the hash.
         if (entry == null) {
             return false;
@@ -294,10 +392,14 @@ public class DrainingHashesTracker {
         // hash has been reassigned to the original consumer, remove the entry
         // and don't block the hash
         if (entry.getConsumer() == consumer) {
-            log.info("[{}] Hash {} has been reassigned consumer {}. "
-                            + "The draining hash entry with refCount={} will be removed.",
-                    dispatcherName, stickyKeyHash, entry.getConsumer(), entry.refCount);
-            drainingHashes.remove(stickyKeyHash, entry);
+            log.info("[{}] Hash {} has been reassigned consumer {}. The draining hash entry with refCount={} will "
+                    + "be removed.", dispatcherName, stickyKeyHash, entry.getConsumer(), entry.getRefCount());
+            lock.writeLock().lock();
+            try {
+                drainingHashes.remove(stickyKeyHash, entry);
+            } finally {
+                lock.writeLock().unlock();
+            }
             return false;
         }
         // increment the blocked count which is used to determine if the hash is blocking
@@ -313,16 +415,29 @@ public class DrainingHashesTracker {
      * @param stickyKeyHash the sticky key hash
      * @return the draining hash entry, or null if not found
      */
-    public synchronized DrainingHashEntry getEntry(int stickyKeyHash) {
-        return stickyKeyHash != 0 ? drainingHashes.get(stickyKeyHash) : null;
+    public DrainingHashEntry getEntry(int stickyKeyHash) {
+        if (stickyKeyHash == 0) {
+            return null;
+        }
+        lock.readLock().lock();
+        try {
+            return drainingHashes.get(stickyKeyHash);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     /**
      * Clear all entries in the draining hashes tracker.
      */
-    public synchronized void clear() {
-        drainingHashes.clear();
-        consumerDrainingHashesStatsMap.clear();
+    public void clear() {
+        lock.writeLock().lock();
+        try {
+            drainingHashes.clear();
+            consumerDrainingHashesStatsMap.clear();
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     /**

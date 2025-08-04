@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +40,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class PublishRateLimiterTest {
-    private final String CLUSTER_NAME = "clusterName";
+    private static final String CLUSTER_NAME = "clusterName";
     private final Policies policies = new Policies();
     private final PublishRate publishRate = new PublishRate(10, 100);
     private final PublishRate newPublishRate = new PublishRate(20, 200);
@@ -55,7 +56,7 @@ public class PublishRateLimiterTest {
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        publishRateLimiter = new PublishRateLimiterImpl(requestSnapshot -> manualClockSource.get());
+        publishRateLimiter = new PublishRateLimiterImpl(() -> manualClockSource.get());
         publishRateLimiter.update(policies, CLUSTER_NAME);
         producer = mock(Producer.class);
         throttleCount.set(0);
@@ -73,7 +74,9 @@ public class PublishRateLimiterTest {
         when(transportCnx.getBrokerService()).thenReturn(brokerService);
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         when(brokerService.executor()).thenReturn(eventLoopGroup);
-        doReturn(null).when(eventLoopGroup).schedule(any(Runnable.class), anyLong(), any());
+        EventLoop eventLoop = mock(EventLoop.class);
+        when(eventLoopGroup.next()).thenReturn(eventLoop);
+        doReturn(null).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
         incrementSeconds(1);
     }
 

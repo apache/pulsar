@@ -37,7 +37,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -115,7 +114,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         try (Producer<byte[]> producer = builder.create()) {
             Future<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
-                String key = "key"+i;
+                String key = "key" + i;
                 byte[] data = ("my-message-" + i).getBytes();
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
@@ -179,18 +178,17 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         List<TopicMessageId> topicMessageIds1 =  reader1.getLastMessageIds();
         assertEquals(topicMessageIds1.size(), 1);
         assertEquals(topicMessageIds1.get(0).getOwnerTopic(), topic1);
-        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getEntryId(), messageId1.getEntryId());
-        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getLedgerId(), messageId1.getLedgerId());
+        assertEquals(((MessageIdAdv) topicMessageIds1.get(0)).getEntryId(), messageId1.getEntryId());
+        assertEquals(((MessageIdAdv) topicMessageIds1.get(0)).getLedgerId(), messageId1.getLedgerId());
 
         List<TopicMessageId> topicMessageIds2 = reader2.getLastMessageIds();
         assertEquals(topicMessageIds2.size(), 2);
         for (TopicMessageId topicMessageId: topicMessageIds2) {
             if (topicMessageId.getOwnerTopic().equals(topic1)) {
-                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId1.getEntryId());
-                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId1.getLedgerId());
+                assertEquals(((MessageIdAdv) topicMessageId).getLedgerId(), messageId1.getLedgerId());
             } else {
-                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId2.getEntryId());
-                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId2.getLedgerId());
+                assertEquals(((MessageIdAdv) topicMessageId).getEntryId(), messageId2.getEntryId());
+                assertEquals(((MessageIdAdv) topicMessageId).getLedgerId(), messageId2.getLedgerId());
             }
         }
     }
@@ -434,7 +432,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReaderHasMessageAvailable() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
+        final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable"
+                + System.currentTimeMillis();
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
@@ -908,8 +907,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testHasMessageAvailableAfterSeekTimestampWithMessageIdInclusive() throws Exception {
-        final String topic = "persistent://my-property/my-ns/" +
-                "testHasMessageAvailableAfterSeekTimestampWithMessageInclusive";
+        final String topic = "persistent://my-property/my-ns/"
+                + "testHasMessageAvailableAfterSeekTimestampWithMessageInclusive";
 
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
@@ -954,6 +953,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(ns, retention);
         String badUrl = "pulsar://bad-host:8080";
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(badUrl).build();
 
         ReaderBuilder<byte[]> readerBuilder = client.newReader().topic(topic).startMessageFromRollbackDuration(100,

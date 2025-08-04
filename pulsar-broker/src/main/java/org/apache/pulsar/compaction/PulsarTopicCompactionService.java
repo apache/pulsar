@@ -30,13 +30,13 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.NonNull;
 
 
 public class PulsarTopicCompactionService implements TopicCompactionService {
@@ -66,7 +66,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition,
+    public CompletableFuture<List<Entry>> readCompactedEntries(@NonNull Position startPosition,
                                                                int numberOfEntriesToRead) {
         Objects.requireNonNull(startPosition);
         checkArgument(numberOfEntriesToRead > 0);

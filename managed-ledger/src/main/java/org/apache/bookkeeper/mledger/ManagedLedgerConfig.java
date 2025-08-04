@@ -80,6 +80,7 @@ public class ManagedLedgerConfig {
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
+    private long inactiveOffloadedLedgerEvictionTimeMs = 0;
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
@@ -93,6 +94,8 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private String shadowSourceName;
+    @Getter
+    private boolean persistIndividualAckAsLongArray;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -100,6 +103,11 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
+        return this;
+    }
+
+    public ManagedLedgerConfig setPersistIndividualAckAsLongArray(boolean persistIndividualAckAsLongArray) {
+        this.persistIndividualAckAsLongArray = persistIndividualAckAsLongArray;
         return this;
     }
 
@@ -494,6 +502,16 @@ public class ManagedLedgerConfig {
         return maxBatchDeletedIndexToPersist;
     }
 
+    /**
+     * Set max batch deleted index that will be persisted and recovered.
+     *
+     * @param maxBatchDeletedIndexToPersist
+     *            max batch deleted index that will be persisted and recovered.
+     */
+    public void setMaxBatchDeletedIndexToPersist(int maxBatchDeletedIndexToPersist) {
+        this.maxBatchDeletedIndexToPersist = maxBatchDeletedIndexToPersist;
+    }
+
     public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
         return persistentUnackedRangesWithMultipleEntriesEnabled;
     }
@@ -706,6 +724,14 @@ public class ManagedLedgerConfig {
      */
     public void setInactiveLedgerRollOverTime(int inactiveLedgerRollOverTimeMs, TimeUnit unit) {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
+    }
+
+    public long getInactiveOffloadedLedgerEvictionTimeMs() {
+        return inactiveOffloadedLedgerEvictionTimeMs;
+    }
+
+    public void setInactiveOffloadedLedgerEvictionTime(long inactiveOffloadedLedgerEvictionTime, TimeUnit unit) {
+        this.inactiveOffloadedLedgerEvictionTimeMs = unit.toMillis(inactiveOffloadedLedgerEvictionTime);
     }
 
     /**

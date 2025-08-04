@@ -35,30 +35,41 @@
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
+  <developers>
+    <developer>
+      <organization>Apache Pulsar developers</organization>
+      <organizationUrl>http://pulsar.apache.org/</organizationUrl>
+    </developer>
+  </developers>
+
   <properties>
     <project.build.outputTimestamp>2024-10-14T13:32:50Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.release>8</maven.compiler.release>
     <surefire.version>3.1.0</surefire.version>
     <log4j2.version>2.23.1</log4j2.version>
     <slf4j.version>2.0.13</slf4j.version>
     <testng.version>7.7.1</testng.version>
-    <commons-lang3.version>3.11</commons-lang3.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.116.Final</netty.version>
+    <netty.version>4.1.122.Final</netty.version>
     <guice.version>4.2.3</guice.version>
-    <guava.version>32.1.2-jre</guava.version>
+    <guava.version>33.4.8-jre</guava.version>
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>2.0</snakeyaml.version>
-    <mockito.version>5.6.0</mockito.version>
+    <mockito.version>5.17.0</mockito.version>
+    <byte-buddy.version>1.15.11</byte-buddy.version>
+    <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
       --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
+    <redirectTestOutputToFile>true</redirectTestOutputToFile>
   </properties>
 
   <dependencyManagement>
@@ -76,6 +87,18 @@
         <version>${log4j2.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-bom</artifactId>
+        <version>${mockito.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>${byte-buddy.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -141,17 +164,21 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <!-- for testing FastThreadLocalStateCleaner -->
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
       <version>${netty.version}</version>
-      <scope>test</scope>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-buffer</artifactId>
+      <version>${netty.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>${mockito.version}</version>
     </dependency>
   </dependencies>
 
@@ -189,6 +216,7 @@
           <argLine>
             ${test.additional.args}
           </argLine>
+          <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
         </configuration>
         <dependencies>
           <dependency>
@@ -268,7 +296,7 @@
       <extension>
         <groupId>org.apache.maven.wagon</groupId>
         <artifactId>wagon-ssh-external</artifactId>
-        <version>3.5.3</version>
+        <version>${wagon-ssh-external.version}</version>
       </extension>
     </extensions>
   </build>

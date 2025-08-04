@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.io.sources;
 
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -76,8 +75,8 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
         ExecResult execResult = kafkaContainer.execInContainer(
             "/usr/bin/kafka-topics",
             "--create",
-            "--zookeeper",
-            "localhost:2181",
+            "--bootstrap-server",
+            "localhost:9092",
             "--partitions",
             "1",
             "--replication-factor",

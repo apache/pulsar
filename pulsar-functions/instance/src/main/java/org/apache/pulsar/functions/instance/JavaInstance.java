@@ -47,6 +47,7 @@ public class JavaInstance implements AutoCloseable {
     public static class AsyncFuncRequest {
         private final Record record;
         private final CompletableFuture processResult;
+        private final JavaExecutionResult result;
     }
 
     @Getter(AccessLevel.PACKAGE)
@@ -136,7 +137,7 @@ public class JavaInstance implements AutoCloseable {
                 if (asyncPreserveInputOrderForOutputMessages) {
                     // Function is in format: Function<I, CompletableFuture<O>>
                     AsyncFuncRequest request = new AsyncFuncRequest(
-                            record, (CompletableFuture) output
+                            record, (CompletableFuture) output, executionResult
                     );
                     pendingAsyncRequests.put(request);
                 } else {
@@ -148,13 +149,12 @@ public class JavaInstance implements AutoCloseable {
                             processAsyncResultsInInputOrder(asyncResultConsumer);
                         } else {
                             try {
-                                JavaExecutionResult execResult = new JavaExecutionResult();
                                 if (cause != null) {
-                                    execResult.setUserException(FutureUtil.unwrapCompletionException(cause));
+                                    executionResult.setUserException(FutureUtil.unwrapCompletionException(cause));
                                 } else {
-                                    execResult.setResult(res);
+                                    executionResult.setResult(res);
                                 }
-                                asyncResultConsumer.accept(record, execResult);
+                                asyncResultConsumer.accept(record, executionResult);
                             } finally {
                                 asyncRequestsConcurrencyLimiter.release();
                             }
@@ -187,7 +187,7 @@ public class JavaInstance implements AutoCloseable {
         while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
             pendingAsyncRequests.remove(asyncResult);
 
-            JavaExecutionResult execResult = new JavaExecutionResult();
+            JavaExecutionResult execResult = asyncResult.getResult();
             try {
                 Object result = asyncResult.getProcessResult().get();
                 execResult.setResult(result);

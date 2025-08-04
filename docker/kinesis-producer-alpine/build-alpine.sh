@@ -58,7 +58,7 @@ fi
 
 # Build Boost
 if [ ! -d "boost_${BOOST_VERSION_UNDERSCORED}" ]; then
-  curl -LO https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
+  curl -LO https://archives.boost.io/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
   tar xf boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
   rm boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
 

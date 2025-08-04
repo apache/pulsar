@@ -22,7 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -30,6 +30,7 @@ import java.time.Clock;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
@@ -42,7 +43,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     // timestamp -> ledgerId -> entryId
     // AVL tree -> OpenHashMap -> RoaringBitmap
-    protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>>
+    protected final Long2ObjectSortedMap<Long2ObjectSortedMap<Roaring64Bitmap>>
             delayedMessageMap = new Long2ObjectAVLTreeMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
@@ -63,6 +64,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     // The bit count to trim to reduce memory occupation.
     private final int timestampPrecisionBitCnt;
+
+    // Count of delayed messages in the tracker.
+    private final AtomicLong delayedMessagesCount = new AtomicLong(0);
 
     InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                    long tickTimeMillis,
@@ -122,9 +126,11 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         }
 
         long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
-        delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectOpenHashMap<>())
+        delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
                 .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap())
                 .add(entryId);
+        delayedMessagesCount.incrementAndGet();
+
         updateTimer();
 
         checkAndUpdateHighest(deliverAt);
@@ -173,7 +179,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             }
 
             LongSet ledgerIdToDelete = new LongOpenHashSet();
-            Long2ObjectMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(timestamp);
+            Long2ObjectSortedMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(timestamp);
             for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
                 long ledgerId = ledgerEntry.getLongKey();
                 Roaring64Bitmap entryIds = ledgerEntry.getValue();
@@ -183,6 +189,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                         positions.add(PositionFactory.create(ledgerId, entryId));
                     });
                     n -= cardinality;
+                    delayedMessagesCount.addAndGet(-cardinality);
                     ledgerIdToDelete.add(ledgerId);
                 } else {
                     long[] entryIdsArray = entryIds.toArray();
@@ -190,6 +197,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                         positions.add(PositionFactory.create(ledgerId, entryIdsArray[i]));
                         entryIds.removeLong(entryIdsArray[i]);
                     }
+                    delayedMessagesCount.addAndGet(-n);
                     n = 0;
                 }
                 if (n <= 0) {
@@ -212,6 +220,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             // Reset to initial state
             highestDeliveryTimeTracked = 0;
             messagesHaveFixedDelay = true;
+            if (delayedMessagesCount.get() != 0) {
+                log.warn("[{}] Delayed message tracker is empty, but delayedMessagesCount is {}",
+                        dispatcher.getName(), delayedMessagesCount.get());
+            }
         }
 
         updateTimer();
@@ -221,14 +233,13 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     @Override
     public CompletableFuture<Void> clear() {
         this.delayedMessageMap.clear();
+        this.delayedMessagesCount.set(0);
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public long getNumberOfDelayedMessages() {
-        return delayedMessageMap.values().stream().mapToLong(
-                ledgerMap -> ledgerMap.values().stream().mapToLong(
-                        Roaring64Bitmap::getLongCardinality).sum()).sum();
+        return delayedMessagesCount.get();
     }
 
     /**

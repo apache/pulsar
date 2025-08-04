@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.io.Closeable;
+import java.io.IOException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 
 /**
@@ -28,4 +29,8 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 public interface TopicFactory extends Closeable {
 
     <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService, Class<T> topicClazz);
+
+    default void close() throws IOException {
+        // default implementation
+    }
 }

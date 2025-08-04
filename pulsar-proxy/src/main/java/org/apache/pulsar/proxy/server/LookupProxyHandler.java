@@ -221,7 +221,7 @@ public class LookupProxyHandler {
      **/
     private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
             long clientRequestId) {
-        TopicName topicName = TopicName.get(partitionMetadata.getTopic());
+        String topicName = TopicName.toFullTopicName(partitionMetadata.getTopic());
 
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
         if (serviceUrl == null) {
@@ -235,7 +235,7 @@ public class LookupProxyHandler {
 
         if (log.isDebugEnabled()) {
             log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
-                    topicName.getPartitionedTopicName(), clientRequestId);
+                    topicName, clientRequestId);
         }
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
@@ -245,10 +245,11 @@ public class LookupProxyHandler {
                     partitionMetadata.isMetadataAutoCreationEnabled());
             clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
+                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName,
                         t.getMessage(), t);
-                    writeAndFlush(Commands.newLookupErrorResponse(getServerError(t),
-                        t.getMessage(), clientRequestId));
+                    PulsarClientException pce = PulsarClientException.unwrap(t);
+                    writeAndFlush(Commands.newLookupErrorResponse(clientCnx.revertClientExToErrorCode(pce),
+                            t.getMessage(), clientRequestId));
                 } else {
                     writeAndFlush(
                         Commands.newPartitionMetadataResponse(r.partitions, clientRequestId));

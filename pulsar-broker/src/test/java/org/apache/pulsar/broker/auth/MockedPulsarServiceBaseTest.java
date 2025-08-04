@@ -29,7 +29,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -50,7 +49,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -88,46 +86,46 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public static String getTlsFileForClient(String name) {
         return ResourceUtils.getAbsolutePath(String.format("certificate-authority/client-keys/%s.pem", name));
     }
-    public final static String CA_CERT_FILE_PATH =
+    public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
+    public static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
+    public static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    public final static String PROXY_CERT_FILE_PATH =
+    public static final String PROXY_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.cert.pem");
-    public final static String PROXY_KEY_FILE_PATH =
+    public static final String PROXY_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.key-pk8.pem");
-    public final static String BROKER_KEYSTORE_FILE_PATH =
+    public static final String BROKER_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
-    public final static String BROKER_TRUSTSTORE_FILE_PATH =
+    public static final String BROKER_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
-    public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+    public static final String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
-    public final static String BROKER_KEYSTORE_PW = "111111";
-    public final static String BROKER_TRUSTSTORE_PW = "111111";
+    public static final String BROKER_KEYSTORE_PW = "111111";
+    public static final String BROKER_TRUSTSTORE_PW = "111111";
 
-    public final static String CLIENT_KEYSTORE_FILE_PATH =
+    public static final String CLIENT_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
-    public final static String CLIENT_TRUSTSTORE_FILE_PATH =
+    public static final String CLIENT_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
-    public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+    public static final String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
-    public final static String CLIENT_KEYSTORE_PW = "111111";
-    public final static String CLIENT_TRUSTSTORE_PW = "111111";
+    public static final String CLIENT_KEYSTORE_PW = "111111";
+    public static final String CLIENT_TRUSTSTORE_PW = "111111";
 
-    public final static String PROXY_KEYSTORE_FILE_PATH =
+    public static final String PROXY_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy.keystore.jks");
-    public final static String PROXY_KEYSTORE_PW = "111111";
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
+    public static final String PROXY_KEYSTORE_PW = "111111";
+    public static final String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy-and-client.truststore.jks");
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
+    public static final String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
 
-    public final static String CLIENT_KEYSTORE_CN = "clientuser";
-    public final static String KEYSTORE_TYPE = "JKS";
+    public static final String CLIENT_KEYSTORE_CN = "clientuser";
+    public static final String KEYSTORE_TYPE = "JKS";
 
-    protected final String DUMMY_VALUE = "DUMMY_VALUE";
-    protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
+    protected static final String DUMMY_VALUE = "DUMMY_VALUE";
+    protected static final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
 
     protected ServiceConfiguration conf;
     protected PulsarTestContext pulsarTestContext;
@@ -150,6 +148,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     private final List<AutoCloseable> closeables = new ArrayList<>();
 
+    // Set to true in test's constructor to use a real Zookeeper (TestZKServer)
+    protected boolean useTestZookeeper;
+
     public MockedPulsarServiceBaseTest() {
         resetConfig();
     }
@@ -170,18 +171,24 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final void internalSetup() throws Exception {
         init();
-        lookupUrl = new URI(brokerUrl.toString());
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl());
-
+        lookupUrl = resolveLookupUrl();
+        if (isTcpLookup && enableBrokerGateway) {
             // setup port forwarding from the advertised port to the listen port
-            if (enableBrokerGateway) {
-                InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
-                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
-                brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
-            }
+            InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+            InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+            brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    }
+
+    private URI resolveLookupUrl() {
+        if (isTcpLookup) {
+            return URI.create(pulsar.getBrokerServiceUrl());
+        } else {
+            return URI.create(brokerUrl != null
+                    ? brokerUrl.toString()
+                    : brokerUrlTls.toString());
+        }
     }
 
     protected final void internalSetup(ServiceConfiguration serviceConfiguration) throws Exception {
@@ -228,11 +235,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final void internalSetupForStatsTest() throws Exception {
         init();
-        String lookupUrl = brokerUrl.toString();
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl()).toString();
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
         }
-        pulsarClient = newPulsarClient(lookupUrl, 1);
+        pulsarClient = newPulsarClient(resolveLookupUrl().toString(), 1);
     }
 
     protected void doInitConf() throws Exception {
@@ -358,8 +364,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * @throws Exception if an error occurs
      */
     protected void restartBroker() throws Exception {
+        restartBroker(null);
+    }
+
+    protected void restartBroker(Consumer<ServiceConfiguration> configurationChanger) throws Exception {
         stopBroker();
+        if (configurationChanger != null) {
+            configurationChanger.accept(conf);
+        }
         startBroker();
+        if (pulsarClient == null) {
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        }
     }
 
     protected void stopBroker() throws Exception {
@@ -384,12 +400,16 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
         brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
+        URI newLookupUrl = resolveLookupUrl();
+        if (lookupUrl == null || !newLookupUrl.equals(lookupUrl)) {
+            lookupUrl = newLookupUrl;
+            if (pulsarClient != null) {
+                pulsarClient.shutdown();
+                pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
             }
         }
+
+        closeAdmin();
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString()
                 : brokerUrlTls.toString());
@@ -449,7 +469,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         PulsarTestContext.Builder builder = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(conf)
-                .withMockZookeeper(true)
                 .pulsarServiceCustomizer(pulsarService -> {
                     try {
                         beforePulsarStart(pulsarService);
@@ -458,7 +477,23 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                     }
                 })
                 .brokerServiceCustomizer(this::customizeNewBrokerService);
+        configureMetadataStores(builder);
         return builder;
+    }
+
+    /**
+     * Configures the metadata stores for the PulsarTestContext.Builder instance.
+     * Set useTestZookeeper to true in the test's constructor to use TestZKServer which is a real ZooKeeper
+     * implementation.
+     *
+     * @param builder the PulsarTestContext.Builder instance to configure
+     */
+    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+        if (useTestZookeeper) {
+            builder.withTestZookeeper();
+        } else {
+            builder.withMockZookeeper(true);
+        }
     }
 
     protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
@@ -656,35 +691,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     * see {@link #deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
-            throws Exception {
-        deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
+        deleteNamespaceWithRetry(ns, force, admin);
     }
 
     /**
      * 1. Pause system "__change_event" topic creates.
      * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
      */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
-                                                Collection<PulsarService> pulsars) throws Exception {
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
                 .pollDelay(500, TimeUnit.MILLISECONDS)
                 .until(() -> {

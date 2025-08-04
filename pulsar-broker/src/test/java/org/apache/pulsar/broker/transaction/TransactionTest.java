@@ -92,8 +92,8 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
-import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -145,6 +145,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
@@ -177,7 +178,10 @@ public class TransactionTest extends TransactionTestBase {
 
     @BeforeClass
     protected void setup() throws Exception {
-       setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
+        // Use a single transaction thread to reproduce possible deadlock easily
+        conf.setNumTransactionReplayThreadPoolSize(1);
+        conf.setManagedLedgerNumSchedulerThreads(1);
+        setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     @AfterClass(alwaysRun = true)
@@ -397,7 +401,6 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
     }
 
@@ -1008,11 +1011,11 @@ public class TransactionTest extends TransactionTestBase {
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
 
-        Awaitility.await().untilAsserted(() -> assertEquals(listener.getTxnCount(),2));
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getTxnCount(), 2));
         abortTxn.abort().get();
-        Awaitility.await().untilAsserted(() -> assertEquals(listener.getAbortedTxnCount(),1));
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getAbortedTxnCount(), 1));
         commitTxn.commit().get();
-        Awaitility.await().untilAsserted(() -> assertEquals(listener.getCommittedTxnCount(),1));
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getCommittedTxnCount(), 1));
     }
 
     @Test
@@ -1270,7 +1273,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test(timeOut = 30000)
     public void testTransactionAckMessageList() throws Exception {
-        String topic = "persistent://" + NAMESPACE1 +"/test";
+        String topic = "persistent://" + NAMESPACE1 + "/test";
         String subName = "testSub";
 
         @Cleanup
@@ -1336,7 +1339,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test(timeOut = 30000)
     public void testTransactionAckMessages() throws Exception {
-        String topic = "persistent://" + NAMESPACE1 +"/testTransactionAckMessages";
+        String topic = "persistent://" + NAMESPACE1 + "/testTransactionAckMessages";
         String subName = "testSub";
         admin.topics().createPartitionedTopic(topic, 2);
 
@@ -1451,9 +1454,6 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckBatchMessageCommit() throws Exception {
         String topic = NAMESPACE1 + "/testPendingAckBatchMessageCommit";
 
-        // enable batch index ack
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer(Schema.BYTES)
@@ -1525,8 +1525,8 @@ public class TransactionTest extends TransactionTestBase {
                 executorService.execute(()->{
                     PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) invocation.getArguments()[0];
                     pendingAckHandle.closeAsync();
-                    MLPendingAckReplyCallBack mlPendingAckReplyCallBack
-                            = new MLPendingAckReplyCallBack(pendingAckHandle);
+                    MLPendingAckReplyCallBack mlPendingAckReplyCallBack =
+                            new MLPendingAckReplyCallBack(pendingAckHandle);
                     mlPendingAckReplyCallBack.replayComplete();
                 });
                 return null;
@@ -1552,14 +1552,15 @@ public class TransactionTest extends TransactionTestBase {
         when(topic.getBrokerService()).thenReturn(brokerService);
         when(topic.getName()).thenReturn("topic-a");
         // Mock cursor for subscription.
-        ManagedCursor cursor_subscription = mock(ManagedCursor.class);
-        doThrow(new RuntimeException("1")).when(cursor_subscription).updateLastActive();
+        ManagedCursor cursorSubscription = mock(ManagedCursor.class);
+        doReturn(Codec.encode("sub-a")).when(cursorSubscription).getName();
+        doThrow(new RuntimeException("1")).when(cursorSubscription).updateLastActive();
         // Create subscription.
         String subscriptionName = "sub-a";
         boolean replicated = false;
         Map<String, String> subscriptionProperties = Collections.emptyMap();
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, subscriptionName,
-                cursor_subscription, replicated, subscriptionProperties);
+                cursorSubscription, replicated, subscriptionProperties);
         org.apache.pulsar.broker.service.Consumer consumer = mock(org.apache.pulsar.broker.service.Consumer.class);
         try {
             CompletableFuture<Void> addConsumerFuture = persistentSubscription.addConsumer(consumer);
@@ -1591,8 +1592,8 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckStore pendingAckStore = mock(PendingAckStore.class);
         doAnswer(invocation -> {
             new Thread(() -> {
-                TopicTransactionBuffer.TopicTransactionBufferRecover recover
-                        = (TopicTransactionBuffer.TopicTransactionBufferRecover) invocation.getArguments()[0];
+                TopicTransactionBuffer.TopicTransactionBufferRecover recover =
+                        (TopicTransactionBuffer.TopicTransactionBufferRecover) invocation.getArguments()[0];
                 TopicTransactionBufferRecoverCallBack callBack = null;
                 try {
                     callBack = (TopicTransactionBufferRecoverCallBack) FieldUtils.readField(
@@ -1615,8 +1616,8 @@ public class TransactionTest extends TransactionTestBase {
         when(pendingAckStoreProvider.newPendingAckStore(any()))
                 .thenReturn(CompletableFuture.completedFuture(pendingAckStore));
         // Mock TransactionBufferSnapshotService
-        SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> systemTopicTxnBufferSnapshotService
-                = mock(SystemTopicTxnBufferSnapshotService.class);
+        SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> systemTopicTxnBufferSnapshotService =
+                mock(SystemTopicTxnBufferSnapshotService.class);
         SystemTopicClient.Writer<TransactionBufferSnapshot> writer = mock(SystemTopicClient.Writer.class);
         when(writer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
         ReferenceCountedWriter<TransactionBufferSnapshot> refCounterWriter = mock(ReferenceCountedWriter.class);

@@ -31,6 +31,7 @@
   <artifactId>pulsar-client-auth-sasl</artifactId>
   <packaging>jar</packaging>
   <description>SASL authentication plugin for java client</description>
+  <name>Pulsar Client Auth SASL</name>
 
   <dependencies>
 
@@ -114,7 +115,7 @@
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
           <failOnViolations>true</failOnViolations>
-          <javaVersion>8</javaVersion>
+          <javaVersion>17</javaVersion>
         </configuration>
         <executions>
           <execution>

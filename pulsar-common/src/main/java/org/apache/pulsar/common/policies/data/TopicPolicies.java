@@ -20,11 +20,11 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -128,6 +128,10 @@ public class TopicPolicies {
         return delayedDeliveryEnabled != null;
     }
 
+    public boolean isDelayedDeliveryMaxDelayInMillisSet(){
+        return delayedDeliveryMaxDelayInMillis != null;
+    }
+
     public boolean isMaxUnackedMessagesOnSubscriptionSet() {
         return maxUnackedMessagesOnSubscription != null;
     }
@@ -193,6 +197,9 @@ public class TopicPolicies {
     }
 
     public Map<String, SubscriptionPolicies> getSubscriptionPolicies() {
-        return subscriptionPolicies == null ? Collections.emptyMap() : subscriptionPolicies;
+        if (subscriptionPolicies == null) {
+            subscriptionPolicies = new ConcurrentHashMap<>();
+        }
+        return subscriptionPolicies;
     }
 }

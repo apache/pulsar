@@ -51,7 +51,10 @@ class StructSchemaDataValidator implements SchemaDataValidator {
         try {
             Schema.Parser avroSchemaParser = new Schema.Parser();
             avroSchemaParser.setValidateDefaults(false);
-            avroSchemaParser.parse(new String(data, UTF_8));
+            Schema schema = avroSchemaParser.parse(new String(data, UTF_8));
+            if (SchemaType.AVRO.equals(schemaData.getType())) {
+                checkAvroSchemaTypeSupported(schema);
+            }
         } catch (SchemaParseException e) {
             if (schemaData.getType() == SchemaType.JSON) {
                 // we used JsonSchema for storing the definition of a JSON schema
@@ -65,9 +68,28 @@ class StructSchemaDataValidator implements SchemaDataValidator {
             } else {
                 throwInvalidSchemaDataException(schemaData, e);
             }
+        } catch (InvalidSchemaDataException invalidSchemaDataException) {
+            throw invalidSchemaDataException;
         } catch (Exception e) {
             throwInvalidSchemaDataException(schemaData, e);
         }
+    }
+
+    static void checkAvroSchemaTypeSupported(Schema schema) throws InvalidSchemaDataException {
+            switch (schema.getType()) {
+                case RECORD: {
+                    break;
+                }
+                case UNION: {
+                    throw new InvalidSchemaDataException(
+                            "Avro schema typed [UNION] is not supported");
+                }
+                default: {
+                    // INT, LONG, FLOAT, DOUBLE, BOOLEAN, STRING, BYTES.
+                    // ARRAY, MAP, FIXED, NULL.
+                    LOGGER.info("Registering a special avro schema typed [{}]", schema.getType());
+                }
+            }
     }
 
     private static void throwInvalidSchemaDataException(SchemaData schemaData,

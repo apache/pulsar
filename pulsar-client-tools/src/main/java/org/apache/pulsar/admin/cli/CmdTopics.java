@@ -275,6 +275,8 @@ public class CmdTopics extends CmdBase {
         addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
         addCommand("trim-topic", new TrimTopic());
+
+        addCommand("get-message-id-by-index", new GetMessageIdByIndex());
     }
 
     @Command(description = "Get the list of topics under a namespace.")
@@ -1117,50 +1119,7 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(topicName);
             List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages,
                     showServerMarker, transactionIsolationLevel);
-            int position = 0;
-            for (Message<byte[]> msg : messages) {
-                MessageImpl message = (MessageImpl) msg;
-                if (++position != 1) {
-                    System.out.println("-------------------------------------------------------------------------\n");
-                }
-                if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
-                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
-                            + msgId.getBatchIndex());
-                } else {
-                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
-                }
-
-                System.out.println("Publish time: " + message.getPublishTime());
-                System.out.println("Event time: " + message.getEventTime());
-
-                if (message.getDeliverAtTime() != 0) {
-                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
-                }
-                MessageMetadata msgMetaData = message.getMessageBuilder();
-                if (showServerMarker && msgMetaData.hasMarkerType()) {
-                    System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
-                }
-
-                if (message.getBrokerEntryMetadata() != null) {
-                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
-                        System.out.println("Broker entry metadata timestamp: "
-                                + message.getBrokerEntryMetadata().getBrokerTimestamp());
-                    }
-                    if (message.getBrokerEntryMetadata().hasIndex()) {
-                        System.out.println("Broker entry metadata index: "
-                                + message.getBrokerEntryMetadata().getIndex());
-                    }
-                }
-
-                if (message.getProperties().size() > 0) {
-                    System.out.println("Properties:");
-                    print(msg.getProperties());
-                }
-                ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
-                System.out.println(ByteBufUtil.prettyHexDump(data));
-            }
+            printMessages(messages, showServerMarker, this);
         }
     }
 
@@ -1377,6 +1336,55 @@ public class CmdTopics extends CmdBase {
             previousLedger = l.ledgerId;
         }
         return null;
+    }
+
+    public static void printMessages(List<Message<byte[]>> messages, boolean showServerMarker, CliCommand cli) {
+        if (messages == null) {
+            return;
+        }
+        int position = 0;
+        for (Message<byte[]> msg : messages) {
+            MessageImpl message = (MessageImpl) msg;
+            if (++position != 1) {
+                System.out.println("-------------------------------------------------------------------------\n");
+            }
+            if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
+                        + msgId.getBatchIndex());
+            } else {
+                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+            }
+
+            System.out.println("Publish time: " + message.getPublishTime());
+            System.out.println("Event time: " + message.getEventTime());
+
+            if (message.getDeliverAtTime() != 0) {
+                System.out.println("Deliver at time: " + message.getDeliverAtTime());
+            }
+            MessageMetadata msgMetaData = message.getMessageBuilder();
+            if (showServerMarker && msgMetaData.hasMarkerType()) {
+                System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
+            }
+
+            if (message.getBrokerEntryMetadata() != null) {
+                if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                    System.out.println("Broker entry metadata timestamp: "
+                            + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                }
+                if (message.getBrokerEntryMetadata().hasIndex()) {
+                    System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                }
+            }
+
+            if (message.getProperties().size() > 0) {
+                System.out.println("Properties:");
+                cli.print(msg.getProperties());
+            }
+            ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(data));
+        }
     }
 
     @Command(description = "Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)")
@@ -2145,8 +2153,8 @@ public class CmdTopics extends CmdBase {
 
         @Option(names = { "-r",
                 "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation "
-                + "(0 means no throttle)")
-        private double managedLedgerMaxMarkDeleteRate = 0;
+                + "(0 means no throttle, -1 means unset which will use the configuration from namespace or broker)")
+        private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "-c",
                 "--ml-storage-class" },
@@ -2159,9 +2167,6 @@ public class CmdTopics extends CmdBase {
             if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
-            }
-            if (managedLedgerMaxMarkDeleteRate < 0) {
-                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
@@ -2501,7 +2506,7 @@ public class CmdTopics extends CmdBase {
 
         @Option(names = { "--dispatch-rate-period",
             "-dt" }, description = "dispatch-rate-period in second type"
-                + " (default 1 second will be overwrite if not passed)")
+                + "(default 1 second will be overwrite if not passed)")
         private int dispatchRatePeriodSec = 1;
 
         @Option(names = { "--relative-to-publish-rate",
@@ -3050,6 +3055,22 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(topicName);
             getAdmin().topics().trimTopic(topic);
+        }
+    }
+
+    @Command(description = "Get message id by index")
+    private class GetMessageIdByIndex extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--index", "-i" }, description = "Index to get message id for the topic", required = true)
+        private Long index;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(topicName);
+            System.out.println(getAdmin().topics().getMessageIdByIndex(topic, index));
         }
     }
 }

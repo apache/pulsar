@@ -134,20 +134,20 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
         Set<String> sentMessages = new HashSet<>();
 
-        final int N = 10;
-        for (int i = 0; i < N * 2; i++) {
+        final int num = 10;
+        for (int i = 0; i < num * 2; i++) {
             String value = "test-" + i;
             producer.sendAsync(value);
             sentMessages.add(value);
         }
         producer.flush();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer.receive();
             consumer.negativeAcknowledge(msg);
         }
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer.receive();
             consumer.negativeAcknowledge(msg.getMessageId());
         }
@@ -158,7 +158,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Set<String> receivedMessages = new HashSet<>();
 
         // All the messages should be received again
-        for (int i = 0; i < N * 2; i++) {
+        for (int i = 0; i < num * 2; i++) {
             Message<String> msg = consumer.receive();
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
@@ -244,8 +244,8 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
         Set<String> sentMessages = new HashSet<>();
 
-        final int N = 10;
-        for (int i = 0; i < N; i++) {
+        final int num = 10;
+        for (int i = 0; i < num; i++) {
             String value = "test-" + i;
             producer.sendAsync(value);
             sentMessages.add(value);
@@ -256,9 +256,16 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         long firstReceivedAt = System.currentTimeMillis();
         long expectedTotalRedeliveryDelay = 0;
         for (int i = 0; i < redeliverCount; i++) {
-            for (int j = 0; j < N; j++) {
-                Message<String> msg = consumer.receive();
+            Message<String> msg = null;
+            for (int j = 0; j < num; j++) {
+                msg = consumer.receive();
                 log.info("Received message {}", msg.getValue());
+                if (!batching) {
+                    consumer.negativeAcknowledge(msg);
+                }
+            }
+            if (batching) {
+                // for batching, we only need to nack one message in the batch to trigger redelivery
                 consumer.negativeAcknowledge(msg);
             }
             expectedTotalRedeliveryDelay += backoff.next(i);
@@ -267,7 +274,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Set<String> receivedMessages = new HashSet<>();
 
         // All the messages should be received again
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer.receive();
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
@@ -326,8 +333,8 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     }
 
     /**
-     * If we nack multiple messages in the same batch with different redelivery delays, the messages should be redelivered
-     * with the correct delay. However, all messages are redelivered at the same time.
+     * If we nack multiple messages in the same batch with different redelivery delays, the messages should be
+     * redelivered with the correct delay. However, all messages are redelivered at the same time.
      * @throws Exception
      */
     @Test
@@ -373,7 +380,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     @Test
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         cleanup();
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setup();
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatchAckEnabled");
 
@@ -383,7 +389,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionName("sub1")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
                 .subscribe();
 
@@ -393,15 +398,15 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .create();
 
         Set<String> sentMessages = new HashSet<>();
-        final int N = 10;
-        for (int i = 0; i < N; i++) {
+        final int num = 10;
+        for (int i = 0; i < num; i++) {
             String value = "test-" + i;
             producer.sendAsync(value);
             sentMessages.add(value);
         }
         producer.flush();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer.receive();
             consumer.negativeAcknowledge(msg);
         }
@@ -409,7 +414,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Set<String> receivedMessages = new HashSet<>();
 
         // All the messages should be received again
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer.receive();
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
@@ -430,7 +435,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Failover)
-                .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
                 .receiverQueueSize(10)
                 .subscribe();
@@ -480,7 +484,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         consumerLatch.await();
         Thread.sleep(500);
         count = 0;
-        while(true) {
+        while (true) {
             Message<Integer> msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;

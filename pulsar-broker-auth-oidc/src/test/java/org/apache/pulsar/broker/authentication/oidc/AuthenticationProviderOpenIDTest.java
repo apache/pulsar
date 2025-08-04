@@ -308,7 +308,8 @@ public class AuthenticationProviderOpenIDTest {
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com,http://myissuer.com");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS,
+                "https://myissuer.com,http://myissuer.com");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
         Assert.assertThrows(IllegalArgumentException.class,

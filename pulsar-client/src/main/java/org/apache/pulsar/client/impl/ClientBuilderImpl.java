@@ -68,11 +68,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
             setAuthenticationFromPropsIfAvailable(conf);
         }
-        PulsarClient client = new PulsarClientImpl(conf);
-        if (conf.getServiceUrlProvider() != null) {
-            conf.getServiceUrlProvider().initialize(client);
-        }
-        return client;
+        return new PulsarClientImpl(conf);
     }
 
     @Override
@@ -101,6 +97,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
         checkArgument(serviceUrlProvider != null, "Param serviceUrlProvider must not be null.");
         conf.setServiceUrlProvider(serviceUrlProvider);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration,
+                                                          TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineInitDuration >= 0,
+                "serviceUrlQuarantineInitDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineInitDurationMs(unit.toMillis(serviceUrlQuarantineInitDuration));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration,
+                                                         TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineMaxDuration >= 0,
+                "serviceUrlQuarantineMaxDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineMaxDurationMs(unit.toMillis(serviceUrlQuarantineMaxDuration));
         return this;
     }
 
@@ -150,6 +164,11 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setAuthParamMap(authParams);
         conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
+        return this;
+    }
+
+    public ClientBuilderImpl originalPrincipal(String originalPrincipal) {
+        conf.setOriginalPrincipal(originalPrincipal);
         return this;
     }
 

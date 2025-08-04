@@ -380,8 +380,8 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkManualProcessor);
-            PulsarSink.PulsarSinkManualProcessor pulsarSinkManualProcessor
-                    = (PulsarSink.PulsarSinkManualProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkManualProcessor pulsarSinkManualProcessor =
+                    (PulsarSink.PulsarSinkManualProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
                 Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, topic));
             } else {
@@ -416,8 +416,8 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtLeastOnceProcessor);
-            PulsarSink.PulsarSinkAtLeastOnceProcessor pulsarSinkAtLeastOnceProcessor
-                    = (PulsarSink.PulsarSinkAtLeastOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkAtLeastOnceProcessor pulsarSinkAtLeastOnceProcessor =
+                    (PulsarSink.PulsarSinkAtLeastOnceProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
                 Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, topic));
             } else {
@@ -456,8 +456,8 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtMostOnceProcessor);
-            PulsarSink.PulsarSinkAtMostOnceProcessor pulsarSinkAtLeastOnceProcessor
-                    = (PulsarSink.PulsarSinkAtMostOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkAtMostOnceProcessor pulsarSinkAtLeastOnceProcessor =
+                    (PulsarSink.PulsarSinkAtMostOnceProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
                 Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, topic));
             } else {
@@ -516,8 +516,8 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkEffectivelyOnceProcessor);
-            PulsarSink.PulsarSinkEffectivelyOnceProcessor pulsarSinkEffectivelyOnceProcessor
-                    = (PulsarSink.PulsarSinkEffectivelyOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkEffectivelyOnceProcessor pulsarSinkEffectivelyOnceProcessor =
+                    (PulsarSink.PulsarSinkEffectivelyOnceProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
                 Assert.assertTrue(producerCache
                         .containsKey(SINK_RECORD_CACHE, topic, String.format("%s-id-1", topic)));

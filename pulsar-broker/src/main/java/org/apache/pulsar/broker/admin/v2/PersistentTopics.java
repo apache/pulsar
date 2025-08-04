@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -46,6 +47,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -59,6 +61,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -346,7 +349,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCreateNonPartitionedTopicAsync(authoritative, properties)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isConflictException(ex)) {
                         log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -946,7 +949,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!isRedirectException(t)) {
                         if (AdminResource.isNotFoundException(t)) {
-                            log.error("[{}] Failed to get partitioned metadata topic {}: {}",
+                            log.info("[{}] Failed to get partitioned metadata topic {}: {}",
                                     clientAppId(), topicName, ex.getMessage());
                         } else {
                             log.error("[{}] Failed to get partitioned metadata topic {}",
@@ -1708,6 +1711,17 @@ public class PersistentTopics extends PersistentTopicsBase {
     ) {
         try {
             validateTopicName(tenant, namespace, topic);
+            String decodedSubName = decode(encodedSubName);
+            // If subscription is as "a/b". The url of HTTP API that defined as
+            // "{tenant}/{namespace}/{topic}/{subscription}" will be like below:
+            // "public/default/tp/a/b", then the broker will assume it is a topic that
+            // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
+            // So denied to create a subscription that contains "/".
+            if (pulsar().getConfig().isStrictlyVerifySubscriptionName()
+                    && !NamedEntity.isAllowed(decodedSubName)) {
+                throw new RestException(Response.Status.BAD_REQUEST, "Please let the subscription only contains"
+                    + " '/w(a-zA-Z_0-9)' or '_', the current value is " + decodedSubName);
+            }
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
@@ -2290,6 +2304,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                               @PathParam("tenant") String tenant,
                               @PathParam("namespace") String namespace,
                               @PathParam("topic") @Encoded String encodedTopic,
+                              @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
                               @QueryParam("applied") @DefaultValue("false") boolean applied,
                               @ApiParam(value = "Whether leader broker redirected this call to this broker. "
                                       + "For internal use.")
@@ -2297,19 +2312,46 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.READ)
                 .thenCompose(__ -> preValidation(authoritative))
-                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
-                .thenAccept(op -> {
-                    asyncResponse.resume(op.map(TopicPolicies::getReplicationClustersSet).orElseGet(() -> {
-                        if (applied) {
-                            return getNamespacePolicies(namespaceName).replication_clusters;
+                .thenCompose(__ -> {
+                    if (applied) {
+                        return getAppliedReplicatedClusters();
+                    }
+                    return getTopicPoliciesAsyncWithRetry(topicName, isGlobal).thenApply(policy -> {
+                        if (policy != null && policy.isPresent()
+                                && CollectionUtils.isNotEmpty(policy.get().getReplicationClustersSet())) {
+                            return policy.get().getReplicationClustersSet();
                         }
                         return null;
-                    }));
+                    });
                 })
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     handleTopicPolicyException("getReplicationClusters", ex, asyncResponse);
                     return null;
                 });
+    }
+
+    private CompletableFuture<Set<String>> getAppliedReplicatedClusters() {
+        return getTopicPoliciesAsyncWithRetry(topicName, false)
+            .thenCompose(localPolicy -> {
+                if (localPolicy != null && localPolicy.isPresent()
+                        && CollectionUtils.isNotEmpty(localPolicy.get().getReplicationClustersSet())) {
+                    return CompletableFuture.completedFuture(localPolicy.get().getReplicationClustersSet());
+                }
+                return getTopicPoliciesAsyncWithRetry(topicName, true)
+                    .thenCompose(globalPolicy -> {
+                        if (globalPolicy != null && globalPolicy.isPresent()
+                                && CollectionUtils.isNotEmpty(globalPolicy.get().getReplicationClustersSet())) {
+                            return CompletableFuture.completedFuture(globalPolicy.get().getReplicationClustersSet());
+                        }
+                        return getNamespacePoliciesAsync(namespaceName).thenApply(v -> {
+                            if (v != null) {
+                                return v.replication_clusters;
+                            }
+                            return null;
+                        });
+                    });
+            });
     }
 
     @POST
@@ -2327,13 +2369,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> preValidation(authoritative))
-                .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
+                .thenCompose(__ -> internalSetReplicationClusters(clusterIds, isGlobal))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("setReplicationClusters", ex, asyncResponse);
@@ -2354,12 +2397,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void removeReplicationClusters(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> preValidation(authoritative))
-                .thenCompose(__ -> internalRemoveReplicationClusters())
+                .thenCompose(__ -> internalRemoveReplicationClusters(isGlobal))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("removeReplicationClusters", ex, asyncResponse);
@@ -5011,6 +5055,39 @@ public class PersistentTopics extends PersistentTopicsBase {
                 })
                 .exceptionally(ex -> {
                     handleTopicPolicyException("removeAutoSubscriptionCreation", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/getMessageIdByIndex")
+    @ApiOperation(hidden = true, value = "Get Message ID by index.",
+            notes = "If the specified index is a system message, "
+                    + "it will return the message id of the later message.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or partitioned topic does not exist, "
+                    + "or the index is invalid"),
+            @ApiResponse(code = 406, message = "The topic is not a persistent topic"),
+            @ApiResponse(code = 412, message = "The broker is not enable broker entry metadata"),
+    })
+    public void getMessageIDByIndex(@Suspended final AsyncResponse asyncResponse,
+                                    @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    @PathParam("topic") @Encoded String encodedTopic,
+                                    @QueryParam("index") long index,
+                                    @QueryParam("authoritative") @DefaultValue("false")
+                                                   boolean authoritative){
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetMessageIDByIndexAsync(index, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message id by index for topic {}, index {}",
+                                clientAppId(), topicName, index, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }

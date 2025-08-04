@@ -128,6 +128,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
+     * <p>Will ignore the topic domain("persistent://" or "non-persistent://") when pattern matching.
+     *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
      *
@@ -143,7 +145,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>It accepts a regular expression that is compiled into a pattern internally. E.g.,
-     * "persistent://public/default/pattern-topic-.*"
+     * "persistent://public/default/pattern-topic-.*" or "public/default/pattern-topic-.*"
+     *
+     * <p>Will ignore the topic domain("persistent://" or "non-persistent://") when pattern matching.
      *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
@@ -729,6 +733,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Enable or disable batch index acknowledgment. To enable this feature, ensure batch index acknowledgment
      * is enabled on the broker side.
+     * Default: true
      */
     ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled);
 

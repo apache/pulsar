@@ -20,7 +20,9 @@ package org.apache.pulsar.io.kafka.connect;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.io.File;
@@ -28,14 +30,17 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.kafka.connect.KafkaConnectSource.KafkaSourceRecord;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -99,6 +104,116 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
                 "org.apache.kafka.connect.file.FileStreamSourceTask");
 
         testOpenAndReadTask(config);
+    }
+
+    @Test
+    void testTransformation() throws Exception {
+        Map<String, Object> config = setupTransformConfig(false, false);
+        runTransformTest(config, true);
+    }
+
+    @Test
+    void testTransformationWithPredicate() throws Exception {
+        Map<String, Object> config = setupTransformConfig(true, false);
+        runTransformTest(config, true);
+    }
+
+    @Test
+    void testTransformationWithNegatedPredicate() throws Exception {
+        Map<String, Object> config = setupTransformConfig(true, true);
+        runTransformTest(config, false);
+    }
+
+    @Test
+    void testShortTopicNames() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, "default-tenant/default-ns");
+
+        runTopicNameTest(config, "a-topic", "persistent://default-tenant/default-ns/a-topic");
+    }
+
+    @Test
+    void testFullyQualifiedTopicNames() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, "default-tenant/default-ns");
+
+        runTopicNameTest(config, "persistent://a-tenant/a-ns/a-topic", "persistent://a-tenant/a-ns/a-topic");
+    }
+
+    private void runTopicNameTest(Map<String, Object> config, String topicName, String expectedDestinationTopicName)
+            throws Exception {
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, "default-tenant/default-ns");
+
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        Map<String, Object> sourcePartition = new HashMap<>();
+        Map<String, Object> sourceOffset = new HashMap<>();
+        Map<String, Object> value = new HashMap<>();
+        sourcePartition.put("test", "test");
+        sourceOffset.put("test", 0);
+        value.put("myField", "42");
+        SourceRecord srcRecord = new SourceRecord(
+            sourcePartition, sourceOffset, topicName, null,
+            null, null, null, value
+        );
+
+        KafkaSourceRecord record = kafkaConnectSource.processSourceRecord(srcRecord);
+
+        assertEquals(Optional.of(expectedDestinationTopicName), record.destinationTopic);
+    }
+
+    private Map<String, Object> setupTransformConfig(boolean withPredicate, boolean negated) {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        if (withPredicate) {
+            config.put("predicates", "TopicMatch");
+            config.put("predicates.TopicMatch.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
+            config.put("predicates.TopicMatch.pattern", "test-topic");
+        }
+
+        config.put("transforms", "Cast");
+        config.put("transforms.Cast.type", "org.apache.kafka.connect.transforms.Cast$Value");
+        config.put("transforms.Cast.spec", "myField:int32");
+
+        if (withPredicate) {
+            config.put("transforms.Cast.predicate", "TopicMatch");
+            if (negated) {
+                config.put("transforms.Cast.negate", "true");
+            }
+        }
+
+        return config;
+    }
+
+    private void runTransformTest(Map<String, Object> config, boolean expectTransformed) throws Exception {
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        Map<String, Object> value = new HashMap<>();
+        value.put("myField", "42");
+        SourceRecord record = new SourceRecord(
+            null, null, "test-topic", null,
+            null, null, null, value
+        );
+
+        SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> transformedValue = (Map<String, Object>) transformed.value();
+        assertNotNull(transformedValue);
+
+        if (expectTransformed) {
+            assertEquals(42, ((Number) transformedValue.get("myField")).intValue());
+            assertTrue(transformedValue.get("myField") instanceof Number);
+        } else {
+            assertEquals("42", transformedValue.get("myField"));
+            assertTrue(transformedValue.get("myField") instanceof String);
+        }
     }
 
     private Map<String, Object> getConfig() {

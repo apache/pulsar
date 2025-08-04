@@ -20,8 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -55,9 +56,10 @@ public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBas
     public void testFetchPartitionedTopicMetadataWithCacheRefresh() throws Exception {
         final String configMetadataStoreConnectString =
                 WhiteboxImpl.getInternalState(pulsar.getConfigurationMetadataStore(), "zkConnectString");
+        @Cleanup
         final ZooKeeper anotherZKCli = new ZooKeeper(configMetadataStoreConnectString, 5000, null);
         // Set policy of auto create topic to PARTITIONED.
-        final String ns = defaultTenant + "/ns_" + UUID.randomUUID().toString().replaceAll("-", "");
+        final String ns = BrokerTestUtil.newUniqueName(defaultTenant + "/ns");
         final TopicName topicName1 = TopicName.get("persistent://" + ns + "/tp1");
         final TopicName topicName2 = TopicName.get("persistent://" + ns + "/tp2");
         admin.namespaces().createNamespace(ns);
@@ -79,11 +81,11 @@ public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBas
 
         // Create the partitioned metadata by another zk client.
         // Make a error to make the cache could not update.
-        makeLocalMetadataStoreKeepReconnect();
+        startLocalMetadataStoreConnectionTermination();
         anotherZKCli.create("/admin/partitioned-topics/" + ns + "/persistent/" + topicName2.getLocalName(),
                 "{\"partitions\":3}".getBytes(StandardCharsets.UTF_8),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        stopLocalMetadataStoreAlwaysReconnect();
+        stopLocalMetadataStoreConnectionTermination();
 
         // Get the partitioned metadata from cache, there is 90% chance that partitions count of metadata is 0.
         PartitionedTopicMetadata partitionedTopicMetadata2 =
@@ -95,9 +97,5 @@ public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBas
         PartitionedTopicMetadata partitionedTopicMetadata3 =
                 pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName2, true).get();
         assertEquals(partitionedTopicMetadata3.partitions, 3);
-
-        // cleanup.
-        admin.topics().deletePartitionedTopic(topicName2.toString());
-        anotherZKCli.close();
     }
 }
