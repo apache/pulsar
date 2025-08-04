@@ -2304,6 +2304,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                               @PathParam("tenant") String tenant,
                               @PathParam("namespace") String namespace,
                               @PathParam("topic") @Encoded String encodedTopic,
+                              @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
                               @QueryParam("applied") @DefaultValue("false") boolean applied,
                               @ApiParam(value = "Whether leader broker redirected this call to this broker. "
                                       + "For internal use.")
@@ -2311,19 +2312,46 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.READ)
                 .thenCompose(__ -> preValidation(authoritative))
-                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
-                .thenAccept(op -> {
-                    asyncResponse.resume(op.map(TopicPolicies::getReplicationClustersSet).orElseGet(() -> {
-                        if (applied) {
-                            return getNamespacePolicies(namespaceName).replication_clusters;
+                .thenCompose(__ -> {
+                    if (applied) {
+                        return getAppliedReplicatedClusters();
+                    }
+                    return getTopicPoliciesAsyncWithRetry(topicName, isGlobal).thenApply(policy -> {
+                        if (policy != null && policy.isPresent()
+                                && CollectionUtils.isNotEmpty(policy.get().getReplicationClustersSet())) {
+                            return policy.get().getReplicationClustersSet();
                         }
                         return null;
-                    }));
+                    });
                 })
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     handleTopicPolicyException("getReplicationClusters", ex, asyncResponse);
                     return null;
                 });
+    }
+
+    private CompletableFuture<Set<String>> getAppliedReplicatedClusters() {
+        return getTopicPoliciesAsyncWithRetry(topicName, false)
+            .thenCompose(localPolicy -> {
+                if (localPolicy != null && localPolicy.isPresent()
+                        && CollectionUtils.isNotEmpty(localPolicy.get().getReplicationClustersSet())) {
+                    return CompletableFuture.completedFuture(localPolicy.get().getReplicationClustersSet());
+                }
+                return getTopicPoliciesAsyncWithRetry(topicName, true)
+                    .thenCompose(globalPolicy -> {
+                        if (globalPolicy != null && globalPolicy.isPresent()
+                                && CollectionUtils.isNotEmpty(globalPolicy.get().getReplicationClustersSet())) {
+                            return CompletableFuture.completedFuture(globalPolicy.get().getReplicationClustersSet());
+                        }
+                        return getNamespacePoliciesAsync(namespaceName).thenApply(v -> {
+                            if (v != null) {
+                                return v.replication_clusters;
+                            }
+                            return null;
+                        });
+                    });
+            });
     }
 
     @POST
@@ -2341,32 +2369,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
-                .thenCompose(__ -> preValidation(authoritative)).thenCompose(__ -> {
-                    // Set a topic-level replicated clusters that do not contain local cluster is not meaningful, except
-                    // the following scenario: User has two clusters, which enabled Geo-Replication through a global
-                    // metadata store, the resources named partitioned topic metadata and the resource namespace-level
-                    // "replicated clusters" are shared between multi clusters. Pulsar can hardly delete a specify
-                    // partitioned topic. To support this use case, the following steps can implement it:
-                    // 1. set a global topic-level replicated clusters that do not contain local cluster.
-                    // 2. the local cluster will remove the subtopics automatically, and remove the schemas and local
-                    //    topic policies. Just leave the global topic policies there, which prevents the namespace level
-                    //    replicated clusters policy taking affect.
-                    // TODO But the API "pulsar-admin topics set-replication-clusters" does not support global policy,
-                    //   to support this scenario, a PIP is needed.
-                    boolean clustersDoesNotContainsLocal = CollectionUtils.isEmpty(clusterIds)
-                            || !clusterIds.contains(pulsar().getConfig().getClusterName());
-                    if (clustersDoesNotContainsLocal) {
-                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
-                            "Can not remove local cluster from the topic-level replication clusters policy"));
-                    }
-                    return CompletableFuture.completedFuture(null);
-                })
-                .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetReplicationClusters(clusterIds, isGlobal))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("setReplicationClusters", ex, asyncResponse);
@@ -2387,12 +2397,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void removeReplicationClusters(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> preValidation(authoritative))
-                .thenCompose(__ -> internalRemoveReplicationClusters())
+                .thenCompose(__ -> internalRemoveReplicationClusters(isGlobal))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("removeReplicationClusters", ex, asyncResponse);
