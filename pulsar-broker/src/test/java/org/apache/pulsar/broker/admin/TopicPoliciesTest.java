@@ -99,6 +99,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -4068,19 +4069,51 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicTypes")
     public void testRemoveLocalCluster(TopicType topicType) throws Exception {
-        String topic = "persistent://" + myNamespace + "/testSetSubRateWithSub";
+        final String cluster = pulsar.getConfig().getClusterName();
+        final String topic = "persistent://" + myNamespace + "/testSetSubRateWithSub";
         if (TopicType.PARTITIONED.equals(topicType)) {
             admin.topics().createNonPartitionedTopic(topic);
         } else {
             admin.topics().createPartitionedTopic(topic, 2);
         }
+        // Can not remove current cluster by local topic-level policies.
         try {
             admin.topics().setReplicationClusters(topic, Arrays.asList("not-local-cluster"));
             fail("Can not remove local cluster from the topic-level replication clusters policy");
         } catch (PulsarAdminException.PreconditionFailedException e) {
-            assertTrue(e.getMessage().contains("Can not remove local cluster from the topic-level replication clusters"
-                + " policy"));
+            assertTrue(e.getMessage().contains("Can not remove local cluster from the local topic-level replication"
+                + " clusters policy"));
         }
+        try {
+            admin.topicPolicies(false).setReplicationClusters(topic, Arrays.asList("not-local-cluster")).get();
+            fail("Can not remove local cluster from the topic-level replication clusters policy");
+        } catch (Exception e) {
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            assertTrue(actEx.getMessage().contains("Can not remove local cluster from the local topic-level replication"
+                    + " clusters policy"));
+        }
+        // Can not use the global topic level policy when namespace-level replication is not enabled.
+        try {
+            admin.topicPolicies(true).setReplicationClusters(topic, Arrays.asList("not-local-cluster")).get();
+            fail("Please do not use the global topic level policy when namespace-level replication is not enabled,"
+                + " because the global level policy relies on namespace-level replication");
+        } catch (Exception e) {
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            assertTrue(actEx.getMessage().contains("namespace-level replication"));
+        }
+        // Can not set global topic level clusters that does not exist in namespace-level replication.
+        admin.namespaces().setNamespaceReplicationClusters(myNamespace, Collections.singleton(cluster));
+        try {
+            admin.topicPolicies(true)
+                    .setReplicationClusters(topic, Arrays.asList("not-local-cluster", cluster)).get();
+            fail("The policies at the global topic level will only be copied to the clusters included in the namespace"
+                    + " level replication. Therefore, please do not set the policies at the global topic level to"
+                    + " other clusters");
+        } catch (Exception e) {
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            assertTrue(actEx.getMessage().contains("namespace-level replication"));
+        }
+
         // cleanup.
         if (TopicType.PARTITIONED.equals(topicType)) {
             admin.topics().delete(topic, false);
