@@ -106,10 +106,14 @@ public interface RawReader {
      * Stop requesting new messages from the broker until {@link #resume()} is called. Note that this might cause
      * {@link #readNextAsync()} to block until {@link #resume()} is called and new messages are pushed by the broker.
      */
-    void pause();
+    default void pause() {
+
+    }
 
     /**
      * Resume requesting messages from the broker.
      */
-    void resume();
+    default void resume() {
+
+    }
 }
