@@ -1394,6 +1394,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final MessagePayloadContextImpl entryContext = MessagePayloadContextImpl.get(
                 brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet, consumerEpoch);
         final AtomicInteger skippedMessages = new AtomicInteger(0);
+        if (this instanceof ZeroQueueConsumerImpl<T> && entryContext.isBatch()) {
+            this.receiveIndividualMessagesFromBatch(brokerEntryMetadata,
+                    messageMetadata,redeliveryCount, ackSet, byteBuf, null, null, consumerEpoch, false);
+            return;
+        }
         try {
             conf.getPayloadProcessor().process(payload, entryContext, schema, message -> {
                 if (message != null) {
