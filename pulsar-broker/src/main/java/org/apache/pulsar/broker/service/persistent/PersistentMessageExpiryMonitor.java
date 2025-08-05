@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -82,6 +83,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         // check to avoid test failures
         return this.cursor.getManagedLedger() != null
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        return CompletableFuture.completedFuture(expireMessages(messageTTLInSeconds));
     }
 
     @Override
