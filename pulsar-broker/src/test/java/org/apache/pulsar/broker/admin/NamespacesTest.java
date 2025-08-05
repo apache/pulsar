@@ -188,10 +188,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     public void cleanupAfterMethod() throws Exception{
         // cleanup.
-        Set<String> existsNsSetAfterSetup = Stream.concat(testLocalNamespaces.stream(), testGlobalNamespaces.stream())
+        Set<String> existsNsSetAferSetup = Stream.concat(testLocalNamespaces.stream(), testGlobalNamespaces.stream())
                 .map(Objects::toString).collect(Collectors.toSet());
-        cleanupNamespaceByPredicate(this.testTenant, v -> !existsNsSetAfterSetup.contains(v));
-        cleanupNamespaceByPredicate(this.testOtherTenant, v -> !existsNsSetAfterSetup.contains(v));
+        cleanupNamespaceByPredicate(this.testTenant, v -> !existsNsSetAferSetup.contains(v));
+        cleanupNamespaceByPredicate(this.testOtherTenant, v -> !existsNsSetAferSetup.contains(v));
     }
 
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
