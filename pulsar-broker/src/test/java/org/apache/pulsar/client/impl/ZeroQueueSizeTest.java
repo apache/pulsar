@@ -605,12 +605,15 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
                 .messagePayloadProcessor(new MessagePayloadProcessor() {
                                              @Override
                                              public <T> void process(MessagePayload payload,
-                                                                     MessagePayloadContext context, Schema<T> schema,
-                                                                     java.util.function.Consumer<Message<T>> messageConsumer) throws Exception {
+                                                             MessagePayloadContext context, Schema<T> schema,
+                                                             java.util.function.Consumer<Message<T>> messageConsumer) {
                                                  if (context.isBatch()) {
                                                      final int numMessages = context.getNumMessages();
                                                      for (int i = 0; i < numMessages; i++) {
-                                                         messageConsumer.accept(context.getMessageAt(i, numMessages, payload, true, schema));
+                                                         messageConsumer.
+                                                                 accept(context.getMessageAt(i, numMessages,
+                                                                         payload, true, schema)
+                                                                 );
                                                      }
                                                  } else {
                                                      messageConsumer.accept(context.asSingleMessage(payload, schema));

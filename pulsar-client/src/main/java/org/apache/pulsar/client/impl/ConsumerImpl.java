@@ -1396,7 +1396,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final AtomicInteger skippedMessages = new AtomicInteger(0);
         if (this instanceof ZeroQueueConsumerImpl<T> && entryContext.isBatch()) {
             this.receiveIndividualMessagesFromBatch(brokerEntryMetadata,
-                messageMetadata,redeliveryCount, ackSet, byteBuf, null, null, consumerEpoch, false);
+                messageMetadata, redeliveryCount, ackSet, byteBuf, null, null, consumerEpoch, false);
             return;
         }
         try {
