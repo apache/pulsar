@@ -967,12 +967,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     cnx.sendRequestWithId(cmd, closeRequestId);
                 }
 
+                final boolean retriable = PulsarClientException.isRetriableError(e.getCause());
+                final boolean unrecoverable = isUnrecoverableError(e.getCause());
                 if (e.getCause() instanceof PulsarClientException
-                        && PulsarClientException.isRetriableError(e.getCause())
-                        && !isUnrecoverableError(e.getCause())
+                        && retriable
+                        && !unrecoverable
                         && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
                     future.completeExceptionally(e.getCause());
-                } else if (!subscribeFuture.isDone()) {
+                } else if (!subscribeFuture.isDone() && !retriable) {
                     // unable to create new consumer, fail operation
                     setState(State.Failed);
                     final Throwable throwable = PulsarClientException.wrap(e, String.format("Failed to subscribe the "
@@ -983,7 +985,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     closeConsumerTasks();
                     subscribeFuture.completeExceptionally(throwable);
                     client.cleanupConsumer(this);
-                } else if (isUnrecoverableError(e.getCause())) {
+                } else if (unrecoverable) {
                     closeWhenReceivedUnrecoverableError(e.getCause(), cnx);
                 } else {
                     // consumer was subscribed and connected but we got some error, keep trying
