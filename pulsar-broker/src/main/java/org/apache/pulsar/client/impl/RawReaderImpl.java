@@ -113,6 +113,16 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
+    public void pause() {
+        consumer.pause();
+    }
+
+    @Override
+    public void resume() {
+        consumer.resume();
+    }
+
+    @Override
     public String toString() {
         return "RawReader(topic=" + getTopic() + ")";
     }
