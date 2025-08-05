@@ -18,30 +18,42 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import io.netty.channel.ChannelFuture;
+import io.netty.util.concurrent.GenericFutureListener;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class SimpleProduceConsumeIoTest extends ProducerConsumerBase {
 
+    private ExecutorService executor;
+    private String topic;
     private PulsarClientImpl singleConnectionPerBrokerClient;
 
     @BeforeClass(alwaysRun = true)
@@ -49,86 +61,154 @@ public class SimpleProduceConsumeIoTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
-        singleConnectionPerBrokerClient = (PulsarClientImpl) PulsarClient.builder().connectionsPerBroker(1)
-                .serviceUrl(lookupUrl.toString()).build();
     }
 
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (singleConnectionPerBrokerClient != null) {
-            singleConnectionPerBrokerClient.close();
-        }
+        executor.shutdown();
         super.internalCleanup();
     }
 
-    /**
-     * 1. Create a producer with a pooled connection.
-     * 2. When executing "producer.connectionOpened", the pooled connection has been closed due to a network issue.
-     * 3. Verify: the producer can be created successfully.
-     */
-    @Test
-    public void testUnstableNetWorkWhenCreatingProducer() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    @BeforeMethod
+    public void setupTopic() throws Exception {
+        executor = Executors.newSingleThreadExecutor();
+        singleConnectionPerBrokerClient = (PulsarClientImpl) PulsarClient.builder().connectionsPerBroker(1)
+                .serviceUrl(lookupUrl.toString()).build();
+        topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(topic);
-        // Trigger a pooled connection creation.
-        ProducerImpl p = (ProducerImpl) singleConnectionPerBrokerClient.newProducer().topic(topic).create();
-        ClientCnx cnx = p.getClientCnx();
-        p.close();
+    }
 
-        // 1. Create a new producer with the pooled connection(since there is a pooled connection, the new producer
-        // will reuse it).
-        // 2. Trigger a network issue.
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        // A task for trigger network issue.
-        new Thread(() -> {
-            try {
-                countDownLatch.await();
-                cnx.ctx().close();
-            } catch (Exception ex) {
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() throws Exception {
+        if (singleConnectionPerBrokerClient != null) {
+            singleConnectionPerBrokerClient.close();
+        }
+        executor.shutdown();
+    }
+
+    @Test
+    public void testUnstableNetWorkForProducer() throws Exception {
+        final var producer = (ProducerImpl<byte[]>) singleConnectionPerBrokerClient.newProducer().topic(topic).create();
+        final var producerNetwork = new Network(producer.getClientCnx());
+        producer.close();
+        producerNetwork.close();
+
+        final var newProducer = executor.submit(() -> createProducer(__ -> producerNetwork.waitForClose())).get().get();
+        assertEquals(newProducer.getState().toString(), "Ready");
+    }
+
+    @Test
+    public void testUnstableNetWorkForConsumer() throws Exception {
+        final var consumer = (ConsumerImpl<byte[]>) singleConnectionPerBrokerClient.newConsumer().topic(topic)
+                .subscriptionName("sub").subscribe();
+        final var consumerNetwork = new Network(consumer.getClientCnx());
+        consumer.close();
+        consumerNetwork.close();
+
+        final var newConsumer = executor.submit(() -> subscribe(cnx -> consumerNetwork.waitForClose())).get().get();
+        assertEquals(newConsumer.getState().toString(), "Ready");
+    }
+
+    @Test
+    public void testUnknownRpcExceptionForProducer() throws Exception {
+        final var firstTime = new AtomicBoolean(true);
+        final var producer = createProducer(cnx -> {
+            if (firstTime.compareAndSet(true, false)) {
+                setFailedContext(cnx);
             }
-        }).start();
-        // Create a new producer with the pooled connection.
-        AtomicReference<CompletableFuture<Producer<byte[]>>> p2FutureWrap = new AtomicReference<>();
-        new Thread(() -> {
-            ProducerBuilder producerBuilder = singleConnectionPerBrokerClient.newProducer().topic(topic);
-            ProducerConfigurationData producerConf = WhiteboxImpl.getInternalState(producerBuilder, "conf");
-            CompletableFuture<Producer<byte[]>> p2Future = new CompletableFuture();
-            p2FutureWrap.set(p2Future);
-            new ProducerImpl<>(singleConnectionPerBrokerClient, "public/default/tp1", producerConf, p2Future,
-                    -1, Schema.BYTES, null, Optional.empty()) {
-                @Override
-                public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
-                    // Mock a network issue, and wait for the issue occurred.
-                    countDownLatch.countDown();
-                    try {
-                        Thread.sleep(1500);
-                    } catch (InterruptedException e) {
-                    }
-                    // Call the real implementation.
-                    return super.connectionOpened(cnx);
+        }).get(3, TimeUnit.SECONDS);
+        assertEquals(producer.getState().toString(), "Ready");
+    }
+
+    @Test
+    public void testUnknownRpcExceptionForConsumer() throws Exception {
+        final var firstTime = new AtomicBoolean(true);
+        final var consumer = subscribe(cnx -> {
+            if (firstTime.compareAndSet(true, false)) {
+                setFailedContext(cnx);
+            }
+        }).get(3, TimeUnit.SECONDS);
+        assertEquals(consumer.getState().toString(), "Ready");
+    }
+
+    private CompletableFuture<ProducerImpl<byte[]>> createProducer(
+            java.util.function.Consumer<ClientCnx> cnxInterceptor) {
+        final var producerConf = ((ProducerBuilderImpl<byte[]>) singleConnectionPerBrokerClient.newProducer()
+                .topic(topic)).getConf();
+        final var future = new CompletableFuture<Producer<byte[]>>();
+        new ProducerImpl<>(singleConnectionPerBrokerClient, topic, producerConf, future,
+                -1, Schema.BYTES, null, Optional.empty()) {
+            @Override
+            public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+                cnxInterceptor.accept(cnx);
+                return super.connectionOpened(cnx);
+            }
+        };
+        return future.thenApply(__ -> (ProducerImpl<byte[]>) __);
+    }
+
+    private CompletableFuture<ConsumerImpl<byte[]>> subscribe(java.util.function.Consumer<ClientCnx> cnxInterceptor) {
+        final var consumerConf = ((ConsumerBuilderImpl<byte[]>) singleConnectionPerBrokerClient.newConsumer()
+                .topic(topic).subscriptionName("sub")).getConf();
+        final var future = new CompletableFuture<Consumer<byte[]>>();
+        new ConsumerImpl<>(singleConnectionPerBrokerClient, topic, consumerConf,
+                new ExecutorProvider(1, "internal"), -1, true, false, future, null, 3600, Schema.BYTES,
+                new ConsumerInterceptors<>(List.of()), true) {
+
+            @Override
+            public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+                cnxInterceptor.accept(cnx);
+                return super.connectionOpened(cnx);
+            }
+        };
+        return future.thenApply(__ -> (ConsumerImpl<byte[]>) __);
+    }
+
+    private void setFailedContext(ClientCnx cnx) {
+        final var oldCtx = cnx.ctx();
+        final var newCtx = spy(oldCtx);
+        doAnswer(invocationOnMock -> {
+            final var failedFuture = mock(ChannelFuture.class);
+            doAnswer(invocation -> {
+                @SuppressWarnings("unchecked")
+                final var listener = (GenericFutureListener<ChannelFuture>) invocation.getArgument(0);
+                final var future = mock(ChannelFuture.class);
+                when(future.isSuccess()).thenReturn(false);
+                when(future.cause()).thenReturn(new RuntimeException("network exception"));
+                listener.operationComplete(future);
+                return future;
+            }).when(failedFuture).addListener(any());
+            // Set back the original context because reconnection will still get the same `ClientCnx` from the pool
+            cnx.setCtx(oldCtx);
+            return failedFuture;
+        }).when(newCtx).writeAndFlush(any());
+
+        cnx.setCtx(newCtx);
+    }
+
+    @RequiredArgsConstructor
+    private static class Network {
+
+        private final ClientCnx cnx;
+        private final CountDownLatch countDownLatch = new CountDownLatch(1);
+
+        public void close() {
+            new Thread(() -> {
+                try {
+                    countDownLatch.await();
+                    cnx.ctx().close();
+                } catch (Exception ignored) {
                 }
-            };
-        }).start();
+            }).start();
+        }
 
-        // Verify: the producer can be created successfully.
-        Awaitility.await().untilAsserted(() -> {
-            assertNotNull(p2FutureWrap.get());
-            assertTrue(p2FutureWrap.get().isDone());
-        });
-        // Print log.
-        p2FutureWrap.get().exceptionally(ex -> {
-            log.error("Failed to create producer", ex);
-            return null;
-        });
-        Awaitility.await().untilAsserted(() -> {
-            assertFalse(p2FutureWrap.get().isCompletedExceptionally());
-            assertTrue("Ready".equals(
-                    WhiteboxImpl.getInternalState(p2FutureWrap.get().join(), "state").toString()));
-        });
-
-        // Cleanup.
-        p2FutureWrap.get().join().close();
-        admin.topics().delete(topic);
+        public void waitForClose() {
+            countDownLatch.countDown();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ignored) {
+            }
+        }
     }
 }
