@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doAnswer;
+import static org.testng.AssertJUnit.assertEquals;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -31,13 +37,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.awaitility.Awaitility;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
@@ -70,16 +76,36 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(cursorName);
+        ManagedCursorImpl spyCursor = Mockito.spy(cursor);
 
         // Make the mark-deleting delay.
         CountDownLatch firstFindingCompleted = new CountDownLatch(1);
-        ManagedCursorImpl spyCursor = Mockito.spy(cursor);
-        Mockito.doAnswer(invocationOnMock -> {
+        AtomicInteger calledFindPositionCount = new AtomicInteger();
+        doAnswer(invocationOnMock -> {
             firstFindingCompleted.countDown();
-            Thread.sleep(3000);
+            ml.getExecutor().execute(() -> {
+                try {
+                    Thread.sleep(3000);
+                    invocationOnMock.callRealMethod();
+                } catch (Throwable ex) {
+                    log.error("Unexpected exception when calling mark delete", ex);
+                }
+            });
+            return true;
+        }).when(spyCursor).asyncMarkDelete(any(Position.class), any(Map.class),
+                any(AsyncCallbacks.MarkDeleteCallback.class), any());
+        doAnswer(invocationOnMock -> {
+            calledFindPositionCount.incrementAndGet();
             return invocationOnMock.callRealMethod();
-        }).when(spyCursor).asyncMarkDelete(ArgumentMatchers.any(Position.class), ArgumentMatchers.any(Map.class),
-                ArgumentMatchers.any(AsyncCallbacks.MarkDeleteCallback.class), ArgumentMatchers.any());
+        }).when(spyCursor).asyncFindNewestMatching(any(), any(), any(), any(), any(), any(), anyBoolean());
+        doAnswer(invocationOnMock -> {
+            calledFindPositionCount.incrementAndGet();
+            return invocationOnMock.callRealMethod();
+        }).when(spyCursor).asyncFindNewestMatching(any(), any(), any(), any(), anyBoolean());
+        doAnswer(invocationOnMock -> {
+            calledFindPositionCount.incrementAndGet();
+            return invocationOnMock.callRealMethod();
+        }).when(spyCursor).asyncFindNewestMatching(any(), any(), any(), any());
 
         // Sleep 2s to make "find(1s)" get a position.
         Thread.sleep(2000);
@@ -101,14 +127,12 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
             expireTask3.complete(monitor.expireMessages(1));
         }).start();
 
-        // Verify: the first task succeed and the second task failed.
-        Assert.assertTrue(expireTask1.get());
-        Assert.assertFalse(expireTask2.get());
-        Assert.assertFalse(expireTask3.get());
-        // Verify: Since the second task has been skipped, the messageExpiryCount is 1.
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(monitor.getTotalMessageExpired(), 3);
         });
+        // Verify: since the other 2 tasks have been prevented, the count of calling find position is 1.
+        Thread.sleep(1000);
+        assertEquals(1, calledFindPositionCount.get());
 
         // cleanup.
         producer.close();
