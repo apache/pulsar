@@ -687,8 +687,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (backlog == 0) {
             return CompletableFuture.completedFuture(false);
         } else if (backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
-            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds).thenCompose(bool -> {
-                if (bool) {
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds).thenCompose(oldestMsgExpired -> {
+                if (oldestMsgExpired) {
                     return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
                 } else {
                     return CompletableFuture.completedFuture(false);

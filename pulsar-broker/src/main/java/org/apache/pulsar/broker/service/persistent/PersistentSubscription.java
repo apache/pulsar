@@ -1243,13 +1243,14 @@ public class PersistentSubscription extends AbstractSubscription {
             return CompletableFuture.completedFuture(false);
         }
         if (dispatcher != null && dispatcher.isConsumerConnected() && backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
-            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds).thenCompose(bool -> {
-                if (bool) {
-                    this.lastExpireTimestamp = System.currentTimeMillis();
-                    return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
-                } else {
-                    return CompletableFuture.completedFuture(false);
-                }
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds)
+                .thenCompose(oldestMsgExpired -> {
+                    if (oldestMsgExpired) {
+                        this.lastExpireTimestamp = System.currentTimeMillis();
+                        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+                    } else {
+                        return CompletableFuture.completedFuture(false);
+                    }
             });
         }
         return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
