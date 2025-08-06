@@ -95,7 +95,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         }
 
         // start to probe primary cluster active or not
-        this.executor.scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
+        this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
             if (currentPulsarServiceUrl.equals(primary)) {
                 // current service url is primary, probe whether it is down
                 probeAndUpdateServiceUrl(secondary, secondaryAuthentications, secondaryTlsTrustCertsFilePaths,

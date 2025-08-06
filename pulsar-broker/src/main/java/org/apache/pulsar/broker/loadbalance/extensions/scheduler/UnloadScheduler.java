@@ -195,7 +195,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
         if (this.task == null) {
             long loadSheddingInterval = TimeUnit.MINUTES
                     .toMillis(conf.getLoadBalancerSheddingIntervalMinutes());
-            this.task = loadManagerExecutor.scheduleWithFixedDelay(
+            this.task = loadManagerExecutor.scheduleAtFixedRate(
                     this::execute, loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
         }
     }

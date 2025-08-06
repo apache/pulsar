@@ -80,7 +80,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
 
         public ResourceUsageWriterTask() throws PulsarClientException {
             producer = createProducer();
-            resourceUsagePublishTask = pulsarService.getExecutor().scheduleWithFixedDelay(
+            resourceUsagePublishTask = pulsarService.getExecutor().scheduleAtFixedRate(
                     catchingAndLoggingThrowables(this),
                     pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
                     pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),

@@ -157,7 +157,7 @@ public class SplitScheduler implements LoadManagerScheduler {
     public void start() {
         long interval = TimeUnit.MINUTES
                 .toMillis(conf.getLoadBalancerSplitIntervalMinutes());
-        task = loadManagerExecutor.scheduleWithFixedDelay(() -> {
+        task = loadManagerExecutor.scheduleAtFixedRate(() -> {
             try {
                 execute();
                 var debugMode = ExtensibleLoadManagerImpl.debug(conf, log);

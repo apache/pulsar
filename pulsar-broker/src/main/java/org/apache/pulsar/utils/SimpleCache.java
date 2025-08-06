@@ -59,7 +59,7 @@ public class SimpleCache<K, V> {
 
     public SimpleCache(final ScheduledExecutorService scheduler, final long timeoutMs, final long frequencyMs) {
         this.timeoutMs = timeoutMs;
-        scheduler.scheduleWithFixedDelay(() -> {
+        scheduler.scheduleAtFixedRate(() -> {
             synchronized (SimpleCache.this) {
                 final var keys = new HashSet<K>();
                 cache.forEach((key, value) -> {

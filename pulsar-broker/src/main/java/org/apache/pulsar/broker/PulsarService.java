@@ -1339,7 +1339,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor,
                     config, getDefaultManagedLedgerFactory());
             loadSheddingTask.start();
-            loadResourceQuotaTask = loadManagerExecutor.scheduleWithFixedDelay(
+            loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
                     new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
                     resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
         }
@@ -1414,7 +1414,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
                 long loadReportMinInterval = config.getLoadBalancerReportUpdateMinIntervalMillis();
-                this.loadReportTask = this.loadManagerExecutor.scheduleWithFixedDelay(
+                this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
                         TimeUnit.MILLISECONDS);
             }

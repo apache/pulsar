@@ -589,7 +589,7 @@ public class ResourceGroupService implements AutoCloseable{
                                 + "when publish period changed from {} to {} {}",
                         cancelStatus, this.aggregateLocalUsagePeriodInSeconds, newPeriodInSeconds, timeUnitScale);
             }
-            this.aggregateLocalUsagePeriodicTask = pulsar.getExecutor().scheduleWithFixedDelay(
+            this.aggregateLocalUsagePeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
                     catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
                     newPeriodInSeconds,
                     newPeriodInSeconds,
@@ -679,7 +679,7 @@ public class ResourceGroupService implements AutoCloseable{
                         + " when publish period changed from {} to {} {}",
                         cancelStatus, this.resourceUsagePublishPeriodInSeconds, newPeriodInSeconds, timeUnitScale);
             }
-            this.calculateQuotaPeriodicTask = pulsar.getExecutor().scheduleWithFixedDelay(
+            this.calculateQuotaPeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
                         catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
                         newPeriodInSeconds,
                         newPeriodInSeconds,
@@ -694,12 +694,12 @@ public class ResourceGroupService implements AutoCloseable{
         ServiceConfiguration config = this.pulsar.getConfiguration();
         long periodInSecs = config.getResourceUsageTransportPublishIntervalInSecs();
         this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
-        this.aggregateLocalUsagePeriodicTask = this.pulsar.getExecutor().scheduleWithFixedDelay(
+        this.aggregateLocalUsagePeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
                     catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
                     periodInSecs,
                     periodInSecs,
                     this.timeUnitScale);
-        this.calculateQuotaPeriodicTask = this.pulsar.getExecutor().scheduleWithFixedDelay(
+        this.calculateQuotaPeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
                     catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
                     periodInSecs,
                     periodInSecs,

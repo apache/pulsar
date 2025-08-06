@@ -97,7 +97,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         this.localCluster = localCluster;
         var pulsar = topic.getBrokerService().pulsar();
         timer = pulsar.getExecutor()
-                .scheduleWithFixedDelay(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
                         pulsar.getConfiguration().getReplicatedSubscriptionsSnapshotFrequencyMillis(),
                         TimeUnit.MILLISECONDS);
         stats = pulsar.getOpenTelemetryReplicatedSubscriptionStats();

@@ -974,7 +974,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // Authentication is disabled or there's no local state to refresh
             return;
         }
-        authRefreshTask = ctx.executor().scheduleWithFixedDelay(this::refreshAuthenticationCredentials,
+        authRefreshTask = ctx.executor().scheduleAtFixedRate(this::refreshAuthenticationCredentials,
                 service.getPulsar().getConfig().getAuthenticationRefreshCheckSeconds(),
                 service.getPulsar().getConfig().getAuthenticationRefreshCheckSeconds(),
                 TimeUnit.SECONDS);

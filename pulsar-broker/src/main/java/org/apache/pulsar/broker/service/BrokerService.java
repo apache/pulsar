@@ -184,6 +184,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.SingleThreadSafeScheduledExecutorService;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
@@ -243,10 +244,10 @@ public class BrokerService implements Closeable {
     private final ConcurrentLinkedQueue<TopicLoadingContext> pendingTopicLoadingQueue;
 
     private AuthorizationService authorizationService;
-    private final ScheduledExecutorService statsUpdater;
+    private final SingleThreadSafeScheduledExecutorService statsUpdater;
 
     @Getter
-    private final ScheduledExecutorService backlogQuotaChecker;
+    private final SingleThreadSafeScheduledExecutorService backlogQuotaChecker;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
@@ -274,11 +275,11 @@ public class BrokerService implements Closeable {
             .help("Counter of connections throttled because of per-connection limit")
             .register();
 
-    private final ScheduledExecutorService inactivityMonitor;
-    private final ScheduledExecutorService messageExpiryMonitor;
-    private final ScheduledExecutorService compactionMonitor;
-    private final ScheduledExecutorService consumedLedgersMonitor;
-    private ScheduledExecutorService deduplicationSnapshotMonitor;
+    private final SingleThreadSafeScheduledExecutorService inactivityMonitor;
+    private final SingleThreadSafeScheduledExecutorService messageExpiryMonitor;
+    private final SingleThreadSafeScheduledExecutorService compactionMonitor;
+    private final SingleThreadSafeScheduledExecutorService consumedLedgersMonitor;
+    private SingleThreadSafeScheduledExecutorService deduplicationSnapshotMonitor;
     protected final PublishRateLimiter brokerPublishRateLimiter;
     private final DispatchRateLimiterFactory dispatchRateLimiterFactory;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
@@ -350,10 +351,7 @@ public class BrokerService implements Closeable {
                 pulsar.getConfiguration().getNumAcceptorThreads(), false, acceptorThreadFactory);
         this.workerGroup = eventLoopGroup;
 
-        this.statsUpdater = OrderedScheduler.newSchedulerBuilder()
-                .name("pulsar-stats-updater")
-                .numThreads(1)
-                .build();
+        this.statsUpdater = new SingleThreadSafeScheduledExecutorService("pulsar-stats-updater");
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
         this.entryFilterProvider = new EntryFilterProvider(pulsar.getConfiguration());
@@ -363,27 +361,12 @@ public class BrokerService implements Closeable {
             pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
         }
 
-        this.inactivityMonitor = OrderedScheduler.newSchedulerBuilder()
-                .name("pulsar-inactivity-monitor")
-                .numThreads(1)
-                .build();
-        this.messageExpiryMonitor = OrderedScheduler.newSchedulerBuilder()
-                .name("pulsar-msg-expiry-monitor")
-                .numThreads(1)
-                .build();
-        this.compactionMonitor = OrderedScheduler.newSchedulerBuilder()
-                .name("pulsar-compaction-monitor")
-                .numThreads(1)
-                .build();
-        this.consumedLedgersMonitor = OrderedScheduler.newSchedulerBuilder()
-                .name("pulsar-consumed-ledgers-monitor")
-                .numThreads(1)
-                .build();
+        this.inactivityMonitor = new SingleThreadSafeScheduledExecutorService("pulsar-inactivity-monitor");
+        this.messageExpiryMonitor = new SingleThreadSafeScheduledExecutorService("pulsar-msg-expiry-monitor");
+        this.compactionMonitor = new SingleThreadSafeScheduledExecutorService("pulsar-compaction-monitor");
+        this.consumedLedgersMonitor = new SingleThreadSafeScheduledExecutorService("pulsar-consumed-ledgers-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
-        this.backlogQuotaChecker = OrderedScheduler.newSchedulerBuilder()
-                .name("pulsar-backlog-quota-checker")
-                .numThreads(1)
-                .build();
+        this.backlogQuotaChecker = new SingleThreadSafeScheduledExecutorService("pulsar-backlog-quota-checker");
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
                 pulsar.getOpenTelemetry().getOpenTelemetry());
         this.topicFactory = createPersistentTopicFactory();
@@ -401,7 +384,7 @@ public class BrokerService implements Closeable {
             log.info("Enabling per-broker unack-message limit {} and dispatcher-limit {} on blocked-broker",
                     maxUnackedMessages, maxUnackedMsgsPerDispatcher);
             // block misbehaving dispatcher by checking periodically
-            pulsar.getExecutor().scheduleWithFixedDelay(this::checkUnAckMessageDispatching,
+            pulsar.getExecutor().scheduleAtFixedRate(this::checkUnAckMessageDispatching,
                     600, 30, TimeUnit.SECONDS);
         } else {
             this.maxUnackedMessages = 0;
@@ -646,7 +629,7 @@ public class BrokerService implements Closeable {
 
     protected void startClearInvalidateTopicNameCacheTask() {
         final int maxSecondsToClearTopicNameCache = pulsar.getConfiguration().getMaxSecondsToClearTopicNameCache();
-        inactivityMonitor.scheduleWithFixedDelay(
+        inactivityMonitor.scheduleAtFixedRateAndDropOutdatedTask(
             () -> TopicName.clearIfReachedMaxCapacity(pulsar.getConfiguration().getTopicNameCacheMaxCapacity()),
             maxSecondsToClearTopicNameCache,
             maxSecondsToClearTopicNameCache,
@@ -654,7 +637,7 @@ public class BrokerService implements Closeable {
     }
 
     protected void startStatsUpdater(int statsUpdateInitialDelayInSecs, int statsUpdateFrequencyInSecs) {
-        statsUpdater.scheduleWithFixedDelay(this::updateRates,
+        statsUpdater.scheduleAtFixedRateAndDropOutdatedTask(this::updateRates,
             statsUpdateInitialDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
 
         // Ensure the broker starts up with initial stats
@@ -665,7 +648,7 @@ public class BrokerService implements Closeable {
         ServiceConfiguration config = pulsar().getConfiguration();
         if (config.getHealthCheckMetricsUpdateTimeInSeconds() > 0) {
             int interval = config.getHealthCheckMetricsUpdateTimeInSeconds();
-            statsUpdater.scheduleAtFixedRate(this::checkHealth,
+            statsUpdater.scheduleAtFixedRateAndDropOutdatedTask(this::checkHealth,
                     interval, interval, TimeUnit.SECONDS);
         }
     }
@@ -687,11 +670,9 @@ public class BrokerService implements Closeable {
         // scheduled task runs.
         int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
         if (interval > 0) {
-            this.deduplicationSnapshotMonitor = OrderedScheduler.newSchedulerBuilder()
-                    .name("deduplication-snapshot-monitor")
-                    .numThreads(1)
-                    .build();
-            deduplicationSnapshotMonitor.scheduleWithFixedDelay(() -> forEachTopic(
+            this.deduplicationSnapshotMonitor =
+                    new SingleThreadSafeScheduledExecutorService("deduplication-snapshot-monitor");
+            deduplicationSnapshotMonitor.scheduleAtFixedRateAndDropOutdatedTask(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot)
                     , interval, interval, TimeUnit.SECONDS);
         }
@@ -700,14 +681,14 @@ public class BrokerService implements Closeable {
     protected void startInactivityMonitor() {
         if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
             int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
-            inactivityMonitor.scheduleWithFixedDelay(() -> checkGC(), interval, interval,
+            inactivityMonitor.scheduleAtFixedRateAndDropOutdatedTask(() -> checkGC(), interval, interval,
                     TimeUnit.SECONDS);
         }
 
         // Deduplication info checker
         long duplicationCheckerIntervalInSeconds = TimeUnit.MINUTES
                 .toSeconds(pulsar().getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes()) / 3;
-        inactivityMonitor.scheduleWithFixedDelay(this::checkMessageDeduplicationInfo,
+        inactivityMonitor.scheduleAtFixedRateAndDropOutdatedTask(this::checkMessageDeduplicationInfo,
                 duplicationCheckerIntervalInSeconds,
                 duplicationCheckerIntervalInSeconds, TimeUnit.SECONDS);
 
@@ -716,7 +697,7 @@ public class BrokerService implements Closeable {
             long subscriptionExpiryCheckIntervalInSeconds =
                     TimeUnit.MINUTES.toSeconds(pulsar().getConfiguration()
                             .getSubscriptionExpiryCheckIntervalInMinutes());
-            inactivityMonitor.scheduleWithFixedDelay(this::checkInactiveSubscriptions,
+            inactivityMonitor.scheduleAtFixedRateAndDropOutdatedTask(this::checkInactiveSubscriptions,
                     subscriptionExpiryCheckIntervalInSeconds,
                     subscriptionExpiryCheckIntervalInSeconds, TimeUnit.SECONDS);
         }
@@ -724,29 +705,29 @@ public class BrokerService implements Closeable {
         // check cluster migration
         int interval = pulsar().getConfiguration().getClusterMigrationCheckDurationSeconds();
         if (interval > 0) {
-            inactivityMonitor.scheduleWithFixedDelay(() -> checkClusterMigration(), interval, interval,
+            inactivityMonitor.scheduleAtFixedRateAndDropOutdatedTask(() -> checkClusterMigration(), interval, interval,
                     TimeUnit.SECONDS);
         }
     }
 
     protected void startMessageExpiryMonitor() {
         int interval = pulsar().getConfiguration().getMessageExpiryCheckIntervalInMinutes();
-        messageExpiryMonitor.scheduleWithFixedDelay(this::checkMessageExpiry, interval, interval,
+        messageExpiryMonitor.scheduleAtFixedRateAndDropOutdatedTask(this::checkMessageExpiry, interval, interval,
                 TimeUnit.MINUTES);
     }
 
     protected void startCheckReplicationPolicies() {
         int interval = pulsar.getConfig().getReplicationPolicyCheckDurationSeconds();
         if (interval > 0) {
-            messageExpiryMonitor.scheduleWithFixedDelay(this::checkReplicationPolicies, interval, interval,
-                    TimeUnit.SECONDS);
+            messageExpiryMonitor.scheduleAtFixedRateAndDropOutdatedTask(this::checkReplicationPolicies, interval,
+                    interval, TimeUnit.SECONDS);
         }
     }
 
     protected void startCompactionMonitor() {
         int interval = pulsar().getConfiguration().getBrokerServiceCompactionMonitorIntervalInSeconds();
         if (interval > 0) {
-            compactionMonitor.scheduleWithFixedDelay(this::checkCompaction,
+            compactionMonitor.scheduleAtFixedRateAndDropOutdatedTask(this::checkCompaction,
                     interval, interval, TimeUnit.SECONDS);
         }
     }
@@ -754,7 +735,7 @@ public class BrokerService implements Closeable {
     protected void startConsumedLedgersMonitor() {
         int interval = pulsar().getConfiguration().getRetentionCheckIntervalInSeconds();
         if (interval > 0) {
-            consumedLedgersMonitor.scheduleWithFixedDelay(this::checkConsumedLedgers,
+            consumedLedgersMonitor.scheduleAtFixedRateAndDropOutdatedTask(this::checkConsumedLedgers,
                     interval, interval, TimeUnit.SECONDS);
         }
     }
@@ -763,7 +744,7 @@ public class BrokerService implements Closeable {
         if (pulsar().getConfiguration().isBacklogQuotaCheckEnabled()) {
             final int interval = pulsar().getConfiguration().getBacklogQuotaCheckIntervalInSeconds();
             log.info("Scheduling a thread to check backlog quota after [{}] seconds in background", interval);
-            backlogQuotaChecker.scheduleWithFixedDelay(this::monitorBacklogQuota, interval, interval,
+            backlogQuotaChecker.scheduleAtFixedRateAndDropOutdatedTask(this::monitorBacklogQuota, interval, interval,
                     TimeUnit.SECONDS);
         } else {
             log.info("Backlog quota check monitoring is disabled");

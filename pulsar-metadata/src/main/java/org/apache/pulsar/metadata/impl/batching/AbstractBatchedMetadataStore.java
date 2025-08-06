@@ -67,7 +67,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             readOps = new MpscUnboundedArrayQueue<>(10_000);
             writeOps = new MpscUnboundedArrayQueue<>(10_000);
             scheduledTask =
-                    executor.scheduleWithFixedDelay(this::flush, maxDelayMillis, maxDelayMillis, TimeUnit.MILLISECONDS);
+                    executor.scheduleAtFixedRate(this::flush, maxDelayMillis, maxDelayMillis, TimeUnit.MILLISECONDS);
         } else {
             scheduledTask = null;
             readOps = null;

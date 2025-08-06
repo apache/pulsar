@@ -425,7 +425,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
 
                     this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                            .scheduleWithFixedDelay(() -> {
+                            .scheduleAtFixedRate(() -> {
                                         try {
                                             brokerLoadDataReporter.reportAsync(false);
                                             // TODO: update broker load metrics using getLocalData
@@ -437,7 +437,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                     interval, TimeUnit.MILLISECONDS);
 
                     this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                            .scheduleWithFixedDelay(() -> {
+                            .scheduleAtFixedRate(() -> {
                                         try {
                                             // TODO: consider excluding the bundles that are in the process of split.
                                             topBundleLoadDataReporter.reportAsync(false);
@@ -449,7 +449,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                     interval, TimeUnit.MILLISECONDS);
 
                     this.monitorTask = this.pulsar.getLoadManagerExecutor()
-                            .scheduleWithFixedDelay(() -> {
+                            .scheduleAtFixedRate(() -> {
                                         monitor();
                                     },
                                     MONITOR_INTERVAL_IN_MILLIS,
