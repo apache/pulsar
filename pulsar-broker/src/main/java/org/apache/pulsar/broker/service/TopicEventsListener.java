@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -81,6 +83,8 @@ public interface TopicEventsListener {
 
     @Builder
     @Value
+    @NoArgsConstructor(force = true)
+    @AllArgsConstructor
     class EventContext {
         String brokerId;
         String proxyRole;
