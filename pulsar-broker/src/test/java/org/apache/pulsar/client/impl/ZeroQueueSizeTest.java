@@ -367,7 +367,6 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             .ackTimeout(1, TimeUnit.SECONDS)
             .messageListener((MessageListener<Integer>) (c, msg) -> {
                 try {
-                    System.out.println("----receive data : " + msg.getData());
                     receivedMessages.add(msg.getValue());
                 } finally {
                     latch.countDown();

@@ -215,4 +215,18 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         //receiver queue size is fixed as 0.
         throw new NotImplementedException("Receiver queue size can't be changed in ZeroQueueConsumerImpl");
     }
+
+    @Override
+    protected void processPayloadByProcessor(BrokerEntryMetadata brokerEntryMetadata,
+                                             MessageMetadata messageMetadata, ByteBuf byteBuf,
+                                             MessageIdImpl messageId, Schema<T> schema,
+                                             int redeliveryCount, List<Long> ackSet, long consumerEpoch) {
+        if (this.isBatch(messageMetadata)) {
+            this.receiveIndividualMessagesFromBatch(brokerEntryMetadata,
+                    messageMetadata, redeliveryCount, ackSet, byteBuf, null, null, consumerEpoch, false);
+        } else {
+            super.processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema,
+                    redeliveryCount, ackSet, consumerEpoch);
+        }
+    }
 }

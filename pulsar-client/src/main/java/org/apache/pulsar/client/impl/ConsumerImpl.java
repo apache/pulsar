@@ -1382,7 +1382,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    private void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
+    protected void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
                                            final MessageMetadata messageMetadata,
                                            final ByteBuf byteBuf,
                                            final MessageIdImpl messageId,
@@ -1394,11 +1394,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final MessagePayloadContextImpl entryContext = MessagePayloadContextImpl.get(
                 brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet, consumerEpoch);
         final AtomicInteger skippedMessages = new AtomicInteger(0);
-        if (this instanceof ZeroQueueConsumerImpl<T> && entryContext.isBatch()) {
-            this.receiveIndividualMessagesFromBatch(brokerEntryMetadata,
-                messageMetadata, redeliveryCount, ackSet, byteBuf, null, null, consumerEpoch, false);
-            return;
-        }
         try {
             conf.getPayloadProcessor().process(payload, entryContext, schema, message -> {
                 if (message != null) {
