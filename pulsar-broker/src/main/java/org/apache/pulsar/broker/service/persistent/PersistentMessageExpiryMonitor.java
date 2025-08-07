@@ -87,8 +87,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
 
     @Override
     public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
-        return CompletableFuture.supplyAsync(() -> expireMessages(messageTTLInSeconds),
-                cursor.getManagedLedger().asyncMigrate().defaultExecutor());
+        return CompletableFuture.supplyAsync(() -> expireMessages(messageTTLInSeconds), topic.getOrderedExecutor());
     }
 
     @Override
