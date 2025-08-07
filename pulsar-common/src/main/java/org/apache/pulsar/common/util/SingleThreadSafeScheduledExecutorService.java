@@ -297,8 +297,7 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
                 return 0;
             }
             if (other instanceof ScheduledFutureTask) {
-                ScheduledFutureTask<?>
-                        x = (ScheduledFutureTask<?>)other;
+                ScheduledFutureTask<?> x = (ScheduledFutureTask<?>) other;
                 long diff = time - x.time;
                 if (diff < 0) {
                     return -1;
