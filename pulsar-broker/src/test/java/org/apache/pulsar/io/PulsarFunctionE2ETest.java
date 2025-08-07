@@ -21,6 +21,7 @@ package org.apache.pulsar.io;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
 import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesNar;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -32,6 +33,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
@@ -68,6 +70,7 @@ import org.apache.pulsar.functions.worker.TestPulsarFunctionUtils;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.zeroturnaround.zip.ZipUtil;
 
 /**
  * Test Pulsar sink on function.
@@ -201,6 +204,26 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
     public void testE2EPulsarFunctionWithNarFile() throws Exception {
         String jarFilePathUrl = getPulsarApiExamplesNar().toURI().toString();
         testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionWithInvalidJarDependencyInNarFile() throws Exception {
+        File narFile = getPulsarApiExamplesNar();
+        File invalidNarFile = File.createTempFile("invalidJarDependency", ".nar", tempDirectory.getTempDirectory());
+        try {
+            // Add an invalid dependency to the nar file
+            ZipUtil.addEntry(narFile, "META-INF/bundled-dependencies/invalid-dependency.jar",
+                    "Invalid jar content".getBytes(), invalidNarFile);
+            String jarFilePathUrl = invalidNarFile.toURI().toString();
+            testE2EPulsarFunction(jarFilePathUrl);
+            fail("Expected PulsarAdminException to be thrown due to invalid jar dependency in nar file");
+        } catch (PulsarAdminException e) {
+            assertThat(e.getMessage())
+                    .contains("META-INF/bundled-dependencies/invalid-dependency.jar' failed due to zip END header not "
+                            + "found");
+        } finally {
+            invalidNarFile.delete();
+        }
     }
 
     @Test(timeOut = 40000)
