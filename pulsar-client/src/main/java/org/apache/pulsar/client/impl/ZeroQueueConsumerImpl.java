@@ -196,18 +196,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                             int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
-        log.warn(
-                "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
-                subscription, consumerName);
-        // close connection
-        closeAsync().handle((ok, e) -> {
-            // notify callback with failure result
-            notifyPendingReceivedCallback(null,
-                    new PulsarClientException.InvalidMessageException(
-                            format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
-                                    subscription, consumerName)));
-            return null;
-        });
+        rejectBatchMessageByClosingConsumer();
     }
 
     @Override
@@ -222,11 +211,25 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                              MessageIdImpl messageId, Schema<T> schema,
                                              int redeliveryCount, List<Long> ackSet, long consumerEpoch) {
         if (this.isBatch(messageMetadata)) {
-            this.receiveIndividualMessagesFromBatch(brokerEntryMetadata,
-                    messageMetadata, redeliveryCount, ackSet, byteBuf, null, null, consumerEpoch, false);
+            rejectBatchMessageByClosingConsumer();
         } else {
             super.processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema,
                     redeliveryCount, ackSet, consumerEpoch);
         }
+    }
+
+    private void rejectBatchMessageByClosingConsumer() {
+        log.warn(
+                "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
+                subscription, consumerName);
+        // close connection
+        closeAsync().handle((ok, e) -> {
+            // notify callback with failure result
+            notifyPendingReceivedCallback(null,
+                    new PulsarClientException.InvalidMessageException(
+                            format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
+                                    subscription, consumerName)));
+            return null;
+        });
     }
 }
