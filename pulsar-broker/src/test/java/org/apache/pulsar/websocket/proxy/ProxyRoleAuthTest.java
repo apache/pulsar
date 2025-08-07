@@ -68,9 +68,9 @@ import org.testng.annotations.Test;
  * 2. testWebSocketProxyWithUnauthorizedToken: Negative test with unauthorized tokens
  */
 @Test(groups = "websocket")
-public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
+public class ProxyRoleAuthTest extends ProducerConsumerBase {
 
-    private static final Logger log = LoggerFactory.getLogger(WebSocketProxyAuthIntegrationTest.class);
+    private static final Logger log = LoggerFactory.getLogger(ProxyRoleAuthTest.class);
 
     // JWT token authentication setup with different roles
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -129,6 +129,19 @@ public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
         // Setup namespace and grant permissions for client role
         setupNamespacePermissions();
 
+        WebSocketProxyConfiguration proxyConfig = getProxyConfig();
+
+        service = spyWithClassAndConstructorArgs(WebSocketService.class, proxyConfig);
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
+
+        proxyServer = new ProxyServer(proxyConfig);
+        WebSocketServiceStarter.start(proxyServer, service);
+
+        log.info("WebSocket Proxy Server started on port: {}", proxyServer.getListenPortHTTP().get());
+    }
+
+    protected WebSocketProxyConfiguration getProxyConfig() {
         // Create WebSocket proxy configuration with authentication and authorization enabled
         WebSocketProxyConfiguration proxyConfig = new WebSocketProxyConfiguration();
         proxyConfig.setWebServicePort(Optional.of(0));
@@ -152,15 +165,7 @@ public class WebSocketProxyAuthIntegrationTest extends ProducerConsumerBase {
         // Set broker service URL to connect to our test broker
         proxyConfig.setBrokerServiceUrl(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerServiceUrlTls(pulsar.getBrokerServiceUrlTls());
-
-        service = spyWithClassAndConstructorArgs(WebSocketService.class, proxyConfig);
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
-                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
-
-        proxyServer = new ProxyServer(proxyConfig);
-        WebSocketServiceStarter.start(proxyServer, service);
-
-        log.info("WebSocket Proxy Server started on port: {}", proxyServer.getListenPortHTTP().get());
+        return  proxyConfig;
     }
 
     @AfterMethod(alwaysRun = true)
