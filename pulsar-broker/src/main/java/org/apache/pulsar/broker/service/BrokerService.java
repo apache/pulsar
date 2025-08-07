@@ -362,8 +362,8 @@ public class BrokerService implements Closeable {
         this.inactivityMonitor = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-inactivity-monitor");
         this.messageExpiryMonitor = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-msg-expiry-monitor");
         this.compactionMonitor = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-compaction-monitor");
-        this.consumedLedgersMonitor
-                = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-consumed-ledgers-monitor");
+        this.consumedLedgersMonitor =
+                new SingleThreadNonConcurrentFixedRateScheduler("pulsar-consumed-ledgers-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-backlog-quota-checker");
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
