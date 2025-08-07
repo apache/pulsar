@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -35,7 +34,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -76,9 +74,9 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     @Test
     public void testSubmitTask() throws Exception {
         AtomicBoolean executed = new AtomicBoolean(false);
-        
+
         Future<?> future = executor.submit(() -> executed.set(true));
-        
+
         future.get(1, TimeUnit.SECONDS);
         assertTrue(executed.get());
         assertTrue(future.isDone());
@@ -88,13 +86,13 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     @Test
     public void testSubmitTaskWithException() throws Exception {
         AtomicBoolean taskExecuted = new AtomicBoolean(false);
-        
+
         // Submit a task that throws an exception
         Future<?> future = executor.submit(() -> {
             taskExecuted.set(true);
             throw new RuntimeException("Test exception");
         });
-        
+
         // The SafeRunnable wrapper catches the exception, so the task should complete
         // but the future will still contain the exception
         try {
@@ -105,7 +103,7 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
             assertTrue(e.getCause() instanceof RuntimeException);
             assertEquals("Test exception", e.getCause().getMessage());
         }
-        
+
         assertTrue(future.isDone());
         assertFalse(future.isCancelled());
         assertTrue(taskExecuted.get(), "Task should have been executed despite the exception");
@@ -115,12 +113,12 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     public void testScheduleTask() throws Exception {
         AtomicBoolean executed = new AtomicBoolean(false);
         long startTime = System.currentTimeMillis();
-        
+
         ScheduledFuture<?> future = executor.schedule(() -> executed.set(true), 100, TimeUnit.MILLISECONDS);
-        
+
         future.get(1, TimeUnit.SECONDS);
         long endTime = System.currentTimeMillis();
-        
+
         assertTrue(executed.get());
         assertTrue(future.isDone());
         assertTrue(endTime - startTime >= 100); // Should have waited at least 100ms
@@ -130,16 +128,16 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     public void testScheduleAtFixedRate() throws Exception {
         AtomicInteger executionCount = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(15);
-        
+
         ScheduledFuture<?> future = executor.scheduleAtFixedRate(() -> {
             executionCount.incrementAndGet();
             latch.countDown();
         }, 0, 50, TimeUnit.MILLISECONDS);
-        
+
         // Wait for at least 15 executions
         assertTrue(latch.await(1, TimeUnit.SECONDS));
         future.cancel(false);
-        
+
         assertTrue(executionCount.get() >= 15);
     }
 
@@ -147,16 +145,16 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     public void testScheduleWithFixedDelay() throws Exception {
         AtomicInteger executionCount = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(15);
-        
+
         ScheduledFuture<?> future = executor.scheduleWithFixedDelay(() -> {
             executionCount.incrementAndGet();
             latch.countDown();
         }, 0, 50, TimeUnit.MILLISECONDS);
-        
+
         // Wait for at least 3 executions
         assertTrue(latch.await(15, TimeUnit.SECONDS));
         future.cancel(false);
-        
+
         assertTrue(executionCount.get() >= 15);
     }
 
@@ -194,8 +192,8 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
         // Verify that outdated tasks were dropped by checking execution intervals
         // The actual intervals should be longer than the scheduled period due to task execution time
         for (int i = 1; i < Math.min(executionCount.get(), executionTimes.length); i++) {
-            if (executionTimes[i].get() > 0 && executionTimes[i-1].get() > 0) {
-                long intervalNanos = executionTimes[i].get() - executionTimes[i-1].get();
+            if (executionTimes[i].get() > 0 && executionTimes[i - 1].get() > 0) {
+                long intervalNanos = executionTimes[i].get() - executionTimes[i - 1].get();
                 long intervalMs = intervalNanos / 1_000_000;
                 // Interval should be at least the task execution time (150ms), not the period (50ms)
                 assertTrue(intervalMs >= 140, "Interval was " + intervalMs + "ms, expected >= 140ms");
@@ -279,10 +277,10 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
         // Verify that the next execution time is calculated correctly when tasks are outdated
         // Each execution should start after the previous one ends, not at fixed intervals
         for (int i = 1; i < Math.min(executionCount.get(), 5); i++) {
-            if (startTimes[i].get() > 0 && endTimes[i-1].get() > 0) {
+            if (startTimes[i].get() > 0 && endTimes[i - 1].get() > 0) {
                 // Next task should start after previous task ends
-                assertTrue(startTimes[i].get() >= endTimes[i-1].get(),
-                    "Task " + i + " started before task " + (i-1) + " ended");
+                assertTrue(startTimes[i].get() >= endTimes[i - 1].get(),
+                    "Task " + i + " started before task " + (i - 1) + " ended");
             }
         }
     }
@@ -303,14 +301,14 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("continueExistingPeriodicTasksAfterShutdownPolicy"));
         }
-        
+
         try {
             executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(true);
             fail("Should throw IllegalArgumentException");
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("executeExistingDelayedTasksAfterShutdownPolicy"));
         }
-        
+
         try {
             executor.setRemoveOnCancelPolicy(true);
             fail("Should throw IllegalArgumentException");
@@ -361,17 +359,17 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     @Test
     public void testShutdownBehavior() throws Exception {
         AtomicBoolean taskExecuted = new AtomicBoolean(false);
-        
+
         // Submit a task
         executor.submit(() -> taskExecuted.set(true));
-        
+
         // Wait for task to complete
         Awaitility.await().atMost(1, TimeUnit.SECONDS).until(() -> taskExecuted.get());
-        
+
         // Shutdown the executor
         executor.shutdown();
         assertTrue(executor.isShutdown());
-        
+
         // Wait for termination
         assertTrue(executor.awaitTermination(1, TimeUnit.SECONDS));
         assertTrue(executor.isTerminated());

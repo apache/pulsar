@@ -108,10 +108,12 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
                                                                      long initialDelay,
                                                                      long period,
                                                                      TimeUnit unit) {
-        if (command == null || unit == null)
+        if (command == null || unit == null) {
             throw new NullPointerException();
-        if (period <= 0L)
+        }
+        if (period <= 0L) {
             throw new IllegalArgumentException("period can not be null");
+        }
         ScheduledFutureTask<Void> sft =
                 new ScheduledFutureTask<Void>(command,
                         null,
@@ -136,9 +138,9 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
      * @param task the task
      */
     private void delayedExecute(RunnableScheduledFuture<?> task) {
-        if (isShutdown())
+        if (isShutdown()) {
             reject(task);
-        else {
+        } else {
             super.getQueue().add(task);
             if (!canRunInCurrentRunState(task) && remove(task)) {
                 task.cancel(false);
@@ -165,8 +167,7 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
      * Returns the nanoTime-based trigger time of a delayed action.
      */
     private long triggerTime(long delay) {
-        return System.nanoTime() +
-                ((delay < (Long.MAX_VALUE >> 1)) ? delay : overflowFree(delay));
+        return System.nanoTime() + ((delay < (Long.MAX_VALUE >> 1)) ? delay : overflowFree(delay));
     }
 
     /**
@@ -180,8 +181,9 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
         Delayed head = (Delayed) super.getQueue().peek();
         if (head != null) {
             long headDelay = head.getDelay(NANOSECONDS);
-            if (headDelay < 0 && (delay - headDelay < 0))
+            if (headDelay < 0 && (delay - headDelay < 0)) {
                 delay = Long.MAX_VALUE + headDelay;
+            }
         }
         return delay;
     }
@@ -256,7 +258,7 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
     private class ScheduledFutureTask<V>
             extends FutureTask<V> implements RunnableScheduledFuture<V> {
 
-        /** Sequence number to break ties FIFO */
+        /** Sequence number to break ties FIFO. */
         private final long sequenceNumber;
 
         /** The nanoTime-based time when the task is enabled to execute. */
@@ -270,7 +272,7 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
          */
         private final long period;
 
-        /** The actual task to be re-enqueued by reExecutePeriodic */
+        /** The actual task to be re-enqueued by reExecutePeriodic. */
         RunnableScheduledFuture<V> outerTask = this;
 
         /**
@@ -291,20 +293,22 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
 
         @Override
         public int compareTo(Delayed other) {
-            if (other == this) // compare zero if same object
+            if (other == this) { // compare zero if same object
                 return 0;
+            }
             if (other instanceof ScheduledFutureTask) {
                 ScheduledFutureTask<?>
                         x = (ScheduledFutureTask<?>)other;
                 long diff = time - x.time;
-                if (diff < 0)
+                if (diff < 0) {
                     return -1;
-                else if (diff > 0)
+                } else if (diff > 0) {
                     return 1;
-                else if (sequenceNumber < x.sequenceNumber)
+                } else if (sequenceNumber < x.sequenceNumber) {
                     return -1;
-                else
+                } else {
                     return 1;
+                }
             }
             long diff = getDelay(NANOSECONDS) - other.getDelay(NANOSECONDS);
             return (diff < 0) ? -1 : (diff > 0) ? 1 : 0;
@@ -341,11 +345,11 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
          * Overrides FutureTask version so as to reset/requeue if periodic.
          */
         public void run() {
-            if (!canRunInCurrentRunState(this))
+            if (!canRunInCurrentRunState(this)) {
                 cancel(false);
-            else if (!isPeriodic())
+            } else if (!isPeriodic()) {
                 super.run();
-            else if (super.runAndReset()) {
+            } else if (super.runAndReset()) {
                 setNextRunTime();
                 reExecutePeriodic(outerTask);
             }
