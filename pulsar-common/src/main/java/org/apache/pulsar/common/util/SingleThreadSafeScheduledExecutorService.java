@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.Objects;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
@@ -36,6 +37,8 @@ import lombok.extern.slf4j.Slf4j;
 public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoolExecutor
         implements ScheduledExecutorService {
 
+    // Since the class DelayedWorkQueue uses "getDelay" to compare objects that are different types, the sequence
+    // number can be the same between objects of different types.
     private static final AtomicLong fixRateTaskSequencerGenerator = new AtomicLong();
 
     private static final RejectedExecutionHandler defaultRejectedExecutionHandler = new AbortPolicy();
@@ -224,6 +227,8 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
 
     /**
      * {@inheritDoc}
+     * Since the method "remove(runnable)" of DelayedWorkQueue is expensive if the tasks in the queue is not the same
+     * type, we denied the remove policy.
      */
     @Override
     public void setRemoveOnCancelPolicy(boolean value) {
@@ -285,6 +290,20 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
             this.time = triggerTime;
             this.period = period;
             this.sequenceNumber = sequenceNumber;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof ScheduledFutureTask<?> that)) {
+                return false;
+            }
+            return sequenceNumber == that.sequenceNumber && time == that.time && period == that.period
+                    && Objects.equals(outerTask, that.outerTask);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(sequenceNumber, time, period, outerTask);
         }
 
         public long getDelay(TimeUnit unit) {
