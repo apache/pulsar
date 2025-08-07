@@ -79,7 +79,8 @@ public class FunctionFilePackage implements AutoCloseable, ValidatableFunctionPa
                         }
                         classFileLocators.add(locator);
                     } catch (IOException e) {
-                        throw new UncheckedIOException(e);
+                        throw new UncheckedIOException("Loading '" + classpath + "' failed due to " + e.getMessage(),
+                                e);
                     }
                 }
             }

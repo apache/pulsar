@@ -313,7 +313,8 @@ public abstract class AbstractPulsarE2ETest {
         workerConfig.setAuthorizationEnabled(true);
 
         List<String> urlPatterns =
-                List.of(getPulsarApiExamplesJar().getParentFile().toURI() + ".*", "http://127\\.0\\.0\\.1:.*");
+                List.of(getPulsarApiExamplesJar().getParentFile().toURI() + ".*", "http://127\\.0\\.0\\.1:.*",
+                        tempDirectory.getTempDirectory().toURI() + ".*");
         workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
         workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
 

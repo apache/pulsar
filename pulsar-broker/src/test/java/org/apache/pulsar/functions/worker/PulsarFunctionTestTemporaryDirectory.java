@@ -80,4 +80,8 @@ public class PulsarFunctionTestTemporaryDirectory {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: "
                 + Arrays.asList(foundFiles));
     }
+
+    public File getTempDirectory() {
+        return tempDirectory;
+    }
 }
