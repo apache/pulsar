@@ -39,13 +39,13 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class SingleThreadSafeScheduledExecutorServiceTest {
+public class SingleThreadNonConcurrentFixedRateSchedulerTest {
 
-    private SingleThreadSafeScheduledExecutorService executor;
+    private SingleThreadNonConcurrentFixedRateScheduler executor;
 
     @BeforeMethod
     public void setUp() {
-        executor = new SingleThreadSafeScheduledExecutorService("test-executor");
+        executor = new SingleThreadNonConcurrentFixedRateScheduler("test-executor");
     }
 
     @AfterMethod
@@ -159,7 +159,7 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     }
 
     @Test
-    public void testScheduleAtFixedRateAndDropOutdatedTask() throws Exception {
+    public void testScheduleAtFixedRateNonConcurrently() throws Exception {
         AtomicInteger executionCount = new AtomicInteger(0);
         AtomicLong[] executionTimes = new AtomicLong[10];
         for (int i = 0; i < executionTimes.length; i++) {
@@ -167,7 +167,7 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
         }
 
         // Schedule a task that takes longer than the period to test outdated task dropping
-        ScheduledFuture<?> future = executor.scheduleAtFixedRateAndDropOutdatedTask(() -> {
+        ScheduledFuture<?> future = executor.scheduleAtFixedRateNonConcurrently(() -> {
             int count = executionCount.getAndIncrement();
             if (count < executionTimes.length) {
                 executionTimes[count].set(System.nanoTime());
@@ -202,9 +202,9 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     }
 
     @Test
-    public void testScheduleAtFixedRateAndDropOutdatedTaskWithNullCommand() {
+    public void testScheduleAtFixedRateNonConcurrentlyWithNullCommand() {
         try {
-            executor.scheduleAtFixedRateAndDropOutdatedTask(null, 0, 100, TimeUnit.MILLISECONDS);
+            executor.scheduleAtFixedRateNonConcurrently(null, 0, 100, TimeUnit.MILLISECONDS);
             fail("Should throw NullPointerException");
         } catch (NullPointerException e) {
             // Expected
@@ -212,9 +212,9 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     }
 
     @Test
-    public void testScheduleAtFixedRateAndDropOutdatedTaskWithNullTimeUnit() {
+    public void testScheduleAtFixedRateNonConcurrentlyWithNullTimeUnit() {
         try {
-            executor.scheduleAtFixedRateAndDropOutdatedTask(() -> {}, 0, 100, null);
+            executor.scheduleAtFixedRateNonConcurrently(() -> {}, 0, 100, null);
             fail("Should throw NullPointerException");
         } catch (NullPointerException e) {
             // Expected
@@ -222,9 +222,9 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
     }
 
     @Test
-    public void testScheduleAtFixedRateAndDropOutdatedTaskWithInvalidPeriod() {
+    public void testScheduleAtFixedRateNonConcurrentlyWithInvalidPeriod() {
         try {
-            executor.scheduleAtFixedRateAndDropOutdatedTask(() -> {}, 0, 0, TimeUnit.MILLISECONDS);
+            executor.scheduleAtFixedRateNonConcurrently(() -> {}, 0, 0, TimeUnit.MILLISECONDS);
             fail("Should throw IllegalArgumentException");
         } catch (IllegalArgumentException e) {
             // Expected
@@ -232,7 +232,7 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
         }
 
         try {
-            executor.scheduleAtFixedRateAndDropOutdatedTask(() -> {}, 0, -1, TimeUnit.MILLISECONDS);
+            executor.scheduleAtFixedRateNonConcurrently(() -> {}, 0, -1, TimeUnit.MILLISECONDS);
             fail("Should throw IllegalArgumentException");
         } catch (IllegalArgumentException e) {
             // Expected
@@ -251,7 +251,7 @@ public class SingleThreadSafeScheduledExecutorServiceTest {
         }
 
         // Schedule a task that takes much longer than the period
-        ScheduledFuture<?> future = executor.scheduleAtFixedRateAndDropOutdatedTask(() -> {
+        ScheduledFuture<?> future = executor.scheduleAtFixedRateNonConcurrently(() -> {
             int count = executionCount.getAndIncrement();
             if (count < 5) {
                 startTimes[count].set(System.nanoTime());

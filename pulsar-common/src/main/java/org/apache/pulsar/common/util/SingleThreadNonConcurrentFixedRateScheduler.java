@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoolExecutor
+public class SingleThreadNonConcurrentFixedRateScheduler extends ScheduledThreadPoolExecutor
         implements ScheduledExecutorService {
 
     // Since the class DelayedWorkQueue uses "getDelay" to compare objects that are different types, the sequence
@@ -45,7 +45,7 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
 
     private volatile RejectedExecutionHandler rejectedExecutionHandler = defaultRejectedExecutionHandler;
 
-    public SingleThreadSafeScheduledExecutorService(String name) {
+    public SingleThreadNonConcurrentFixedRateScheduler(String name) {
         super(1, new DefaultThreadFactory(name));
         super.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         super.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
@@ -107,10 +107,10 @@ public class SingleThreadSafeScheduledExecutorService extends ScheduledThreadPoo
      * period task > period: New tasks will trigger be dropped, instead, execute the next period task after the current
      * time.
      */
-    public ScheduledFuture<?> scheduleAtFixedRateAndDropOutdatedTask(Runnable command,
-                                                                     long initialDelay,
-                                                                     long period,
-                                                                     TimeUnit unit) {
+    public ScheduledFuture<?> scheduleAtFixedRateNonConcurrently(Runnable command,
+                                                                 long initialDelay,
+                                                                 long period,
+                                                                 TimeUnit unit) {
         if (command == null || unit == null) {
             throw new NullPointerException();
         }
