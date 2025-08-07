@@ -686,6 +686,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(brokerService).when(mock).getBrokerService();
+        doReturn(executor).when(mock).getOrderedExecutor();
         PulsarService pulsarService = mock(PulsarService.class);
         doReturn(pulsarService).when(brokerService).pulsar();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
