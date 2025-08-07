@@ -194,6 +194,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             if (subscription != null && subscription.getType() == SubType.Key_Shared) {
                 subscription.getDispatcher().markDeletePositionMoveForward();
             }
+            expirationCheckInProgress = FALSE;
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Mark deleted {} messages", topicName, subName, numMessagesExpired);
             }
@@ -202,6 +203,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         @Override
         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
             log.warn("[{}][{}] Message expiry failed - mark delete failed", topicName, subName, exception);
+            expirationCheckInProgress = FALSE;
             updateRates();
         }
     };
@@ -220,9 +222,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] No messages to expire", topicName, subName);
             }
+            expirationCheckInProgress = FALSE;
             updateRates();
         }
-        expirationCheckInProgress = FALSE;
     }
 
     @Override
