@@ -1998,6 +1998,12 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/zk-3.5-test-data/*</exclude>
                 <exclude>**/*_pb2.py</exclude>
                 <exclude>**/*_pb2_grpc.py</exclude>
+                <!--
+                Exclude any files from license checks that are in hidden directories (name starting with ".")
+                at the top level. This helps exclude directories used by AI tools
+                while preserving license checks in subdirectories.
+                -->
+                <exclude>.*/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
