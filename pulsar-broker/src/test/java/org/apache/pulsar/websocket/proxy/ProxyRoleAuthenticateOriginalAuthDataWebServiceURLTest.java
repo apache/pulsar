@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.annotations.Test;
 
 /**
