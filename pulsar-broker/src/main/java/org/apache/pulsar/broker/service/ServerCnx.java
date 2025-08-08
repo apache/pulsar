@@ -173,6 +173,7 @@ import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.StringInterner;
+import org.apache.pulsar.common.util.TimedSingleThreadRateLimiter;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
@@ -249,6 +250,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private final long connectionLivenessCheckTimeoutMillis;
     private final TopicsPattern.RegexImplementation topicsPatternImplementation;
+    private final boolean pauseReceivingRequestsIfUnwritable;
+    private final TimedSingleThreadRateLimiter requestRateLimiter;
+    private final int rateLimitingSecondsAfterResumeFromUnreadable;
+    private boolean pausedDueToRateLimitation = false;
 
     // Tracks and limits number of bytes pending to be published from a single specific IO thread.
     static final class PendingBytesPerThreadTracker {
@@ -312,7 +317,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // the null check is a workaround for #13620
         super(pulsar.getBrokerService() != null ? pulsar.getBrokerService().getKeepAliveIntervalSeconds() : 0,
                 TimeUnit.SECONDS);
-        super.maxPendingWriteBytes = pulsar.getConfig().getConnectionMaxPendingWriteBytes();
+        this.pauseReceivingRequestsIfUnwritable =
+                pulsar.getConfig().isPulsarChannelPauseReceivingRequestsIfUnwritable();
+        this.requestRateLimiter = new TimedSingleThreadRateLimiter(
+                pulsar.getConfig().getPulsarChannelRateLimitingRateAfterResumeFromUnreadable(),
+                1, TimeUnit.SECONDS);
+        this.rateLimitingSecondsAfterResumeFromUnreadable =
+                pulsar.getConfig().getPulsarChannelRateLimitingSecondsAfterResumeFromUnreadable();
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
@@ -437,6 +448,39 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
             connectionCheckInProgress.complete(Optional.of(false));
         }
+    }
+
+    protected void checkRateLimit(BaseCommand cmd) {
+        if (cmd.getType() == BaseCommand.Type.PONG && cmd.getType() == BaseCommand.Type.PING) {
+            return;
+        }
+        if (requestRateLimiter.acquire(1) == 0) {
+            log.warn("[{}] Reached rate limitation", this);
+            // Stop receiving requests.
+            pausedDueToRateLimitation = true;
+            ctx.channel().config().setAutoRead(false);
+            // Resume after 1 second.
+            ctx.channel().eventLoop().schedule(() -> {
+                if (pausedDueToRateLimitation) {
+                    log.info("[{}] Resuming connection after rate limitation", this);
+                    ctx.channel().config().setAutoRead(true);
+                    pausedDueToRateLimitation = false;
+                }
+            }, 1, TimeUnit.SECONDS);
+        }
+    }
+
+    @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+        if (pauseReceivingRequestsIfUnwritable && ctx.channel().isWritable()) {
+            log.info("[{}] is writable, turn on channel auto-read", this);
+            ctx.channel().config().setAutoRead(true);
+            requestRateLimiter.timingOpen(rateLimitingSecondsAfterResumeFromUnreadable, TimeUnit.SECONDS);
+        } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
+            log.info("[{}] is not writable, turn off channel auto-read", this);
+            ctx.channel().config().setAutoRead(false);
+        }
+        ctx.fireChannelWritabilityChanged();
     }
 
     @Override

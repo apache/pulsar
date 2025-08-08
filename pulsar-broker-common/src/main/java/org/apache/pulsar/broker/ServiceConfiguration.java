@@ -921,10 +921,43 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "The maximum number of pending write bytes of per connection when the connection is unwritable because"
-            + " the client can not handle too many response. Using a value of -1, is disabling it."
+        doc = "It relates to configuration \"WriteBufferHighWaterMark\" of Netty Channel Config. If the number of bytes"
+            + " queued in the write buffer exceeds this value, channel writable state will start to return \"false\"."
     )
-    private int connectionMaxPendingWriteBytes = -1;
+    private int pulsarChannelWriteBufferHighWaterMark = 64 * 1024;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "It relates to configuration \"WriteBufferLowWaterMark\" of Netty Channel Config. If the number of bytes"
+                + " queued in the write buffer is smaller than this value, channel writable state will start to return"
+                + " \"true\"."
+    )
+    private int pulsarChannelWriteBufferLowWaterMark = 32 * 1024;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "If enabled, the channel will pause to deal with new request once the writer buffer is full, until it"
+                + " is changed to writable."
+    )
+    private boolean pulsarChannelPauseReceivingRequestsIfUnwritable = false;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "After the connection is recovered from an unreadable state, the channel will be rate-limited for a"
+                    + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines how"
+                    + " many requests should be allowed in the rate limiting period."
+
+    )
+    private int pulsarChannelRateLimitingRateAfterResumeFromUnreadable = 1000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+            doc = "After the connection is recovered from an unreadable state, the channel will be rate-limited for a"
+                    + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines how"
+                    + " long the rate limiting should last, in seconds. Once the bytes that are waiting to be sent out"
+                    + " reach the \"pulsarChannelWriteBufferHighWaterMark\"， the timer will be reset."
+    )
+    private int pulsarChannelRateLimitingSecondsAfterResumeFromUnreadable = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
