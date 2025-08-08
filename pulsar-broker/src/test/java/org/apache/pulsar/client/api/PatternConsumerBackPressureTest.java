@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -55,7 +56,11 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
 
     @Override
     protected void doInitConf() throws Exception {
-        conf.setConnectionMaxPendingWriteBytes(5 * 1024 * 1024);
+        conf.setPulsarChannelPauseReceivingRequestsIfUnwritable(true);
+        // 5m.
+        conf.setPulsarChannelWriteBufferHighWaterMark(1 * 1024 * 1024);
+        // 32k.
+        conf.setPulsarChannelWriteBufferLowWaterMark(32 * 1024);
     }
 
     @Test(timeOut = 60 * 1000)
@@ -77,6 +82,8 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
                     .whenComplete((result, ex) -> {
                         if (ex == null) {
                             success.incrementAndGet();
+                        } else {
+                            log.error("Failed to get topic list.", ex);
                         }
                         log.info("latch-count: {}, succeed: {}", latch.getCount(), success.get());
                         latch.countDown();
@@ -84,6 +91,8 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
             });
         }
         latch.await();
-        Assert.assertEquals(success.get(), requests);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(success.get(), requests);
+        });
     }
 }

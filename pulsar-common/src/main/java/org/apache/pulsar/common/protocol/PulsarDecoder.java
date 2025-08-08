@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -107,36 +106,6 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     private final BaseCommand cmd = new BaseCommand();
 
-    protected int maxPendingWriteBytes = -1;
-    protected boolean pauseAutoReadDueToChannelWriteBufFull;
-
-    private void pauseAutoReadIfChannelWriteBufIsFull(ChannelHandlerContext ctx) {
-        if (maxPendingWriteBytes < 0) {
-            return;
-        }
-        final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
-        final BaseCommand.Type cmdType = cmd.getType();
-        if (!ctx.channel().isWritable() && cmdType != BaseCommand.Type.PONG
-                && outboundBuffer != null && outboundBuffer.totalPendingWriteBytes() > maxPendingWriteBytes) {
-            log.warn("[{}] is not writable, disable channel auto-read, pending output bytes: {}",
-                    this, outboundBuffer.totalPendingWriteBytes());
-            pauseAutoReadDueToChannelWriteBufFull = true;
-            ctx.channel().config().setAutoRead(false);
-        }
-    }
-
-    @Override
-    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        // To avoid the effect of producer limitation, which also will disable channel auto-read, we check
-        // "pauseAutoReadDueToChannelWriteBufFull" here.
-        if (ctx.channel().isWritable() && pauseAutoReadDueToChannelWriteBufFull) {
-            log.warn("[{}] is not writable, turn on channel auto-read", this);
-            pauseAutoReadDueToChannelWriteBufFull = false;
-            ctx.channel().config().setAutoRead(true);
-        }
-        ctx.fireChannelWritabilityChanged();
-    }
-
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
@@ -152,12 +121,12 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             int cmdSize = (int) buffer.readUnsignedInt();
             cmd.parseFrom(buffer, cmdSize);
 
+            checkRateLimit(cmd);
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received cmd {}", ctx.channel(), cmd.getType());
             }
             messageReceived();
-
-            pauseAutoReadIfChannelWriteBufIsFull(ctx);
 
             switch (cmd.getType()) {
             case PARTITIONED_METADATA:
@@ -518,6 +487,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             buffer.release();
         }
     }
+
+    protected void checkRateLimit(BaseCommand cmd) {}
 
     protected abstract void messageReceived();
 
