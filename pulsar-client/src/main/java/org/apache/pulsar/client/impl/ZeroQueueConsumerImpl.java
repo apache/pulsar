@@ -196,7 +196,10 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                             int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
-        rejectBatchMessageByClosingConsumer();
+
+        rejectBatchMessageByClosingConsumer(
+                new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex())
+        );
     }
 
     @Override
@@ -211,17 +214,17 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                              MessageIdImpl messageId, Schema<T> schema,
                                              int redeliveryCount, List<Long> ackSet, long consumerEpoch) {
         if (this.isBatch(messageMetadata)) {
-            rejectBatchMessageByClosingConsumer();
+            rejectBatchMessageByClosingConsumer(messageId);
         } else {
             super.processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema,
                     redeliveryCount, ackSet, consumerEpoch);
         }
     }
 
-    private void rejectBatchMessageByClosingConsumer() {
+    private void rejectBatchMessageByClosingConsumer(MessageIdImpl messageId) {
         log.warn(
-                "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
-                subscription, consumerName);
+            "Closing consumer [{}]-[{}] due to unsupported received batch-message: {} with zero receiver queue size",
+            subscription, consumerName, messageId);
         // close connection
         closeAsync().handle((ok, e) -> {
             // notify callback with failure result
