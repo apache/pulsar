@@ -19,10 +19,12 @@
 package org.apache.pulsar.websocket.proxy;
 
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
+import org.testng.annotations.Test;
 
 /**
  * Same test with ProxyRoleAuthTest but using REST API as the internal client.
  */
+@Test(groups = "websocket")
 public class ProxyRoleAuthWebServiceURLTest extends ProxyRoleAuthTest {
 
     @Override
