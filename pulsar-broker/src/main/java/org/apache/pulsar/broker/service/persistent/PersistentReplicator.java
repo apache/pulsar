@@ -682,6 +682,23 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        long backlog = cursor.getNumberOfEntriesInBacklog(false);
+        if (backlog == 0) {
+            return CompletableFuture.completedFuture(false);
+        } else if (backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds).thenCompose(oldestMsgExpired -> {
+                if (oldestMsgExpired) {
+                    return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+                } else {
+                    return CompletableFuture.completedFuture(false);
+                }
+            });
+        }
+        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+    }
+
+    @Override
     public boolean expireMessages(Position position) {
         return expiryMonitor.expireMessages(position);
     }

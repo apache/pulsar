@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -27,4 +28,6 @@ public interface MessageExpirer {
     boolean expireMessages(Position position);
 
     boolean expireMessages(int messageTTLInSeconds);
+
+    CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds);
 }
