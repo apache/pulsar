@@ -59,18 +59,21 @@ import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 @Slf4j
 public class HttpClient implements Closeable {
 
+    private static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
     protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
     protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;
     protected final ServiceNameResolver serviceNameResolver;
     protected final Authentication authentication;
+    protected final ClientConfigurationData clientConf;
     protected ScheduledExecutorService executorService;
     protected PulsarSslFactory sslFactory;
 
     protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this.authentication = conf.getAuthentication();
         this.serviceNameResolver = new PulsarServiceNameResolver();
+        this.clientConf = conf;
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
@@ -190,6 +193,11 @@ public class HttpClient implements Closeable {
                     if (headers != null) {
                         headers.forEach(entry -> builder.addHeader(entry.getKey(), entry.getValue()));
                     }
+                }
+
+                // Add X-Original-Principal header if originalPrincipal is configured (for proxy scenarios)
+                if (clientConf.getOriginalPrincipal() != null) {
+                    builder.addHeader(ORIGINAL_PRINCIPAL_HEADER, clientConf.getOriginalPrincipal());
                 }
 
                 builder.execute().toCompletableFuture().whenComplete((response2, t) -> {
