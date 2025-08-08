@@ -32,15 +32,4 @@ public class ProxyRoleAuthenticateOriginalAuthDataWebServiceURLTest extends Prox
         super.doInitConf();
         conf.setAuthenticateOriginalAuthData(true);
     }
-
-    @Override
-    protected WebSocketProxyConfiguration getProxyConfig() {
-        // Create WebSocket proxy configuration with authentication and authorization enabled
-        WebSocketProxyConfiguration proxyConfig = super.getProxyConfig();
-        proxyConfig.setServiceUrl(pulsar.getWebServiceAddress());
-        proxyConfig.setServiceUrlTls(pulsar.getWebServiceAddressTls());
-        proxyConfig.setBrokerServiceUrl(null);
-        proxyConfig.setBrokerServiceUrlTls(null);
-        return  proxyConfig;
-    }
 }
