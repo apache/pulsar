@@ -31,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -2091,13 +2092,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (!isCompactionSubscription(sub.getName())
                         && (additionalSystemCursorNames.isEmpty()
                             || !additionalSystemCursorNames.contains(sub.getName()))) {
-                   sub.expireMessages(messageTtlInSeconds);
+                   sub.expireMessagesAsync(messageTtlInSeconds);
                 }
             });
             replicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+                    -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
             shadowReplicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+                    -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
         }
     }
 
@@ -3858,6 +3859,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         return isOldestMessageExpired;
+    }
+
+    public CompletableFuture<Boolean> isOldestMessageExpiredAsync(ManagedCursor cursor, int messageTTLInSeconds) {
+        CompletableFuture<Boolean> res = new CompletableFuture<>();
+        cursor.asyncGetNthEntry(1, IndividualDeletedEntries.Include, new AsyncCallbacks.ReadEntryCallback() {
+
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                long entryTimestamp = 0;
+                try {
+                    entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                    res.complete(MessageImpl.isEntryExpired(
+                            (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp));
+                } catch (IOException e) {
+                    log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
+                    res.complete(false);
+                }
+
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException e, Object ctx) {
+                if (brokerService.pulsar().getConfiguration().isAutoSkipNonRecoverableData()
+                        && e instanceof NonRecoverableLedgerException) {
+                    // NonRecoverableLedgerException means the ledger or entry can't be read anymore.
+                    // if AutoSkipNonRecoverableData is set to true, just return true here.
+                    res.complete(true);
+                } else {
+                    log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
+                    res.complete(false);
+                }
+            }
+        }, null);
+        return res;
     }
 
     /**

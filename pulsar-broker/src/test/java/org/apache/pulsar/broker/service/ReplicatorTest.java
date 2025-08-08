@@ -669,6 +669,36 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.getReplicationBacklog(), 0);
     }
 
+    @Test(timeOut = 30000)
+    public void testReplicatorExpireMsgAsync() throws Exception {
+
+        // This test is to verify that reset cursor fails on global topic
+        SortedSet<String> testDests = new TreeSet<>();
+
+        final TopicName dest = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/clearBacklogTopic"));
+        testDests.add(dest.toString());
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+
+        @Cleanup
+        MessageConsumer consumer1 = new MessageConsumer(url3, dest);
+
+        // Produce from cluster1 and consume from the rest
+        producer1.produce(2);
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
+        PersistentReplicator replicator = (PersistentReplicator) spy(
+                topic.getReplicators().get(topic.getReplicators().keySet().stream().toList().get(0)));
+        replicator.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
+        replicator.clearBacklog().get();
+        Thread.sleep(100);
+        replicator.updateRates(); // for code-coverage
+        replicator.expireMessagesAsync(1).get(); // for code-coverage
+        ReplicatorStats status = replicator.computeStats();
+        assertEquals(status.getReplicationBacklog(), 0);
+    }
+
 
     @Test(timeOut = 30000)
     public void testResetReplicatorSubscriptionPosition() throws Exception {

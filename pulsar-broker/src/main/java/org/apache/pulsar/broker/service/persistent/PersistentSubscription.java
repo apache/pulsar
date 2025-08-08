@@ -1233,6 +1233,26 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        long backlog = getNumberOfEntriesInBacklog(false);
+        if (backlog == 0) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (dispatcher != null && dispatcher.isConsumerConnected() && backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds)
+                .thenCompose(oldestMsgExpired -> {
+                    if (oldestMsgExpired) {
+                        this.lastExpireTimestamp = System.currentTimeMillis();
+                        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+                    } else {
+                        return CompletableFuture.completedFuture(false);
+                    }
+            });
+        }
+        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+    }
+
+    @Override
     public boolean expireMessages(Position position) {
         this.lastExpireTimestamp = System.currentTimeMillis();
         return expiryMonitor.expireMessages(position);

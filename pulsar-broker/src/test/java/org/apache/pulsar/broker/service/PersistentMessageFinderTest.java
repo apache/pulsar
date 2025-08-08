@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -59,6 +60,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -450,6 +453,62 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     }
 
+    /**
+     * It tests that message expiry doesn't get stuck if it can't read deleted ledger's entry.
+     */
+    @Test
+    void testMessageExpiryAsyncWithTimestampNonRecoverableException() throws Exception {
+
+        final String ledgerAndCursorName = "testPersistentMessageExpiryWithNonRecoverableLedgers";
+        final int entriesPerLedger = 2;
+        final int totalEntries = 10;
+        final int ttlSeconds = 1;
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(10);
+        config.setMaxEntriesPerLedger(entriesPerLedger);
+        config.setRetentionTime(1, TimeUnit.HOURS);
+        config.setAutoSkipNonRecoverableData(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+
+        for (int i = 0; i < totalEntries; i++) {
+            ledger.addEntry(createMessageWrittenToLedger("msg" + i));
+        }
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened));
+
+        List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
+        LedgerInfo lastLedgerInfo = ledgers.get(ledgers.size() - 1);
+        // The `lastLedgerInfo` should be newly opened, and it does not contain any entries.
+        // Please refer to: https://github.com/apache/pulsar/pull/22034
+        assertEquals(lastLedgerInfo.getEntries(), 0);
+        assertEquals(ledgers.size(), totalEntries / entriesPerLedger + 1);
+
+        // this will make sure that all entries should be deleted
+        Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
+
+        bkc.deleteLedger(ledgers.get(0).getLedgerId());
+        bkc.deleteLedger(ledgers.get(1).getLedgerId());
+        bkc.deleteLedger(ledgers.get(2).getLedgerId());
+
+        PersistentTopic mock = mockPersistentTopic("topicname");
+
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
+        assertTrue(monitor.expireMessagesAsync(ttlSeconds).get());
+        Awaitility.await().untilAsserted(() -> {
+            Position markDeletePosition = c1.getMarkDeletedPosition();
+            // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
+            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
+            assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1);
+        });
+
+        c1.close();
+        ledger.close();
+        factory.shutdown();
+
+    }
+
     public void testFindMessageWithTimestampAutoSkipNonRecoverable() throws Exception {
 
         final String ledgerAndCursorName = "testFindMessageWithTimestampAutoSkipNonRecoverable";
@@ -625,6 +684,21 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
     }
 
+
+    private PersistentTopic mockPersistentTopic(String topicName) throws Exception {
+        PersistentTopic mock = mock(PersistentTopic.class);
+        when(mock.getName()).thenReturn("topicname");
+        when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
+        BrokerService brokerService = mock(BrokerService.class);
+        doReturn(brokerService).when(mock).getBrokerService();
+        doReturn(executor).when(mock).getOrderedExecutor();
+        PulsarService pulsarService = mock(PulsarService.class);
+        doReturn(pulsarService).when(brokerService).pulsar();
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        doReturn(serviceConfiguration).when(pulsarService).getConfig();
+        return mock;
+    }
+
     @Test
     public void testCheckExpiryByLedgerClosureTimeWithAckUnclosedLedger() throws Throwable {
         final String ledgerAndCursorName = "testCheckExpiryByLedgerClosureTimeWithAckUnclosedLedger";
@@ -659,6 +733,43 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         c1.markDelete(position);
         Thread.sleep(TimeUnit.SECONDS.toMillis(maxTTLSeconds));
         monitor.expireMessages(maxTTLSeconds);
+        assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
+
+        Assert.assertNull(throwableAtomicReference.get());
+    }
+
+    @Test
+    public void testCheckExpiryAsyncByLedgerClosureTimeWithAckUnclosedLedger() throws Throwable {
+        final String ledgerAndCursorName = "testCheckExpiryByLedgerClosureTimeWithAckUnclosedLedger";
+        int maxTTLSeconds = 1;
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+        // set client clock to 10 days later
+        long incorrectPublishTimestamp = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(10);
+        for (int i = 0; i < 7; i++) {
+            ledger.addEntry(createMessageWrittenToLedger("msg" + i, incorrectPublishTimestamp));
+        }
+        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        PersistentTopic mock = mockPersistentTopic("topicname");
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
+        AsyncCallbacks.MarkDeleteCallback markDeleteCallback =
+                (AsyncCallbacks.MarkDeleteCallback) spy(
+                        FieldUtils.readDeclaredField(monitor, "markDeleteCallback", true));
+        FieldUtils.writeField(monitor, "markDeleteCallback", markDeleteCallback, true);
+
+        AtomicReference<Throwable> throwableAtomicReference = new AtomicReference<>();
+        Mockito.doAnswer(invocation -> {
+            ManagedLedgerException argument = invocation.getArgument(0, ManagedLedgerException.class);
+            throwableAtomicReference.set(argument);
+            return invocation.callRealMethod();
+        }).when(markDeleteCallback).markDeleteFailed(any(), any());
+
+        Position position = ledger.getLastConfirmedEntry();
+        c1.markDelete(position);
+        Thread.sleep(TimeUnit.SECONDS.toMillis(maxTTLSeconds));
+        monitor.expireMessagesAsync(maxTTLSeconds).get();
         assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
 
         Assert.assertNull(throwableAtomicReference.get());
