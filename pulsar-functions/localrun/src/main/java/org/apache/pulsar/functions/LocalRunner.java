@@ -50,6 +50,7 @@ import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -657,6 +658,10 @@ public class LocalRunner implements AutoCloseable {
             if (userCodeClassLoader != null && userCodeClassLoader.getClassLoader() != null) {
                 Thread.currentThread().setContextClassLoader(userCodeClassLoader.getClassLoader());
             }
+            Optional<MemoryLimit> pulsarClientMemoryLimit = Optional.empty();
+            if (functionConfig != null && functionConfig.getMemoryLimit() != null) {
+                pulsarClientMemoryLimit = Optional.ofNullable(functionConfig.getMemoryLimit());
+            }
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
                     stateStorageImplClass,
@@ -665,7 +670,7 @@ public class LocalRunner implements AutoCloseable {
                     secretsProvider,
                     collectorRegistry, narExtractionDirectory,
                     null,
-                    exposePulsarAdminClientEnabled, webServiceUrl);
+                    exposePulsarAdminClientEnabled, webServiceUrl, pulsarClientMemoryLimit);
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
