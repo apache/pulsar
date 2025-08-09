@@ -467,27 +467,34 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
 
     protected void setTopicLevelClusters(String topic, List<String> clusters, PulsarAdmin admin,
                                          PulsarService pulsar) throws Exception {
+        setTopicLevelClusters(topic, clusters, admin, pulsar, false);
+    }
+
+    protected void setTopicLevelClusters(String topic, List<String> clusters, PulsarAdmin admin,
+                                         PulsarService pulsar, boolean global) throws Exception {
         Set<String> expected = new HashSet<>(clusters);
         TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
         int partitions = ensurePartitionsAreSame(topic);
-        admin.topics().setReplicationClusters(topic, clusters);
+        admin.topicPolicies(global).setReplicationClusters(topic, clusters);
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(), topicName);
+            TopicPolicies policies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(), topicName,
+                    global);
             assertEquals(new HashSet<>(policies.getReplicationClusters()), expected);
             if (partitions == 0) {
-                checkNonPartitionedTopicLevelClusters(topicName.toString(), clusters, admin, pulsar.getBrokerService());
+                checkNonPartitionedTopicLevelClusters(topicName.toString(), clusters, admin, pulsar,
+                        global);
             } else {
                 for (int i = 0; i < partitions; i++) {
                     checkNonPartitionedTopicLevelClusters(topicName.getPartition(i).toString(), clusters, admin,
-                            pulsar.getBrokerService());
+                            pulsar, global);
                 }
             }
         });
     }
 
     protected void checkNonPartitionedTopicLevelClusters(String topic, List<String> clusters, PulsarAdmin admin,
-                                           BrokerService broker) throws Exception {
-        CompletableFuture<Optional<Topic>> future = broker.getTopic(topic, false);
+                                                         PulsarService pulsar, boolean global) throws Exception {
+        CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopic(topic, false);
         if (future == null) {
             return;
         }
@@ -497,7 +504,8 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
         Set<String> expected = new HashSet<>(clusters);
-        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic)
+        Set<String> act = new HashSet<>(TopicPolicyTestUtils
+                .getTopicPolicies(pulsar.getTopicPoliciesService(), TopicName.get(persistentTopic.topic), global)
                 .getReplicationClusters());
         assertEquals(act, expected);
     }

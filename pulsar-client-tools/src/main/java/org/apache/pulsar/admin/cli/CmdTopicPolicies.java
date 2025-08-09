@@ -60,7 +60,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     public CmdTopicPolicies(Supplier<PulsarAdmin> admin) {
         super("topicPolicies", admin);
-
+        addCommand("delete", new DeletePolicies());
         addCommand("get-message-ttl", new GetMessageTTL());
         addCommand("set-message-ttl", new SetMessageTTL());
         addCommand("remove-message-ttl", new RemoveMessageTTL());
@@ -2055,6 +2055,20 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             getTopicPolicies(isGlobal).removeReplicationClusters(persistentTopic);
+        }
+    }
+
+    @Command(description = "Remove the all policies for a topic, it will not remove policies from the remote"
+            + "cluster")
+    private class DeletePolicies extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(false).deleteTopicPolicies(persistentTopic);
         }
     }
 
