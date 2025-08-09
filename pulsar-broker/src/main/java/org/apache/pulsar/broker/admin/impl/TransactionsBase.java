@@ -570,11 +570,20 @@ public abstract class TransactionsBase extends AdminResource {
         }
 
         int partitionIdx = (int) mostSigBits;
-
+        TxnID txnID = new TxnID(mostSigBits, leastSigBits);
         return validateTopicOwnershipAsync(
                 SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(partitionIdx), authoritative)
-                .thenCompose(__ -> validateSuperUserAccessAsync())
+                .thenCompose(__ -> verifyTxnOwnership(txnID))
+                .thenAccept(isOwner -> {
+                    if (!isOwner) {
+                        String msg = String.format(
+                                "(%s) is neither the owner of the transaction %s nor a super user",
+                                originalPrincipal() != null ? originalPrincipal() : clientAppId(), txnID);
+                        log.warn(msg);
+                        throw new RestException(Response.Status.UNAUTHORIZED, msg);
+                    }
+                })
                 .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
-                        .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
+                        .endTransaction(txnID, TxnAction.ABORT_VALUE, false));
     }
 }
