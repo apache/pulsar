@@ -465,8 +465,8 @@ The Apache Software License, Version 2.0
   * zt-zip
     - org.zeroturnaround-zt-zip-1.17.jar
   * Apache Avro
-    - org.apache.avro-avro-1.11.4.jar
-    - org.apache.avro-avro-protobuf-1.11.4.jar
+    - org.apache.avro-avro-1.12.0.jar
+    - org.apache.avro-avro-protobuf-1.12.0.jar
   * Apache Curator
     - org.apache.curator-curator-client-5.7.1.jar
     - org.apache.curator-curator-framework-5.7.1.jar
