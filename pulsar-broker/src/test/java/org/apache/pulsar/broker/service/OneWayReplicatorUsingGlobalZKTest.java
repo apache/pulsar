@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.GLOBAL_ONLY;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -317,9 +319,56 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testDeleteNonPartitionedTopic();
     }
 
+    @Override
     @Test
     public void testDeletePartitionedTopic() throws Exception {
-        super.testDeletePartitionedTopic();
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createPartitionedTopic(topicName, 2);
+
+        // Verify replicator works.
+        verifyReplicationWorks(topicName);
+
+        // Remove remote cluster from remote cluster.
+        setTopicLevelClusters(topicName, Arrays.asList(cluster1), admin1, pulsar1, true);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar1.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(0)).join());
+            assertTrue(pulsar1.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
+            assertFalse(pulsar2.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(0)).join());
+            assertFalse(pulsar2.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
+        });
+
+
+        // Delete topic.
+        admin1.topics().deletePartitionedTopic(topicName);
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(pulsar1.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(0)).join());
+            assertFalse(pulsar1.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
+            assertFalse(pulsar2.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(0)).join());
+            assertFalse(pulsar2.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            Optional<TopicPolicies> op1 = pulsar1.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
+            assertFalse(op1.isPresent());
+            Optional<TopicPolicies> op2 = pulsar2.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
+            assertTrue(op2.isPresent());
+        });
+        admin2.topicPolicies().deleteTopicPolicies(topicName);
+        Awaitility.await().untilAsserted(() -> {
+            Optional<TopicPolicies> op2 = pulsar2.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
+            assertFalse(op2.isPresent());
+        });
     }
 
     @Test(enabled = false)
