@@ -405,6 +405,12 @@ public class PulsarClientImpl implements PulsarClient {
                         return createProducerAsync(topic, conf, schema, interceptors);
                     });
         } else {
+            try {
+                schema.setSchemaInfoProvider(getSchemaProviderLoadingCache().get(topic));
+            } catch (Exception e) {
+                log.error("Failed to load schema info provider for topic {}", topic, e);
+                return FutureUtil.failedFuture(e);
+            }
             return createProducerAsync(topic, conf, schema, interceptors);
         }
 
@@ -1293,7 +1299,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private SchemaInfoProvider newSchemaProvider(String topicName) {
-        return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this);
+        return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this, conf.getSchemaProperties());
     }
 
     public LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
