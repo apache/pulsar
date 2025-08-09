@@ -209,7 +209,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
      */
     private RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
-        super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry());
+        super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry(),
+                metadataStoreConfig.getNodePayloadLenEstimator());
         this.metadataUrl = metadataURL;
         try {
             RocksDB.loadLibrary();

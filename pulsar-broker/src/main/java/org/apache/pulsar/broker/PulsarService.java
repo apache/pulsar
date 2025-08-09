@@ -196,6 +196,7 @@ import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
+import org.apache.pulsar.zookeeper.MaxValueMetadataNodePayloadLenEstimator;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -427,6 +428,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                         .synchronizer(synchronizer)
                         .openTelemetry(openTelemetry)
+                        .nodePayloadLenEstimator(new MaxValueMetadataNodePayloadLenEstimator())
                         .build());
     }
 
@@ -1274,6 +1276,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .synchronizer(synchronizer)
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .openTelemetry(openTelemetry)
+                        .nodePayloadLenEstimator(new MaxValueMetadataNodePayloadLenEstimator())
                         .build());
     }
 
