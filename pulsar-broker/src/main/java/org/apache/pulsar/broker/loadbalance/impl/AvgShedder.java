@@ -56,6 +56,9 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     private final Map<String, MutableInt> brokerHitCountForLow = new HashMap<>();
     private static final double MB = 1024 * 1024;
 
+    // placement strategy for selecting broker, only if bundleBrokerMap is empty, for first use.
+    LeastLongTermMessageRate leastLongTermMessageRatePlacement = new LeastLongTermMessageRate();
+
     @Override
     public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
         // result returned by shedding, map broker to bundles.
@@ -285,9 +288,10 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                             candidates);
                 }
             }
-            String broker = getExpectedBroker(candidates, bundleToAssign);
-            bundleBrokerMap.put(bundleToAssign, broker);
-            return Optional.of(broker);
+            Optional<String> selectedBroker
+                    = leastLongTermMessageRatePlacement.selectBroker(candidates, bundleToAssign, loadData, conf);
+            selectedBroker.ifPresent(broker -> bundleBrokerMap.put(bundleToAssign, broker));
+            return selectedBroker;
         } else {
             return Optional.of(brokerToUnload);
         }
