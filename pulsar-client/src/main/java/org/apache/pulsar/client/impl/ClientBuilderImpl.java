@@ -505,4 +505,10 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setLookupProperties(properties);
         return this;
     }
+
+    @Override
+    public ClientBuilder maxRetryTimes(int maxRetryTimes) {
+        conf.setMaxRetryRequestTimes(maxRetryTimes);
+        return this;
+    }
 }
