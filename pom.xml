@@ -330,7 +330,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
-    <license-maven-plugin.version>4.1</license-maven-plugin.version>
+    <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.3.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
@@ -1998,6 +1998,12 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/zk-3.5-test-data/*</exclude>
                 <exclude>**/*_pb2.py</exclude>
                 <exclude>**/*_pb2_grpc.py</exclude>
+                <!--
+                Exclude any files from license checks that are in hidden directories (name starting with ".")
+                at the top level. This helps exclude directories used by AI tools
+                while preserving license checks in subdirectories.
+                -->
+                <exclude>.*/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
