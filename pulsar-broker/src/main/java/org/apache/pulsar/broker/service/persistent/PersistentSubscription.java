@@ -244,6 +244,11 @@ public class PersistentSubscription extends AbstractSubscription {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
                 cursor.updateLastActive();
+                if (!cursor.isActive() && topic.getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()) {
+                    // If the cursor is not active, we need to set it active
+                    cursor.setActive();
+                }
+
                 if (IS_FENCED_UPDATER.get(this) == TRUE) {
                     log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
                     return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));

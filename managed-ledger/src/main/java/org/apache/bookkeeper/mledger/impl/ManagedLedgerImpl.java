@@ -65,6 +65,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -178,11 +179,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected volatile Stat ledgersStat;
 
     // contains all cursors, where durable cursors are ordered by mark delete position
-    private final ManagedCursorContainer cursors = new ManagedCursorContainer();
+    private final ManagedCursorContainer cursors = new ManagedCursorContainerImpl();
     // contains active cursors eligible for caching,
     // ordered by read position (when cacheEvictionByMarkDeletedPosition=false) or by mark delete position
     // (when cacheEvictionByMarkDeletedPosition=true)
-    private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
+    private final ActiveManagedCursorContainer activeCursors;
 
 
     // Ever-increasing counter of entries added
@@ -359,6 +360,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+        if (config.isCacheEvictionByExpectedReadCount()) {
+            activeCursors = new ActiveManagedCursorContainerImpl();
+        } else {
+            activeCursors = new ManagedCursorContainerImpl();
+        }
         this.factory = factory;
         this.bookKeeper = bookKeeper;
         this.config = config;
@@ -506,7 +512,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                 entries.getEntry(lh.getLastAddConfirmed());
                                         if (ledgerEntry != null) {
                                             promise.complete(
-                                                    Optional.of(EntryImpl.create(ledgerEntry)));
+                                                    Optional.of(EntryImpl.create(ledgerEntry, 0)));
                                         } else {
                                             promise.complete(Optional.empty());
                                         }
@@ -1189,7 +1195,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public ManagedCursorContainer getActiveCursors() {
+    public ActiveManagedCursorContainer getActiveCursors() {
         return activeCursors;
     }
 
@@ -1211,7 +1217,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public long getNumberOfActiveEntries() {
         long totalEntries = getNumberOfEntries();
-        Position pos = cursors.getSlowestReaderPosition();
+        Position pos = cursors.getSlowestCursorPosition();
         if (pos == null) {
             // If there are no consumers, there are no active entries
             return 0;
@@ -2296,7 +2302,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, OpReadEntry opReadEntry,
             Object ctx) {
-        boolean shouldCacheEntry = opReadEntry.cursor.isCacheReadEntry();
+        IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
         if (config.getReadEntryTimeoutSeconds() > 0) {
             // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
             long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
@@ -2304,9 +2310,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
                     opReadEntry, readOpCount, createdTime, ctx);
             lastReadCallback = readCallback;
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, shouldCacheEntry, readCallback, readOpCount);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, readOpCount);
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, shouldCacheEntry, opReadEntry, ctx);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, opReadEntry, ctx);
         }
     }
 
@@ -2468,10 +2474,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // slowest reader position is earliest mark delete position when cacheEvictionByMarkDeletedPosition=true
     // it is the earliest read position when cacheEvictionByMarkDeletedPosition=false
     private void invalidateEntriesUpToSlowestReaderPosition() {
-        if (entryCache.getSize() <= 0) {
+        if (entryCache.getSize() <= 0 || config.isCacheEvictionByExpectedReadCount()) {
             return;
         }
-        Position slowestReaderPosition = activeCursors.getSlowestReaderPosition();
+        Position slowestReaderPosition = activeCursors.getSlowestCursorPosition();
         Position evictionPos = slowestReaderPosition != null ? slowestReaderPosition : PositionFactory.LATEST;
         Position currentEvictionPosition = cacheEvictionPosition.getAndUpdate(currentValue -> {
             if (currentValue == null || currentValue == PositionFactory.LATEST
@@ -2528,7 +2534,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void updateActiveCursor(ManagedCursorImpl cursor, Position newPosition) {
         Pair<Position, Position> slowestPositions = activeCursors.cursorUpdated(cursor, newPosition);
-        if (slowestPositions != null
+        if (!config.isCacheEvictionByExpectedReadCount() && slowestPositions != null
                 && !slowestPositions.getLeft().equals(slowestPositions.getRight())) {
             invalidateEntriesUpToSlowestReaderPosition();
         }
@@ -2860,7 +2866,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // include lastLedger in the trimming.
                 slowestReaderLedgerId = currentLedger.getId() + 1;
             } else {
-                Position slowestReaderPosition = cursors.getSlowestReaderPosition();
+                Position slowestReaderPosition = cursors.getSlowestCursorPosition();
                 if (slowestReaderPosition != null) {
                     // The slowest reader position is the mark delete position.
                     // If the slowest reader position point the last entry in the ledger x,
@@ -3979,7 +3985,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public ManagedCursor getSlowestConsumer() {
-        return cursors.getSlowestReader();
+        return cursors.getSlowestCursor();
     }
 
     Position getMarkDeletePositionOfSlowestConsumer() {
@@ -4047,6 +4053,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
     }
+
+    public int getNumberOfCursorsAtSamePositionOrBefore(ManagedCursor cursor) {
+        return activeCursors.getNumberOfCursorsAtSamePositionOrBefore(cursor);
+    }
+
 
     public void removeWaitingCursor(ManagedCursor cursor) {
         ((ManagedCursorImpl) cursor).removeWaitingCursorRequested(() -> {
@@ -4814,7 +4825,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
 
     public void checkCursorsToCacheEntries() {
-        if (minBacklogCursorsForCaching < 1) {
+        if (minBacklogCursorsForCaching < 1 || config.isCacheEvictionByExpectedReadCount()) {
             return;
         }
         Iterator<ManagedCursor> it = cursors.iterator();

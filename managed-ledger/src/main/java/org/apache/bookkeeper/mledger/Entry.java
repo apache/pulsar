@@ -68,6 +68,17 @@ public interface Entry {
     boolean release();
 
     /**
+     * Managed Ledger implementations of EntryImpl should implement this method to return the read count handler
+     * associated with the entry.
+     * This handler is used to track how many times the entry has been read and to manage
+     * the eviction of entries from the broker cache based on their expected read count.
+     * @return
+     */
+    default EntryReadCountHandler getReadCountHandler() {
+        return null;
+    }
+
+    /**
      * Check if this entry is for the given Position.
      * @param position the position to check against
      * @return true if the entry matches the position, false otherwise

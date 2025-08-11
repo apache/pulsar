@@ -2148,13 +2148,53 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Configure the cache eviction interval in milliseconds for the managed ledger cache, default is 10ms")
     private long managedLedgerCacheEvictionIntervalMs = 10;
 
-    @FieldContext(category = CATEGORY_STORAGE_ML,
-            dynamic = true,
-            doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true, doc =
+            "Controls time-to-live (TTL) for entries in the managed ledger (broker) cache.\n"
+                    + "The TTL can be extended in two ways:\n"
+                    + "1. When cacheEvictionByExpectedReadCount is enabled: TTL is extended for entries with "
+                    + "remaining\n"
+                    + "expected reads. The maximum number of extensions is controlled by\n"
+                    + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes.\n"
+                    + "2. When cacheEvictionExtendTTLOfRecentlyAccessed is enabled: TTL is extended for entries\n"
+                    + "accessed since the last expiration check.\n"
+                    + "Default value is 1000ms.")
     private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true, doc = "Maximum number of times the cache can extend\n"
+            + "the TTL of an entry that has remaining expected reads.\n"
+            + "Only takes effect when cacheEvictionByExpectedReadCount is enabled.\n"
+            + "This helps optimize cache efficiency for scenarios like:\n"
+            + "- Key_Shared subscription replays\n"
+            + "- Catch-up reads for lagging consumers\n"
+            + "- Consumers temporarily falling behind the tail\n"
+            + "Entries with remaining expected reads will have their TTL extended up to this many times\n"
+            + "before being eligible for eviction. The TTL will be extended by\n"
+            + "managedLedgerCacheEvictionTimeThresholdMillis each time.\n"
+            + "Default is 5.")
+    private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+            doc = "Controls whether recently accessed entries in the managed ledger cache should have their "
+                    + "lifetime extended before cache eviction.\n"
+                    + "When enabled:\n"
+                    + " - During eviction check, if an entry has been accessed since the last check, its expiration"
+                    + " time will be extended by managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + " - Makes the cache behave like a Least Recently Used (LRU) cache by keeping frequently "
+                    + "accessed entries longer\n"
+                    + " - Helps optimize performance for frequently accessed entries while still allowing old unused "
+                    + "entries to be evicted\n"
+                    + " - Minimum eviction time is 2x managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + "When disabled:\n"
+                    + " - Cache behaves more like a FIFO queue with time-based and size-based eviction\n"
+                    + " - Minimum eviction time is managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + "Default is true, to behave like a LRU cache."
+    )
+    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
-                    + " and thus should be set as inactive.")
+                    + " and thus should be set as inactive.\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled.")
     private long managedLedgerCursorBackloggedThreshold = 1000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -2429,20 +2469,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
             doc = "Minimum cursors that must be in backlog state to cache and reuse the read entries."
-                    + "(Default =0 to disable backlog reach cache)"
+                    + "(Default =0 to disable backlog reach cache)\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMinimumBacklogCursorsForCaching = 0;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "Minimum backlog entries for any cursor before start caching reads"
+            doc = "Minimum backlog entries for any cursor before start caching reads\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMinimumBacklogEntriesForCaching = 1000;
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused"
+            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMaxBacklogBetweenCursorsForCaching = 1000;
 
@@ -3470,6 +3513,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The default is to evict through readPosition."
     )
     private boolean cacheEvictionByMarkDeletedPosition = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by expected read count. Expected read count is calculated by the number of "
+                    + "active cursors with a read position that is behind the position of the cached entry. "
+                    + "This setting will override the cacheEvictionByMarkDeletedPosition setting."
+    )
+    private boolean cacheEvictionByExpectedReadCount = true;
 
     /**** --- Transaction config variables. --- ****/
     @FieldContext(

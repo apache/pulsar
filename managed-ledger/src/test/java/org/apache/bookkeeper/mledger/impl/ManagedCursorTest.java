@@ -273,7 +273,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         cursor.markDelete(lastEntry);
 
         // Assert persist mark deleted position to ZK was successful.
-        Position slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
+        Position slowestReadPosition = ml.getCursors().getSlowestCursorPosition();
         assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
         assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
         assertEquals(cursor.getStats().getPersistLedgerSucceed(), 0);
@@ -371,7 +371,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(persistZookeeperSucceed2 > persistZookeeperSucceed1);
 
         // Assert persist mark deleted position to ZK was successful.
-        Position slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
+        Position slowestReadPosition = ml.getCursors().getSlowestCursorPosition();
         assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
         assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
         assertEquals(cursor.getPersistentMarkDeletedPosition(), lastEntry);
@@ -2932,7 +2932,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     private static EntryImpl createEntryAndReleaseBuffer(Position p1, ByteBuf buffer) {
-        EntryImpl entry = EntryImpl.create(p1, buffer);
+        EntryImpl entry = EntryImpl.create(p1, buffer, 0);
         buffer.release();
         return entry;
     }

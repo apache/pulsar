@@ -220,16 +220,42 @@ public interface ManagedLedgerFactory {
     EntryCacheManager getEntryCacheManager();
 
     /**
-     * update cache evictionTimeThreshold.
-     *
-     * @param cacheEvictionTimeThresholdNanos time threshold for eviction.
+     * update cache evictionTimeThreshold dynamically. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionTimeThresholdMillis(long)}
+     * but the value is in nanos. This inconsistency is kept for backwards compatibility.
+     * @param cacheEvictionTimeThresholdNanos time threshold in nanos for eviction.
      */
     void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
 
     /**
+     * time threshold for eviction. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionTimeThresholdMillis(long)}
+     * but the value is in nanos.
      * @return time threshold for eviction.
-     * */
+     */
     long getCacheEvictionTimeThreshold();
+
+    /**
+     * Update extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(int)}.
+     * @param extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes max times to extend TTL for entries with remaining
+     *                                                            expected reads.
+     */
+    default void updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+            int extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes) {
+        // Default implementation does nothing for backwards compatibility of the ManagedLedgerFactory interface.
+        // Subclasses can override this method to provide specific behavior.
+    }
+
+    /**
+     * Update cacheEvictionExtendTTLOfRecentlyAccessed. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionExtendTTLOfRecentlyAccessed(boolean)}.
+     * @param cacheEvictionExtendTTLOfRecentlyAccessed whether to extend TTL of recently accessed entries.
+     */
+    default void updateCacheEvictionExtendTTLOfRecentlyAccessed(boolean cacheEvictionExtendTTLOfRecentlyAccessed) {
+        // Default implementation does nothing for backwards compatibility of the ManagedLedgerFactory interface.
+        // Subclasses can override this method to provide specific behavior.
+    }
 
     /**
      * @return properties of this managedLedger.

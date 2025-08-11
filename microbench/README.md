@@ -76,3 +76,8 @@ LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
 java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
 ```
 
+It's possible to add options to the async-profiler that aren't supported by the JMH async-profiler plugin. This can be done by adding `rawCommand` option to the `-prof` argument. This example shows how to add `all` (new in Async Profiler 4.1) and `cstack=vmx` options.
+
+```shell
+java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results\;rawCommand=all,cstack=vmx ".*BenchmarkName.*"
+```
