@@ -106,7 +106,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void testGetWritableBookiesByMetadataClientDriver(String provider, Supplier<String> urlSupplier) throws Exception {
+    public void testGetWritableBookiesByMetadataClientDriver(String provider, Supplier<String> urlSupplier)
+            throws Exception {
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
 
