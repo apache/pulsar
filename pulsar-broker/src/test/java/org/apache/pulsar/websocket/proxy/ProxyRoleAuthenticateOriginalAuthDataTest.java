@@ -18,23 +18,17 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.annotations.Test;
 
 /**
  * Same test with ProxyRoleAuthTest but using REST API as the internal client.
  */
 @Test(groups = "websocket")
-public class ProxyRoleAuthWebServiceURLTest extends ProxyRoleAuthTest {
+public class ProxyRoleAuthenticateOriginalAuthDataTest extends ProxyRoleAuthTest {
 
     @Override
-    protected WebSocketProxyConfiguration getProxyConfig() {
-        // Create WebSocket proxy configuration with authentication and authorization enabled
-        WebSocketProxyConfiguration proxyConfig = super.getProxyConfig();
-        proxyConfig.setServiceUrl(pulsar.getWebServiceAddress());
-        proxyConfig.setServiceUrlTls(pulsar.getWebServiceAddressTls());
-        proxyConfig.setBrokerServiceUrl(null);
-        proxyConfig.setBrokerServiceUrlTls(null);
-        return  proxyConfig;
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setAuthenticateOriginalAuthData(true);
     }
 }
