@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -41,13 +43,19 @@ import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.conf.TestBKConfiguration;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.discover.RegistrationManager;
+import org.apache.bookkeeper.meta.MetadataClientDriver;
+import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
@@ -93,6 +101,46 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         }
 
         Versioned<Set<BookieId>> result = result(rc.getWritableBookies());
+
+        assertEquals(result.getValue().size(), addresses.size());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testGetWritableBookiesByMetadataClientDriver(String provider, Supplier<String> urlSupplier) throws Exception {
+        System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
+        System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
+
+        String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
+        String bookkeeperMetadataServiceUri;
+        if (provider == "ZooKeeper" || provider == "MockZookeeper") {
+            bookkeeperMetadataServiceUri =  "metadata-store:zk:" + urlSupplier.get() + ledgersRoot;
+        }  else {
+            bookkeeperMetadataServiceUri =  "metadata-store:" + urlSupplier.get() + ledgersRoot;
+        }
+        ClientConfiguration baseClientConf = TestBKConfiguration.newClientConfiguration();
+        baseClientConf.setMetadataServiceUri(bookkeeperMetadataServiceUri);
+        OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder()
+                .name("test-scheduler")
+                .numThreads(1)
+                .build();
+        @Cleanup
+        MetadataClientDriver clientDriver = MetadataDrivers
+                .getClientDriver(URI.create(baseClientConf.getMetadataServiceUri()));
+        clientDriver.initialize(baseClientConf, scheduler, NullStatsLogger.INSTANCE, Optional.empty());
+
+        AbstractMetadataDriver driver = (AbstractMetadataDriver) clientDriver;
+
+        @Cleanup
+        RegistrationManager rm = driver.createRegistrationManager();
+
+        Set<BookieId> addresses = prepareNBookies(10);
+        List<String> children = new ArrayList<>();
+        for (BookieId address : addresses) {
+            children.add(address.toString());
+            rm.registerBookie(address, false, new BookieServiceInfo());
+        }
+
+        Versioned<Set<BookieId>> result = result(clientDriver.getRegistrationClient().getWritableBookies());
 
         assertEquals(result.getValue().size(), addresses.size());
     }
