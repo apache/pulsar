@@ -395,8 +395,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             }
         }
 
-        if (ledgerId < lastMutableBucket.endLedgerId || existBucket) {
-            // If (ledgerId < endLedgerId || existBucket) means that message index belongs to previous bucket range,
+        if (ledgerId < lastMutableBucket.startLedgerId || existBucket) {
+            // If (ledgerId < startLedgerId || existBucket) means that message index belong to previous bucket range,
             // enter sharedBucketPriorityQueue directly
             sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
             lastMutableBucket.putIndexBit(ledgerId, entryId);
