@@ -56,8 +56,8 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.schema.Schemas;
 import org.apache.pulsar.schema.MockExternalJsonSchema;
+import org.apache.pulsar.schema.Schemas;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -659,7 +659,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(lookupUrl.toString())
-                .schemaProperties(schemaConfigs)
                 .build();
 
         // Existing topic schema is JSON, new schema can't be EXTERNAL
@@ -697,7 +696,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
         assertNotNull(externalJsonSchema.getSchemaInfoProvider());
-        assertEquals(externalJsonSchema.getSchemaInfoProvider().getConfigs(), schemaConfigs);
         producer.close();
         assertNull(externalJsonSchema.getSchemaInfoProvider());
         assertTrue(externalJsonSchema.isClosed());

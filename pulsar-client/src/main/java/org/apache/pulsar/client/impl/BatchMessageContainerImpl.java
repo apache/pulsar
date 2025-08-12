@@ -95,6 +95,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
         if (++numMessagesInBatch == 1) {
             try {
+                if (msg.getSchemaId() != null && msg.getSchemaId().length > 0) {
+                    messageMetadata.setSchemaId(msg.getSchemaId());
+                }
+
                 // some properties are common amongst the different messages in the batch, hence we just pick it up from
                 // the first message
                 messageMetadata.setSequenceId(msg.getSequenceId());
@@ -365,6 +369,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     public boolean hasSameSchema(MessageImpl<?> msg) {
         if (numMessagesInBatch == 0) {
             return true;
+        }
+        if (messageMetadata.hasSchemaId()) {
+            return Arrays.equals(msg.getSchemaId(), messageMetadata.getSchemaId())
+                    && Arrays.equals(msg.getSchemaVersion(), messageMetadata.getSchemaVersion());
         }
         if (!messageMetadata.hasSchemaVersion()) {
             return msg.getSchemaVersion() == null;

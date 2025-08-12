@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -38,9 +39,15 @@ import org.apache.pulsar.common.schema.SchemaType;
 public final class KeyValueSchemaInfo {
 
     private static final Schema<SchemaInfo> SCHEMA_INFO_WRITER = new Schema<SchemaInfo>() {
+
+        @Override
+        public EncodeData encode(String topic, SchemaInfo si) {
+            return new EncodeData(si.getSchema());
+        }
+
         @Override
         public byte[] encode(SchemaInfo si) {
-            return si.getSchema();
+            return encode(null, si).getData();
         }
 
         @Override

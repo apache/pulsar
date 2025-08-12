@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -46,7 +47,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Schema<T> extends Cloneable, AutoCloseable {
+public interface Schema<T> extends Cloneable {
 
     /**
      * Check if the message is a valid object for this schema.
@@ -73,6 +74,10 @@ public interface Schema<T> extends Cloneable, AutoCloseable {
      *             if the serialization fails
      */
     byte[] encode(T message);
+
+    default EncodeData encode(String topic, T message) {
+        return new EncodeData(encode(message), null);
+    }
 
     /**
      * Returns whether this schema supports versioning.
@@ -134,6 +139,14 @@ public interface Schema<T> extends Cloneable, AutoCloseable {
         return decode(getBytes(data));
     }
 
+    default T decode(String topic, ByteBuffer data, byte[] schemaId) {
+        return decode(topic, getBytes(data), schemaId);
+    }
+
+    default T decode(String topic, byte[] data, byte[] schemaId) {
+        return decode(data, schemaId);
+    }
+
     /**
      * Decode a ByteBuffer into an object using a given version. <br/>
      *
@@ -184,9 +197,8 @@ public interface Schema<T> extends Cloneable, AutoCloseable {
      */
     Schema<T> clone();
 
-    @Override
-    default void close() {
-        // no-op
+    default CompletableFuture<Void> closeAsync() {
+        return CompletableFuture.completedFuture(null);
     }
 
     /**

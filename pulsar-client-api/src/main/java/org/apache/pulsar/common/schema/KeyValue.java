@@ -20,6 +20,7 @@ package org.apache.pulsar.common.schema;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -100,25 +101,48 @@ public class KeyValue<K, V> {
      */
     public static <K, V> byte[] encode(K key, Schema<K> keyWriter,
                                        V value, Schema<V> valueWriter) {
-        byte [] keyBytes;
+        return encode(null, key, keyWriter, value, valueWriter).getData();
+    }
+
+    public static <K, V> EncodeData encode(String topic, K key, Schema<K> keyWriter,
+                                           V value, Schema<V> valueWriter) {
+        EncodeData keyEncodeData;
         if (key == null) {
-            keyBytes = new byte[0];
+            keyEncodeData = new EncodeData(new byte[0]);
         } else {
-            keyBytes = keyWriter.encode(key);
+            keyEncodeData = keyWriter.encode(topic, key);
         }
 
-        byte [] valueBytes;
+        EncodeData valueEncodeData;
         if (value == null) {
-            valueBytes = new byte[0];
+            valueEncodeData = new EncodeData(new byte[0]);
         } else {
-            valueBytes = valueWriter.encode(value);
+            valueEncodeData = valueWriter.encode(topic, value);
         }
-        ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(
+                4 + keyEncodeData.getData().length + 4 + valueEncodeData.getData().length);
         byteBuffer
-            .putInt(key == null ? -1 : keyBytes.length)
-            .put(keyBytes)
-            .putInt(value == null ? -1 : valueBytes.length)
-            .put(valueBytes);
+                .putInt(key == null ? -1 : keyEncodeData.getData().length)
+                .put(keyEncodeData.getData())
+                .putInt(value == null ? -1 : valueEncodeData.getData().length)
+                .put(valueEncodeData.getData());
+        return new EncodeData(byteBuffer.array(),
+                generateKVSchemaId(keyEncodeData.getSchemaId(), valueEncodeData.getSchemaId()));
+    }
+
+    public static byte[] generateKVSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
+        if (keySchemaId == null && valueSchemaId == null) {
+            return null;
+        }
+        keySchemaId = keySchemaId == null ? new byte[0] : keySchemaId;
+        valueSchemaId = valueSchemaId == null ? new byte[0] : valueSchemaId;
+        ByteBuffer byteBuffer = ByteBuffer.allocate(
+                4 + keySchemaId.length + 4 + valueSchemaId.length);
+        byteBuffer
+                .putInt(keySchemaId.length)
+                .put(keySchemaId)
+                .putInt(valueSchemaId.length)
+                .put(valueSchemaId);
         return byteBuffer.array();
     }
 

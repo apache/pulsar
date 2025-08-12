@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -102,6 +103,14 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     private KeyValueSchemaImpl(Schema<K> keySchema,
                                Schema<V> valueSchema,
                                KeyValueEncodingType keyValueEncodingType) {
+        SchemaType keySchemaType = keySchema.getSchemaInfo().getType();
+        SchemaType valueSchemaType = valueSchema.getSchemaInfo().getType();
+        if ((SchemaType.EXTERNAL.equals(keySchemaType) && SchemaType.isStructType(valueSchemaType))
+                || SchemaType.EXTERNAL.equals(valueSchemaType) && SchemaType.isStructType(keySchemaType)) {
+            throw new IllegalArgumentException("External schema cannot be used with struct schema type. "
+                    + "Key schema type: " + keySchemaType + ", Value schema type: " + valueSchemaType);
+        }
+
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
         this.keyValueEncodingType = keyValueEncodingType;
@@ -133,18 +142,23 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
     public byte[] encode(KeyValue<K, V> message) {
+        return encode(null, message).getData();
+    }
+
+    @Override
+    public EncodeData encode(String topic, KeyValue<K, V> message) {
         if (keyValueEncodingType != null && keyValueEncodingType == KeyValueEncodingType.INLINE) {
             return KeyValue.encode(
+                topic,
                 message.getKey(),
                 keySchema,
                 message.getValue(),
-                valueSchema
-            );
+                valueSchema);
         } else {
             if (message.getValue() == null) {
                 return null;
             }
-            return valueSchema.encode(message.getValue());
+            return valueSchema.encode(topic, message.getValue());
         }
     }
 
@@ -158,7 +172,8 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         if (this.keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
             throw new SchemaSerializationException("This method cannot be used under this SEPARATED encoding type");
         }
-        return KeyValue.decode(bytes, (keyBytes, valueBytes) -> decode(keyBytes, valueBytes, schemaVersion));
+        return KeyValue.decode(bytes, (keyBytes, valueBytes) ->
+                decode(null, keyBytes, valueBytes, schemaVersion));
     }
 
     @Override
@@ -167,17 +182,26 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     }
 
     @Override
+    public KeyValue<K, V> decode(String topic, byte[] data, byte[] schemaId) {
+        if (this.keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
+            throw new SchemaSerializationException("This method cannot be used under this SEPARATED encoding type");
+        }
+        return KeyValue.decode(data, (keyBytes, valueBytes) ->
+                decode(topic, keyBytes, valueBytes, schemaId));
+    }
+
+    @Override
     public KeyValue<K, V> decode(ByteBuf byteBuf, byte[] schemaVersion) {
         return decode(ByteBufUtil.getBytes(byteBuf), schemaVersion);
     }
 
-    public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes, byte[] schemaVersion) {
+    public KeyValue<K, V> decode(String topic, byte[] keyBytes, byte[] valueBytes, byte[] schemaFlag) {
         K k;
         if (keyBytes == null) {
             k = null;
         } else {
-            if (keySchema.supportSchemaVersioning() && schemaVersion != null) {
-                k = keySchema.decode(keyBytes, schemaVersion);
+            if (keySchema.supportSchemaVersioning() && schemaFlag != null) {
+                k = keySchema.decode(topic, keyBytes, schemaFlag);
             } else {
                 k = keySchema.decode(keyBytes);
             }
@@ -187,8 +211,8 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         if (valueBytes == null) {
             v = null;
         } else {
-            if (valueSchema.supportSchemaVersioning() && schemaVersion != null) {
-                v = valueSchema.decode(valueBytes, schemaVersion);
+            if (valueSchema.supportSchemaVersioning() && schemaFlag != null) {
+                v = valueSchema.decode(topic, valueBytes, schemaFlag);
             } else {
                 v = valueSchema.decode(valueBytes);
             }
@@ -202,12 +226,6 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
         this.schemaInfoProvider = schemaInfoProvider;
-        if (this.keySchema.getSchemaInfo().getType() == SchemaType.EXTERNAL) {
-            this.keySchema.setSchemaInfoProvider(schemaInfoProvider);
-        }
-        if (this.valueSchema.getSchemaInfo().getType() == SchemaType.EXTERNAL) {
-            this.valueSchema.setSchemaInfoProvider(schemaInfoProvider);
-        }
     }
 
     @Override
@@ -253,47 +271,43 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     }
 
     private void setSchemaInfoProviderOnSubschemas() {
-        if (this.keySchema.getSchemaInfo().getType() != SchemaType.EXTERNAL) {
-            this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
-                @Override
-                public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                    return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                            .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
-                }
+        this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
+            @Override
+            public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
+                        .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
+            }
 
-                @Override
-                public CompletableFuture<SchemaInfo> getLatestSchema() {
-                    return CompletableFuture.completedFuture(
-                            ((AbstractStructSchema<K>) keySchema).schemaInfo);
-                }
+            @Override
+            public CompletableFuture<SchemaInfo> getLatestSchema() {
+                return CompletableFuture.completedFuture(
+                        ((AbstractStructSchema<K>) keySchema).schemaInfo);
+            }
 
-                @Override
-                public String getTopicName() {
-                    return "key-schema";
-                }
-            });
-        }
+            @Override
+            public String getTopicName() {
+                return "key-schema";
+            }
+        });
 
-        if (this.valueSchema.getSchemaInfo().getType() != SchemaType.EXTERNAL) {
-            this.valueSchema.setSchemaInfoProvider(new SchemaInfoProvider() {
-                @Override
-                public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                    return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                            .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
-                }
+        this.valueSchema.setSchemaInfoProvider(new SchemaInfoProvider() {
+            @Override
+            public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
+                        .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
+            }
 
-                @Override
-                public CompletableFuture<SchemaInfo> getLatestSchema() {
-                    return CompletableFuture.completedFuture(
-                            ((AbstractStructSchema<V>) valueSchema).schemaInfo);
-                }
+            @Override
+            public CompletableFuture<SchemaInfo> getLatestSchema() {
+                return CompletableFuture.completedFuture(
+                        ((AbstractStructSchema<V>) valueSchema).schemaInfo);
+            }
 
-                @Override
-                public String getTopicName() {
-                    return "value-schema";
-                }
-            });
-        }
+            @Override
+            public String getTopicName() {
+                return "value-schema";
+            }
+        });
     }
 
     @Override

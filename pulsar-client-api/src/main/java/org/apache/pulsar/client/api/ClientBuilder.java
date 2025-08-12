@@ -718,12 +718,4 @@ public interface ClientBuilder extends Serializable, Cloneable {
      */
     ClientBuilder lookupProperties(Map<String, String> properties);
 
-    /**
-     * Set the properties used for schema.
-     * <p>
-     *     These properties will be used to configure the schema registry client.
-     * </p>
-     * @param properties schema registry properties
-     */
-    ClientBuilder schemaProperties(Map<String, String> properties);
 }

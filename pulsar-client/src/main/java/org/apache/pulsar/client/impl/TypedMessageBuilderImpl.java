@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -36,6 +37,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -77,7 +79,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                     return null;
                 }
             }).orElseGet(() -> {
-                content = ByteBuffer.wrap(schema.encode(value));
+                EncodeData encodeData = schema.encode(producer.topic, value);
+                content = ByteBuffer.wrap(encodeData.getData());
+                if (encodeData.getSchemaId() != null && encodeData.getSchemaId().length > 0) {
+                    msgMetadata.setSchemaId(encodeData.getSchemaId());
+                }
                 return this;
             });
         }
@@ -304,20 +310,27 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         org.apache.pulsar.common.schema.KeyValue<K, V> keyValue =
                 (org.apache.pulsar.common.schema.KeyValue<K, V>) value;
 
+        EncodeData keyEncoded = null;
         // set key as the message key
         if (keyValue.getKey() != null) {
-            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(
-                    keyValueSchema.getKeySchema().encode(keyValue.getKey())));
+            keyEncoded = keyValueSchema.getKeySchema().encode(producer.topic, keyValue.getKey());
+            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(keyEncoded.getData()));
             msgMetadata.setPartitionKeyB64Encoded(true);
         } else {
             msgMetadata.setNullPartitionKey(true);
         }
 
+        EncodeData valueEncoded = null;
         // set value as the payload
         if (keyValue.getValue() != null) {
-            content = ByteBuffer.wrap(keyValueSchema.getValueSchema().encode(keyValue.getValue()));
+            valueEncoded = keyValueSchema.getValueSchema().encode(producer.topic, keyValue.getValue());
+            content = ByteBuffer.wrap(valueEncoded.getData());
         } else {
             msgMetadata.setNullValue(true);
         }
+
+        msgMetadata.setSchemaId(KeyValue.generateKVSchemaId(
+                keyEncoded == null ? null : keyEncoded.getSchemaId(),
+                valueEncoded == null ? null : valueEncoded.getSchemaId()));
     }
 }
