@@ -42,8 +42,7 @@ public class ExternalSchemaCompatibilityCheck implements SchemaCompatibilityChec
     @Override
     public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)
             throws IncompatibleSchemaException {
-        while (from.iterator().hasNext()) {
-            SchemaData fromSchema = from.iterator().next();
+        for (SchemaData fromSchema : from) {
             checkCompatible(fromSchema, to, strategy);
         }
     }
