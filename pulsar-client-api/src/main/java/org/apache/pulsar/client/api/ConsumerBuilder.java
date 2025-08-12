@@ -254,7 +254,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * but no more than 256ms. If set to k, the redelivery time will be bucketed by 2^k ms.
      * If the value is 0, the redelivery time will be accurate to ms.
      *
-     * @param negativeAckPrecisionBitCnt
+     * @param negativeAckPrecisionBitCount
      *            The redelivery time precision bit count.
      * @return the consumer builder instance
      */
@@ -393,8 +393,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * size is zero. {@link Consumer#receive()} function call should not be interrupted when the consumer queue size is
      * zero.</li>
      * <li>Doesn't support Batch-Message. If a consumer receives a batch-message, it closes the consumer connection with
-     * the broker and {@link Consumer#receive()} calls remain blocked while {@link Consumer#receiveAsync()} receives
-     * exception in callback.
+     * the broker and {@link Consumer#receive()} calls will throw {@link PulsarClientException}
+     * while {@link Consumer#receiveAsync()} receives
+     * {@link PulsarClientException} in callback.
      *
      * <b> The consumer is not able to receive any further messages unless batch-message in pipeline
      * is removed.</b></li>
@@ -820,6 +821,33 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * If configured with a non-null value, the consumer uses the processor to process the payload, including
      * decoding it to messages and triggering the listener.
+     *
+     * <p><b>Special behavior when {@link #receiverQueueSize(int) receiverQueueSize=0}:</b>
+     * When the consumer is configured with {@link #receiverQueueSize(int) receiverQueueSize=0}:
+     * <ul>
+     *   <li>For <b>batch messages</b>:
+     *     <ul>
+     *       <li>The payload processor will <i>not</i> be invoked</li>
+     *       <li>The consumer will <b>immediately close itself</b> upon receiving batch messages</li>
+     *       <li>Pending operations will fail with:
+     *         <ul>
+     *           <li>{@code receive()}: throws {@link PulsarClientException}</li>
+     *           <li>{@code receiveAsync()}: completes the Future with {@link PulsarClientException}</li>
+     *           <li>Message listeners: triggers {@link Consumer#close()} without delivering the message</li>
+     *         </ul>
+     *       </li>
+     *     </ul>
+     *   </li>
+     *   <li>For <b>single messages</b>:
+     *     <ul>
+     *       <li>The payload processor will process messages normally</li>
+     *     </ul>
+     *   </li>
+     * </ul>
+     *
+     *
+     * <p><b>Default behavior {@link #receiverQueueSize(int) receiverQueueSize>0}:</b>
+     * All messages (both single and batched) will be processed by the payload processor.
      *
      * Default: null
      */
