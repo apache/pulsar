@@ -124,11 +124,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @Test
     public void testGetPolicy() throws Exception {
 
-        // Init topic policies
-        TopicPolicies initPolicy = TopicPolicies.builder()
-                .maxConsumerPerTopic(10)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(10)).get();
 
         // Wait for all topic policies updated.
         Awaitility.await().untilAsserted(() ->
@@ -141,40 +138,28 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                         .getMaxConsumerPerTopic().intValue(), 10));
 
         // Update policy for TOPIC1
-        TopicPolicies policies1 = TopicPolicies.builder()
-                .maxProducerPerTopic(1)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1).get();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(1)).get();
 
         // Update policy for TOPIC2
-        TopicPolicies policies2 = TopicPolicies.builder()
-                .maxProducerPerTopic(2)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2).get();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(2)).get();
 
         // Update policy for TOPIC3
-        TopicPolicies policies3 = TopicPolicies.builder()
-                .maxProducerPerTopic(3)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC3, policies3).get();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC3, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(3)).get();
 
         // Update policy for TOPIC4
-        TopicPolicies policies4 = TopicPolicies.builder()
-                .maxProducerPerTopic(4)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC4, policies4).get();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC4, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(4)).get();
 
         // Update policy for TOPIC5
-        TopicPolicies policies5 = TopicPolicies.builder()
-                .maxProducerPerTopic(5)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC5, policies5).get();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC5, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(5)).get();
 
         // Update policy for TOPIC6
-        TopicPolicies policies6 = TopicPolicies.builder()
-                .maxProducerPerTopic(6)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC6, policies6).get();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC6, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(6)).get();
 
         Awaitility.await().untilAsserted(() -> {
             TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
@@ -190,12 +175,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             TopicPolicies policiesGet6 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
                     TOPIC6);
 
-            Assert.assertEquals(policiesGet1, policies1);
-            Assert.assertEquals(policiesGet2, policies2);
-            Assert.assertEquals(policiesGet3, policies3);
-            Assert.assertEquals(policiesGet4, policies4);
-            Assert.assertEquals(policiesGet5, policies5);
-            Assert.assertEquals(policiesGet6, policies6);
+            Assert.assertEquals(policiesGet1.getMaxConsumerPerTopic(), 1);
+            Assert.assertEquals(policiesGet2.getMaxConsumerPerTopic(), 2);
+            Assert.assertEquals(policiesGet3.getMaxConsumerPerTopic(), 3);
+            Assert.assertEquals(policiesGet4.getMaxConsumerPerTopic(), 4);
+            Assert.assertEquals(policiesGet5.getMaxConsumerPerTopic(), 5);
+            Assert.assertEquals(policiesGet6.getMaxConsumerPerTopic(), 6);
         });
 
         // Remove reader cache will remove policies cache
@@ -209,27 +194,27 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
                 NamespaceName.get(NAMESPACE3)));
 
-        policies1.setMaxProducerPerTopic(101);
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
-        policies2.setMaxProducerPerTopic(102);
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2);
-        policies2.setMaxProducerPerTopic(103);
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2);
-        policies1.setMaxProducerPerTopic(104);
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
-        policies2.setMaxProducerPerTopic(105);
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2);
-        policies1.setMaxProducerPerTopic(106);
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(101));
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(102));
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(103));
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(104));
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(105));
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(106));
 
         // reader for NAMESPACE1 will back fill the reader cache
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
-                    TOPIC1);
-            TopicPolicies policiesGet2 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService,
-                    TOPIC2);
-            Assert.assertEquals(policies1, policiesGet1);
-            Assert.assertEquals(policies2, policiesGet2);
+            TopicPolicies policiesGet1 =
+                    TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC1);
+            TopicPolicies policiesGet2 =
+                    TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC2);
+            Assert.assertEquals(policiesGet1.getMaxConsumerPerTopic(), 106);
+            Assert.assertEquals(policiesGet2.getMaxConsumerPerTopic(), 105);
         });
 
         // Check reader cache is correct.
@@ -240,9 +225,10 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(
                 NamespaceName.get(NAMESPACE3)));
 
+        TopicPolicies policies1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC1);
         // Check get without cache
         TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPoliciesBypassCache(
-                systemTopicBasedTopicPoliciesService, TOPIC1).orElseThrow();
+                systemTopicBasedTopicPoliciesService, TOPIC1, false).orElseThrow();
         Assert.assertEquals(policies1, policiesGet1);
     }
 
