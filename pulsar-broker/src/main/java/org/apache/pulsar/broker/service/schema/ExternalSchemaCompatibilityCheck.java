@@ -33,9 +33,6 @@ public class ExternalSchemaCompatibilityCheck implements SchemaCompatibilityChec
     @Override
     public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
             throws IncompatibleSchemaException {
-        if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
-            return;
-        }
         if ((SchemaType.EXTERNAL.equals(from.getType()) || SchemaType.EXTERNAL.equals(to.getType()))
                 && !from.getType().equals(to.getType())) {
             throw new IncompatibleSchemaException("External schema is not compatible with the other schema types.");
@@ -45,9 +42,6 @@ public class ExternalSchemaCompatibilityCheck implements SchemaCompatibilityChec
     @Override
     public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)
             throws IncompatibleSchemaException {
-        if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
-            return;
-        }
         while (from.iterator().hasNext()) {
             SchemaData fromSchema = from.iterator().next();
             checkCompatible(fromSchema, to, strategy);
