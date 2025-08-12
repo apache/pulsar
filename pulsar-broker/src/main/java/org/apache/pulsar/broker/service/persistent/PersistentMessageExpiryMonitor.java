@@ -149,7 +149,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             }
             return true;
         }
-
+        // Fallback to the slower solution if the managed ledger is not an instance of ManagedLedgerImpl.
         if (topicLastPosition.compareTo(messagePosition) < 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "

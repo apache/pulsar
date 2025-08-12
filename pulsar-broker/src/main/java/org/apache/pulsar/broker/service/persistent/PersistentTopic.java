@@ -2123,8 +2123,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
 
-        // If managed ledger is not instance of ManagedLedgerImpl, each subscription find position and handle expiring
-        // itself.
+        // Fallback to the slower solution if managed ledger is not an instance of ManagedLedgerImpl: each
+        // subscription find position and handle expiring itself.
         ManagedLedger managedLedger = getManagedLedger();
         if (!(managedLedger instanceof ManagedLedgerImpl ml)) {
             subscriptionsCheckMessageExpiryEachOther(messageTtlInSeconds);
@@ -2133,10 +2133,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // Find the target position at one time, then expire all subscriptions and replicators.
         ManagedCursor cursor = ml.getCursors().getCursorWithOldestPosition().getCursor();
-        // TODO reuse finder.
         PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
                 .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
-        // TODO check the time calculated is correct.
         // Find the target position.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
         CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
@@ -2149,7 +2147,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             @Override
             public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
                                         Object ctx) {
-                positionToMarkDelete.completeExceptionally(exception);
+                log.error("[{}] Error finding expired position, failed reading position is {}", topic,
+                        failedReadPosition.orElse(null), exception);
+                // Since we have logged the error, we can skip to print error log at next step.
+                positionToMarkDelete.complete(null);
             }
         });
         positionToMarkDelete.thenAccept(position -> {
@@ -2169,6 +2170,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     -> ((PersistentReplicator) replicator).expireMessages(position));
             shadowReplicators.forEach((__, replicator)
                     -> ((PersistentReplicator) replicator).expireMessages(position));
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to expire messages by position", topic, ex);
+            return null;
         });
     }
 

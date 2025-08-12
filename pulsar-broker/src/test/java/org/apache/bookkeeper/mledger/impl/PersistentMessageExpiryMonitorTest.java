@@ -149,7 +149,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
     }
 
     /***
-     * Confirm the anti-concurrency mechanism "expirationCheckInProgressUpdater" works.
+     * Verify finding position task only executes once for multiple subscriptions of a topic.
      */
     @Test
     void testTopicExpireMessages() throws Exception {
