@@ -16,28 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.persistent;
+package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -59,6 +63,11 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void doInitConf() throws Exception {
+        conf.setMessageExpiryCheckIntervalInMinutes(60);
+    }
+
     /***
      * Confirm the anti-concurrency mechanism "expirationCheckInProgressUpdater" works.
      */
@@ -76,7 +85,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(cursorName);
-        ManagedCursorImpl spyCursor = Mockito.spy(cursor);
+        ManagedCursorImpl spyCursor = spy(cursor);
 
         // Make the mark-deleting delay.
         CountDownLatch firstFindingCompleted = new CountDownLatch(1);
@@ -133,6 +142,56 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         // Verify: since the other 2 tasks have been prevented, the count of calling find position is 1.
         Thread.sleep(1000);
         assertEquals(1, calledFindPositionCount.get());
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
+    /***
+     * Confirm the anti-concurrency mechanism "expirationCheckInProgressUpdater" works.
+     */
+    @Test
+    void testTopicExpireMessages() throws Exception {
+//        conf.setttlDurationDefaultInSeconds(1);
+
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar.getDefaultManagedLedgerFactory()
+                .open(TopicName.get(topicName).getPersistenceNamingEncoding(), managedLedgerConfig);
+        long firstLedger = ml.currentLedger.getId();
+        final String cursorName1 = "s1";
+        final String cursorName2 = "s2";
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        admin.topics().createSubscriptionAsync(topicName, cursorName1, MessageId.earliest);
+        admin.topics().createSubscriptionAsync(topicName, cursorName2, MessageId.earliest);
+        admin.topicPolicies().setMessageTTL(topicName, 1);
+
+        producer.send("1");
+        producer.send("2");
+        producer.send("4");
+        producer.send("5");
+        producer.send("6");
+
+        AtomicInteger accessedCount = new AtomicInteger();
+        ReadHandle readHandle = ml.getLedgerHandle(firstLedger).get();
+        ReadHandle spyReadHandle = spy(readHandle);
+        doAnswer(invocationOnMock -> {
+            long startEntry = (long) invocationOnMock.getArguments()[0];
+            if (startEntry == 0) {
+                accessedCount.incrementAndGet();
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(spyReadHandle).readAsync(anyLong(), anyLong());
+        ml.ledgerCache.put(firstLedger, CompletableFuture.completedFuture(spyReadHandle));
+
+        Assert.assertEquals(3, ml.getLedgersInfo().size());
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        persistentTopic.checkMessageExpiry();
+        Thread.sleep(2000);
+        assertEquals(1, accessedCount.get());
 
         // cleanup.
         producer.close();

@@ -88,6 +88,7 @@ import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -2118,19 +2119,71 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void checkMessageExpiry() {
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
-        if (messageTtlInSeconds != 0) {
+        if (messageTtlInSeconds <= 0) {
+            return;
+        }
+
+        // If managed ledger is not instance of ManagedLedgerImpl, each subscription find position and handle expiring
+        // itself.
+        ManagedLedger managedLedger = getManagedLedger();
+        if (!(managedLedger instanceof ManagedLedgerImpl ml)) {
+            subscriptionsCheckMessageExpiryEachOther(messageTtlInSeconds);
+            return;
+        }
+
+        // Find the target position at one time, then expire all subscriptions and replicators.
+        ManagedCursor cursor = ml.getCursors().getCursorWithOldestPosition().getCursor();
+        // TODO reuse finder.
+        PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
+                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+        // TODO check the time calculated is correct.
+        // Find the target position.
+        long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
+        CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
+        finder.findMessages(expiredMessageTimestamp, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionToMarkDelete.complete(position);
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
+                                        Object ctx) {
+                positionToMarkDelete.completeExceptionally(exception);
+            }
+        });
+        positionToMarkDelete.thenAccept(position -> {
+            if (position == null) {
+                // Nothing need to be expired.
+                return;
+            }
+            // Expire messages by position, which is more efficient.
             subscriptions.forEach((__, sub) -> {
                 if (!isCompactionSubscription(sub.getName())
                         && (additionalSystemCursorNames.isEmpty()
-                            || !additionalSystemCursorNames.contains(sub.getName()))) {
-                   sub.expireMessagesAsync(messageTtlInSeconds);
+                        || !additionalSystemCursorNames.contains(sub.getName()))) {
+                    sub.expireMessages(position);
                 }
             });
             replicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+                    -> ((PersistentReplicator) replicator).expireMessages(position));
             shadowReplicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
-        }
+                    -> ((PersistentReplicator) replicator).expireMessages(position));
+        });
+    }
+
+    private void subscriptionsCheckMessageExpiryEachOther(int messageTtlInSeconds) {
+        subscriptions.forEach((__, sub) -> {
+            if (!isCompactionSubscription(sub.getName())
+                    && (additionalSystemCursorNames.isEmpty()
+                    || !additionalSystemCursorNames.contains(sub.getName()))) {
+                sub.expireMessagesAsync(messageTtlInSeconds);
+            }
+        });
+        replicators.forEach((__, replicator)
+                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+        shadowReplicators.forEach((__, replicator)
+                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
     }
 
     @Override

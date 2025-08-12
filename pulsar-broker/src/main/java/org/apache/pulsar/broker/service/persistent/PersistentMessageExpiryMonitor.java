@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.LedgerNotExistExcept
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -140,6 +141,15 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     public boolean expireMessages(Position messagePosition) {
         // If it's beyond last position of this topic, do nothing.
         Position topicLastPosition = this.topic.getLastPosition();
+        ManagedLedger managedLedger = cursor.getManagedLedger();
+        if (managedLedger instanceof ManagedLedgerImpl ml) {
+            Position positionToExpire = ml.getPreviousPosition(messagePosition);
+            if (positionToExpire.getEntryId() >= 0) {
+                findEntryComplete(positionToExpire, null);
+            }
+            return true;
+        }
+
         if (topicLastPosition.compareTo(messagePosition) < 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "
