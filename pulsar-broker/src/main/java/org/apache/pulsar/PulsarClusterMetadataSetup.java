@@ -306,7 +306,8 @@ public class PulsarClusterMetadataSetup {
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             ServerConfiguration bkConf = new ServerConfiguration();
             bkConf.setListDelimiterHandler(new DisabledListDelimiterHandler());
-            bkConf.setMetadataServiceUri("metadata-store:" + arguments.metadataStoreUrl);
+            bkConf.setMetadataServiceUri("metadata-store:" + arguments.metadataStoreUrl
+                    + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             // only format if /ledgers doesn't exist
             if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get()
