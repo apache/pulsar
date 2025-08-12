@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static org.testng.Assert.fail;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -25,12 +26,10 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.fail;
-
 @Test(groups = "broker")
 public class ExternalSchemaCompatibilityCheckTest {
 
-    private final ExternalSchemaCompatibilityCheck externalSchemaCompatibilityCheck = new ExternalSchemaCompatibilityCheck();
+    private final ExternalSchemaCompatibilityCheck compatibilityCheck = new ExternalSchemaCompatibilityCheck();
 
     private final SchemaData externalSchemaData = SchemaData.builder()
             .type(SchemaType.EXTERNAL)
@@ -58,7 +57,7 @@ public class ExternalSchemaCompatibilityCheckTest {
     @Test(dataProvider = "otherSchemasProvider")
     public void testExternalSchemaCompatibilityCheck(SchemaData schemaData) {
         try {
-            externalSchemaCompatibilityCheck.checkCompatible(
+            compatibilityCheck.checkCompatible(
                     schemaData, externalSchemaData, SchemaCompatibilityStrategy.FULL);
             fail("Expected IncompatibleSchemaException not thrown");
         } catch (IncompatibleSchemaException e) {

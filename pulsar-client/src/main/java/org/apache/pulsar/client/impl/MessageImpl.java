@@ -397,16 +397,16 @@ public class MessageImpl<T> implements Message<T> {
         if (schema == null) {
             return Optional.empty();
         }
-        byte[] schemaVersion = getSchemaVersion();
-        if (schemaVersion == null) {
+        byte[] schemaFlag = getSchemaFlag();
+        if (schemaFlag == null) {
             return Optional.of(schema);
         }
         if (schema instanceof AutoConsumeSchema) {
             return Optional.of(((AutoConsumeSchema) schema)
-                    .atSchemaVersion(schemaVersion));
+                    .atSchemaVersion(schemaFlag));
         } else if (schema instanceof AbstractSchema) {
             return Optional.of(((AbstractSchema<?>) schema)
-                    .atSchemaVersion(schemaVersion));
+                    .atSchemaVersion(schemaFlag));
         } else {
             return Optional.of(schema);
         }
@@ -424,6 +424,23 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    @Override
+    public byte[] getSchemaId() {
+        if (msgMetadata.hasSchemaId()) {
+            byte[] schemaId = msgMetadata.getSchemaId();
+            return (schemaId.length == 0) ? null : schemaId;
+        }
+        return null;
+    }
+
+    private byte[] getSchemaFlag() {
+        if (msgMetadata.hasSchemaId()) {
+            byte[] schemaId = msgMetadata.getSchemaId();
+            return (schemaId.length == 0) ? null : schemaId;
+        }
+        return getSchemaVersion();
+    }
+
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
             ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
@@ -439,7 +456,7 @@ public class MessageImpl<T> implements Message<T> {
         }
         ensureSchemaIsLoaded();
         if (schema instanceof AutoConsumeSchema) {
-            return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion());
+            return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaFlag());
         }
         return schema.getSchemaInfo();
     }
@@ -466,7 +483,7 @@ public class MessageImpl<T> implements Message<T> {
         SchemaInfo schemaInfo = getSchemaInfo();
         if (schemaInfo != null && SchemaType.KEY_VALUE == schemaInfo.getType()) {
             if (schema.supportSchemaVersioning()) {
-                return getKeyValueBySchemaVersion();
+                return getKeyValueBySchemaFlag();
             } else {
                 return getKeyValue();
             }
@@ -476,14 +493,14 @@ public class MessageImpl<T> implements Message<T> {
             }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
-            return decode(schema.supportSchemaVersioning() ? getSchemaVersion() : null);
+            return decode(schema.supportSchemaVersioning() ? getSchemaFlag() : null);
         }
     }
 
 
     private KeyValueSchemaImpl getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
+            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaFlag());
         } else {
             return (KeyValueSchemaImpl) schema;
         }
@@ -501,16 +518,16 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private T decodeBySchema(byte[] schemaVersion) {
-        T value = poolMessage ? schema.decode(payload.nioBuffer(), schemaVersion) : null;
+    private T decodeBySchema(byte[] schemaFlag) {
+        T value = poolMessage ? schema.decode(topic, payload.nioBuffer(), schemaFlag) : null;
         if (value != null) {
             return value;
         }
 
-        if (null == schemaVersion) {
+        if (null == schemaFlag) {
             return schema.decode(getByteBuffer());
         } else {
-            return schema.decode(getByteBuffer(), schemaVersion);
+            return schema.decode(topic, getByteBuffer(), schemaFlag);
         }
     }
 
@@ -521,20 +538,20 @@ public class MessageImpl<T> implements Message<T> {
         return this.payload.nioBuffer();
     }
 
-    private T getKeyValueBySchemaVersion() {
+    private T getKeyValueBySchemaFlag() {
         KeyValueSchemaImpl kvSchema = getKeyValueSchema();
-        byte[] schemaVersion = getSchemaVersion();
+        byte[] schemaFlag = getSchemaFlag();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+                    kvSchema.decode(topic, getKeyBytes(), getData(), schemaFlag);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaFlag).getType(), schemaFlag);
             } else {
                 return (T) keyValue;
             }
         } else {
-            return decode(schemaVersion);
+            return decode(schemaFlag);
         }
     }
 
@@ -542,10 +559,10 @@ public class MessageImpl<T> implements Message<T> {
         KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
+                    kvSchema.decode(topic, getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaFlag()).getType(), null);
             } else {
                 return (T) keyValue;
             }

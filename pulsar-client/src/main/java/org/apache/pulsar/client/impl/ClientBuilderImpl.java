@@ -506,10 +506,4 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
-    @Override
-    public ClientBuilder schemaProperties(Map<String, String> schemaProperties) {
-        conf.setSchemaProperties(schemaProperties);
-        return this;
-    }
-
 }

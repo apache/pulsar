@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.schema;
 
+import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -69,9 +70,10 @@ public class MockExternalJsonSchema<T> implements Schema<T> {
     }
 
     @Override
-    public void close() {
+    public CompletableFuture<Void> closeAsync() {
         this.schemaInfoProvider = null;
         this.isClosed = true;
+        return CompletableFuture.completedFuture(null);
     }
 
 }

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -53,14 +51,5 @@ public interface SchemaInfoProvider {
      * @return the topic name
      */
     String getTopicName();
-
-    /**
-     * Retrieve the configuration properties associated with this schema registry.
-     *
-     * @return schema registry configurations
-     */
-    default Map<String, String> getConfigs() {
-        return Collections.emptyMap();
-    }
 
 }
