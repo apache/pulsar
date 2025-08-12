@@ -153,8 +153,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
      */
     @Test
     void testTopicExpireMessages() throws Exception {
-//        conf.setttlDurationDefaultInSeconds(1);
-
+        // Create topic.
         final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
@@ -167,13 +166,13 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         admin.topics().createSubscriptionAsync(topicName, cursorName1, MessageId.earliest);
         admin.topics().createSubscriptionAsync(topicName, cursorName2, MessageId.earliest);
         admin.topicPolicies().setMessageTTL(topicName, 1);
-
+        // Trigger 3 ledgers creation.
         producer.send("1");
         producer.send("2");
         producer.send("4");
         producer.send("5");
-        producer.send("6");
-
+        Assert.assertEquals(3, ml.getLedgersInfo().size());
+        // Do a injection to count the access of the first ledger.
         AtomicInteger accessedCount = new AtomicInteger();
         ReadHandle readHandle = ml.getLedgerHandle(firstLedger).get();
         ReadHandle spyReadHandle = spy(readHandle);
@@ -185,8 +184,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
             return invocationOnMock.callRealMethod();
         }).when(spyReadHandle).readAsync(anyLong(), anyLong());
         ml.ledgerCache.put(firstLedger, CompletableFuture.completedFuture(spyReadHandle));
-
-        Assert.assertEquals(3, ml.getLedgersInfo().size());
+        // Verify: the first ledger will be accessed only once after expiry for two subscriptions.
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         persistentTopic.checkMessageExpiry();
