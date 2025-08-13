@@ -59,10 +59,10 @@ public class AntiAffinityGroupPolicyHelper {
         }
     }
 
-    public void listenFailureDomainUpdate() {
+    public Runnable listenFailureDomainUpdate() {
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+        return pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
                 .registerListener(__ -> {
                     pulsar.getLoadManagerExecutor().execute(() ->
                             LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));

@@ -72,8 +72,23 @@ public interface MetadataStoreExtended extends MetadataStore {
      *
      * @param listener
      *            the session listener
+     * @return a runnable that can be used to unregister the listener
      */
-    void registerSessionListener(Consumer<SessionEvent> listener);
+    Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener);
+
+    /**
+     * Register a session listener that will get notified of changes in status of the current session.
+     * This method is deprecated. Use {@link #registerCancellableSessionListener(Consumer)} instead.
+     *
+     * @param listener
+     *            the session listener
+     * @deprecated Use {@link #registerCancellableSessionListener(Consumer)} which provides
+     *             the ability to unregister the listener
+     */
+    @Deprecated
+    default void registerSessionListener(Consumer<SessionEvent> listener) {
+        registerCancellableSessionListener(listener);
+    }
 
     /**
      * Get {@link MetadataEventSynchronizer} to notify and synchronize metadata events.
