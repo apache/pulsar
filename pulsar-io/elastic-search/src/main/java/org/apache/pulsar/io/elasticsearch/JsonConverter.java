@@ -38,6 +38,7 @@ import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.PrimitivesArrays;
 /**
  * Convert an AVRO GenericRecord to a JsonNode.
  */
@@ -97,6 +98,8 @@ public class JsonConverter {
                 Object[] iterable;
                 if (value instanceof GenericData.Array) {
                     iterable = ((GenericData.Array) value).toArray();
+                } else if (value instanceof PrimitivesArrays.IntArray) {
+                    iterable = ((PrimitivesArrays.IntArray) value).toArray();
                 } else {
                     iterable = (Object[]) value;
                 }
