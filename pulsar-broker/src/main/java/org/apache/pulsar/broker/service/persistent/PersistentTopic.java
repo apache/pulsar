@@ -2123,14 +2123,31 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
 
-        // Fallback to the slower solution if managed ledger is not an instance of ManagedLedgerImpl: each
-        // subscription find position and handle expiring itself.
         ManagedLedger managedLedger = getManagedLedger();
-        if (!(managedLedger instanceof ManagedLedgerImpl ml)) {
-            subscriptionsCheckMessageExpiryEachOther(messageTtlInSeconds);
-            return;
+        if (managedLedger instanceof ManagedLedgerImpl ml) {
+            checkMessageExpiryWithSharedPosition(ml, messageTtlInSeconds);
+        } else {
+            // Fallback to the slower solution if managed ledger is not an instance of ManagedLedgerImpl: each
+            // subscription find position and handle expiring itself.
+            checkMessageExpiryWithoutSharedPosition(messageTtlInSeconds);
         }
+    }
 
+    private void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
+        subscriptions.forEach((__, sub) -> {
+            if (!isCompactionSubscription(sub.getName())
+                    && (additionalSystemCursorNames.isEmpty()
+                    || !additionalSystemCursorNames.contains(sub.getName()))) {
+                sub.expireMessagesAsync(messageTtlInSeconds);
+            }
+        });
+        replicators.forEach((__, replicator)
+                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+        shadowReplicators.forEach((__, replicator)
+                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+    }
+
+    private void checkMessageExpiryWithSharedPosition(ManagedLedgerImpl ml, int messageTtlInSeconds) {
         // Find the target position at one time, then expire all subscriptions and replicators.
         ManagedCursor cursor = ml.getCursors().getCursorWithOldestPosition().getCursor();
         PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
@@ -2174,20 +2191,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.error("[{}] Failed to expire messages by position", topic, ex);
             return null;
         });
-    }
-
-    private void subscriptionsCheckMessageExpiryEachOther(int messageTtlInSeconds) {
-        subscriptions.forEach((__, sub) -> {
-            if (!isCompactionSubscription(sub.getName())
-                    && (additionalSystemCursorNames.isEmpty()
-                    || !additionalSystemCursorNames.contains(sub.getName()))) {
-                sub.expireMessagesAsync(messageTtlInSeconds);
-            }
-        });
-        replicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
-        shadowReplicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
     }
 
     @Override
