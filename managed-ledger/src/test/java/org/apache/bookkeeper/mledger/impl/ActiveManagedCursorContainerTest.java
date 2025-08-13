@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.impl.MockManagedCursor.addCursor;
 import static org.apache.bookkeeper.mledger.impl.MockManagedCursor.createCursor;
 import static org.assertj.core.api.Assertions.assertThat;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -30,19 +31,39 @@ import java.util.stream.IntStream;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.testng.ITest;
+import org.testng.ITestResult;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
-public class ActiveManagedCursorContainerTest {
+public class ActiveManagedCursorContainerTest implements ITest {
+    String testName;
+
+    @BeforeMethod(alwaysRun = true)
+    public void beforeMethod(Method method, ITestResult result){
+        testName = method.getName();
+    }
+
+    @Override
+    public String getTestName() {
+        return testName + " - " + containerClass.getSimpleName();
+    }
+
     private final Supplier<ActiveManagedCursorContainer> containerSupplier;
+    private final Class<? extends ActiveManagedCursorContainer> containerClass;
 
     @Factory
     public static Object[] createTestInstances() {
-        return new Object[]{new ActiveManagedCursorContainerTest(ActiveManagedCursorContainerImpl::new),
-                new ActiveManagedCursorContainerTest(ActiveManagedCursorContainerNavigableSetImpl::new)};
+        return new Object[]{new ActiveManagedCursorContainerTest(ActiveManagedCursorContainerImpl.class,
+                ActiveManagedCursorContainerImpl::new),
+                new ActiveManagedCursorContainerTest(ActiveManagedCursorContainerNavigableSetImpl.class,
+                        ActiveManagedCursorContainerNavigableSetImpl::new)};
     }
 
-    ActiveManagedCursorContainerTest(Supplier<ActiveManagedCursorContainer> containerSupplier) {
+    ActiveManagedCursorContainerTest(Class<? extends ActiveManagedCursorContainer> containerClass,
+                                     Supplier<ActiveManagedCursorContainer> containerSupplier) {
+        this.containerClass = containerClass;
         this.containerSupplier = containerSupplier;
     }
 
@@ -228,6 +249,42 @@ public class ActiveManagedCursorContainerTest {
 
         // check that the number of cursors at same position or before are still correct
         for (int i = 1; i <= 1000; i++) {
+            ManagedCursor cursor = container.get("cursor" + i);
+            int numberOfCursorsBefore = container.getNumberOfCursorsAtSamePositionOrBefore(cursor);
+            assertThat(numberOfCursorsBefore).describedAs("cursor:%s", cursor).isEqualTo(i);
+        }
+    }
+
+    @Test
+    public void testRandomSeekingWithLazyUpdates() {
+        ActiveManagedCursorContainer container = containerSupplier.get();
+        int numberOfCursors = 10000;
+        List<MockManagedCursor> cursors = IntStream.rangeClosed(1, numberOfCursors)
+                .mapToObj(idx -> createCursor(container, "cursor" + idx, PositionFactory.create(1, idx)))
+                .collect(Collectors.toList());
+        // randomize adding order
+        Collections.shuffle(cursors);
+        cursors.forEach(cursor -> container.add(cursor, cursor.getReadPosition()));
+
+        // seek randomly forward in random cursors
+        Random random = new Random(1);
+        for (int j = 0; j < numberOfCursors * 10; j++) {
+            int i = (j % numberOfCursors) + 1;
+            ManagedCursor cursor = container.get("cursor" + i);
+            Position currentPosition = cursor.getReadPosition();
+            Position newPosition = PositionFactory.create(currentPosition.getLedgerId(),
+                    Math.max(currentPosition.getEntryId() + random.nextInt(1, 100) - 25, 1));
+            cursor.seek(newPosition);
+        }
+
+        // seek to original positions
+        for (int i = 1; i <= numberOfCursors; i++) {
+            ManagedCursor cursor = container.get("cursor" + i);
+            cursor.seek(PositionFactory.create(0, i));
+        }
+
+        // check that the number of cursors at same position or before are still correct
+        for (int i = 1; i <= numberOfCursors; i++) {
             ManagedCursor cursor = container.get("cursor" + i);
             int numberOfCursorsBefore = container.getNumberOfCursorsAtSamePositionOrBefore(cursor);
             assertThat(numberOfCursorsBefore).describedAs("cursor:%s", cursor).isEqualTo(i);

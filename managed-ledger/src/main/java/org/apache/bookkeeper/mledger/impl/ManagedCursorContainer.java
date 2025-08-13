@@ -24,27 +24,95 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 
+/**
+ * Contains cursors for a ManagedLedger.
+ * <p>
+ * The goal is to be able to find out the slowest cursor and hence decide which is the oldest ledger we need to keep.
+ */
 public interface ManagedCursorContainer extends Iterable<ManagedCursor> {
+    /**
+     * Adds a cursor to the container with the specified position.
+     *
+     * @param cursor    The cursor to add
+     * @param position  The position of the cursor, if null, the cursor won't be tracked in the slowest cursor
+     *                 tracking.
+     */
     void add(ManagedCursor cursor, Position position);
 
+    /**
+     * Gets a cursor by its name.
+     *
+     * @param name the name of the cursor
+     * @return the ManagedCursor if found, otherwise null
+     */
     ManagedCursor get(String name);
 
+    /**
+     * Removes a cursor from the container by its name.
+     *
+     * @param name the name of the cursor to remove
+     * @return true if the cursor was removed, false if it was not found
+     */
     boolean removeCursor(String name);
 
+    /**
+     * Signal that a cursor position has been updated and that the container must re-order the cursor heap
+     * tracking the slowest cursor and return the previous position of the slowest cursor and the possibly updated
+     * position of the slowest cursor.
+     *
+     * @param cursor the cursor to update the position for
+     * @param newPosition the updated position for the cursor
+     * @return a pair of positions, representing the previous slowest cursor and the new slowest cursor (after the
+     *         update).
+     */
     Pair<Position, Position> cursorUpdated(ManagedCursor cursor, Position newPosition);
 
+    /**
+     * Gets the position of the slowest cursor.
+     *
+     * @return the position of the slowest cursor
+     */
     Position getSlowestCursorPosition();
 
+    /**
+     * Gets the slowest cursor.
+     *
+     * @return the slowest ManagedCursor
+     */
     ManagedCursor getSlowestCursor();
 
+    /**
+     * Gets the cursor's {@link CursorInfo} with the oldest position.
+     *
+     * @return the CursorInfo containing the cursor and its position
+     */
     CursorInfo getCursorWithOldestPosition();
 
+    /**
+     * Checks if the container is empty.
+     *
+     * @return true if the container has no cursors, false otherwise
+     */
     boolean isEmpty();
 
+    /**
+     * Gets the number of cursors in the container.
+     *
+     * @return the number of cursors
+     */
     int size();
 
+    /**
+     * Checks if the container has any durable cursors.
+     *
+     * @return true if there are durable cursors, false otherwise
+     */
     boolean hasDurableCursors();
 
+    /**
+     * Information about a cursor and its position and the version of the cursor info.
+     * Any update to any cursor in the container will increment the version of the container.
+     */
     @Value
     class CursorInfo {
         ManagedCursor cursor;

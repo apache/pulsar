@@ -77,15 +77,7 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
 
     private final StampedLock rwLock = new StampedLock();
 
-    /**
-     * Add a cursor to the container. The cursor will be optionally tracked for the slowest reader when
-     * a position is passed as the second argument. It is expected that the position is updated with
-     * {@link #cursorUpdated(ManagedCursor, Position)} method when the position changes.
-     *
-     * @param cursor cursor to add
-     * @param position position of the cursor to use for ordering, pass null if the cursor's position shouldn't be
-     *                 tracked for the slowest reader.
-     */
+    @Override
     public void add(ManagedCursor cursor, Position position) {
         long stamp = rwLock.writeLock();
         try {
@@ -99,6 +91,7 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
         }
     }
 
+    @Override
     public ManagedCursor get(String name) {
         long stamp = rwLock.readLock();
         try {
@@ -109,6 +102,7 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
         }
     }
 
+    @Override
     public boolean removeCursor(String name) {
         long stamp = rwLock.writeLock();
         try {
@@ -126,18 +120,7 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
         }
     }
 
-    /**
-     * Signal that a cursor position has been updated and that the container must re-order the cursor heap
-     * tracking the slowest reader.
-     * Only those cursors are tracked and can be updated which were added to the container with the
-     * {@link #add(ManagedCursor, Position)} method that specified the initial position in the position
-     * parameter.
-     *
-     * @param cursor the cursor to update the position for
-     * @param newPosition the updated position for the cursor
-     * @return a pair of positions, representing the previous slowest reader and the new slowest reader (after the
-     *         update).
-     */
+    @Override
     public Pair<Position, Position> cursorUpdated(ManagedCursor cursor, Position newPosition) {
         requireNonNull(cursor);
 
@@ -166,15 +149,16 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
         }
     }
 
+    @Override
+    public void updateCursor(ManagedCursor cursor, Position newPosition) {
+        cursorUpdated(cursor, newPosition);
+    }
+
     private Position internalSlowestReaderPosition() {
         return !sortedByPosition.isEmpty() ? sortedByPosition.first().position : null;
     }
 
-    /**
-     * Get the slowest reader position for the cursors that are ordered.
-     *
-     * @return the slowest reader position
-     */
+    @Override
     public Position getSlowestCursorPosition() {
         long stamp = rwLock.readLock();
         try {
@@ -184,10 +168,7 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
         }
     }
 
-    /**
-     *  Check whether there are any cursors.
-     * @return true is there are no cursors and false if there are
-     */
+    @Override
     public boolean isEmpty() {
         long stamp = rwLock.tryOptimisticRead();
         boolean isEmpty = cursors.isEmpty();
@@ -249,6 +230,7 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
         };
     }
 
+    @Override
     public int getNumberOfCursorsAtSamePositionOrBefore(ManagedCursor cursor) {
         long stamp = rwLock.readLock();
         try {
@@ -270,6 +252,7 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
         }
     }
 
+    @Override
     public int size() {
         long stamp = rwLock.tryOptimisticRead();
         int size = cursors.size();

@@ -30,9 +30,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
- * Contains cursors for a ManagedLedger.
- * <p>
- * The goal is to always know the slowest consumer and hence decide which is the oldest ledger we need to keep.
+ * Implementation of {@link ManagedCursorContainer} that contains cursors for a ManagedLedger.
+ * This also implements {@link ActiveManagedCursorContainer} to contain active cursors.
  * <p>
  * This data structure maintains a heap and a map of cursors. The map is used to relate a cursor name with
  * an entry index in the heap. The heap data structure sorts cursors in a binary tree which is represented
@@ -40,7 +39,6 @@ import org.apache.commons.lang3.tuple.Pair;
  * <a href="https://en.wikipedia.org/wiki/Heap_(data_structure)#Implementation">here</a>
  * <p>
  * The heap is updated and kept sorted when a cursor is updated.
- *
  */
 public class ManagedCursorContainerImpl implements ManagedCursorContainer, ActiveManagedCursorContainer {
 
@@ -146,18 +144,7 @@ public class ManagedCursorContainerImpl implements ManagedCursorContainer, Activ
         }
     }
 
-    /**
-     * Signal that a cursor position has been updated and that the container must re-order the cursor heap
-     * tracking the slowest reader.
-     * Only those cursors are tracked and can be updated which were added to the container with the
-     * {@link #add(ManagedCursor, Position)} method that specified the initial position in the position
-     * parameter.
-     *
-     * @param cursor the cursor to update the position for
-     * @param newPosition the updated position for the cursor
-     * @return a pair of positions, representing the previous slowest reader and the new slowest reader (after the
-     *         update).
-     */
+
     @Override
     public Pair<Position, Position> cursorUpdated(ManagedCursor cursor, Position newPosition) {
         requireNonNull(cursor);
@@ -189,6 +176,11 @@ public class ManagedCursorContainerImpl implements ManagedCursorContainer, Activ
         } finally {
             rwLock.unlockWrite(stamp);
         }
+    }
+
+    @Override
+    public void updateCursor(ManagedCursor cursor, Position newPosition) {
+        cursorUpdated(cursor, newPosition);
     }
 
     /**

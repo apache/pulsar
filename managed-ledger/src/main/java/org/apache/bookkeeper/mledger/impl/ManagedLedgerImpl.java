@@ -2533,10 +2533,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void updateActiveCursor(ManagedCursorImpl cursor, Position newPosition) {
-        Pair<Position, Position> slowestPositions = activeCursors.cursorUpdated(cursor, newPosition);
-        if (!config.isCacheEvictionByExpectedReadCount() && slowestPositions != null
-                && !slowestPositions.getLeft().equals(slowestPositions.getRight())) {
-            invalidateEntriesUpToSlowestReaderPosition();
+        if (config.isCacheEvictionByExpectedReadCount()) {
+            activeCursors.updateCursor(cursor, newPosition);
+        } else {
+            Pair<Position, Position> slowestPositions = activeCursors.cursorUpdated(cursor, newPosition);
+            if (slowestPositions != null && !slowestPositions.getLeft().equals(slowestPositions.getRight())) {
+                invalidateEntriesUpToSlowestReaderPosition();
+            }
         }
     }
 

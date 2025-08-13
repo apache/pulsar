@@ -209,7 +209,7 @@ class MockManagedCursor implements ManagedCursor {
     public void seek(Position newReadPosition, boolean force) {
         this.readPosition = newReadPosition;
         if (!updateMarkDeletePosition) {
-            container.cursorUpdated(this, newReadPosition);
+            container.updateCursor(this, newReadPosition);
         }
     }
 
