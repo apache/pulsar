@@ -341,35 +341,28 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     }
 
     private void performIncrementalUpdate() {
-        pendingRemovedCursors.values().forEach(node -> {
-            removeNodeFromList(node);
-            node.pendingRemove = false;
-        });
-        pendingRemovedCursors.clear();
+        if (!pendingRemovedCursors.isEmpty()) {
+            for (Node node : pendingRemovedCursors.values()) {
+                removeNodeFromList(node);
+                node.pendingRemove = false;
+            }
+            pendingRemovedCursors.clear();
+        }
         if (pendingPositionCount == 0) {
             return;
         }
-        cursors.values().stream()
-                .filter(node -> node.pendingPosition != null)
-                .sorted((node1, node2) -> {
-                    // Sort by the pending position to process them in reverse order, starting from the highest
-                    // pending position to the lowest.
-                    int retval = node2.pendingPosition.compareTo(node1.pendingPosition);
-                    if (retval == 0 && node2.position != null && node1.position != null) {
-                        // If positions are equal, evaluate the current position
-                        retval = node2.position.compareTo(node1.position);
-                    }
-                    return retval;
-                }).forEach(node -> {
-                    if (node.position == null) {
-                        node.position = node.pendingPosition;
-                        insertNodeIntoList(node);
-                    } else {
-                        moveNodeToNewPosition(node, node.position, node.pendingPosition);
-                    }
-                    node.pendingPosition = null;
-                    pendingPositionCount--;
-                });
+        for (Node node : cursors.values()) {
+            if (node.pendingPosition != null) {
+                if (node.position == null) {
+                    node.position = node.pendingPosition;
+                    insertNodeIntoList(node);
+                } else {
+                    moveNodeToNewPosition(node, node.position, node.pendingPosition);
+                }
+                node.pendingPosition = null;
+                pendingPositionCount--;
+            }
+        }
     }
 
     // Rebuild the entire list from scratch for better performance with batch updates
