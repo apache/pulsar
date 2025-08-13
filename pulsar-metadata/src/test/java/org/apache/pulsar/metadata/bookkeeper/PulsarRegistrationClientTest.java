@@ -113,10 +113,11 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
         String bookkeeperMetadataServiceUri;
-        if (provider == "ZooKeeper" || provider == "MockZookeeper") {
+        if (provider.equalsIgnoreCase("ZooKeeper")
+                || provider.equalsIgnoreCase("MockZookeeper")) {
             bookkeeperMetadataServiceUri =  "metadata-store:zk:" + urlSupplier.get() + ledgersRoot;
         }  else {
-            bookkeeperMetadataServiceUri =  "metadata-store:" + urlSupplier.get() + ledgersRoot;
+            bookkeeperMetadataServiceUri =  urlSupplier.get() + ledgersRoot;
         }
         ClientConfiguration baseClientConf = TestBKConfiguration.newClientConfiguration();
         baseClientConf.setMetadataServiceUri(bookkeeperMetadataServiceUri);
