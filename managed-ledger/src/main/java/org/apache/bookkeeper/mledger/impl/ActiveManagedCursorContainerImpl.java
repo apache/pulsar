@@ -378,6 +378,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
         // Clear the existing list
         head = null;
         tail = null;
+        trackedNodeCount = 0;
 
         // Collect all nodes that should be in the list and update their positions
         List<Node> activeNodes = new ArrayList<>();
@@ -389,6 +390,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             }
             if (node.position != null && !node.pendingRemove) {
                 activeNodes.add(node);
+                trackedNodeCount++;
             }
             node.pendingRemove = false;
         }
