@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.testcontext;
 
-import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
@@ -46,6 +45,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
+import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -558,21 +558,6 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         /**
-         * Applicable only when PulsarTestContext is not startable. This will configure the {@link BookKeeper}
-         * and {@link ManagedLedgerFactory} instances to use for creating a {@link ManagedLedgerStorage} instance
-         * for PulsarService.
-         *
-         * @param bookKeeperClient the bookkeeper client to use (mock bookkeeper)
-         * @param managedLedgerFactory the managed ledger factory to use (could be a mock)
-         * @return the builder
-         */
-        public Builder managedLedgerClients(BookKeeper bookKeeperClient,
-                                            ManagedLedgerFactory managedLedgerFactory) {
-            return managedLedgerStorage(
-                    PulsarTestContext.createManagedLedgerStorage(bookKeeperClient, managedLedgerFactory));
-        }
-
-        /**
          * Configures a function to use for customizing the {@link BrokerService} instance when it gets created.
          * @return the builder
          */
@@ -953,7 +938,8 @@ public class PulsarTestContext implements AutoCloseable {
                 ManagedLedgerFactory mlFactoryMock = Mockito.mock(ManagedLedgerFactory.class);
                 managedLedgerStorage(
                         spyConfig.getManagedLedgerStorage()
-                                .spy(PulsarTestContext.createManagedLedgerStorage(builder.bookKeeperClient,
+                                .spy(PulsarTestContext.createManagedLedgerStorage(new BookKeeperClientFactoryImpl(),
+                                        builder.bookKeeperClient,
                                         mlFactoryMock)));
             }
             if (builder.pulsarResources == null) {
@@ -1002,10 +988,12 @@ public class PulsarTestContext implements AutoCloseable {
     }
 
     @NonNull
-    private static ManagedLedgerStorage createManagedLedgerStorage(BookKeeper bookKeeperClient,
+    private static ManagedLedgerStorage createManagedLedgerStorage(BookKeeperClientFactory bookKeeperClientFactory,
+                                                                   BookKeeper bookKeeperClient,
                                                                    ManagedLedgerFactory managedLedgerFactory) {
         BookkeeperManagedLedgerStorageClass managedLedgerStorageClass =
                 new BookkeeperManagedLedgerStorageClass() {
+
                     @Override
                     public String getName() {
                         return "bookkeeper";
@@ -1022,6 +1010,11 @@ public class PulsarTestContext implements AutoCloseable {
                     }
 
                     @Override
+                    public BookKeeperClientFactory getBookKeeperClientFactory() {
+                        return bookKeeperClientFactory;
+                    }
+
+                    @Override
                     public BookKeeper getBookKeeperClient() {
                         return bookKeeperClient;
                     }
@@ -1029,7 +1022,6 @@ public class PulsarTestContext implements AutoCloseable {
         return new ManagedLedgerStorage() {
             @Override
             public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                                   BookKeeperClientFactory bookkeeperProvider, EventLoopGroup eventLoopGroup,
                                    OpenTelemetry openTelemetry) {
             }
 
