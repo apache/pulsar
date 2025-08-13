@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricStreams;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -127,6 +128,11 @@ public class BrokerInterceptorWithClassLoaderTest {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
             @Override
+            public void addCustomizedMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
+                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+            }
+
+            @Override
             public void close() {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
@@ -186,6 +192,7 @@ public class BrokerInterceptorWithClassLoaderTest {
                 .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null);
         brokerInterceptorWithClassLoader
                 .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null, null);
+        brokerInterceptorWithClassLoader.addCustomizedMetrics(mock(PrometheusMetricStreams.class),mock(PulsarService.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test close
         brokerInterceptorWithClassLoader.close();
