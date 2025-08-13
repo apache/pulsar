@@ -284,8 +284,12 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
-        return DefaultImplementation.getDefaultImplementation()
+        Schema<T> schema = DefaultImplementation.getDefaultImplementation().getProtobufSchemaCache(clazz);
+        if(schema != null) return schema.clone();
+        schema = DefaultImplementation.getDefaultImplementation()
                 .newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        DefaultImplementation.getDefaultImplementation().setProtobufSchemaCache(clazz,schema);
+        return schema.clone();
     }
 
     /**
@@ -327,8 +331,12 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation()
+        Schema<T> schema = DefaultImplementation.getDefaultImplementation().getAvroSchemaCache(pojo);
+        if(schema != null) return schema.clone();
+        schema = DefaultImplementation.getDefaultImplementation()
                 .newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        DefaultImplementation.getDefaultImplementation().setAvroSchemaCache(pojo,schema);
+        return schema.clone();
     }
 
     /**
@@ -348,8 +356,12 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation()
+        Schema<T> schema = DefaultImplementation.getDefaultImplementation().getJsonSchemaCache(pojo);
+        if(schema != null) return schema.clone();
+        schema = DefaultImplementation.getDefaultImplementation()
                 .newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        DefaultImplementation.getDefaultImplementation().setJsonSchemaCache(pojo,schema);
+        return schema.clone();
     }
 
     /**
