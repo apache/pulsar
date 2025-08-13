@@ -329,8 +329,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             msgMetadata.setNullValue(true);
         }
 
-        msgMetadata.setSchemaId(KeyValue.generateKVSchemaId(
+        byte[] schemaId = KeyValue.generateKVSchemaId(
                 keyEncoded == null ? null : keyEncoded.getSchemaId(),
-                valueEncoded == null ? null : valueEncoded.getSchemaId()));
+                valueEncoded == null ? null : valueEncoded.getSchemaId());
+        if (schemaId != null && schemaId.length > 0) {
+            msgMetadata.setSchemaId(schemaId);
+        }
     }
 }
