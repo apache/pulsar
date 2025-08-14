@@ -34,7 +34,6 @@ import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
@@ -60,6 +59,7 @@ import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
@@ -180,9 +180,7 @@ public class DirectProxyHandler {
                     ch.pipeline().addLast("readTimeoutHandler",
                             new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
                 }
-                ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                        service.getConfiguration().getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0,
-                        4));
+                FrameDecoderUtil.addFrameDecoder(ch.pipeline(), service.getConfiguration().getMaxMessageSize());
                 ch.pipeline().addLast("proxyOutboundHandler",
                         (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost, featureFlags));
             }
@@ -422,23 +420,16 @@ public class DirectProxyHandler {
                     log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
                 }
                 // direct tcp proxy
-                inboundChannel.pipeline().remove("frameDecoder");
-                outboundChannel.pipeline().remove("frameDecoder");
+                FrameDecoderUtil.removeFrameDecoder(inboundChannel.pipeline());
+                FrameDecoderUtil.removeFrameDecoder(outboundChannel.pipeline());
             } else {
                 // Enable parsing feature, proxyLogLevel(1 or 2)
                 // Add parser handler
                 if (connected.hasMaxMessageSize()) {
-                    inboundChannel.pipeline()
-                            .replace("frameDecoder", "newFrameDecoder",
-                                    new LengthFieldBasedFrameDecoder(connected.getMaxMessageSize()
-                                            + Commands.MESSAGE_SIZE_FRAME_PADDING,
-                                            0, 4, 0, 4));
-                    outboundChannel.pipeline().replace("frameDecoder", "newFrameDecoder",
-                            new LengthFieldBasedFrameDecoder(
-                                    connected.getMaxMessageSize()
-                                            + Commands.MESSAGE_SIZE_FRAME_PADDING,
-                                    0, 4, 0, 4));
-
+                    FrameDecoderUtil.replaceFrameDecoder(inboundChannel.pipeline(),
+                            connected.getMaxMessageSize());
+                    FrameDecoderUtil.replaceFrameDecoder(outboundChannel.pipeline(),
+                            connected.getMaxMessageSize());
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
                             new ParserProxyHandler(service,
                                     ParserProxyHandler.FRONTEND_CONN,
