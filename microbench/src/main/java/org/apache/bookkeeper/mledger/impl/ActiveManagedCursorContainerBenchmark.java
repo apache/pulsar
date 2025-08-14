@@ -72,8 +72,8 @@ public class ActiveManagedCursorContainerBenchmark {
     @Param
     private ActiveManagedCursorContainerImplType activeManagedCursorContainerImplType;
 
-    @Param({"true", "false"})
-    private boolean benchmarkGetNumberOfCursorsAtSamePositionOrBefore;
+    @Param({"0", "1", "10", "100"})
+    private int getNumberOfCursorsAtSamePositionOrBeforeRatio;
 
     private ActiveManagedCursorContainer container;
     private final List<MockManagedCursor> cursors = new ArrayList<>();
@@ -82,6 +82,11 @@ public class ActiveManagedCursorContainerBenchmark {
     public static class ThreadState {
         // Use a fixed seed for reproducibility in benchmarks
         Random random = new Random(1);
+        long counter = 0;
+
+        public long nextCounter() {
+            return counter++;
+        }
     }
 
     @Setup(Level.Trial)
@@ -123,12 +128,14 @@ public class ActiveManagedCursorContainerBenchmark {
 
     private int doRandomSeekingForward(ThreadState threadState) {
         Random random = threadState.random;
+        long counter = threadState.nextCounter();
         // pick a random cursor
         ManagedCursor cursor = cursors.get(random.nextInt(0, cursors.size()));
         // seek forward by a random number of entries
         cursor.seek(cursor.getReadPosition().getPositionAfterEntries(random.nextInt(1, 100)));
         // return the number of cursors at the same position or before so that this is also part of the benchmark
-        return benchmarkGetNumberOfCursorsAtSamePositionOrBefore
+        return getNumberOfCursorsAtSamePositionOrBeforeRatio > 0
+                && counter % getNumberOfCursorsAtSamePositionOrBeforeRatio == 0
                 && activeManagedCursorContainerImplType.supportsGetNumberOfCursorsAtSamePositionOrBefore
                 ? container.getNumberOfCursorsAtSamePositionOrBefore(cursor)
                 // if benchmarking this method is not enabled or the implementation does not support it,
