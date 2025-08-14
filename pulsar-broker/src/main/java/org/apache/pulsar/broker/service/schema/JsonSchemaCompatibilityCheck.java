@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -96,7 +95,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
             fromParser.setValidateDefaults(false);
             Schema fromSchema = fromParser.parse(new String(schemaData.getData(), UTF_8));
             return true;
-        } catch (SchemaParseException e) {
+        } catch (Exception e) {
             return false;
         }
     }
