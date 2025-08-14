@@ -67,6 +67,8 @@ Running specific benchmarks with machine-readable output and saving the output t
 java -jar microbench/target/microbenchmarks.jar -rf json -rff jmh-result-$(date +%s).json ".*BenchmarkName.*" | tee jmh-result-$(date +%s).txt
 ```
 
+The `jmh-result-*.json` file can be used to visualize the results using [JMH Visualizer](https://jmh.morethan.io/).
+
 Checking what benchmarks match the pattern:
 
 ```shell
