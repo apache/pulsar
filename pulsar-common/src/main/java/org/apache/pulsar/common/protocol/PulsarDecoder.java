@@ -121,6 +121,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             int cmdSize = (int) buffer.readUnsignedInt();
             cmd.parseFrom(buffer, cmdSize);
 
+            checkRateLimit(cmd);
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received cmd {}", ctx.channel(), cmd.getType());
             }
@@ -485,6 +487,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             buffer.release();
         }
     }
+
+    protected void checkRateLimit(BaseCommand cmd) {}
 
     protected abstract void messageReceived();
 
