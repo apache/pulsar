@@ -100,4 +100,5 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
     public PulsarClientImpl getPulsarClient() {
         return pulsarClient;
     }
+
 }

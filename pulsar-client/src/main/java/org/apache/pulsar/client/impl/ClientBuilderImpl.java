@@ -505,4 +505,5 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setLookupProperties(properties);
         return this;
     }
+
 }

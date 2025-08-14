@@ -209,6 +209,15 @@ public interface Message<T> {
     byte[] getSchemaVersion();
 
     /**
+     * Get schema ID of the message.
+     * PIP-420 provides a way to produce messages with external schema,
+     * and the schema ID will be set to the message metadata.
+     *
+     * @return schema ID of the message if the message is produced with external schema.
+     */
+    byte[] getSchemaId();
+
+    /**
      * Get the schema associated to the message.
      * Please note that this schema is usually equal to the Schema you passed
      * during the construction of the Consumer or the Reader.

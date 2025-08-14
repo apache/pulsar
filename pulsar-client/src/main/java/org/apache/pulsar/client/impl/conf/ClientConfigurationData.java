@@ -508,4 +508,5 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     public Map<String, String> getLookupProperties() {
         return (lookupProperties == null) ? Collections.emptyMap() : Collections.unmodifiableMap(lookupProperties);
     }
+
 }
