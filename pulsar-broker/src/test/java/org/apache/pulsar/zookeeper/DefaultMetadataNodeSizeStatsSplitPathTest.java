@@ -22,13 +22,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import org.testng.annotations.Test;
 
-public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
+public class DefaultMetadataNodeSizeStatsSplitPathTest {
 
     @Test
     public void testSplitPathWithNullInput() {
         // Test null input returns the meaningless split path result
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath(null);
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath(null);
 
         // Should return the static MEANINGLESS_SPLIT_PATH_RES instance
         assertEquals(result.partCount, 0);
@@ -39,8 +39,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithEmptyString() {
         // Test empty string returns the meaningless split path result
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("");
 
         assertEquals(result.partCount, 0);
         assertNull(result.parts[0]);
@@ -50,8 +50,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSingleCharacter() {
         // Test single character string returns the meaningless split path result
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/");
 
         assertEquals(result.partCount, 0);
         assertNull(result.parts[0]);
@@ -61,8 +61,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSingleSlash() {
         // Test single slash returns the meaningless split path result
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/");
 
         assertEquals(result.partCount, 0);
         assertNull(result.parts[0]);
@@ -72,8 +72,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithTwoParts() {
         // Test path with two parts: /admin/clusters
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin/clusters");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin/clusters");
 
         assertEquals(result.partCount, 2);
         assertEquals(result.parts[0], "admin");
@@ -83,8 +83,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithThreeParts() {
         // Test path with three parts: /admin/policies/tenant
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin/policies/tenant");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin/policies/tenant");
 
         assertEquals(result.partCount, 3);
         assertEquals(result.parts[0], "admin");
@@ -95,8 +95,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithFourParts() {
         // Test path with four parts: /admin/policies/tenant/namespace
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin/policies/tenant/namespace");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin/policies/tenant/namespace");
 
         assertEquals(result.partCount, 4);
         assertEquals(result.parts[0], "admin");
@@ -107,8 +107,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithFiveParts() {
         // Test path with five parts: /admin/policies/tenant/namespace/topic
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin/policies/tenant/namespace/topic");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin/policies/tenant/namespace/topic");
 
         assertEquals(result.partCount, 5);
         assertEquals(result.parts[0], "admin");
@@ -118,7 +118,7 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSixParts() {
         // Test path with six parts: /admin/partitioned-topics/persistent/tenant/namespace/topic
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result = MaxValueMetadataNodePayloadLenEstimator
+        DefaultMetadataNodeSizeStats.SplitPathRes result = DefaultMetadataNodeSizeStats
                 .splitPath("/admin/partitioned-topics/persistent/tenant/namespace/topic");
 
         assertEquals(result.partCount, 6);
@@ -129,8 +129,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithManagedLedgerPath() {
         // Test managed ledger path: /managed-ledgers/tenant/namespace/persistent/topic
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/managed-ledgers/tenant/namespace/persistent/topic");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/managed-ledgers/tenant/namespace/persistent/topic");
 
         assertEquals(result.partCount, 5);
         assertEquals(result.parts[0], "managed-ledgers");
@@ -140,7 +140,7 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSubscriptionPath() {
         // Test subscription path: /managed-ledgers/tenant/namespace/persistent/topic/subscription
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result = MaxValueMetadataNodePayloadLenEstimator
+        DefaultMetadataNodeSizeStats.SplitPathRes result = DefaultMetadataNodeSizeStats
                 .splitPath("/managed-ledgers/tenant/namespace/persistent/topic/subscription");
 
         assertEquals(result.partCount, 6);
@@ -151,8 +151,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithTrailingSlash() {
         // Test path with trailing slash: /admin/clusters/
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin/clusters/");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin/clusters/");
 
         assertEquals(result.partCount, 2);
         assertEquals(result.parts[0], "admin");
@@ -162,8 +162,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithMultipleTrailingSlashes() {
         // Test path with multiple trailing slashes: /admin/clusters///
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin/clusters///");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin/clusters///");
 
         assertEquals(result.partCount, 2);
         assertEquals(result.parts[0], "admin");
@@ -173,8 +173,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithConsecutiveSlashes() {
         // Test path with consecutive slashes: /admin//clusters
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin//clusters");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin//clusters");
 
         assertEquals(result.partCount, 2);
         assertEquals(result.parts[0], "admin");
@@ -184,8 +184,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithLeadingSlashes() {
         // Test path with multiple leading slashes: ///admin/clusters
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("///admin/clusters");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("///admin/clusters");
 
         assertEquals(result.partCount, 2);
         assertEquals(result.parts[0], "admin");
@@ -195,8 +195,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSinglePart() {
         // Test path with single part: /admin
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin");
 
         assertEquals(result.partCount, 1);
         assertEquals(result.parts[0], "admin");
@@ -206,8 +206,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithEmptyParts() {
         // Test path with empty parts: /admin//clusters//tenant
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin//clusters//tenant");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin//clusters//tenant");
 
         assertEquals(result.partCount, 3);
         assertEquals(result.parts[0], "admin");
@@ -217,8 +217,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithSpecialCharacters() {
         // Test path with special characters: /admin-test/clusters_test
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin-test/clusters_test");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin-test/clusters_test");
 
         assertEquals(result.partCount, 2);
         assertEquals(result.parts[0], "admin-test");
@@ -228,8 +228,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithNumbers() {
         // Test path with numbers: /admin123/clusters456/tenant789
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/admin123/clusters456/tenant789");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/admin123/clusters456/tenant789");
 
         assertEquals(result.partCount, 3);
         assertEquals(result.parts[0], "admin123");
@@ -240,8 +240,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     public void testSplitPathWithLongPath() {
         // Test very long path with many parts
         String longPath = "/part1/part2/part3/part4/part5/part6/part7/part8/part9/part10";
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath(longPath);
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath(longPath);
 
         assertEquals(result.partCount, 10);
         assertEquals(result.parts[0], "part1");
@@ -252,8 +252,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithShortValidPath() {
         // Test shortest valid path: /a
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/a");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/a");
 
         assertEquals(result.partCount, 1);
         assertEquals(result.parts[0], "a");
@@ -263,8 +263,8 @@ public class MaxValueMetadataNodePayloadLenEstimatorSplitPathTest {
     @Test
     public void testSplitPathWithTwoCharacterPath() {
         // Test two character path: /ab
-        MaxValueMetadataNodePayloadLenEstimator.SplitPathRes result =
-                MaxValueMetadataNodePayloadLenEstimator.splitPath("/ab");
+        DefaultMetadataNodeSizeStats.SplitPathRes result =
+                DefaultMetadataNodeSizeStats.splitPath("/ab");
 
         assertEquals(result.partCount, 1);
         assertEquals(result.parts[0], "ab");

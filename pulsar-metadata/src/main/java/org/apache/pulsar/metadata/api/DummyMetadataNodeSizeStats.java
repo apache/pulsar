@@ -20,27 +20,24 @@ package org.apache.pulsar.metadata.api;
 
 import java.util.List;
 
-public class DummyMetadataNodePayloadLenEstimator implements MetadataNodePayloadLenEstimator {
+public class DummyMetadataNodeSizeStats implements MetadataNodeSizeStats {
 
     @Override
-    public void recordPut(String path, byte[] data) {
-    }
+    public void recordPut(String path, byte[] data) {}
 
     @Override
-    public void recordGetRes(String path, GetResult getResult) {
-    }
+    public void recordGetRes(String path, GetResult getResult) {}
 
     @Override
-    public void recordGetChildrenRes(String path, List<String> list) {
-    }
+    public void recordGetChildrenRes(String path, List<String> list) {}
 
     @Override
-    public int estimateGetResPayloadLen(String path) {
+    public int getMaxSizeOfSameResourceType(String path) {
         return 1;
     }
 
     @Override
-    public int estimateGetChildrenResPayloadLen(String path) {
+    public int getMaxChildrenCountOfSameResourceType(String path) {
         return 1;
     }
 }

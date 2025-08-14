@@ -103,5 +103,5 @@ public class MetadataStoreConfig {
     /**
      * The estimator to estimate the payload length of metadata node, which used to limit the batch size requested.
      */
-    private MetadataNodePayloadLenEstimator nodePayloadLenEstimator;
+    private MetadataNodeSizeStats nodeSizeStats;
 }

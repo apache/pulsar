@@ -21,38 +21,36 @@ package org.apache.pulsar.metadata.api;
 import java.util.List;
 
 /***
- * The interface to estimate the payload length of metadata node, which used to limit the response of batching query
- * from metadata store. For example, the ZK client limits the max length of response packet to 1MB by default, if the
- * response packet is larger than the limitation, the ZK client will throw an error "Packet len {len} is out of range!"
- * and reconnects.
+ * The interface to cache the max payload length of metadata node. It is helpful for the following cases:
+ * 1. the limitation of the response of batching query from metadata store. For example, the ZK client limits the max
+ *    length of response packet to 1MB by default, if the response packet is larger than the limitation, the ZK client
+ *    will throw an error "Packet len {len} is out of range!" and reconnects.
+ * 2. expose the metrics of payload length of metadata node.
  */
-public interface MetadataNodePayloadLenEstimator {
+public interface MetadataNodeSizeStats {
 
     /**
-     * Record the payload length of put operation, to let the estimator know the max payload length, which benefits the
-     * accuracy of estimation.
+     * Record the payload length of put operation.
      */
     void recordPut(String path, byte[] data);
 
     /**
-     * Record the payload length of get result, to let the estimator know the max payload length, which benefits the
-     * accuracy of estimation.
+     * Record the payload length of get result.
      */
     void recordGetRes(String path, GetResult getResult);
 
     /**
-     * Record the payload length of list result, to let the estimator know the max payload length, which benefits the
-     * accuracy of estimation.
+     * Record the payload length of list result.
      */
     void recordGetChildrenRes(String path, List<String> list);
 
     /**
-     * Estimate the payload length of get result.
+     * Get the max size of same resource type.
      */
-    int estimateGetResPayloadLen(String path);
+    int getMaxSizeOfSameResourceType(String path);
 
     /**
-     * Estimate the payload length of list result.
+     * Get the max children count of same resource type.
      */
-    int estimateGetChildrenResPayloadLen(String path);
+    int getMaxChildrenCountOfSameResourceType(String path);
 }

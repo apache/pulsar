@@ -22,21 +22,15 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.MetadataNodePayloadLenEstimator;
+import org.apache.pulsar.metadata.api.MetadataNodeSizeStats;
 
 @Slf4j
-public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayloadLenEstimator {
+public class DefaultMetadataNodeSizeStats implements MetadataNodeSizeStats {
 
-    // Default to max int value, let the first query command do not execute with batch.
-    public static final int DEFAULT_LEN = Integer.MAX_VALUE;
     public static final int UNSET = -1;
-    // xid: int, zxid: long, err: int, len: int -> 20
-    // Node stat:
-    //   czxid: long, mzxid: long, ctime: long, mtime: long, version: int, cversion: int, aversion: int, -> 44
-    //   ephemeralOwner: long, dataLength: int, numChildren: int, pzxid: long -> 24
-    // total: 88, let's double it to cover different serialization versions.
-    public static final int ZK_PACKET_SYSTEM_PROPS_LEN = 176;
+
     private static final SplitPathRes MEANINGLESS_SPLIT_PATH_RES = new SplitPathRes();
     private static final FastThreadLocal<SplitPathRes> LOCAL_SPLIT_PATH_RES = new FastThreadLocal<SplitPathRes>() {
         @Override
@@ -44,74 +38,79 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
             return new SplitPathRes();
         }
     };
-    private final AtomicReferenceArray<Integer> maxLenOfGetMapping;
-    private final AtomicReferenceArray<Integer> maxLenOfListMapping;
+    private final AtomicReferenceArray<Integer> maxSizeMapping;
+    private final AtomicReferenceArray<Integer> maxChildrenCountMapping;
 
-   public MaxValueMetadataNodePayloadLenEstimator() {
+   public DefaultMetadataNodeSizeStats() {
         int pathTypeCount = PathType.values().length;
-        maxLenOfGetMapping = new AtomicReferenceArray<>(pathTypeCount);
-        maxLenOfListMapping = new AtomicReferenceArray<>(pathTypeCount);
+        maxSizeMapping = new AtomicReferenceArray<>(pathTypeCount);
+        maxChildrenCountMapping = new AtomicReferenceArray<>(pathTypeCount);
         for (int i = 0; i < pathTypeCount; i++) {
-            maxLenOfGetMapping.set(i, UNSET);
-            maxLenOfListMapping.set(i, UNSET);
+            maxSizeMapping.set(i, UNSET);
+            maxChildrenCountMapping.set(i, UNSET);
         }
     }
 
     @Override
     public void recordPut(String path, byte[] data) {
         PathType pathType = getPathType(path);
-        maxLenOfGetMapping.set(pathType.ordinal(), Math.max(maxLenOfGetMapping.get(pathType.ordinal()), data.length));
+        if (pathType == PathType.UNKNOWN) {
+            return;
+        }
+        maxSizeMapping.set(pathType.ordinal(), Math.max(maxSizeMapping.get(pathType.ordinal()), data.length));
     }
 
     @Override
     public void recordGetRes(String path, GetResult getResult) {
         PathType pathType = getPathType(path);
-        if (getResult == null) {
+        if (pathType == PathType.UNKNOWN || getResult == null) {
             return;
         }
-        maxLenOfGetMapping.set(pathType.ordinal(), Math.max(maxLenOfGetMapping.get(pathType.ordinal()),
+        maxSizeMapping.set(pathType.ordinal(), Math.max(maxSizeMapping.get(pathType.ordinal()),
                 getResult.getValue().length));
     }
 
     @Override
     public void recordGetChildrenRes(String path, List<String> list) {
         PathType pathType = getPathType(path);
-        // ZK serialize each string with 4 bytes length prefix, so we add 4 bytes for each string.
-        int totalLen = list.stream().mapToInt(String::length).sum() + list.size() * 4;
-        maxLenOfListMapping.set(pathType.ordinal(), Math.max(maxLenOfListMapping.get(pathType.ordinal()), totalLen));
+        if (pathType == PathType.UNKNOWN) {
+            return;
+        }
+        int size = CollectionUtils.isEmpty(list) ? 0 : list.size();
+        maxChildrenCountMapping.set(pathType.ordinal(), Math.max(maxChildrenCountMapping.get(pathType.ordinal()),
+                size));
     }
 
     @Override
-    public int estimateGetResPayloadLen(String path) {
-        return internalEstimateGetResPayloadLen(path) + ZK_PACKET_SYSTEM_PROPS_LEN;
+    public int getMaxSizeOfSameResourceType(String path) {
+        PathType pathType = getPathType(path);
+        if (pathType == PathType.UNKNOWN) {
+            return -1;
+        }
+        return maxSizeMapping.get(pathType.ordinal());
     }
 
     @Override
-    public int estimateGetChildrenResPayloadLen(String path) {
-        return internalEstimateGetChildrenResPayloadLen(path) + ZK_PACKET_SYSTEM_PROPS_LEN;
-    }
-
-    public int internalEstimateGetResPayloadLen(String path) {
+    public int getMaxChildrenCountOfSameResourceType(String path) {
         PathType pathType = getPathType(path);
-        int res = maxLenOfGetMapping.get(pathType.ordinal());
-        return res == UNSET ? DEFAULT_LEN : res;
-    }
-
-    public int internalEstimateGetChildrenResPayloadLen(String path) {
-        PathType pathType = getPathType(path);
-        int res = maxLenOfListMapping.get(pathType.ordinal());
-        return res == UNSET ? DEFAULT_LEN : res;
+        if (pathType == PathType.UNKNOWN) {
+            return -1;
+        }
+        return maxChildrenCountMapping.get(pathType.ordinal());
     }
 
     private PathType getPathType(String path) {
         SplitPathRes splitPathRes = splitPath(path);
         if (splitPathRes.partCount < 2) {
-            return PathType.OTHERS;
+            return PathType.UNKNOWN;
         }
         return switch (splitPathRes.parts[0]) {
             case "admin" -> getAdminPathType(splitPathRes);
             case "managed-ledgers" -> getMlPathType(splitPathRes);
-            default -> PathType.OTHERS;
+            case "loadbalance" -> getLoadBalancePathType(splitPathRes);
+            case "namespace" -> getBundleOwnerPathType(splitPathRes);
+            case "schemas" -> getSchemaPathType(splitPathRes);
+            default -> PathType.UNKNOWN;
         };
     }
 
@@ -121,14 +120,54 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
             case "policies" -> switch (splitPathRes.partCount) {
                 case 2 -> PathType.TENANT;
                 case 3 -> PathType.NAMESPACE_POLICIES;
-                default -> PathType.OTHERS;
+                default -> PathType.UNKNOWN;
+            };
+            case "local-policies" -> switch (splitPathRes.partCount) {
+                case 3 -> PathType.NAMESPACE_POLICIES;
+                default -> PathType.UNKNOWN;
             };
             case "partitioned-topics" -> switch (splitPathRes.partCount) {
                 case 5 -> PathType.PARTITIONED_NAMESPACE;
                 case 6 -> PathType.PARTITIONED_TOPIC;
-                default -> PathType.OTHERS;
+                default -> PathType.UNKNOWN;
             };
-            default -> PathType.OTHERS;
+            default -> PathType.UNKNOWN;
+        };
+    }
+
+    private PathType getBundleOwnerPathType(SplitPathRes splitPathRes) {
+       return switch (splitPathRes.partCount) {
+           case 3 -> PathType.BUNDLE_OWNER_NAMESPACE;
+           case 4 -> PathType.BUNDLE_OWNER;
+           default -> PathType.UNKNOWN;
+       };
+    }
+
+    private PathType getSchemaPathType(SplitPathRes splitPathRes) {
+       if (splitPathRes.partCount == 4) {
+           return PathType.TOPIC_SCHEMA;
+       }
+       return PathType.UNKNOWN;
+    }
+
+    private PathType getLoadBalancePathType(SplitPathRes splitPathRes) {
+        return switch (splitPathRes.parts[1]) {
+            case "brokers" -> switch (splitPathRes.partCount) {
+                case 2 -> PathType.BROKERS;
+                case 3 -> PathType.BROKER;
+                default -> PathType.UNKNOWN;
+            };
+            case "bundle-data" -> switch (splitPathRes.partCount) {
+                case 4 -> PathType.BUNDLE_NAMESPACE;
+                case 5 -> PathType.BUNDLE_DATA;
+                default -> PathType.UNKNOWN;
+            };
+            case "broker-time-average" -> switch (splitPathRes.partCount) {
+                case 3 -> PathType.BROKER_TIME_AVERAGE;
+                default -> PathType.UNKNOWN;
+            };
+            case "leader" -> PathType.BROKER_LEADER;
+            default -> PathType.UNKNOWN;
         };
     }
 
@@ -140,7 +179,7 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
             case 6 -> PathType.SUBSCRIPTION;
             // v1 subscription.
             case 7 -> PathType.SUBSCRIPTION;
-            default -> PathType.OTHERS;
+            default -> PathType.UNKNOWN;
         };
     }
 
@@ -149,6 +188,18 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         CLUSTER,
         TENANT,
         NAMESPACE_POLICIES,
+        LOCAL_POLICIES,
+        // load-balance
+        BROKERS,
+        BROKER,
+        BROKER_LEADER,
+        BUNDLE_NAMESPACE,
+        BUNDLE_DATA,
+        BROKER_TIME_AVERAGE ,
+        BUNDLE_OWNER_NAMESPACE ,
+        BUNDLE_OWNER ,
+        // topic schema
+        TOPIC_SCHEMA,
         // partitioned topics.
         PARTITIONED_TOPIC,
         PARTITIONED_NAMESPACE,
@@ -156,7 +207,7 @@ public class MaxValueMetadataNodePayloadLenEstimator implements MetadataNodePayl
         ML_NAMESPACE,
         TOPIC,
         SUBSCRIPTION,
-        OTHERS;
+        UNKNOWN;
     }
 
     static class SplitPathRes {
