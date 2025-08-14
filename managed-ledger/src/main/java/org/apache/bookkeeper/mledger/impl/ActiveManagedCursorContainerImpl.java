@@ -21,10 +21,12 @@ package org.apache.bookkeeper.mledger.impl;
 import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.StampedLock;
@@ -61,7 +63,6 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             this.pendingPosition = pendingPosition;
         }
     }
-    int pendingPositionCount = 0;
     // number of nodes in the double-linked list
     int trackedNodeCount = 0;
 
@@ -74,6 +75,18 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     // Maps a cursor to the node
     private final ConcurrentMap<String, Node> cursors = new ConcurrentHashMap<>();
     private final Map<String, Node> pendingRemovedCursors = new HashMap<>();
+    private final PriorityQueue<Node> pendingPositionUpdates = new PriorityQueue<>(new Comparator<Node>() {
+        @Override
+        public int compare(Node o1, Node o2) {
+            if (o1.position == null) {
+                return 1; // o1 is null, should be after o2
+            }
+            if (o2.position == null) {
+                return -1; // o2 is null, should be after o1
+            }
+            return o2.position.compareTo(o1.position);
+        }
+    });
 
     private final StampedLock rwLock = new StampedLock();
 
@@ -88,13 +101,10 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                         pendingRemovedCursors.put(cursor.getName(), node);
                         node.pendingRemove = true;
                     }
-                    if (node.pendingPosition != null) {
-                        pendingPositionCount--;
-                    }
                     node.pendingPosition = null;
                 } else {
                     if (node.pendingPosition == null) {
-                        pendingPositionCount++;
+                        pendingPositionUpdates.add(node);
                     }
                     node.pendingPosition = position;
                 }
@@ -109,8 +119,8 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     node = new Node(cursor, position);
                 }
                 if (position != null) {
-                    pendingPositionCount++;
                     node.pendingPosition = position;
+                    pendingPositionUpdates.add(node);
                 }
                 cursors.put(cursor.getName(), node);
             }
@@ -236,10 +246,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     pendingRemovedCursors.put(name, node);
                     node.pendingRemove = true;
                 }
-                if (node.pendingPosition != null) {
-                    pendingPositionCount--;
-                    node.pendingPosition = null;
-                }
+                node.pendingPosition = null;
                 return true;
             } else {
                 return false;
@@ -305,9 +312,6 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             if (newPosition == null) {
                 pendingRemovedCursors.put(cursor.getName(), node);
                 node.pendingRemove = true;
-                if (node.pendingPosition != null) {
-                    pendingPositionCount--;
-                }
                 node.pendingPosition = null;
             } else {
                 if (node.pendingRemove) {
@@ -316,7 +320,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 }
                 // position changed, mark the node as pending
                 if (node.pendingPosition == null) {
-                    pendingPositionCount++;
+                    pendingPositionUpdates.add(node);
                 }
                 node.pendingPosition = newPosition;
             }
@@ -326,17 +330,15 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     }
 
     private void processPendingPositions() {
-        if (pendingRemovedCursors.isEmpty() && pendingPositionCount == 0) {
+        if (pendingRemovedCursors.isEmpty() && pendingPositionUpdates.isEmpty()) {
             // No pending changes, nothing to do
             return;
         }
-        if (pendingPositionCount >= trackedNodeCount) {
+        if (pendingPositionUpdates.size() >= trackedNodeCount / 2) {
             rebuildEntireList();
+            pendingPositionUpdates.clear();
         } else {
             performIncrementalUpdate();
-        }
-        if (pendingPositionCount != 0) {
-            throw new IllegalStateException("Pending position count is not zero: " + pendingPositionCount);
         }
     }
 
@@ -348,10 +350,11 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             }
             pendingRemovedCursors.clear();
         }
-        if (pendingPositionCount == 0) {
-            return;
-        }
-        for (Node node : cursors.values()) {
+        while (true) {
+            Node node = pendingPositionUpdates.poll();
+            if (node == null) {
+                break; // No more pending updates
+            }
             if (node.pendingPosition != null) {
                 if (node.position == null) {
                     node.position = node.pendingPosition;
@@ -360,7 +363,6 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     moveNodeToNewPosition(node, node.position, node.pendingPosition);
                 }
                 node.pendingPosition = null;
-                pendingPositionCount--;
             }
         }
     }
@@ -379,7 +381,6 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             if (node.pendingPosition != null) {
                 node.position = node.pendingPosition;
                 node.pendingPosition = null;
-                pendingPositionCount--;
             }
             if (node.position != null && !node.pendingRemove) {
                 activeNodes.add(node);
