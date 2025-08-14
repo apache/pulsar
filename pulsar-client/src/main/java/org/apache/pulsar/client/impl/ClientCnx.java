@@ -29,7 +29,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
@@ -102,6 +101,7 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -399,8 +399,7 @@ public class ClientCnx extends PulsarHandler {
                           + "server frame size {}", ctx.channel(), connected.getMaxMessageSize());
             }
             maxMessageSize = connected.getMaxMessageSize();
-            ctx.pipeline().replace("frameDecoder", "newFrameDecoder", new LengthFieldBasedFrameDecoder(
-                connected.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+            FrameDecoderUtil.replaceFrameDecoder(ctx.pipeline(), connected.getMaxMessageSize());
         }
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
