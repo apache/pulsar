@@ -3509,8 +3509,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
-            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
-                    + "The default is to evict through readPosition."
+            doc = "Evicting cache data by the slowest markDeletedPosition (true) or slowest read position (false)."
+                    + "This setting is ignored when cacheEvictionByExpectedReadCount is true."
     )
     private boolean cacheEvictionByMarkDeletedPosition = false;
 
