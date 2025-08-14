@@ -46,7 +46,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
 @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-@Fork(3)
+@Fork(1)
 public class ActiveManagedCursorContainerBenchmark {
     @Param({"10", "100", "500"})
     private int numberOfCursors;
