@@ -91,6 +91,12 @@ public class ActiveManagedCursorContainerBenchmark {
 
     @Setup(Level.Trial)
     public void setup() throws Exception {
+        if (!activeManagedCursorContainerImplType.supportsGetNumberOfCursorsAtSamePositionOrBefore
+                && getNumberOfCursorsAtSamePositionOrBeforeRatio > 0) {
+            throw new UnsupportedOperationException("Skipping getNumberOfCursorsAtSamePositionOrBeforeRatio > 0 for "
+                    + activeManagedCursorContainerImplType.name()
+                    + " as it does not support this method");
+        }
         container = activeManagedCursorContainerImplType.create();
         IntStream.rangeClosed(1, numberOfCursors).mapToObj(
                         idx -> MockManagedCursor.createCursor(container, "cursor" + idx, PositionFactory.create(0,
@@ -136,7 +142,6 @@ public class ActiveManagedCursorContainerBenchmark {
         // return the number of cursors at the same position or before so that this is also part of the benchmark
         return getNumberOfCursorsAtSamePositionOrBeforeRatio > 0
                 && counter % getNumberOfCursorsAtSamePositionOrBeforeRatio == 0
-                && activeManagedCursorContainerImplType.supportsGetNumberOfCursorsAtSamePositionOrBefore
                 ? container.getNumberOfCursorsAtSamePositionOrBefore(cursor)
                 // if benchmarking this method is not enabled or the implementation does not support it,
                 // we return the entry id of the cursor's read position
