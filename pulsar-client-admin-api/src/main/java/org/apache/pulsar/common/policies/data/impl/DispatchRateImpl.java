@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data.impl;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 
 /**
@@ -29,12 +30,18 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public final class DispatchRateImpl implements DispatchRate {
+public final class DispatchRateImpl implements DispatchRate, Cloneable {
 
     private int dispatchThrottlingRateInMsg;
     private long dispatchThrottlingRateInByte;
     private boolean relativeToPublishRate;
     private int ratePeriodInSecond;
+
+    @SneakyThrows
+    @Override
+    public DispatchRateImpl clone() {
+        return DispatchRateImpl.class.cast(super.clone());
+    }
 
     public static DispatchRateImplBuilder builder() {
         return new DispatchRateImplBuilder();

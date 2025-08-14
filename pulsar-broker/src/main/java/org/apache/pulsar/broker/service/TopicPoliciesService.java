@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.classification.InterfaceAudience;
@@ -58,11 +59,21 @@ public interface TopicPoliciesService extends AutoCloseable {
 
     /**
      * Update policies for a topic asynchronously.
+     * The policyUpdater will be called with a TopicPolicies object (either newly created or cloned from existing)
+     * which can be safely mutated. The service will handle writing this updated object.
      *
-     * @param topicName topic name
-     * @param policies  policies for the topic name
+     * @param topicName       topic name
+     * @param isGlobalPolicy  true if the global policy is to be updated, false for local
+     * @param skipUpdateWhenTopicPolicyDoesntExist when true, skips the update if the topic policy does not already
+     *                                             exist. This is useful for cases when the policyUpdater is removing
+     *                                             a setting in the policy.
+     * @param policyUpdater   a function that modifies the TopicPolicies
+     * @return a CompletableFuture that completes when the update has been completed with read-your-writes consistency.
      */
-    CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies);
+    CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName,
+                                                     boolean isGlobalPolicy,
+                                                     boolean skipUpdateWhenTopicPolicyDoesntExist,
+                                                     Consumer<TopicPolicies> policyUpdater);
 
     /**
      * It controls the behavior of {@link TopicPoliciesService#getTopicPoliciesAsync}.
@@ -117,7 +128,9 @@ public interface TopicPoliciesService extends AutoCloseable {
         }
 
         @Override
-        public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
+        public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, boolean isGlobalPolicy,
+                                                                boolean skipUpdateWhenTopicPolicyDoesntExist,
+                                                                Consumer<TopicPolicies> policyUpdater) {
             return FutureUtil.failedFuture(new UnsupportedOperationException("Topic policies service is disabled."));
         }
 
@@ -142,13 +155,6 @@ public interface TopicPoliciesService extends AutoCloseable {
             event.getTopicPoliciesEvent().getTenant(),
             event.getTopicPoliciesEvent().getNamespace(),
             event.getTopicPoliciesEvent().getTopic()).toString(), isGlobal);
-    }
-
-    static String getEventKey(TopicName topicName, boolean isGlobal) {
-        return wrapEventKey(TopicName.get(topicName.getDomain().toString(),
-            topicName.getTenant(),
-            topicName.getNamespace(),
-            TopicName.get(topicName.getPartitionedTopicName()).getLocalName()).toString(), isGlobal);
     }
 
     static String wrapEventKey(String originalKey, boolean isGlobalPolicies) {

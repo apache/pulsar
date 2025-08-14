@@ -29,6 +29,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
@@ -42,7 +43,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TopicPolicies {
+public class TopicPolicies implements Cloneable {
 
     @Builder.Default
     private Map<String, BacklogQuotaImpl> backLogQuotaMap = new HashMap<>();
@@ -87,6 +88,71 @@ public class TopicPolicies {
     private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
 
     private Boolean schemaValidationEnforced;
+
+    @SneakyThrows
+    @Override
+    public TopicPolicies clone() {
+        TopicPolicies cloned = TopicPolicies.class.cast(super.clone());
+
+        if (this.backLogQuotaMap != null) {
+            cloned.backLogQuotaMap = new HashMap<>();
+            for (Map.Entry<String, BacklogQuotaImpl> entry : this.backLogQuotaMap.entrySet()) {
+                cloned.backLogQuotaMap.put(entry.getKey(),
+                        entry.getValue() != null ? entry.getValue().clone() : null);
+            }
+        } else {
+            cloned.backLogQuotaMap = new HashMap<>();
+        }
+
+        cloned.subscriptionTypesEnabled = this.subscriptionTypesEnabled != null
+                ? new ArrayList<>(this.subscriptionTypesEnabled) : new ArrayList<>();
+        cloned.replicationClusters = this.replicationClusters != null
+                ? new ArrayList<>(this.replicationClusters) : null;
+        cloned.shadowTopics = this.shadowTopics != null ? new ArrayList<>(this.shadowTopics) : null;
+
+        cloned.persistence = this.persistence != null ? this.persistence.clone() : null;
+        cloned.retentionPolicies = this.retentionPolicies != null ? this.retentionPolicies.clone() : null;
+
+        cloned.offloadPolicies =
+                this.offloadPolicies != null ? OffloadPoliciesImpl.create(this.offloadPolicies.toProperties()) : null;
+
+        cloned.inactiveTopicPolicies =
+                this.inactiveTopicPolicies != null ? this.inactiveTopicPolicies.clone() : null;
+
+        cloned.dispatchRate = this.dispatchRate != null ? this.dispatchRate.clone() : null;
+        cloned.subscriptionDispatchRate =
+                this.subscriptionDispatchRate != null ? this.subscriptionDispatchRate.clone() : null;
+
+        cloned.publishRate = this.publishRate != null ? this.publishRate.clone() : null;
+        cloned.subscribeRate = this.subscribeRate != null ? this.subscribeRate.clone() : null;
+
+        cloned.entryFilters =
+                this.entryFilters != null ? new EntryFilters(this.entryFilters.getEntryFilterNames()) : null;
+        cloned.autoSubscriptionCreationOverride = this.autoSubscriptionCreationOverride != null
+                ? AutoSubscriptionCreationOverrideImpl.builder()
+                .allowAutoSubscriptionCreation(
+                        this.autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation())
+                .build() : null;
+        cloned.replicatorDispatchRate =
+                this.replicatorDispatchRate != null ? this.replicatorDispatchRate.clone() : null;
+
+
+        if (this.subscriptionPolicies != null) {
+            cloned.subscriptionPolicies = new HashMap<>();
+            for (Map.Entry<String, SubscriptionPolicies> entry : this.subscriptionPolicies.entrySet()) {
+                cloned.subscriptionPolicies.put(entry.getKey(),
+                        entry.getValue() != null ? entry.getValue().clone() : null);
+            }
+        } else {
+            cloned.subscriptionPolicies = new HashMap<>();
+        }
+
+        // Primitive types (Boolean, Integer, Long, String) and enums (SchemaCompatibilityStrategy)
+        // are fine with the shallow copy from super.clone().
+        // isGlobal, deduplicationEnabled, messageTTLInSeconds, maxProducerPerTopic, etc.
+
+        return cloned;
+    }
 
     public boolean isGlobalPolicies() {
         return isGlobal != null && isGlobal;

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -48,8 +47,9 @@ public class TopicPoliciesServiceDisableTest extends MockedPulsarServiceBaseTest
     @Test
     public void testTopicLevelPoliciesDisabled() {
         try {
-            systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TopicName.get("test"),
-                    new TopicPolicies()).get();
+            systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TopicName.get("test"), false, false,
+                    topicPolicies -> {
+            }).get();
         } catch (Exception e) {
             Assert.assertTrue(e.getCause() instanceof UnsupportedOperationException);
         }

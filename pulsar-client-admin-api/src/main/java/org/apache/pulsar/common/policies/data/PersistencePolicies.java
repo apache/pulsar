@@ -19,13 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Objects;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 /**
  * Configuration of bookkeeper persistence policies.
  */
 @ToString
-public class PersistencePolicies {
+public class PersistencePolicies implements Cloneable {
     private int bookkeeperEnsemble;
     private int bookkeeperWriteQuorum;
     private int bookkeeperAckQuorum;
@@ -68,6 +69,12 @@ public class PersistencePolicies {
 
     public String getManagedLedgerStorageClassName() {
         return managedLedgerStorageClassName;
+    }
+
+    @SneakyThrows
+    @Override
+    protected PersistencePolicies clone() {
+        return PersistencePolicies.class.cast(super.clone());
     }
 
     @Override
