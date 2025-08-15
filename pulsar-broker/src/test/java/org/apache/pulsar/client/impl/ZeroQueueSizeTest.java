@@ -439,7 +439,9 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
                 .topic("persistent://prop-xyz/use/ns-abc/topic1")
                 .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
-        producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+        producerBuilder.enableBatching(true)
+                // set batchingMaxPublishDelay as 10 seconds to ensure all messages are sent as batch-messages
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .batchingMaxMessages(5);
 
         Producer<byte[]> producer = producerBuilder.create();
@@ -595,6 +597,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .batchingMaxMessages(5)
+                // set batchingMaxPublishDelay as 10 seconds to ensure all messages are sent as batch-messages
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .enableBatching(true)
                 .create();
 
