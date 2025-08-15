@@ -929,7 +929,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     "readCompacted only allowed on failover or exclusive subscriptions"));
         }
 
-        return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
+        return brokerService.checkTopicNsOwnership(TopicName.get(topic)).thenCompose(__ -> {
             Boolean replicatedSubscriptionState = replicatedSubscriptionStateArg;
             if (replicatedSubscriptionState != null && replicatedSubscriptionState
                     && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
