@@ -40,10 +40,14 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.StampedLock;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.Getter;
@@ -59,6 +63,7 @@ import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
@@ -94,12 +99,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final AtomicLong numberDelayedMessages = new AtomicLong(0);
 
-    // Thread safety locks
-    private final StampedLock stampedLock = new StampedLock();
-
     @Getter
     @VisibleForTesting
-    private final MutableBucket lastMutableBucket;
+    private volatile MutableBucket lastMutableBucket;
 
     @Getter
     @VisibleForTesting
@@ -114,6 +116,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private final BucketDelayedMessageIndexStats stats;
 
     private CompletableFuture<Void> pendingLoad = null;
+
+    private final ExecutorService bucketSnapshotExecutor;
+    private final AtomicBoolean bucketSnapshotInProgress = new AtomicBoolean(false);
+    private volatile MutableBucket bucketBeingSealed = null;
+
+    private final Lock readLock;
+    private final Lock writeLock;
 
     public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
@@ -146,6 +155,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), FutureUtil.Sequencer.create(),
                         bucketSnapshotStorage);
         this.stats = new BucketDelayedMessageIndexStats();
+        ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+        this.readLock = rwLock.readLock();
+        this.writeLock = rwLock.writeLock();
+        bucketSnapshotExecutor = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("bucket-creation"));
 
         // Close the tracker if failed to recover.
         try {
@@ -365,56 +379,82 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
-        if (containsMessage(ledgerId, entryId)) {
-            return true;
-        }
-
-        if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
-            return false;
-        }
-
-        boolean existBucket = findImmutableBucket(ledgerId).isPresent();
-
-        // Create bucket snapshot
-        if (!existBucket && ledgerId > lastMutableBucket.endLedgerId
-                && lastMutableBucket.size() >= minIndexCountPerBucket
-                && !lastMutableBucket.isEmpty()) {
-            long createStartTime = System.currentTimeMillis();
-            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
-            Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
-                    lastMutableBucket.sealBucketAndAsyncPersistent(
-                            this.timeStepPerBucketSnapshotSegmentInMillis,
-                            this.maxIndexesPerBucketSnapshotSegment,
-                            this.sharedBucketPriorityQueue);
-            afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
-            lastMutableBucket.resetLastMutableBucketRange();
-
-            if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
-                asyncMergeBucketSnapshot();
+    public boolean addMessage(long ledgerId, long entryId, long deliverAt) {
+        readLock.lock();
+        try {
+            if (containsMessageUnsafe(ledgerId, entryId)) {
+                return true;
             }
+
+            if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
+                return false;
+            }
+        } finally {
+            readLock.unlock();
         }
 
-        if (ledgerId < lastMutableBucket.startLedgerId || existBucket) {
-            // If (ledgerId < startLedgerId || existBucket) means that message index belong to previous bucket range,
-            // enter sharedBucketPriorityQueue directly
-            sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
-            lastMutableBucket.putIndexBit(ledgerId, entryId);
-        } else {
-            checkArgument(ledgerId >= lastMutableBucket.endLedgerId);
-            lastMutableBucket.addMessage(ledgerId, entryId, deliverAt);
+        writeLock.lock();
+        try {
+            // Double check
+            if (containsMessageUnsafe(ledgerId, entryId)) {
+                return true;
+            }
+
+            if (deliverAt <= getCutoffTime()) {
+                return false;
+            }
+
+            final MutableBucket sealingBucket = this.bucketBeingSealed;
+            if (sealingBucket != null
+                    && ledgerId >= sealingBucket.startLedgerId
+                    && ledgerId <= sealingBucket.endLedgerId) {
+                sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
+                sealingBucket.putIndexBit(ledgerId, entryId);
+            } else {
+                boolean existBucket = findImmutableBucket(ledgerId).isPresent();
+
+                if (!existBucket
+                        && ledgerId > lastMutableBucket.endLedgerId
+                        && lastMutableBucket.size() >= minIndexCountPerBucket
+                        && !lastMutableBucket.isEmpty()
+                        && bucketSnapshotInProgress.compareAndSet(false, true)) {
+                    // Create bucket snapshot
+                    this.bucketBeingSealed = this.lastMutableBucket;
+                    this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(),
+                            FutureUtil.Sequencer.create(), this.lastMutableBucket.getBucketSnapshotStorage());
+                    bucketSnapshotExecutor.execute(() -> {
+                        try {
+                            createBucketSnapshotAsync();
+                        } finally {
+                            bucketSnapshotInProgress.set(false);
+                        }
+                    });
+                }
+
+                if (ledgerId < lastMutableBucket.startLedgerId || existBucket) {
+                    // If (ledgerId < startLedgerId || existBucket)
+                    // means that message index belong to previous bucket range,
+                    // enter sharedBucketPriorityQueue directly
+                    sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
+                    lastMutableBucket.putIndexBit(ledgerId, entryId);
+                } else {
+                    checkArgument(ledgerId >= lastMutableBucket.endLedgerId);
+                    lastMutableBucket.addMessage(ledgerId, entryId, deliverAt);
+                }
+            }
+
+            numberDelayedMessages.incrementAndGet();
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
+                        deliverAt - clock.millis());
+            }
+
+            updateTimer();
+            return true;
+        } finally {
+            writeLock.unlock();
         }
-
-        numberDelayedMessages.incrementAndGet();
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
-                    deliverAt - clock.millis());
-        }
-
-        updateTimer();
-
-        return true;
     }
 
     private synchronized List<ImmutableBucket> selectMergedBuckets(final List<ImmutableBucket> values, int mergeNum) {
@@ -565,6 +605,44 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         });
     }
 
+    private void createBucketSnapshotAsync() {
+        final MutableBucket bucketToSeal = this.bucketBeingSealed;
+        if (bucketToSeal == null || bucketToSeal.isEmpty()) {
+            this.bucketBeingSealed = null;
+            return;
+        }
+        try {
+            long createStartTime = System.currentTimeMillis();
+            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
+            Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
+                    bucketToSeal.sealBucketAndAsyncPersistent(
+                            this.timeStepPerBucketSnapshotSegmentInMillis,
+                            this.maxIndexesPerBucketSnapshotSegment,
+                            this.sharedBucketPriorityQueue);
+            if (immutableBucketDelayedIndexPair == null) {
+                return;
+            }
+
+            writeLock.lock();
+            try {
+                afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
+                if (this.bucketBeingSealed == bucketToSeal) {
+                    this.bucketBeingSealed = null;
+                }
+
+                if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
+                    asyncMergeBucketSnapshot();
+                }
+            } finally {
+                writeLock.unlock();
+            }
+        } finally {
+            if (this.bucketBeingSealed == bucketToSeal) {
+                this.bucketBeingSealed = null;
+            }
+        }
+    }
+
     @Override
     public synchronized boolean hasMessageAvailable() {
         long cutoffTime = getCutoffTime();
@@ -578,20 +656,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     protected long nextDeliveryTime() {
-        // Use optimistic read for frequently called method
-        long stamp = stampedLock.tryOptimisticRead();
-        long result = nextDeliveryTimeUnsafe();
-
-
-        if (!stampedLock.validate(stamp)) {
-            stamp = stampedLock.readLock();
-            try {
-                result = nextDeliveryTimeUnsafe();
-            } finally {
-                stampedLock.unlockRead(stamp);
-            }
+        readLock.lock();
+        try {
+            return nextDeliveryTimeUnsafe();
+        } finally {
+            readLock.unlock();
         }
-        return result;
     }
 
     private long nextDeliveryTimeUnsafe() {
@@ -789,21 +859,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     public boolean containsMessage(long ledgerId, long entryId) {
-        // Try optimistic read first for best performance
-        long stamp = stampedLock.tryOptimisticRead();
-        boolean result = containsMessageUnsafe(ledgerId, entryId);
-
-
-        if (!stampedLock.validate(stamp)) {
-            // Fall back to read lock if validation fails
-            stamp = stampedLock.readLock();
-            try {
-                result = containsMessageUnsafe(ledgerId, entryId);
-            } finally {
-                stampedLock.unlockRead(stamp);
-            }
+        readLock.lock();
+        try {
+            return containsMessageUnsafe(ledgerId, entryId);
+        } finally {
+            readLock.unlock();
         }
-        return result;
     }
 
     private boolean containsMessageUnsafe(long ledgerId, long entryId) {
