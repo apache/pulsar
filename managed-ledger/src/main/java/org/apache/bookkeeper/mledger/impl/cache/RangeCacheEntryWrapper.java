@@ -44,6 +44,8 @@ class RangeCacheEntryWrapper {
     RangeCache rangeCache;
     long size;
     long timestampNanos;
+    int requeueCount;
+    volatile boolean accessed;
 
     private RangeCacheEntryWrapper(Recycler.Handle<RangeCacheEntryWrapper> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
@@ -118,6 +120,7 @@ class RangeCacheEntryWrapper {
         if (localKey != key && (requireSameKeyInstance || localKey == null || !localKey.equals(key))) {
             return null;
         }
+        accessed = true;
         return localValue;
     }
 
@@ -138,6 +141,7 @@ class RangeCacheEntryWrapper {
         long removedSize = size;
         size = 0;
         timestampNanos = 0;
+        requeueCount = 0;
         return removedSize;
     }
 
@@ -150,12 +154,43 @@ class RangeCacheEntryWrapper {
         }
     }
 
+    <R> R withOptimisticReadLock(Function<RangeCacheEntryWrapper, R> function) {
+        long stamp = lock.tryOptimisticRead();
+        R result = function.apply(this);
+        if (!lock.validate(stamp)) {
+            stamp = lock.readLock();
+            try {
+                result = function.apply(this);
+            } finally {
+                lock.unlockRead(stamp);
+            }
+        }
+        return result;
+    }
+
+    <R> R withReadLock(Function<RangeCacheEntryWrapper, R> function) {
+        long stamp = lock.readLock();
+        try {
+            return function.apply(this);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    void markRequeued() {
+        timestampNanos = System.nanoTime();
+        accessed = false;
+        requeueCount++;
+    }
+
     void recycle() {
         rangeCache = null;
         key = null;
         value = null;
         size = 0;
         timestampNanos = 0;
+        requeueCount = 0;
+        accessed = false;
         recyclerHandle.recycle(this);
     }
 }

@@ -64,4 +64,8 @@ class RangeEntryCacheManagerEvictionHandler {
         manager.entriesRemoved(evictedSize, evictedEntries);
         return evicted;
     }
+
+    public Pair<Integer, Long> getNonEvictableSize() {
+        return rangeCacheRemovalQueue.getNonEvictableSize();
+    }
 }

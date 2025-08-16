@@ -2107,9 +2107,14 @@ public class BrokerService implements Closeable {
             managedLedgerConfig.setInactiveOffloadedLedgerEvictionTime(
                     serviceConfig.getManagedLedgerInactiveOffloadedLedgerEvictionTimeSeconds(),
                     TimeUnit.SECONDS);
-
-            managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
-                    serviceConfig.isCacheEvictionByMarkDeletedPosition());
+            if (serviceConfig.isCacheEvictionByExpectedReadCount()) {
+                managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(false);
+                managedLedgerConfig.setCacheEvictionByExpectedReadCount(true);
+            } else {
+                managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
+                        serviceConfig.isCacheEvictionByMarkDeletedPosition());
+                managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
+            }
             managedLedgerConfig.setMinimumBacklogCursorsForCaching(
                     serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
             managedLedgerConfig.setMinimumBacklogEntriesForCaching(
@@ -2875,7 +2880,20 @@ public class BrokerService implements Closeable {
                     defaultManagedLedgerFactory.updateCacheEvictionTimeThreshold(MILLISECONDS
                             .toNanos((long) cacheEvictionTimeThresholdMills));
                 });
-
+        //  add listener to notify broker managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes
+        //  dynamic config
+        registerConfigurationListener("managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes",
+                (managedLedgerCacheEvictionMaxRequeueCount) -> {
+                    defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+                            (int) managedLedgerCacheEvictionMaxRequeueCount);
+                });
+        //  add listener to notify broker managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed
+        //  dynamic config
+        registerConfigurationListener("managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed",
+                (extendTTLOfRecentlyAccessed) -> {
+                    defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfRecentlyAccessed(
+                            (boolean) extendTTLOfRecentlyAccessed);
+                });
 
         // add listener to update message-dispatch-rate in msg for topic
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {

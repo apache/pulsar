@@ -24,5 +24,13 @@ import io.netty.util.ReferenceCounted;
  * An Entry that is also reference counted.
  */
 public interface ReferenceCountedEntry extends Entry, ReferenceCounted {
+    EntryReadCountHandler getReadCountHandler();
 
+    default boolean hasExpectedReads() {
+        EntryReadCountHandler readCountHandler = getReadCountHandler();
+        if (readCountHandler != null) {
+            return readCountHandler.hasExpectedReads();
+        }
+        return false;
+    }
 }

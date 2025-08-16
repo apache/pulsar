@@ -666,31 +666,31 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         ManagedCursor cursor1 = ledger.openCursor(c1);
         cursor1.seek(p3);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         ManagedCursor nonCursor1 = ledger.newNonDurableCursor(p2, nc1);
         // The slowest reader should still be the durable cursor since non-durable readers are not taken into account
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         Position earliestPos = PositionFactory.create(-1, -2);
 
         ManagedCursor nonCursorEarliest = ledger.newNonDurableCursor(earliestPos, ncEarliest);
 
         // The slowest reader should still be the durable cursor since non-durable readers are not taken into account
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         // move non-durable cursor should NOT update the slowest reader position
         nonCursorEarliest.markDelete(p1);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         nonCursorEarliest.markDelete(p2);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         nonCursorEarliest.markDelete(p3);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         nonCursor1.markDelete(p3);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         ledger.close();
     }

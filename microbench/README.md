@@ -61,6 +61,14 @@ Running specific benchmarks:
 java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*"
 ```
 
+Running specific benchmarks with machine-readable output and saving the output to a file:
+
+```shell
+java -jar microbench/target/microbenchmarks.jar -rf json -rff jmh-result-$(date +%s).json ".*BenchmarkName.*" | tee jmh-result-$(date +%s).txt
+```
+
+The `jmh-result-*.json` file can be used to visualize the results using [JMH Visualizer](https://jmh.morethan.io/).
+
 Checking what benchmarks match the pattern:
 
 ```shell
@@ -76,3 +84,8 @@ LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
 java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
 ```
 
+It's possible to add options to the async-profiler that aren't supported by the JMH async-profiler plugin. This can be done by adding `rawCommand` option to the `-prof` argument. This example shows how to add `all` (new in Async Profiler 4.1) and `cstack=vmx` options.
+
+```shell
+java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=jfr\;dir=profile-results\;rawCommand=all,cstack=vmx ".*BenchmarkName.*"
+```

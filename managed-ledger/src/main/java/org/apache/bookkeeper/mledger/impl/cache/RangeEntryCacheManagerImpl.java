@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -26,11 +27,14 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,20 +71,23 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         this.cacheEvictionWatermark = config.getCacheEvictionWatermark();
         this.mlFactory = factory;
         this.mlFactoryMBean = factory.getMbean();
-        this.rangeCacheRemovalQueue = new RangeCacheRemovalQueue();
+        this.rangeCacheRemovalQueue = new RangeCacheRemovalQueue(
+                config.getCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(),
+                config.isCacheEvictionExtendTTLOfRecentlyAccessed());
         this.evictionHandler = new RangeEntryCacheManagerEvictionHandler(this, rangeCacheRemovalQueue);
 
         log.info("Initialized managed-ledger entry cache of {} Mb", maxSize / MB);
     }
 
-    public EntryCache getEntryCache(ManagedLedgerImpl ml) {
+    public EntryCache getEntryCache(ManagedLedger ml) {
         if (maxSize == 0) {
             // Cache is disabled
-            return new EntryCacheDisabled(ml);
+            return new EntryCacheDisabled((ManagedLedgerImpl) ml);
         }
 
         EntryCache newEntryCache =
-                new RangeEntryCacheImpl(this, ml, mlFactory.getConfig().isCopyEntriesInCache(), rangeCacheRemovalQueue);
+                new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml, mlFactory.getConfig().isCopyEntriesInCache(),
+                        rangeCacheRemovalQueue);
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
             return currentEntryCache;
@@ -163,13 +170,18 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             if (sizeToEvict > 0) {
                 try {
                     long startTime = System.nanoTime();
-                    log.info("Triggering cache eviction. total size: {} Mb -- Need to discard: {} Mb", currentSize / MB,
-                            sizeToEvict / MB);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Triggering cache eviction. total size: {} Mb -- Need to discard: {} Mb",
+                                currentSize / MB, sizeToEvict / MB);
+                    }
                     evictionHandler.evictEntries(sizeToEvict);
-                    long endTime = System.nanoTime();
-                    double durationMs = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                    log.info("Eviction completed. Removed {} Mb in {} ms", (currentSize - this.currentSize.get()) / MB,
-                            durationMs);
+                    if (log.isDebugEnabled()) {
+                        long endTime = System.nanoTime();
+                        double durationMs = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                        log.debug("Eviction completed. Removed {} Mb in {} ms",
+                                (currentSize - this.currentSize.get()) / MB,
+                                durationMs);
+                    }
                 } finally {
                     mlFactoryMBean.recordCacheEviction();
                 }
@@ -193,6 +205,11 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         return currentSize.get();
     }
 
+    @VisibleForTesting
+    public Pair<Integer, Long> getNonEvictableSize() {
+        return evictionHandler.getNonEvictableSize();
+    }
+
     @Override
     public long getMaxSize() {
         return maxSize;
@@ -204,11 +221,12 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     }
 
     @Override
-    public void doCacheEviction(long maxTimestamp) {
+    public void doCacheEviction() {
         // this method is expected to be called from the cache eviction executor
         CompletableFuture<Void> evictionCompletionFuture = new CompletableFuture<>();
         evictionInProgress.set(evictionCompletionFuture);
         try {
+            long maxTimestamp = System.nanoTime() - mlFactory.getCacheEvictionTimeThreshold();
             evictionHandler.invalidateEntriesBeforeTimestampNanos(maxTimestamp);
             doEvictToWatermarkWhenOverThreshold();
         } finally {
@@ -224,6 +242,29 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
     public InflightReadsLimiter getInflightReadsLimiter() {
         return inflightReadsLimiter;
+    }
+
+
+    @Override
+    public void updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+            int extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes) {
+        rangeCacheRemovalQueue.setMaxRequeueCountWhenHasExpectedReads(
+                extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes);
+    }
+
+    @Override
+    public void updateCacheEvictionExtendTTLOfRecentlyAccessed(boolean cacheEvictionExtendTTLOfRecentlyAccessed) {
+        rangeCacheRemovalQueue.setExtendTTLOfRecentlyAccessed(cacheEvictionExtendTTLOfRecentlyAccessed);
+    }
+
+    @VisibleForTesting
+    RangeCacheRemovalQueue getRangeCacheRemovalQueue() {
+        return rangeCacheRemovalQueue;
+    }
+
+    @VisibleForTesting
+    void forEachEntry(Consumer<RangeCacheEntryWrapper> consumer) {
+        rangeCacheRemovalQueue.forEachEntry(consumer);
     }
 
     private static final Logger log = LoggerFactory.getLogger(RangeEntryCacheManagerImpl.class);

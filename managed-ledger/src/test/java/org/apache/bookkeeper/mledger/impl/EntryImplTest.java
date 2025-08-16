@@ -43,7 +43,7 @@ public class EntryImplTest {
         ByteBuf data = Unpooled.wrappedBuffer(testData);
 
         // When
-        EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
+        EntryImpl entry = EntryImpl.create(ledgerId, entryId, data, 1);
 
         try {
             // Then
@@ -65,7 +65,7 @@ public class EntryImplTest {
         ByteBuf data = Unpooled.wrappedBuffer(testData);
 
         // When
-        EntryImpl entry = EntryImpl.create(position, data);
+        EntryImpl entry = EntryImpl.create(position, data, 1);
 
         try {
             // Then
@@ -88,7 +88,7 @@ public class EntryImplTest {
         ByteBuf data = Unpooled.wrappedBuffer(testData);
 
         // When
-        EntryImpl entry = EntryImpl.createWithRetainedDuplicate(position, data);
+        EntryImpl entry = EntryImpl.createWithRetainedDuplicate(position, data, 1);
 
         try {
             // Then
@@ -109,7 +109,7 @@ public class EntryImplTest {
         long entryId = 222L;
         byte[] testData = "original-entry-data".getBytes();
         ByteBuf originalData = Unpooled.wrappedBuffer(testData);
-        EntryImpl originalEntry = EntryImpl.create(ledgerId, entryId, originalData);
+        EntryImpl originalEntry = EntryImpl.create(ledgerId, entryId, originalData, 1);
 
         try {
             // When
@@ -170,7 +170,7 @@ public class EntryImplTest {
         ByteBuf data = Unpooled.EMPTY_BUFFER;
 
         // When
-        EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
+        EntryImpl entry = EntryImpl.create(ledgerId, entryId, data, 1);
 
         try {
             // Then
@@ -215,7 +215,7 @@ public class EntryImplTest {
     public void testCreateWithPositionThatIsntImmutable() {
         // Given
         Position position = new AckSetPositionImpl(1L, 2L, new long[0]);
-        EntryImpl entry = EntryImpl.create(position, Unpooled.EMPTY_BUFFER);
+        EntryImpl entry = EntryImpl.create(position, Unpooled.EMPTY_BUFFER, 1);
 
         // Expect that the position is different since it's not immutable
         assertNotSame(entry.getPosition(), position);
@@ -228,7 +228,7 @@ public class EntryImplTest {
     public void testCreateWithPositionThatIsImmutable() {
         // Given
         Position position = PositionFactory.create(1L, 2L);
-        EntryImpl entry = EntryImpl.create(position, Unpooled.EMPTY_BUFFER);
+        EntryImpl entry = EntryImpl.create(position, Unpooled.EMPTY_BUFFER, 1);
 
         // Expect that the position is same since it's immutable
         assertSame(entry.getPosition(), position);

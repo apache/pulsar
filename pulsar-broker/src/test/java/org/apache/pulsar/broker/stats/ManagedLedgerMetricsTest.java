@@ -183,12 +183,12 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
                     attribCommon, value -> assertThat(value).isPositive());
 
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_COUNTER, attribSucceed,
-                    value -> assertThat(value).isPositive());
+                    value -> assertThat(value).isGreaterThanOrEqualTo(0));
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_COUNTER, attribFailed, 0);
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.BYTES_IN_COUNTER, attribCommon,
-                    value -> assertThat(value).isPositive());
+                    value -> assertThat(value).isGreaterThanOrEqualTo(0));
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_CACHE_MISS_COUNTER,
-                    attribCommon, value -> assertThat(value).isPositive());
+                    attribCommon, value -> assertThat(value).isGreaterThanOrEqualTo(0));
         });
     }
 

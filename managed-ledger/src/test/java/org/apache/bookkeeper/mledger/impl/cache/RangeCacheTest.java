@@ -49,7 +49,7 @@ public class RangeCacheTest {
 
     @Test
     public void simple() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
 
         putToCache(cache, 0, "0");
@@ -96,6 +96,10 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 0);
     }
 
+    private static RangeCacheRemovalQueue createRemovalQueue() {
+        return new RangeCacheRemovalQueue(5, false);
+    }
+
     private void putToCache(RangeCache cache, int i, String str) {
         Position position = createPosition(i);
         ReferenceCountedEntry cachedEntry = createCachedEntry(position, str);
@@ -107,7 +111,7 @@ public class RangeCacheTest {
     }
 
     private static ReferenceCountedEntry createCachedEntry(Position position, String str) {
-        return EntryImpl.create(position, Unpooled.wrappedBuffer(str.getBytes()));
+        return EntryImpl.create(position, Unpooled.wrappedBuffer(str.getBytes()), 0);
     }
 
     private static Position createPosition(int i) {
@@ -122,7 +126,7 @@ public class RangeCacheTest {
 
     @Test(dataProvider = "retainBeforeEviction")
     public void customTimeExtraction(boolean retain) {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
 
         putToCache(cache, 1, "1");
@@ -162,7 +166,7 @@ public class RangeCacheTest {
 
     @Test
     public void doubleInsert() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
 
         ReferenceCountedEntry s0 = createCachedEntry(0, "zero");
@@ -194,7 +198,7 @@ public class RangeCacheTest {
 
     @Test
     public void getRange() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
 
         putToCache(cache, 0, "0");
@@ -228,7 +232,7 @@ public class RangeCacheTest {
 
     @Test
     public void eviction() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
 
         putToCache(cache, 0, "zero");
@@ -271,7 +275,7 @@ public class RangeCacheTest {
 
     @Test
     public void evictions() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
 
         int expectedSize = 0;
@@ -317,7 +321,7 @@ public class RangeCacheTest {
 
     @Test
     public void testPutWhileClearIsCalledConcurrently() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
         int numberOfThreads = 8;
         @Cleanup("shutdownNow")
@@ -338,7 +342,7 @@ public class RangeCacheTest {
 
     @Test
     public void testPutSameObj() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
         ReferenceCountedEntry s0 = createCachedEntry(0, "zero");
         assertEquals(s0.refCnt(), 1);
@@ -348,7 +352,7 @@ public class RangeCacheTest {
 
     @Test
     public void testRemoveEntryWithInvalidRefCount() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
         ReferenceCountedEntry value = createCachedEntry(1, "1");
         cache.put(value.getPosition(), value);
@@ -360,7 +364,7 @@ public class RangeCacheTest {
 
     @Test
     public void testInvalidMatchingKey() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
         ReferenceCountedEntry value = createCachedEntry(1, "1");
         cache.put(value.getPosition(), value);
@@ -383,7 +387,7 @@ public class RangeCacheTest {
 
     @Test
     public void testGetKeyWithDifferentInstance() {
-        RangeCacheRemovalQueue removalQueue = new RangeCacheRemovalQueue();
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
         Position key = createPosition(129);
         ReferenceCountedEntry value = createCachedEntry(key, "129");
