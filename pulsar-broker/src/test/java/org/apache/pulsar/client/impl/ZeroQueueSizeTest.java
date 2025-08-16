@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -430,13 +431,14 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testZeroQueueGetExceptionWhenReceiveBatchMessage() throws PulsarClientException {
 
-        int batchMessageDelayMs = 100;
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-xyz/use/ns-abc/topic1")
+        final String topic = BrokerTestUtil.newUniqueName(
+                "persistent://prop/ns-abc/testZeroQueueGetExceptionWhenReceiveBatchMessage-");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
                 .subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://prop-xyz/use/ns-abc/topic1")
+                .topic(topic)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         producerBuilder.enableBatching(true)
