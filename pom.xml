@@ -243,7 +243,7 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.mysql.version>8.0.33</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
-    <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
+    <jsonwebtoken.version>0.11.5</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop3.version>3.4.0</hadoop3.version>
     <dnsjava3.version>3.6.2</dnsjava3.version>
@@ -311,6 +311,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- test dependencies -->
     <testcontainers.version>1.20.4</testcontainers.version>
+    <mock-oauth2-server.version>2.1.11</mock-oauth2-server.version>
     <!-- Set docker-java.version to the version of docker-java used in org.testcontainers:testcontainers pom -->
     <docker-java.version>3.4.0</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
@@ -1203,17 +1204,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-api</artifactId>
-        <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-impl</artifactId>
-        <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-jackson</artifactId>
+        <artifactId>jjwt</artifactId>
         <version>${jsonwebtoken.version}</version>
       </dependency>
 
@@ -1727,6 +1718,26 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opentelemetry-semconv</artifactId>
         <version>${opentelemetry.semconv.version}</version>
       </dependency>
+
+      <!-- JJWT -->
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jsonwebtoken.version}</version>
+        <scope>runtime</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId> <!-- or jjwt-gson if Gson is preferred -->
+        <version>${jsonwebtoken.version}</version>
+        <scope>runtime</scope>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 

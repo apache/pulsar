@@ -24,40 +24,63 @@ import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.JwtBearerExchangeRequest;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
-/**
- * Implementation of OAuth 2.0 Client Credentials flow.
- *
- * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.4">OAuth 2.0 RFC 6749, section 4.4</a>
- */
 @Slf4j
-class ClientCredentialsFlow extends FlowBase {
+public class JwtBearerFlow extends FlowBase {
+
+    public static final String SIGNATURE_ALGORITHM = "RS256";
+
+    public static final String CONFIG_PARAM_SIGNATURE_ALGORITHM = "signatureAlgorithm";
+
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
     public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
-    public static final String CONFIG_PARAM_SCOPE = "scope";
+    public static final String CONFIG_PARAM_TOKEN_TTL = "tokenTTlMillis";
 
     private static final long serialVersionUID = 1L;
 
     private final String audience;
     private final String privateKey;
-    private final String scope;
+    private final String signatureAlgorithm;
+    private final long ttlMillis;
 
     private transient ClientCredentialsExchanger exchanger;
 
     private boolean initialized = false;
 
+    public static JwtBearerFlow fromParameters(Map<String, String> params) {
+        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
+        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
+        // These are optional parameters, so we only perform a get
+        String audience = params.get(CONFIG_PARAM_AUDIENCE);
+        String signatureAlgorithm = params.getOrDefault(CONFIG_PARAM_SIGNATURE_ALGORITHM, SIGNATURE_ALGORITHM);
+        long ttlMillis = Long.parseLong(params.getOrDefault(CONFIG_PARAM_TOKEN_TTL, "3600000"));
+
+        return JwtBearerFlow.builder()
+                .issuerUrl(issuerUrl)
+                .audience(audience)
+                .privateKey(privateKeyUrl)
+                .signatureAlgorithm(signatureAlgorithm)
+                .ttlMillis(ttlMillis)
+                .build();
+    }
+
     @Builder
-    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope) {
+    public JwtBearerFlow(URL issuerUrl,
+                         String audience,
+                         String privateKey,
+                         String signatureAlgorithm,
+                         long ttlMillis) {
         super(issuerUrl);
         this.audience = audience;
         this.privateKey = privateKey;
-        this.scope = scope;
+        this.signatureAlgorithm = signatureAlgorithm;
+        this.ttlMillis = ttlMillis;
     }
 
     @Override
@@ -70,6 +93,7 @@ class ClientCredentialsFlow extends FlowBase {
         initialized = true;
     }
 
+    @Override
     public TokenResult authenticate() throws PulsarClientException {
         // read the private key from storage
         KeyFile keyFile;
@@ -80,21 +104,30 @@ class ClientCredentialsFlow extends FlowBase {
         }
 
         // request an access token using client credentials
-        ClientCredentialsExchangeRequest req = ClientCredentialsExchangeRequest.builder()
-                .clientId(keyFile.getClientId())
-                .clientSecret(keyFile.getClientSecret())
-                .audience(this.audience)
-                .scope(this.scope)
-                .build();
+        final String jwtAssertion;
+        try {
+            jwtAssertion = JwtBearerExchangeRequest.generateJWT(
+                    keyFile.getClientId(),
+                    this.audience,
+                    keyFile.getClientSecret(),
+                    this.signatureAlgorithm,
+                    ttlMillis);
+        } catch (Exception e) {
+            throw new PulsarClientException("Failed to generate JWT", e);
+        }
         TokenResult tr;
         if (!initialized) {
             initialize();
         }
+
         try {
+            JwtBearerExchangeRequest req = JwtBearerExchangeRequest.builder()
+                    .assertion(jwtAssertion)
+                    .build();
             tr = this.exchanger.exchangeClientCredentials(req);
         } catch (TokenExchangeException | IOException e) {
             throw new PulsarClientException.AuthenticationException("Unable to obtain an access token: "
-                                                                    + e.getMessage());
+                    + e.getMessage());
         }
 
         return tr;
@@ -106,24 +139,4 @@ class ClientCredentialsFlow extends FlowBase {
             exchanger.close();
         }
     }
-
-    /**
-     * Constructs a {@link ClientCredentialsFlow} from configuration parameters.
-     * @param params
-     * @return
-     */
-    public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
-        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
-        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
-        // These are optional parameters, so we only perform a get
-        String scope = params.get(CONFIG_PARAM_SCOPE);
-        String audience = params.get(CONFIG_PARAM_AUDIENCE);
-        return ClientCredentialsFlow.builder()
-                .issuerUrl(issuerUrl)
-                .audience(audience)
-                .privateKey(privateKeyUrl)
-                .scope(scope)
-                .build();
-    }
-
 }
