@@ -315,7 +315,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         PersistentStickyKeyDispatcherMultipleConsumersClassic persistentDispatcher =
                 new PersistentStickyKeyDispatcherMultipleConsumersClassic(
                 topicMock, cursorMock, subscriptionMock, configMock,
-                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT), spyRecentlyJoinedConsumers);
 
         Consumer consumer0 = createMockConsumer();
         when(consumer0.consumerName()).thenReturn("0");
