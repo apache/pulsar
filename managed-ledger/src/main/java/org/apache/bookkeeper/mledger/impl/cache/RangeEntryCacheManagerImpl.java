@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import lombok.Getter;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -52,6 +53,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     private final AtomicReference<CompletableFuture<Void>> evictionInProgress = new AtomicReference<>(null);
 
     private final ManagedLedgerFactoryImpl mlFactory;
+    @Getter
     protected final ManagedLedgerFactoryMBeanImpl mlFactoryMBean;
     private final InflightReadsLimiter inflightReadsLimiter;
 

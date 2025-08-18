@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,10 +90,15 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
                                RangeCacheRemovalQueue rangeCacheRemovalQueue) {
+        this(manager, ml, copyEntries, rangeCacheRemovalQueue, null);
+    }
+
+    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+                               RangeCacheRemovalQueue rangeCacheRemovalQueue, PendingReadsManager pendingReadsManager) {
 
         this.manager = manager;
         this.ml = ml;
-        this.pendingReadsManager = new PendingReadsManager(this);
+        this.pendingReadsManager = pendingReadsManager == null ? new PendingReadsManager(this) : pendingReadsManager;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
         this.copyEntries = copyEntries;
@@ -387,35 +393,107 @@ public class RangeEntryCacheImpl implements EntryCache {
             cachedEntries = entries.getRange(firstPosition, lastPosition);
         }
 
-        if (cachedEntries.size() == numberOfEntries) {
+        if (cachedEntries.size() > 0) {
             long totalCachedSize = 0;
             final List<Entry> entriesToReturn = new ArrayList<>(numberOfEntries);
+            for (int i = 0; i < numberOfEntries; i++) {
+                entriesToReturn.add(null); // Initialize with nulls
+            }
 
-            // All entries found in cache
             for (Entry entry : cachedEntries) {
-                entriesToReturn.add(EntryImpl.create(entry));
+                int index = (int) (entry.getPosition().getEntryId() - firstPosition.getEntryId());
+                entriesToReturn.set(index, EntryImpl.create(entry));
                 totalCachedSize += entry.getLength();
                 entry.release();
             }
 
-            manager.mlFactoryMBean.recordCacheHits(entriesToReturn.size(), totalCachedSize);
+            manager.getMlFactoryMBean().recordCacheHits(cachedEntries.size(), totalCachedSize);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cache hit for {} entries in range {} to {}", ml.getName(), numberOfEntries,
                         firstPosition, lastPosition);
             }
 
-            callback.readEntriesComplete(entriesToReturn, ctx);
-
-        } else {
-            // TODO: consider reusing the partially cached entries and only reading the missing ones
-            if (!cachedEntries.isEmpty()) {
-                cachedEntries.forEach(entry -> entry.release());
+            if (cachedEntries.size() == numberOfEntries) {
+                callback.readEntriesComplete(entriesToReturn, ctx);
+            } else {
+                // read missing ranges
+                long firstEntryInRange = -1;
+                List<CompletableFuture<List<Entry>>> futures = new ArrayList<>();
+                for (int i = 0; i < numberOfEntries; i++) {
+                    if (entriesToReturn.get(i) == null) {
+                        if (firstEntryInRange == -1) {
+                            firstEntryInRange = firstPosition.getEntryId() + i;
+                        }
+                    } else {
+                        if (firstEntryInRange != -1) {
+                            futures.add(
+                                    readMissingEntriesAsync(lh, firstEntryInRange, firstPosition.getEntryId() + i - 1,
+                                            expectedReadCount, ctx));
+                            firstEntryInRange = -1;
+                        }
+                    }
+                }
+                if (firstEntryInRange != -1) {
+                    futures.add(
+                            readMissingEntriesAsync(lh, firstEntryInRange, lastPosition.getEntryId(),
+                                    expectedReadCount, ctx));
+                }
+                FutureUtil.waitForAll(futures).whenComplete((__, t) -> {
+                    if (t != null) {
+                        // release cached entries placed in entriesToReturn
+                        for (Entry entry : entriesToReturn) {
+                            if (entry != null) {
+                                entry.release();
+                            }
+                        }
+                        // release entries for futures which were completed successfully
+                        for (CompletableFuture<List<Entry>> future : futures) {
+                            if (!future.isCompletedExceptionally()) {
+                                List<Entry> readEntries = future.getNow(null);
+                                if (readEntries != null && !readEntries.isEmpty()) {
+                                    for (Entry entry : readEntries) {
+                                        entry.release();
+                                    }
+                                }
+                            }
+                        }
+                        log.warn("Failed to read missing entries from bookkeeper, retrying by reading all", t);
+                        // Read all the entries from bookkeeper
+                        pendingReadsManager.readEntries(lh, firstPosition.getEntryId(), lastPosition.getEntryId(),
+                                expectedReadCount, callback, ctx);
+                        return;
+                    }
+                    for (CompletableFuture<List<Entry>> future : futures) {
+                        List<Entry> readEntries = future.getNow(null);
+                        if (readEntries != null && !readEntries.isEmpty()) {
+                            for (Entry entry : readEntries) {
+                                int index = (int) (entry.getPosition().getEntryId() - firstPosition.getEntryId());
+                                if (index >= 0 && index < entriesToReturn.size()) {
+                                    entriesToReturn.set(index, entry);
+                                } else {
+                                    log.warn("Received entry {} outside of expected range {} to {}",
+                                            entry.getPosition(), firstPosition, lastPosition);
+                                }
+                            }
+                        }
+                    }
+                    callback.readEntriesComplete(entriesToReturn, ctx);
+                });
             }
-
+        } else {
             // Read all the entries from bookkeeper
             pendingReadsManager.readEntries(lh, firstPosition.getEntryId(), lastPosition.getEntryId(),
                     expectedReadCount, callback, ctx);
         }
+    }
+
+    private CompletableFuture<List<Entry>> readMissingEntriesAsync(ReadHandle lh,
+                                                                   long firstEntry, long lastEntry,
+                                                                   IntSupplier expectedReadCount, Object ctx) {
+        CompletableFuture<List<Entry>> future = new CompletableFuture<>();
+        PendingReadsManager.ReadEntriesCallback callback = new PendingReadsManager.ReadEntriesCallback(future);
+        pendingReadsManager.readEntries(lh, firstEntry, lastEntry, expectedReadCount, callback, ctx);
+        return future;
     }
 
     @VisibleForTesting
@@ -465,7 +543,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 }
 
                                 ml.getMbean().recordReadEntriesOpsCacheMisses(entriesToReturn.size(), totalSize);
-                                manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
+                                manager.getMlFactoryMBean().recordCacheMiss(entriesToReturn.size(), totalSize);
                                 ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 
                                 return entriesToReturn;
