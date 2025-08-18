@@ -331,10 +331,16 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
             consumer.close();
         }
 
+        double cacheHitPercentage = 100.0d * (numberOfMessagesConsumed.get() - bkReadEntryCount.get())
+                / numberOfMessagesConsumed.get();
+        double cacheMissPercentage = 100.0d - cacheHitPercentage;
+
         log.info("Produced {} and Consumed {} messages (across {} consumers with unique subscriptions) in total. "
-                        + "Number of BK reads {} with {} entries. Number of restarts {}",
+                        + "Number of BK reads {} with {} entries. Cache hits {}%, Cache misses {}%, Number of "
+                        + "restarts {}",
                 numberOfMessagesProducedFuture.get(30, TimeUnit.SECONDS),
                 numberOfMessagesConsumed.get(), numConsumers, bkReadCount.get(), bkReadEntryCount.get(),
+                String.format("%.2f", cacheHitPercentage), String.format("%.2f", cacheMissPercentage),
                 actualNumberOfRestarts.get());
     }
 
