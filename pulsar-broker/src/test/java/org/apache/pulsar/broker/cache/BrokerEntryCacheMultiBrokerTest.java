@@ -20,10 +20,15 @@ package org.apache.pulsar.broker.cache;
 
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import io.netty.channel.Channel;
+import io.netty.channel.EventLoopGroup;
+import java.io.Closeable;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -34,6 +39,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -41,7 +47,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -143,11 +151,11 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     // change enabled to true to run the test
     @Test(enabled = false)
     public void testTailingReadsRollingRestart() throws Exception {
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup eventLoopGroup = InjectedClientCnxClientBuilder.createEventLoopGroup(2, false);
+
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(serviceUrlForFixedPorts())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .build();
+        PulsarClient producerPulsarClient = createPulsarClient(eventLoopGroup);
 
         final String topicName =
                 BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/rolling-restart-cache-test-topic");
@@ -162,7 +170,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         AtomicInteger numberOfMessagesConsumed = new AtomicInteger(0);
 
         @Cleanup
-        Producer<Long> producer = pulsarClient.newProducer(Schema.INT64)
+        Producer<Long> producer = producerPulsarClient.newProducer(Schema.INT64)
                 .topic(topicName)
                 .enableBatching(false)
                 .blockIfQueueFull(true)
@@ -170,8 +178,17 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
 
         // Create consumers in paused state with receiver queue size of 50
         Consumer<Long>[] consumers = new Consumer[numConsumers];
+        List<PulsarClient> consumerPulsarClients = new ArrayList<>();
+        @Cleanup
+        Closeable consumerPulsarClientsCloseable = () -> {
+            for (PulsarClient consumerPulsarClient : consumerPulsarClients) {
+                consumerPulsarClient.close();
+            }
+        };
         for (int i = 0; i < numConsumers; i++) {
-            consumers[i] = pulsarClient.newConsumer(Schema.INT64)
+            PulsarClientImpl consumerPulsarClient = createPulsarClient(eventLoopGroup);
+            consumerPulsarClients.add(consumerPulsarClient);
+            consumers[i] = consumerPulsarClient.newConsumer(Schema.INT64)
                     .topic(topicName)
                     .subscriptionName(subscriptionName + "-" + i)
                     .subscriptionType(SubscriptionType.Shared)
@@ -300,5 +317,21 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                         + "Number of BK reads {}",
                 numberOfMessagesProducedFuture.get(30, TimeUnit.SECONDS),
                 numberOfMessagesConsumed.get(), numConsumers, bkReadCount.get());
+    }
+
+    private PulsarClientImpl createPulsarClient(EventLoopGroup eventLoopGroup) throws Exception {
+        return InjectedClientCnxClientBuilder.builder()
+                .eventLoopGroup(eventLoopGroup)
+                .clientBuilder(PulsarClient.builder()
+                        .serviceUrl(serviceUrlForFixedPorts())
+                        .statsInterval(0, TimeUnit.SECONDS))
+                .connectToAddressFutureCustomizer((Channel channel, InetSocketAddress inetSocketAddress) -> {
+                    // Introduce a delay to simulate network latency in connecting to the broker.
+                    long delayMillis = ThreadLocalRandom.current().nextLong(5L, 25L);
+                    return CompletableFuture.supplyAsync(() -> null,
+                                    CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS))
+                            .thenCompose(__ -> ChannelFutures.toCompletableFuture(channel.connect(inetSocketAddress)));
+                })
+                .build();
     }
 }
