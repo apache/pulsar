@@ -95,8 +95,8 @@ public class JsonConverter {
                 Schema elementSchema = schema.getElementType();
                 ArrayNode arrayNode = jsonNodeFactory.arrayNode();
                 Object[] iterable;
-                if (value instanceof GenericData.AbstractArray) {
-                    iterable = ((GenericData.AbstractArray) value).toArray();
+                if (value instanceof GenericData.Array) {
+                    iterable = ((GenericData.Array) value).toArray();
                 } else {
                     iterable = (Object[]) value;
                 }
