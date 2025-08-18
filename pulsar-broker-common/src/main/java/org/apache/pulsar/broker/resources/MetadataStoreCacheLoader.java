@@ -43,11 +43,13 @@ public class MetadataStoreCacheLoader implements Closeable {
     private final int operationTimeoutMs;
 
     private volatile List<LoadManagerReport> availableBrokers;
+    private volatile CompletableFuture<Void> updateFuture = CompletableFuture.completedFuture(null);
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
             .name("pulsar-metadata-cache-loader-ordered-cache").build();
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
+    public static final int UPDATE_INTERVAL_SECONDS = 30;
 
     public MetadataStoreCacheLoader(PulsarResources pulsarResources, int operationTimeoutMs) throws Exception {
         this.loadReportResources = pulsarResources.getLoadReportResources();
@@ -61,26 +63,28 @@ public class MetadataStoreCacheLoader implements Closeable {
      * @throws Exception
      */
     public void init() throws Exception {
-        loadReportResources.getStore().registerListener((n) -> {
-            if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
-                loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT).thenApplyAsync((brokerNodes)->{
-                    updateBrokerList(brokerNodes).thenRun(() -> {
-                        log.info("Successfully updated broker info {}", brokerNodes);
-                    }).exceptionally(ex -> {
-                        log.warn("Error updating broker info after broker list changed", ex);
-                        return null;
+        Runnable tryUpdate = () -> {
+            synchronized (this) {
+                updateFuture = updateFuture.thenCompose(__ -> {
+                    return loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT).thenComposeAsync((brokerNodes) -> {
+                        return updateBrokerList(brokerNodes).thenRun(() -> {
+                            log.info("Successfully updated broker info {}", brokerNodes);
+                        });
                     });
-                    return null;
                 }).exceptionally(ex -> {
                     log.warn("Error updating broker info after broker list changed", ex);
                     return null;
                 });
             }
+        };
+        loadReportResources.getStore().registerListener((n) -> {
+            if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
+                tryUpdate.run();
+            }
         });
 
-        // Do initial fetch of brokers list
-        updateBrokerList(loadReportResources.getChildren(LOADBALANCE_BROKERS_ROOT)).get(operationTimeoutMs,
-                TimeUnit.SECONDS);
+        // Do periodic fetch of brokers list
+        orderedExecutor.scheduleAtFixedRate(tryUpdate, 0, UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
     public List<LoadManagerReport> getAvailableBrokers() {
