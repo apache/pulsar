@@ -64,6 +64,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     AtomicInteger bkReadCount = new AtomicInteger(0);
+    AtomicInteger bkReadEntryCount = new AtomicInteger(0);
 
     @Override
     protected void additionalSetup() throws Exception {
@@ -75,6 +76,10 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         pulsarTestContext.getMockBookKeeper()
                 .setReadHandleInterceptor((long ledgerId, long firstEntry, long lastEntry, LedgerEntries entries) -> {
                     bkReadCount.incrementAndGet();
+                    int numberOfEntries = (int) (lastEntry - firstEntry + 1);
+                    bkReadEntryCount.addAndGet(numberOfEntries);
+                    log.info("BK read for ledgerId {}, firstEntry {}, lastEntry {}, numberOfEntries {}",
+                            ledgerId, firstEntry, lastEntry, numberOfEntries);
                     return CompletableFuture.completedFuture(entries);
                 });
     }
@@ -265,10 +270,13 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 });
             }
             long delayBetweenRestarts = testTimeInSeconds * 1000 / (numberOfRestarts + 1);
-            while (!Thread.currentThread().isInterrupted()
-                    && System.currentTimeMillis() < endTimeMillis - delayBetweenRestarts / 2) {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
                     for (Runnable restartRunnable : restartRunnables) {
+                        if (Thread.currentThread().isInterrupted()
+                                || System.currentTimeMillis() >= endTimeMillis - delayBetweenRestarts / 2) {
+                            return;
+                        }
                         // Wait for some time before restarting the broker
                         Thread.sleep(delayBetweenRestarts);
                         // Now restart the next broker
@@ -324,9 +332,10 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         }
 
         log.info("Produced {} and Consumed {} messages (across {} consumers with unique subscriptions) in total. "
-                        + "Number of BK reads {}. Number of restarts {}",
+                        + "Number of BK reads {} with {} entries. Number of restarts {}",
                 numberOfMessagesProducedFuture.get(30, TimeUnit.SECONDS),
-                numberOfMessagesConsumed.get(), numConsumers, bkReadCount.get(), actualNumberOfRestarts.get());
+                numberOfMessagesConsumed.get(), numConsumers, bkReadCount.get(), bkReadEntryCount.get(),
+                actualNumberOfRestarts.get());
     }
 
     private PulsarClientImpl createPulsarClient(EventLoopGroup eventLoopGroup, LongSupplier connectionDelaySupplier)
