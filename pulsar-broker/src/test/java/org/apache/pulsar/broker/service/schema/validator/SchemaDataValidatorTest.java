@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.client.api.Schema;
@@ -131,7 +133,19 @@ public class SchemaDataValidatorTest {
                     new JsonSchemaGenerator(mapper)
                     .generateSchema(Foo.class)))
             .build();
-        SchemaDataValidator.validateSchemaData(data);
+        ObjectReader reader = ObjectMapperFactory.getMapper().reader().forType(JsonSchema.class);
+        try {
+            org.apache.avro.Schema.Parser avroSchemaParser = new org.apache.avro.Schema.Parser();
+            avroSchemaParser.setValidateDefaults(false);
+            org.apache.avro.Schema schema = avroSchemaParser.parse(new String(data.getData(), UTF_8));
+        } catch (Exception e) {
+            try {
+                reader.readValue(data.getData());
+            } catch (Exception ioe) {
+                throw new InvalidSchemaDataException("Invalid schema definition data for "
+                        + data.getType() + " schema", ioe);
+            }
+        }
     }
 
 }

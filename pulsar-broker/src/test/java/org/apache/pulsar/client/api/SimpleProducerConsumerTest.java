@@ -4097,9 +4097,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 100000)
     public void consumerReceiveThrowExceptionWhenConsumerClose() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic-");
         Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2")
+                .topic(topic)
                 .receiverQueueSize(10)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("my-sub")
@@ -4127,9 +4128,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 100000)
     public void multiThreadConsumerReceiveThrowExceptionWhenConsumerClose() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic-");
         Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2")
+                .topic(topic)
                 .receiverQueueSize(10)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("my-sub")

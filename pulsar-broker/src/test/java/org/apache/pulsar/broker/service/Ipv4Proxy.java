@@ -93,7 +93,7 @@ public class Ipv4Proxy {
     }
 
     public void disconnectFrontChannels() throws InterruptedException {
-        for (Channel channel : frontChannels) {
+        for (Channel channel : new ArrayList<>(frontChannels)) {
             channel.close();
         }
     }
