@@ -3346,10 +3346,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds, boolean isGlobal) {
-        if (CollectionUtils.isEmpty(clusterIds)) {
-            return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "ClusterIds should not be null or empty"));
-        }
         Set<String> replicationClusters = Sets.newHashSet(clusterIds);
         return validatePoliciesReadOnlyAccessAsync()
                 .thenAccept(__ -> {

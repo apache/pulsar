@@ -3505,8 +3505,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(()
                 -> assertNull(admin.topics().getReplicationClusters(topic, false)));
 
-        assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> admin.topics()
-                .setReplicationClusters(topic, List.of()));
+        // Test that empty replication clusters are now allowed
+        admin.topics().setReplicationClusters(topic, Collections.emptyList());
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.topics().getReplicationClusters(topic, false), Collections.emptyList()));
+
         assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> admin.topics()
                 .setReplicationClusters(topic, null));
 

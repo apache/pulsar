@@ -43,6 +43,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -694,6 +695,23 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // cleanup
         resetBroker();
+    }
+
+    @Test
+    public void testNamespaceEmptyReplicationClusters() throws Exception {
+        // Test setting empty replication clusters for global namespace
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), 
+                this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName(),
+                Collections.emptyList()));
+
+        // Verify empty replication clusters are set
+        Set<String> repClusters = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), 
+                this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName()));
+        assertEquals(repClusters, Collections.emptySet());
     }
 
     @Test
