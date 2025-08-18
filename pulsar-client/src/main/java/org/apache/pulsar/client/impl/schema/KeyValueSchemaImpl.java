@@ -103,8 +103,14 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     private KeyValueSchemaImpl(Schema<K> keySchema,
                                Schema<V> valueSchema,
                                KeyValueEncodingType keyValueEncodingType) {
-        SchemaType keySchemaType = keySchema.getSchemaInfo().getType();
-        SchemaType valueSchemaType = valueSchema.getSchemaInfo().getType();
+        SchemaType keySchemaType = null;
+        if (keySchema != null && keySchema.getSchemaInfo() != null) {
+            keySchemaType = keySchema.getSchemaInfo().getType();
+        }
+        SchemaType valueSchemaType = null;
+        if (valueSchema != null && valueSchema.getSchemaInfo() != null) {
+            valueSchemaType = valueSchema.getSchemaInfo().getType();
+        }
         if ((SchemaType.EXTERNAL.equals(keySchemaType) && SchemaType.isStructType(valueSchemaType))
                 || SchemaType.EXTERNAL.equals(valueSchemaType) && SchemaType.isStructType(keySchemaType)) {
             throw new IllegalArgumentException("External schema cannot be used with struct schema type. "
