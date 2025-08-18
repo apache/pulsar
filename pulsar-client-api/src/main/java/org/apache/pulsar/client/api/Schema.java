@@ -140,7 +140,7 @@ public interface Schema<T> extends Cloneable {
     }
 
     default T decode(String topic, ByteBuffer data, byte[] schemaId) {
-        return decode(topic, getBytes(data), schemaId);
+        return decode(data, schemaId);
     }
 
     default T decode(String topic, byte[] data, byte[] schemaId) {
