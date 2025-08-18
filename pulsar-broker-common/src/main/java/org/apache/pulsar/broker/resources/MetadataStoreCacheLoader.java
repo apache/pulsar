@@ -25,10 +25,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import jdk.nio.mapmode.ExtendedMapMode;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,17 +49,17 @@ public class MetadataStoreCacheLoader implements Closeable {
     private final int operationTimeoutMs;
 
     private volatile List<LoadManagerReport> availableBrokers;
-    private volatile CompletableFuture<Void> updateFuture = CompletableFuture.completedFuture(null);
+    private final FutureUtil.Sequencer<Void> sequencer;
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
             .name("pulsar-metadata-cache-loader-ordered-cache").build();
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
-    public static final int UPDATE_INTERVAL_SECONDS = 30;
 
     public MetadataStoreCacheLoader(PulsarResources pulsarResources, int operationTimeoutMs) throws Exception {
         this.loadReportResources = pulsarResources.getLoadReportResources();
         this.operationTimeoutMs = operationTimeoutMs;
+        this.sequencer = FutureUtil.Sequencer.create();
         init();
     }
 
@@ -63,28 +69,23 @@ public class MetadataStoreCacheLoader implements Closeable {
      * @throws Exception
      */
     public void init() throws Exception {
-        Runnable tryUpdate = () -> {
-            synchronized (this) {
-                updateFuture = updateFuture.thenCompose(__ -> {
-                    return loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT).thenComposeAsync((brokerNodes) -> {
-                        return updateBrokerList(brokerNodes).thenRun(() -> {
-                            log.info("Successfully updated broker info {}", brokerNodes);
-                        });
+        Supplier<CompletableFuture<Void>> tryUpdate = () -> {
+            return loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT)
+                    .thenComposeAsync(this::updateBrokerList)
+                    .exceptionally(ex -> {
+                        log.warn("Error updating broker info after broker list changed", ex);
+                        return null;
                     });
-                }).exceptionally(ex -> {
-                    log.warn("Error updating broker info after broker list changed", ex);
-                    return null;
-                });
-            }
         };
         loadReportResources.getStore().registerListener((n) -> {
             if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
-                tryUpdate.run();
+                sequencer.sequential(tryUpdate);
             }
         });
-
-        // Do periodic fetch of brokers list
-        orderedExecutor.scheduleAtFixedRate(tryUpdate, 0, UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        if (loadReportResources.getStore() instanceof MetadataStoreExtended) {
+            ((MetadataStoreExtended) loadReportResources.getStore()).registerSessionListener(sessionEvent ->
+                    sequencer.sequential(tryUpdate));
+        }
     }
 
     public List<LoadManagerReport> getAvailableBrokers() {
