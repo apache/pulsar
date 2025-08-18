@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.lang.reflect.Field;
-import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
@@ -42,7 +41,7 @@ public class SchemaUtil {
     }
 
     public static Schema parseAvroSchema(String schemaJson) {
-        final Schema.Parser parser = new Schema.Parser(NameValidator.NO_VALIDATION);
+        final Schema.Parser parser = new Schema.Parser();
         parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
     }
