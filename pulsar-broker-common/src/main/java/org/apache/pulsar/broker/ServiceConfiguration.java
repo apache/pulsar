@@ -3224,7 +3224,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
             "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.ExternalSchemaCompatibilityCheck"
     );
 
     @FieldContext(
