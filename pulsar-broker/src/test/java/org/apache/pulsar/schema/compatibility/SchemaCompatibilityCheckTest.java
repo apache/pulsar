@@ -22,8 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -695,9 +694,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 .newProducer(externalJsonSchema)
                 .topic(topic)
                 .create();
-        assertNotNull(externalJsonSchema.getSchemaInfoProvider());
+        assertFalse(externalJsonSchema.isClosed());
         producer.close();
-        assertNull(externalJsonSchema.getSchemaInfoProvider());
         assertTrue(externalJsonSchema.isClosed());
 
         try (Producer<Schemas.PersonThree> ignored = client
