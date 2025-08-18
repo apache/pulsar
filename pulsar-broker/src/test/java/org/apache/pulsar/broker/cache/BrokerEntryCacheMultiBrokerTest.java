@@ -31,6 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -155,7 +156,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         EventLoopGroup eventLoopGroup = InjectedClientCnxClientBuilder.createEventLoopGroup(2, false);
 
         @Cleanup
-        PulsarClient producerPulsarClient = createPulsarClient(eventLoopGroup);
+        PulsarClient producerPulsarClient = createPulsarClient(eventLoopGroup, () -> 0L);
 
         final String topicName =
                 BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/rolling-restart-cache-test-topic");
@@ -185,8 +186,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 consumerPulsarClient.close();
             }
         };
+
+        // introduce 40-100ms delay in consumer connection to simulate network latency
+        LongSupplier consumerClientConnectionDelaySupplier = () -> ThreadLocalRandom.current().nextLong(40L, 100L);
         for (int i = 0; i < numConsumers; i++) {
-            PulsarClientImpl consumerPulsarClient = createPulsarClient(eventLoopGroup);
+            PulsarClientImpl consumerPulsarClient =
+                    createPulsarClient(eventLoopGroup, consumerClientConnectionDelaySupplier);
             consumerPulsarClients.add(consumerPulsarClient);
             consumers[i] = consumerPulsarClient.newConsumer(Schema.INT64)
                     .topic(topicName)
@@ -233,6 +238,8 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
             consumer.resume();
         }
 
+        AtomicInteger actualNumberOfRestarts = new AtomicInteger(0);
+
         @Cleanup("interrupt")
         Thread rollingRestartInjector = new Thread(() -> {
             List<Runnable> restartRunnables = new ArrayList<>();
@@ -257,13 +264,16 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                     }
                 });
             }
-            while (!Thread.currentThread().isInterrupted() && System.currentTimeMillis() < endTimeMillis) {
+            long delayBetweenRestarts = testTimeInSeconds * 1000 / (numberOfRestarts + 1);
+            while (!Thread.currentThread().isInterrupted()
+                    && System.currentTimeMillis() < endTimeMillis - delayBetweenRestarts / 2) {
                 try {
                     for (Runnable restartRunnable : restartRunnables) {
                         // Wait for some time before restarting the broker
-                        Thread.sleep(testTimeInSeconds * 1000 / numberOfRestarts);
+                        Thread.sleep(delayBetweenRestarts);
                         // Now restart the next broker
                         restartRunnable.run();
+                        actualNumberOfRestarts.incrementAndGet();
                     }
                 } catch (InterruptedException e) {
                     log.info("rolling restart injector interrupted");
@@ -314,12 +324,13 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         }
 
         log.info("Produced {} and Consumed {} messages (across {} consumers with unique subscriptions) in total. "
-                        + "Number of BK reads {}",
+                        + "Number of BK reads {}. Number of restarts {}",
                 numberOfMessagesProducedFuture.get(30, TimeUnit.SECONDS),
-                numberOfMessagesConsumed.get(), numConsumers, bkReadCount.get());
+                numberOfMessagesConsumed.get(), numConsumers, bkReadCount.get(), actualNumberOfRestarts.get());
     }
 
-    private PulsarClientImpl createPulsarClient(EventLoopGroup eventLoopGroup) throws Exception {
+    private PulsarClientImpl createPulsarClient(EventLoopGroup eventLoopGroup, LongSupplier connectionDelaySupplier)
+            throws Exception {
         return InjectedClientCnxClientBuilder.builder()
                 .eventLoopGroup(eventLoopGroup)
                 .clientBuilder(PulsarClient.builder()
@@ -327,10 +338,15 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                         .statsInterval(0, TimeUnit.SECONDS))
                 .connectToAddressFutureCustomizer((Channel channel, InetSocketAddress inetSocketAddress) -> {
                     // Introduce a delay to simulate network latency in connecting to the broker.
-                    long delayMillis = ThreadLocalRandom.current().nextLong(5L, 25L);
-                    return CompletableFuture.supplyAsync(() -> null,
-                                    CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS))
-                            .thenCompose(__ -> ChannelFutures.toCompletableFuture(channel.connect(inetSocketAddress)));
+                    long delayMillis = connectionDelaySupplier.getAsLong();
+                    if (delayMillis > 0) {
+                        return CompletableFuture.supplyAsync(() -> null,
+                                        CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS))
+                                .thenCompose(
+                                        __ -> ChannelFutures.toCompletableFuture(channel.connect(inetSocketAddress)));
+                    } else {
+                        return ChannelFutures.toCompletableFuture(channel.connect(inetSocketAddress));
+                    }
                 })
                 .build();
     }
