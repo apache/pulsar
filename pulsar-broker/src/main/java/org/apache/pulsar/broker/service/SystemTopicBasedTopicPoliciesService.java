@@ -354,7 +354,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 return getTopicPoliciesAsync(topicName, type);
             }
             return CompletableFuture.completedFuture(p.getRight());
-        });
+        }, pulsarService.getOrderedExecutor().chooseThread(topicName.toString()));
     }
 
     public void addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {

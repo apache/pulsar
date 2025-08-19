@@ -127,7 +127,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                         }
                     };
                 return FutureUtils.value(entries);
-            }).whenCompleteAsync((res, exception) -> {
+            }, bk.executor).whenCompleteAsync((res, exception) -> {
                     if (exception != null) {
                         cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception),
                                 PulsarMockLedgerHandle.this, null, ctx);
