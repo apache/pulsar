@@ -27,6 +27,7 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -56,7 +57,9 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
+import org.testng.SkipException;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 /**
@@ -65,13 +68,63 @@ import org.testng.annotations.Test;
  * The current intent is to show how the PIP-430 caching results in better cache hit rates in rolling restarts
  * when there's an active producer producing messages to a topic.
  * To avoid OOME, run this test on the command line (after enabling the test case) with this command:
- * NETTY_LEAK_DETECTION=off mvn -pl pulsar-broker test -Dtest=BrokerEntryCacheMultiBrokerTest
+ * ENABLE_MANUAL_TEST=true NETTY_LEAK_DETECTION=off mvn -pl pulsar-broker test -Dtest=BrokerEntryCacheMultiBrokerTest
  */
 @Test(groups = "broker-api")
 @Slf4j
 public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
+    public enum BrokerEntryCacheType {
+        CacheEvictionByExpectedReadCount("PIP430", BrokerEntryCacheMultiBrokerTest::configurePIP430),
+        CacheEvictionByExpectedReadCountDisabled("expectedReadCountDisabled",
+                BrokerEntryCacheMultiBrokerTest::disableExpectedReadCount),
+        CacheEvictionByMarkDeletedPosition("cacheEvictionByMarkDeletedPosition",
+                BrokerEntryCacheMultiBrokerTest::configureCacheEvictionByMarkDeletedPosition),
+        PR12258Caching("PR12258", BrokerEntryCacheMultiBrokerTest::configurePR12258Caching);
+
+        private final String description;
+        private final java.util.function.Consumer<ServiceConfiguration> configurer;
+
+        BrokerEntryCacheType(String description, java.util.function.Consumer<ServiceConfiguration> configurer) {
+            this.description = description;
+            this.configurer = configurer;
+        }
+
+        public void configure(ServiceConfiguration config) {
+            configurer.accept(config);
+        }
+
+        public String getDescription() {
+            return description;
+        }
+    }
+
     AtomicInteger bkReadCount = new AtomicInteger(0);
     AtomicInteger bkReadEntryCount = new AtomicInteger(0);
+
+    // comment out next line to run a single test run for the default cache type
+    @Factory
+    public static Object[] createTestInstances() {
+        return Arrays.stream(BrokerEntryCacheType.values()).map(BrokerEntryCacheMultiBrokerTest::new)
+                .toArray();
+    }
+
+    private final BrokerEntryCacheType cacheType;
+
+    public BrokerEntryCacheMultiBrokerTest() {
+        this(BrokerEntryCacheType.CacheEvictionByExpectedReadCount);
+    }
+
+    public BrokerEntryCacheMultiBrokerTest(BrokerEntryCacheType cacheType) {
+        this.cacheType = cacheType;
+    }
+
+    @Override
+    protected void beforeSetup() {
+        String enableManualTest = System.getenv("ENABLE_MANUAL_TEST");
+        if (enableManualTest == null || !Boolean.parseBoolean(enableManualTest)) {
+            throw new SkipException("This test requires setting ENABLE_MANUAL_TEST=true environment variable.");
+        }
+    }
 
     @Override
     protected void additionalSetup() throws Exception {
@@ -112,28 +165,29 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     }
 
     @Override
-    protected ServiceConfiguration getDefaultConf() {
-        ServiceConfiguration defaultConf = super.getDefaultConf();
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
 
         // configure ledger rollover to avoid OOM in test runs and slowdowns due to GC happening frequently when
         // available heap memory is low
-        defaultConf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        defaultConf.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
-        defaultConf.setManagedLedgerMaxEntriesPerLedger(100000);
+        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        conf.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
+        conf.setManagedLedgerMaxEntriesPerLedger(100000);
 
+        // configure the cache type
+        cacheType.configure(conf);
+    }
+
+    private static void configurePIP430(ServiceConfiguration defaultConf) {
         // use cache eviction by expected read count, this is the default behavior so it's not necessary to set it,
         // but it makes the test more explicit
         defaultConf.setCacheEvictionByExpectedReadCount(true);
         // LRU cache eviction behavior is enabled by default, but we set it explicitly
         defaultConf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(true);
+    }
 
-        // uncomment one or many of these to compare with existing caching behavior
-        //defaultConf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(false);
-        //defaultConf.setCacheEvictionByExpectedReadCount(false);
-        //configurePR12258Caching(defaultConf);
-        //configureCacheEvictionByMarkDeletedPosition(defaultConf);
-
-        return defaultConf;
+    private static void disableExpectedReadCount(ServiceConfiguration defaultConf) {
+        defaultConf.setCacheEvictionByExpectedReadCount(false);
     }
 
     /**
@@ -173,10 +227,10 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     }
 
     // change enabled to true to run the test
-    @Test(enabled = false)
+    @Test(invocationCount = 5)
     public void testTailingReadsRollingRestart() throws Exception {
         // this description is showed in result CSV files
-        String testConfigDescriptionInResult = "PIP-430";
+        String testConfigDescriptionInResult = cacheType.getDescription();
 
         @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoopGroup = InjectedClientCnxClientBuilder.createEventLoopGroup(2, false);

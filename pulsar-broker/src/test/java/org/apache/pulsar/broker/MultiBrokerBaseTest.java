@@ -60,6 +60,7 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
     @BeforeClass(alwaysRun = true)
     @Override
     public final void setup() throws Exception {
+        beforeSetup();
         if (!useDynamicBrokerPorts()) {
             mainBrokerPort = PortManager.nextLockedFreePort();
         }
@@ -77,6 +78,10 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         additionalBrokersSetup();
         pulsarResourcesSetup();
         additionalSetup();
+    }
+
+    protected void beforeSetup() {
+
     }
 
     @Override
