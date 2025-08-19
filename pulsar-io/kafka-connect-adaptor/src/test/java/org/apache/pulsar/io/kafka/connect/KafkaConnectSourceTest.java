@@ -19,6 +19,8 @@
 package org.apache.pulsar.io.kafka.connect;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -35,12 +37,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.apache.kafka.connect.storage.OffsetStorageWriter;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.KafkaConnectSource.KafkaSourceRecord;
+import org.mockito.ArgumentMatchers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -49,7 +53,7 @@ import org.testng.annotations.Test;
  * Test the implementation of {@link KafkaConnectSource}.
  */
 @Slf4j
-public class KafkaConnectSourceTest extends ProducerConsumerBase  {
+public class KafkaConnectSourceTest extends ProducerConsumerBase {
 
     private String offsetTopicName;
     // The topic to publish data to, for kafkaSource
@@ -95,6 +99,59 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
 
         testOpenAndReadTask(config);
     }
+
+
+    @Test(timeOut = 30000)
+    public void testFlushWhenAllMessagesFilteredWithoutBlocking() throws Exception {
+
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        config.put("transforms", "Filter");
+        config.put("transforms.Filter.type", "org.apache.kafka.connect.transforms.Filter");
+        config.put("transforms.Filter.predicate", "DropMeTopic");
+
+        config.put("predicates", "DropMeTopic");
+        config.put("predicates.DropMeTopic.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
+        config.put("predicates.DropMeTopic.pattern", ".*my-property/my-ns/kafka-connect-source.*");
+
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        OffsetStorageWriter original = kafkaConnectSource.getOffsetWriter();
+        OffsetStorageWriter spyWriter = org.mockito.Mockito.spy(original);
+        java.lang.reflect.Field f = AbstractKafkaConnectSource.class.getDeclaredField("offsetWriter");
+        f.setAccessible(true);
+        f.set(kafkaConnectSource, spyWriter);
+
+        try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
+            os.write("first\n".getBytes());
+            os.flush();
+            os.write("second\n".getBytes());
+            os.flush();
+        }
+
+        Thread t = new Thread(() -> {
+            try {
+                kafkaConnectSource.read();
+            } catch (Exception ignored) {
+                // Ignore, it just needs the loop running through a batch where every message is filtered out
+            }
+        });
+        t.setDaemon(true);
+        t.start();
+
+        verify(spyWriter, timeout(10000).atLeastOnce())
+                .offset(ArgumentMatchers.any(), ArgumentMatchers.any());
+
+        verify(spyWriter, timeout(10000).atLeastOnce())
+                .beginFlush();
+        verify(spyWriter, timeout(10000).atLeastOnce())
+                .doFlush(ArgumentMatchers.any());
+
+        kafkaConnectSource.close();
+    }
+
 
     @Test
     public void testOpenAndReadTaskDirect() throws Exception {
@@ -157,8 +214,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         sourceOffset.put("test", 0);
         value.put("myField", "42");
         SourceRecord srcRecord = new SourceRecord(
-            sourcePartition, sourceOffset, topicName, null,
-            null, null, null, value
+                sourcePartition, sourceOffset, topicName, null,
+                null, null, null, value
         );
 
         KafkaSourceRecord record = kafkaConnectSource.processSourceRecord(srcRecord);
@@ -197,8 +254,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         Map<String, Object> value = new HashMap<>();
         value.put("myField", "42");
         SourceRecord record = new SourceRecord(
-            null, null, "test-topic", null,
-            null, null, null, value
+                null, null, "test-topic", null,
+                null, null, null, value
         );
 
         SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
