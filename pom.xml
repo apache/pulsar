@@ -2993,23 +2993,21 @@ flexible messaging model and an intuitive client API.</description>
          The profiler will generate a JFR file in the target directory with the name test_profile_<timestamp>_<forkNumber>.jfr
          Async Profiler's jfrconv tool can be used to convert the JFR file to different type of flamegraphs.
          For example, to convert the JFR file to a CPU flamegraph, run the following command:
-         jfrconv \-\-cpu target/test_profile_<timestamp>_<forkNumber>.jfr
+         jfrconv \-\-cpu target/test_profile_<timestamp>_<forkNumber>_<pid>.jfr
          the result will be in a .html file in the target directory.
          You can also use Eclipse Mission Control (https://adoptium.net/jmc) to open the JFR file and analyze it.
          example usage:
          mvn -PtestAsyncProfiler test -pl pulsar-broker -Dtest=BrokerEntryCacheMultiBrokerTest
-         On Linux, you can also all available profiling events by passing the "all" event type.
-         mvn -PtestAsyncProfiler test -Dtest.asyncprofiler.event=all -pl pulsar-broker -Dtest=BrokerEntryCacheMultiBrokerTest
          -->
     <profile>
       <id>testAsyncProfiler</id>
       <properties>
-        <!-- on Linux, "all" is supported with Async Profiler 4.1+. Pass -Dtest.asyncprofiler.event=all to profile all events at once -->
-        <test.asyncprofiler.event>cpu</test.asyncprofiler.event>
+        <!-- Assumes Async Profiler 4.1+ to be installed, which supports "all" option -->
+        <test.asyncprofiler.opts>all,jfrsync=profile</test.asyncprofiler.opts>
         <test.asyncprofiler.args>
           -XX:+UnlockDiagnosticVMOptions
           -XX:+DebugNonSafepoints
-          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,event=${test.asyncprofiler.event},jfr,jfrsync,file=${pulsar.basedir}/target/test_profile_${maven.build.timestamp}_${surefire.forkNumber}.jfr
+          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},jfr,file=${pulsar.basedir}/target/test_profile_${maven.build.timestamp}_${surefire.forkNumber}_%p.jfr
         </test.asyncprofiler.args>
         <testForkCount>1</testForkCount>
         <testRetryCount>0</testRetryCount>
