@@ -426,7 +426,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         //   | duckdb -c "select * from read_csv('/dev/stdin')" | cat
         File resultHeaderFile = new File("target/rolling_restarts_result_header.txt");
         String resultHeader =
-                "desc\tproduced\tconsumed\tconsumers\tbk_reads\tbk_read_entries\thits\tmisses\trestarts\tts\n";
+                "description\tproduced\tconsumed\tconsumers\tbk_reads\tbk_read_entries\thits\tmisses\trestarts\tts\n";
         FileUtils.write(resultHeaderFile, resultHeader, StandardCharsets.UTF_8);
         long ts = System.currentTimeMillis();
         File resultFile = new File("target/rolling_restarts_result_" + ts + ".csv");
