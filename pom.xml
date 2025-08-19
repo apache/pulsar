@@ -118,6 +118,7 @@ flexible messaging model and an intuitive client API.</description>
       -Xshare:off <!-- suppress sharing warning -->
       ${test.additional.args.jdk24}
       ${test.netty.args}
+      ${test.asyncprofiler.args}
     </test.additional.args>
     <test.additional.args.jdk24></test.additional.args.jdk24>
     <!-- Netty related JVM args, including Netty leak detection enabled in tests -->
@@ -148,6 +149,7 @@ flexible messaging model and an intuitive client API.</description>
       -Dio.netty.leakDetection.acquireAndReleaseOnly=true
       -Dio.netty.leakDetection.samplingInterval=32
     </test.netty.leakdetection.args>
+    <test.asyncprofiler.args></test.asyncprofiler.args>
     <testExitJvmOnLeak>false</testExitJvmOnLeak>
     <testExitJvmOnLeakDelayMillis>1000</testExitJvmOnLeakDelayMillis>
     <testLeakDetectionLevel>paranoid</testLeakDetectionLevel>
@@ -2981,6 +2983,23 @@ flexible messaging model and an intuitive client API.</description>
       </activation>
       <properties>
        <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>testAsyncProfiler</id>
+      <properties>
+        <!-- on Linux, "all" is supported with Async Profiler 4.1+. Pass -Dtest.asyncprofiler.event=all to profile all events at once -->
+        <test.asyncprofiler.event>cpu</test.asyncprofiler.event>
+        <test.asyncprofiler.args>
+          -XX:+UnlockDiagnosticVMOptions
+          -XX:+DebugNonSafepoints
+          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,event=${test.asyncprofiler.event},jfr,jfrsync,file=${pulsar.basedir}/target/test_profile_${maven.build.timestamp}_${surefire.forkNumber}.jfr
+        </test.asyncprofiler.args>
+        <testForkCount>1</testForkCount>
+        <testRetryCount>0</testRetryCount>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
+        <test.netty.leakdetection.args></test.netty.leakdetection.args>
       </properties>
     </profile>
   </profiles>
