@@ -35,6 +35,7 @@ import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
@@ -46,6 +47,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -73,8 +75,9 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");
         bkReadCount.set(0);
-        pulsarTestContext.getMockBookKeeper()
-                .setReadHandleInterceptor((long ledgerId, long firstEntry, long lastEntry, LedgerEntries entries) -> {
+        PulsarMockBookKeeper mockBookKeeper = pulsarTestContext.getMockBookKeeper();
+        mockBookKeeper.setReadHandleInterceptor(
+                (long ledgerId, long firstEntry, long lastEntry, LedgerEntries entries) -> {
                     bkReadCount.incrementAndGet();
                     int numberOfEntries = (int) (lastEntry - firstEntry + 1);
                     bkReadEntryCount.addAndGet(numberOfEntries);
@@ -82,6 +85,9 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                             ledgerId, firstEntry, lastEntry, numberOfEntries);
                     return CompletableFuture.completedFuture(entries);
                 });
+        // disable delays in bookkeeper writes and reads since they can skew the test results
+        mockBookKeeper.setDefaultAddEntryDelayMillis(0L);
+        mockBookKeeper.setDefaultReadEntriesDelayMillis(0L);
     }
 
     @Override
@@ -167,12 +173,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/rolling-restart-cache-test-topic");
         final String subscriptionName = "sub";
         final int numConsumers = 10;
-        final int receiverQueueSize = 50;
+        final int receiverQueueSize = 200;
         int testTimeInSeconds = 30;
         int numberOfRestarts = 3;
 
         AtomicInteger messagesInFlight = new AtomicInteger();
-        final int targetMessagesInFlight = 10000;
+        final int targetMessagesInFlight = 500000;
         AtomicInteger numberOfMessagesConsumed = new AtomicInteger(0);
 
         @Cleanup
@@ -193,7 +199,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         };
 
         // introduce 40-100ms delay in consumer connection to simulate network latency
-        LongSupplier consumerClientConnectionDelaySupplier = () -> ThreadLocalRandom.current().nextLong(40L, 100L);
+        LongSupplier consumerClientConnectionDelaySupplier = () -> ThreadLocalRandom.current().nextLong(20L, 40L);
         for (int i = 0; i < numConsumers; i++) {
             PulsarClientImpl consumerPulsarClient =
                     createPulsarClient(eventLoopGroup, consumerClientConnectionDelaySupplier);
@@ -205,6 +211,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .startPaused(true) // start consumers in paused state
                     .receiverQueueSize(receiverQueueSize)
+                    .poolMessages(true)
                     .subscribe();
         }
 
@@ -303,6 +310,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                         try {
                             Message<Long> message = consumer.receive();
                             consumer.acknowledge(message);
+                            message.release();
                             messagesInFlight.decrementAndGet();
                             numberOfMessagesConsumed.incrementAndGet();
                         } catch (PulsarClientException e) {
@@ -348,9 +356,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
             throws Exception {
         return InjectedClientCnxClientBuilder.builder()
                 .eventLoopGroup(eventLoopGroup)
-                .clientBuilder(PulsarClient.builder()
-                        .serviceUrl(serviceUrlForFixedPorts())
-                        .statsInterval(0, TimeUnit.SECONDS))
+                .clientBuilder(
+                        PulsarClient.builder()
+                                .serviceUrl(serviceUrlForFixedPorts())
+                                .statsInterval(0, TimeUnit.SECONDS)
+                                .memoryLimit(32, SizeUnit.MEGA_BYTES)
+                )
                 .connectToAddressFutureCustomizer((Channel channel, InetSocketAddress inetSocketAddress) -> {
                     // Introduce a delay to simulate network latency in connecting to the broker.
                     long delayMillis = connectionDelaySupplier.getAsLong();
