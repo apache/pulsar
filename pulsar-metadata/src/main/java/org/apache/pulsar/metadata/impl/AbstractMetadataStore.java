@@ -95,7 +95,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         this.executor = new ScheduledThreadPoolExecutor(1,
                 new DefaultThreadFactory(
                         StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
-        registerListener(this);
+        registerCancellableListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
                 .recordStats()
@@ -319,10 +319,17 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
         // If the metadata store is closed, do nothing here.
         if (!isClosed()) {
             listeners.add(listener);
+            return () -> {
+                listeners.remove(listener);
+            };
+        } else {
+            return () -> {
+                // Do nothing
+            };
         }
     }
 
@@ -503,8 +510,17 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        sessionListeners.add(listener);
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        if (!isClosed()) {
+            sessionListeners.add(listener);
+            return () -> {
+                sessionListeners.remove(listener);
+            };
+        } else {
+            return () -> {
+                // Do nothing
+            };
+        }
     }
 
     protected void receivedSessionEvent(SessionEvent event) {

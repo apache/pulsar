@@ -61,7 +61,7 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NamespaceBundleFactory {
+public class NamespaceBundleFactory implements AutoCloseable{
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceBundleFactory.class);
 
     private final HashFunction hashFunc;
@@ -74,6 +74,7 @@ public class NamespaceBundleFactory {
     private final TopicBundleAssignmentStrategy topicBundleAssignmentStrategy;
 
     private final Duration maxRetryDuration = Duration.ofSeconds(10);
+    private final Runnable cancelMetadataStoreListener;
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
@@ -84,7 +85,8 @@ public class NamespaceBundleFactory {
 
         CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
-        pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
+        cancelMetadataStoreListener =
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
 
@@ -425,4 +427,9 @@ public class NamespaceBundleFactory {
                 (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
     }
 
+    @Override
+    public void close() {
+        cancelMetadataStoreListener.run();
+        CacheMetricsCollector.CAFFEINE.removeCache("bundles");
+    }
 }

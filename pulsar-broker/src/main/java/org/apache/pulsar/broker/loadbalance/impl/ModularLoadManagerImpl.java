@@ -190,7 +190,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private Map<String, String> bundleBrokerAffinityMap;
     // array used for sorting and select topK bundles
     private final List<Map.Entry<String, ? extends Comparable>> bundleArr = new ArrayList<>();
-
+    private volatile Runnable cancelMetadataListener;
+    private volatile Runnable cancelSessionListener;
+    private Runnable cancelFailureDomainResourcesListener;
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -233,8 +235,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         this.pulsar = pulsar;
         this.pulsarResources = pulsar.getPulsarResources();
         brokersData = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
-        pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
-        pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
+        cancelMetadataListener =
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleDataNotification);
+        cancelSessionListener =
+                pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent);
 
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
@@ -260,11 +264,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsarResources.getClusterResources().getFailureDomainResources()
-                .registerListener(__ -> {
-                    executors.execute(
-                            () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
-                });
+        cancelFailureDomainResourcesListener =
+                pulsarResources.getClusterResources().getFailureDomainResources()
+                        .registerListener(__ -> {
+                            executors.execute(
+                                    () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar,
+                                            brokerToFailureDomainMap));
+                        });
 
         if (placementStrategy instanceof LoadSheddingStrategy) {
             // if the placement strategy is also a load shedding strategy
@@ -1020,6 +1026,19 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void stop() throws PulsarServerException {
+        if (cancelMetadataListener != null) {
+            cancelMetadataListener.run();
+            cancelMetadataListener = null;
+        }
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+            cancelSessionListener = null;
+        }
+        if (cancelFailureDomainResourcesListener != null) {
+            cancelFailureDomainResourcesListener.run();
+            cancelFailureDomainResourcesListener = null;
+        }
+
         executors.shutdownNow();
 
         try {

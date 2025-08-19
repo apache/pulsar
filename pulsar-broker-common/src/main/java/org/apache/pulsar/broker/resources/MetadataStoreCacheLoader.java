@@ -61,9 +61,9 @@ public class MetadataStoreCacheLoader implements Closeable {
      * @throws Exception
      */
     public void init() throws Exception {
-        loadReportResources.getStore().registerListener((n) -> {
+        loadReportResources.getStore().registerCancellableListener((n) -> {
             if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
-                loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT).thenApplyAsync((brokerNodes)->{
+                loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT).thenApplyAsync((brokerNodes) -> {
                     updateBrokerList(brokerNodes).thenRun(() -> {
                         log.info("Successfully updated broker info {}", brokerNodes);
                     }).exceptionally(ex -> {

@@ -186,6 +186,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private volatile Future<?> updateRankingHandle;
 
     private Map<String, String> bundleBrokerAffinityMap;
+    private Runnable cancelMetadataStoreListener;
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -234,7 +235,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
         loadReports = pulsar.getCoordinationService().getLockManager(LoadReport.class);
-        pulsar.getLocalMetadataStore().registerListener(this);
+        cancelMetadataStoreListener = pulsar.getLocalMetadataStore().registerCancellableListener(this);
         this.dynamicConfigurationCache = pulsar.getLocalMetadataStore().getMetadataCache(
                 new TypeReference<Map<String, String>>() {
                 });
@@ -1437,6 +1438,9 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     @Override
     public void stop() throws PulsarServerException {
         try {
+            if (cancelMetadataStoreListener != null) {
+                cancelMetadataStoreListener.run();
+            }
             if (loadReports != null) {
                 loadReports.close();
             }

@@ -37,6 +37,8 @@ public class PulsarMetadataClientDriver extends AbstractMetadataDriver implement
         MetadataDrivers.registerClientDriver(METADATA_STORE_SCHEME, PulsarMetadataClientDriver.class);
     }
 
+    private Runnable cancelSessionListener;
+
     public static void init() {
         // cause <cinit> to be invoked
     }
@@ -66,11 +68,23 @@ public class PulsarMetadataClientDriver extends AbstractMetadataDriver implement
     }
 
     @Override
-    public void setSessionStateListener(SessionStateListener sessionStateListener) {
-        store.registerSessionListener(event -> {
+    public synchronized void setSessionStateListener(SessionStateListener sessionStateListener) {
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+        }
+        cancelSessionListener = store.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionLost) {
                 sessionStateListener.onSessionExpired();
             }
         });
+    }
+
+    @Override
+    public synchronized void close() {
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+            cancelSessionListener = null;
+        }
+        super.close();
     }
 }

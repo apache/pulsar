@@ -37,6 +37,7 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
     private final CoordinationService coordinationService;
     private final LeaderElection<String> leaderElection;
+    private final Runnable cancelSessionListener;
     private LeaderElectionState leaderElectionState;
     private String bookieId;
     private boolean sessionExpired = false;
@@ -49,7 +50,7 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         this.leaderElection =
                 coordinationService.getLeaderElection(String.class, electionPath, this::handleStateChanges);
         this.leaderElectionState = LeaderElectionState.NoLeader;
-        store.registerSessionListener(event -> {
+        cancelSessionListener = store.registerCancellableSessionListener(event -> {
             if (SessionEvent.SessionLost == event) {
                 synchronized (this) {
                     sessionExpired = true;
@@ -106,6 +107,7 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
     @Override
     public void close() throws Exception {
+        cancelSessionListener.run();
         leaderElection.close();
         coordinationService.close();
     }

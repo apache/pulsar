@@ -186,6 +186,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     private UnloadManager unloadManager;
 
     private SplitManager splitManager;
+    private volatile Runnable cancelFailureDomainResourcesListener;
 
     enum State {
         INIT,
@@ -387,7 +388,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
             this.antiAffinityGroupPolicyHelper =
                     new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
-            antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
+            cancelFailureDomainResourcesListener =
+                    antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
             this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
             this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
             SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
@@ -796,6 +798,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             return;
         }
         try {
+            if (cancelFailureDomainResourcesListener != null) {
+                cancelFailureDomainResourcesListener.run();
+                cancelFailureDomainResourcesListener = null;
+            }
             stopLoadDataReportTasks();
             this.unloadScheduler.close();
             this.splitScheduler.close();

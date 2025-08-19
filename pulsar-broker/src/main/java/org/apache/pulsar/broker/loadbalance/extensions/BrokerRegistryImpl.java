@@ -67,6 +67,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     private final ScheduledExecutorService scheduler;
 
     private final List<BiConsumer<String, NotificationType>> listeners;
+    private Runnable cancelMetadataStoreListener;
 
     protected enum State {
         Init,
@@ -111,7 +112,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         if (!this.state.compareAndSet(State.Init, State.Started)) {
             throw new PulsarServerException("Cannot start the broker registry in state " + state.get());
         }
-        pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
+        cancelMetadataStoreListener =
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleMetadataStoreNotification);
         try {
             this.registerAsync().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
@@ -236,6 +238,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         if (this.state.get() == State.Closed) {
             return;
         }
+        cancelMetadataStoreListener.run();
         try {
             this.listeners.clear();
             this.unregister();

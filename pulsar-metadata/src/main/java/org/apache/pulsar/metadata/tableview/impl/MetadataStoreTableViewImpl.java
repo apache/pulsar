@@ -160,7 +160,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                         .retryBackoff(MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER)
                         .asyncReloadConsumer(this::consumeAsyncReload)
                         .build());
-        store.registerListener(this::handleNotification);
+        store.registerCancellableListener(this::handleNotification);
         if (store instanceof AbstractMetadataStore abstractMetadataStore) {
             abstractMetadataStore.registerSessionListener(this::handleSessionEvent);
         } else {

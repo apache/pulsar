@@ -88,7 +88,7 @@ public class PulsarLedgerManager implements LedgerManager {
             }
         });
 
-        store.registerListener(this::handleDataNotification);
+        store.registerCancellableListener(this::handleDataNotification);
     }
 
     private static Throwable mapToBkException(Throwable ex) {

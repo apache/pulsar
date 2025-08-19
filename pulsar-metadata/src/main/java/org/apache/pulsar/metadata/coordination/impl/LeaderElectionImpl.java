@@ -55,6 +55,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final MetadataCache<T> cache;
     private final Consumer<LeaderElectionState> stateChangesListener;
     private final ScheduledFuture<?> updateCachedValueFuture;
+    private final Runnable cancelMetadataListener;
+    private final Runnable cancelSessionListener;
 
     private LeaderElectionState leaderElectionState;
     private Optional<Long> version = Optional.empty();
@@ -86,8 +88,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.stateChangesListener = stateChangesListener;
         this.executor = executor;
         this.sequencer = FutureUtil.Sequencer.create();
-        store.registerListener(this::handlePathNotification);
-        store.registerSessionListener(this::handleSessionNotification);
+        cancelMetadataListener = store.registerCancellableListener(this::handlePathNotification);
+        cancelSessionListener = store.registerCancellableSessionListener(this::handleSessionNotification);
         updateCachedValueFuture = executor.scheduleWithFixedDelay(this::getLeaderValue,
                 metadataCacheConfig.getRefreshAfterWriteMillis() / 2,
                 metadataCacheConfig.getRefreshAfterWriteMillis(), TimeUnit.MILLISECONDS);
@@ -269,6 +271,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         internalState = InternalState.Closed;
+        cancelMetadataListener.run();
+        cancelSessionListener.run();
 
         if (leaderElectionState != LeaderElectionState.Leading) {
             return CompletableFuture.completedFuture(null);

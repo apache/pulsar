@@ -149,6 +149,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
      */
     @Getter
     private boolean metadataServiceAvailable;
+    private final Runnable cancelSessionListener;
     private final ManagedLedgerConfig defaultManagedLedgerConfig;
 
     private static class PendingInitializeManagedLedger {
@@ -257,7 +258,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 evictionTaskInterval, evictionTaskInterval, TimeUnit.MILLISECONDS);
         closed = false;
 
-        metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
+        cancelSessionListener =
+                metadataStore.registerCancellableSessionListener(this::handleMetadataStoreNotification);
 
         openTelemetryCacheStats = new OpenTelemetryManagedLedgerCacheStats(openTelemetry, this);
         openTelemetryManagedLedgerStats = new OpenTelemetryManagedLedgerStats(openTelemetry, this);
@@ -710,6 +712,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     }));
                 }).whenCompleteAsync((__, ___) -> {
                     //wait for tasks in scheduledExecutor executed.
+                    store.close();
+                    cancelSessionListener.run();
                     openTelemetryManagedCursorStats.close();
                     openTelemetryManagedLedgerStats.close();
                     openTelemetryCacheStats.close();
