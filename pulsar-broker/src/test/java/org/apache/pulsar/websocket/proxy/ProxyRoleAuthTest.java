@@ -77,7 +77,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
     private static final String PROXY_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "websocket_proxy",
             Optional.empty());
     private static final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.empty());
-    private static final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
+    protected static final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
     private static final String UNAUTHORIZED_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "unauthorized_user",
             Optional.empty());
 
