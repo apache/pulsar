@@ -23,7 +23,9 @@ import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import java.io.Closeable;
+import java.io.File;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +39,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -61,6 +64,8 @@ import org.testng.annotations.Test;
  * as part of the regular test suite. This might change later.
  * The current intent is to show how the PIP-430 caching results in better cache hit rates in rolling restarts
  * when there's an active producer producing messages to a topic.
+ * To avoid OOME, run this test on the command line (after enabling the test case) with this command:
+ * NETTY_LEAK_DETECTION=off mvn -pl pulsar-broker test -Dtest=BrokerEntryCacheMultiBrokerTest
  */
 @Test(groups = "broker-api")
 @Slf4j
@@ -170,6 +175,9 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     // change enabled to true to run the test
     @Test(enabled = false)
     public void testTailingReadsRollingRestart() throws Exception {
+        // this description is showed in result CSV files
+        String testConfigDescriptionInResult = "PIP-430";
+
         @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoopGroup = InjectedClientCnxClientBuilder.createEventLoopGroup(2, false);
 
@@ -350,13 +358,27 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 / numberOfMessagesConsumed.get();
         double cacheMissPercentage = 100.0d - cacheHitPercentage;
 
-        log.info("Produced {} and Consumed {} messages (across {} consumers with unique subscriptions) in total. "
-                        + "Number of BK reads {} with {} entries. Cache hits {}%, Cache misses {}%, Number of "
-                        + "restarts {}",
-                numberOfMessagesProducedFuture.get(30, TimeUnit.SECONDS),
+        Object[] msgArgs = {testConfigDescriptionInResult, numberOfMessagesProducedFuture.get(30, TimeUnit.SECONDS),
                 numberOfMessagesConsumed.get(), numConsumers, bkReadCount.get(), bkReadEntryCount.get(),
                 String.format("%.2f", cacheHitPercentage), String.format("%.2f", cacheMissPercentage),
-                actualNumberOfRestarts.get());
+                actualNumberOfRestarts.get()};
+        log.info("[{}] Produced {} and Consumed {} messages (across {} consumers with unique subscriptions) in total. "
+                        + "Number of BK reads {} with {} entries. Cache hits {}%, Cache misses {}%, Number of "
+                        + "restarts {}", msgArgs);
+
+        // record results in csv files for later processing with DuckDB, for example:
+        // { cat pulsar-broker/target/rolling_restarts_result_header.txt; \
+        //   cat pulsar-broker/target/rolling_restarts_result_*.csv } \
+        //   | duckdb -c "select * from read_csv('/dev/stdin')" | cat
+        File resultHeaderFile = new File("target/rolling_restarts_result_header.txt");
+        String resultHeader =
+                "desc\tproduced\tconsumed\tconsumers\tbk_reads\tbk_read_entries\thits\tmisses\trestarts\tts\n";
+        FileUtils.write(resultHeaderFile, resultHeader, StandardCharsets.UTF_8);
+        long ts = System.currentTimeMillis();
+        File resultFile = new File("target/rolling_restarts_result_" + ts + ".csv");
+        String resultMessage =
+                String.format("%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\t%d", msgArgs) + "\t" + ts + "\n";
+        FileUtils.write(resultFile, resultMessage, StandardCharsets.UTF_8);
     }
 
     private PulsarClientImpl createPulsarClient(EventLoopGroup eventLoopGroup, LongSupplier connectionDelaySupplier)
