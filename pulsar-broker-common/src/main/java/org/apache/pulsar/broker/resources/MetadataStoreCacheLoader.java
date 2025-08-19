@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -82,6 +83,8 @@ public class MetadataStoreCacheLoader implements Closeable {
             ((MetadataStoreExtended) loadReportResources.getStore()).registerSessionListener(sessionEvent ->
                     sequencer.sequential(tryUpdate));
         }
+        // Do initial fetch of brokers list
+        tryUpdate.get().get(operationTimeoutMs, TimeUnit.MILLISECONDS);
     }
 
     public List<LoadManagerReport> getAvailableBrokers() {
