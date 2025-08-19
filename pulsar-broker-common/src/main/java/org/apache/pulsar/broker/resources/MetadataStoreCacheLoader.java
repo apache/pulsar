@@ -26,7 +26,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -68,7 +67,11 @@ public class MetadataStoreCacheLoader implements Closeable {
     public void init() throws Exception {
         Supplier<CompletableFuture<Void>> tryUpdate = () -> {
             return loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT)
-                    .thenComposeAsync(this::updateBrokerList)
+                    .thenComposeAsync(brokerNodes -> {
+                        return updateBrokerList(brokerNodes).thenRun(() -> {
+                            log.info("Successfully updated broker info {}", brokerNodes);
+                        });
+                    })
                     .exceptionally(ex -> {
                         log.warn("Error updating broker info after broker list changed", ex);
                         return null;
