@@ -75,6 +75,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
     final OrderedExecutor orderedExecutor;
     final ExecutorService executor;
     final ScheduledExecutorService scheduler;
+    private volatile long defaultAddEntryDelayMillis = 1L;
+    private volatile long defaultReadEntriesDelayMillis = 1L;
 
     @Override
     public ClientConfiguration getConf() {
@@ -486,6 +488,34 @@ public class PulsarMockBookKeeper extends BookKeeper {
     @Override
     public MetadataClientDriver getMetadataClientDriver() {
         return metadataClientDriver;
+    }
+
+    public long getReadEntriesDelayMillis() {
+        return defaultReadEntriesDelayMillis;
+    }
+
+    public long getNextAddEntryDelayMillis() {
+        Long delay = addEntryDelaysMillis.poll();
+        if (delay != null) {
+            return delay;
+        }
+        return defaultAddEntryDelayMillis;
+    }
+
+    public long getNextAddEntryResponseDelayMillis() {
+        Long delay = addEntryResponseDelaysMillis.poll();
+        if (delay != null) {
+            return delay;
+        }
+        return 0;
+    }
+
+    public void setDefaultAddEntryDelayMillis(long defaultAddEntryDelayMillis) {
+        this.defaultAddEntryDelayMillis = defaultAddEntryDelayMillis;
+    }
+
+    public void setDefaultReadEntriesDelayMillis(long defaultReadEntriesDelayMillis) {
+        this.defaultReadEntriesDelayMillis = defaultReadEntriesDelayMillis;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarMockBookKeeper.class);
