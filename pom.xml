@@ -2986,6 +2986,21 @@ flexible messaging model and an intuitive client API.</description>
       </properties>
     </profile>
 
+    <!-- This profile is used to run tests with Async Profiler profiling.
+         Download Async Profiler from https://github.com/async-profiler/async-profiler/releases and
+         after installing set LIBASYNCPROFILER_PATH environment variable to the full path of the
+         libasyncProfiler.so (Linux) or libasyncProfiler.dylib (MacOS) file.
+         The profiler will generate a JFR file in the target directory with the name test_profile_<timestamp>_<forkNumber>.jfr
+         Async Profiler's jfrconv tool can be used to convert the JFR file to different type of flamegraphs.
+         For example, to convert the JFR file to a CPU flamegraph, run the following command:
+         jfrconv \-\-cpu target/test_profile_<timestamp>_<forkNumber>.jfr
+         the result will be in a .html file in the target directory.
+         You can also use Eclipse Mission Control (https://adoptium.net/jmc) to open the JFR file and analyze it.
+         example usage:
+         mvn -PtestAsyncProfiler test -pl pulsar-broker -Dtest=BrokerEntryCacheMultiBrokerTest
+         On Linux, you can also all available profiling events by passing the "all" event type.
+         mvn -PtestAsyncProfiler test -Dtest.asyncprofiler.event=all -pl pulsar-broker -Dtest=BrokerEntryCacheMultiBrokerTest
+         -->
     <profile>
       <id>testAsyncProfiler</id>
       <properties>
