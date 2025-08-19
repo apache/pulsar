@@ -184,7 +184,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.122.Final</netty.version>
+    <netty.version>4.1.124.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
     <jetty.version>9.4.57.v20241219</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -225,7 +225,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka-client.version>3.9.1</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.638</aws-sdk.version>
-    <avro.version>1.11.4</avro.version>
+    <avro.version>1.12.0</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
