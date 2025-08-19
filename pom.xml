@@ -2998,12 +2998,18 @@ flexible messaging model and an intuitive client API.</description>
          You can also use Eclipse Mission Control (https://adoptium.net/jmc) to open the JFR file and analyze it.
          example usage:
          mvn -PtestAsyncProfiler test -pl pulsar-broker -Dtest=BrokerEntryCacheMultiBrokerTest
-         -->
+         On Linux, it's recommended to pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling:
+         mvn -PtestAsyncProfiler -Dtest.asyncprofiler.event=cpu test -pl pulsar-broker -Dtest=BrokerEntryCacheMultiBrokerTest
+    -->
     <profile>
       <id>testAsyncProfiler</id>
       <properties>
+        <!-- On Linux, pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling.
+        See https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md for more details.
+        -->
+        <test.asyncprofiler.event>itimer</test.asyncprofiler.event>
         <!-- Assumes Async Profiler 4.1+ to be installed, which supports "all" option -->
-        <test.asyncprofiler.opts>all,jfrsync=profile</test.asyncprofiler.opts>
+        <test.asyncprofiler.opts>event=${test.asyncprofiler.event},all,jfrsync=profile</test.asyncprofiler.opts>
         <test.asyncprofiler.args>
           -XX:+UnlockDiagnosticVMOptions
           -XX:+DebugNonSafepoints
