@@ -109,6 +109,13 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     @Override
     protected ServiceConfiguration getDefaultConf() {
         ServiceConfiguration defaultConf = super.getDefaultConf();
+
+        // configure ledger rollover to avoid OOM in test runs and slowdowns due to GC happening frequently when
+        // available heap memory is low
+        defaultConf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        defaultConf.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
+        defaultConf.setManagedLedgerMaxEntriesPerLedger(100000);
+
         // use cache eviction by expected read count, this is the default behavior so it's not necessary to set it,
         // but it makes the test more explicit
         defaultConf.setCacheEvictionByExpectedReadCount(true);
