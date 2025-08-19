@@ -49,6 +49,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ConsumerClosedException extends BrokerServiceException {
+        public ConsumerClosedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class ProducerBusyException extends BrokerServiceException {
         public ProducerBusyException(String msg) {
             super(msg);

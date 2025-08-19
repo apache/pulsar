@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.Getter;
@@ -89,9 +90,11 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -1258,8 +1261,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // epoch using different consumer futures, and only remove the consumer future from the map
         // if subscribe failed .
         CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-        CompletableFuture<Consumer> existingConsumerFuture =
-                consumers.putIfAbsent(consumerId, consumerFuture);
+        consumerFuture.exceptionally((ex) -> {
+            consumers.remove(consumerId, consumerFuture);
+            return null;
+        });
+        CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId, consumerFuture);
         isAuthorizedFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
@@ -1274,7 +1280,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();
-                    consumers.remove(consumerId, consumerFuture);
+                    consumerFuture.completeExceptionally(iae);
                     commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                     return null;
                 }
@@ -1396,7 +1402,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             if (consumer.checkAndApplyTopicMigration()) {
                                 log.info("[{}] Disconnecting consumer {} on migrated subscription on topic {} / {}",
                                         remoteAddress, consumerId, subscriptionName, topicName);
-                                consumers.remove(consumerId, consumerFuture);
+                                consumerFuture.completeExceptionally(
+                                        new TopicMigratedException("Topic has been migrated"));
                                 return;
                             }
 
@@ -1423,7 +1430,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     + " after timeout on client side {}: {}",
                                             remoteAddress, consumer, e.getMessage());
                                 }
-                                consumers.remove(consumerId, consumerFuture);
+                                consumerFuture.completeExceptionally(new ConsumerClosedException(
+                                        "Cleared consumer created after timeout on client side"));
                             }
 
                         })
@@ -1450,7 +1458,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         log.info("consumer client doesn't support topic migration handling {}-{}-{}",
                                                 topicName, remoteAddress, consumerId);
                                     }
-                                    consumers.remove(consumerId, consumerFuture);
+                                    consumerFuture.completeExceptionally(exception);
                                     closeConsumer(consumerId, Optional.empty());
                                     return null;
                                 }
@@ -1471,7 +1479,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         BrokerServiceException.getClientErrorCode(exception.getCause()),
                                         exception.getCause().getMessage());
                             }
-                            consumers.remove(consumerId, consumerFuture);
 
                             return null;
 
@@ -1479,13 +1486,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                consumers.remove(consumerId, consumerFuture);
+                consumerFuture.completeExceptionally(new NotAuthorizedException(msg));
                 writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
-            consumers.remove(consumerId, consumerFuture);
+            consumerFuture.completeExceptionally(ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         });

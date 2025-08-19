@@ -2436,13 +2436,6 @@ public class ServerCnxTest {
                 null /* assignedBrokerServiceUrl */, null /* assignedBrokerServiceUrlTls */);
         channel.writeInbound(closeConsumer);
 
-        ByteBuf subscribe2 = Commands.newSubscribe(successTopicName, //
-                successSubName, 1 /* consumer id */, 3 /* request id */, SubType.Exclusive, 0,
-                "test" /* consumer name */, 0 /* avoid reseting cursor */);
-        channel.writeInbound(subscribe2);
-
-        openTopicFail.get().run();
-
         Object response;
 
         // Close succeeds
@@ -2450,30 +2443,25 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandSuccess.class);
         assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
-        // Subscribe fails
-        response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 3);
+        openTopicFail.get().run();
+
+        // We should not receive response for 1st consumer, since it was cancelled by the close
+        assertTrue(channel.outboundMessages().isEmpty());
+        assertTrue(channel.isActive());
 
         Awaitility.await().until(() -> !serverCnx.hasConsumer(1));
 
-        ByteBuf subscribe3 = Commands.newSubscribe(successTopicName, //
-                successSubName, 1 /* consumer id */, 4 /* request id */, SubType.Exclusive, 0,
+        ByteBuf subscribe2 = Commands.newSubscribe(successTopicName, //
+                successSubName, 1 /* consumer id */, 3 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
-        channel.writeInbound(subscribe3);
+        channel.writeInbound(subscribe2);
 
         openTopicSuccess.get().run();
 
         // Subscribe succeeds
         response = getResponse();
         assertEquals(response.getClass(), CommandSuccess.class);
-        assertEquals(((CommandSuccess) response).getRequestId(), 4);
-
-        Thread.sleep(100);
-
-        // We should not receive response for 1st producer, since it was cancelled by the close
-        assertTrue(channel.outboundMessages().isEmpty());
-        assertTrue(channel.isActive());
+        assertEquals(((CommandSuccess) response).getRequestId(), 3);
 
         channel.finish();
     }
