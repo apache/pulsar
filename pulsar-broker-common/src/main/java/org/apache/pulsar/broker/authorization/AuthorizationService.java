@@ -489,7 +489,8 @@ public class AuthorizationService {
                 errorMsg = "originalPrincipal cannot be a proxy role.";
             }
         } else if (StringUtils.isNotBlank(originalPrincipal)
-                && !(allowNonProxyPrincipalsToBeEqual && originalPrincipal.equals(authenticatedPrincipal))) {
+                && !(allowNonProxyPrincipalsToBeEqual && originalPrincipal.equals(authenticatedPrincipal))
+                && !isWebsocketPrinciple(originalPrincipal)) {
             errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
         }
         if (errorMsg != null) {
