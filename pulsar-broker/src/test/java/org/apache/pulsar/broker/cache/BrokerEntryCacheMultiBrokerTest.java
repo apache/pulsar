@@ -139,6 +139,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");
         bkReadCount.set(0);
+        bkReadEntryCount.set(0);
         PulsarMockBookKeeper mockBookKeeper = pulsarTestContext.getMockBookKeeper();
         mockBookKeeper.setReadHandleInterceptor(
                 (long ledgerId, long firstEntry, long lastEntry, LedgerEntries entries) -> {
@@ -168,6 +169,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() {
         bkReadCount.set(0);
+        bkReadEntryCount.set(0);
     }
 
     @Override
