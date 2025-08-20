@@ -36,6 +36,7 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
