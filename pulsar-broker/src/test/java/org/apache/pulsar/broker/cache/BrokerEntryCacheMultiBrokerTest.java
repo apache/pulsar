@@ -293,7 +293,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         final int receiverQueueSize = 200;
         int testTimeInSeconds = 30;
         int numberOfRestarts = 3;
-        int producerRatePerSecond = 50000;
+        int producerRatePerSecond = 75000;
 
         AtomicInteger messagesInFlight = new AtomicInteger();
         final int targetMessagesInFlight = 500000;
