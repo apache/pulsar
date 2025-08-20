@@ -2194,7 +2194,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
                     + " and thus should be set as inactive.\n"
-                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled.")
+                    + "Set to -1 to disable this behavior.\n"
+                    + "This setting has no effect when cacheEvictionByExpectedReadCount is enabled.")
     private long managedLedgerCursorBackloggedThreshold = 1000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,

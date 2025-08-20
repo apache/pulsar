@@ -244,7 +244,12 @@ public class PersistentSubscription extends AbstractSubscription {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
                 cursor.updateLastActive();
-                if (!cursor.isActive() && topic.getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()) {
+                if (!cursor.isActive()
+                        && (topic.getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()
+                        // set the cursor active when it connects, if the backlog size is less than the threshold.
+                        // this is configured with the managedLedgerCursorBackloggedThreshold setting
+                        || topic.getBackloggedCursorThresholdEntries() < 0
+                        || cursor.getNumberOfEntries() <= topic.getBackloggedCursorThresholdEntries())) {
                     // If the cursor is not active, we need to set it active
                     cursor.setActive();
                 }

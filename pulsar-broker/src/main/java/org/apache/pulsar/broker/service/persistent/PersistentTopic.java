@@ -3453,7 +3453,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         // activate caught up cursor which include consumers
         if (!subscription.getConsumers().isEmpty()
-                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
+                && (backloggedCursorThresholdEntries < 0
+                || subscription.getCursor().getNumberOfEntries() <= backloggedCursorThresholdEntries)) {
             subscription.getCursor().setActive();
         } else {
             subscription.getCursor().setInactive();
