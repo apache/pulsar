@@ -393,9 +393,11 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
             List<Runnable> restartRunnables = new ArrayList<>();
             restartRunnables.add(() -> {
                 try {
+                    long startTimeMillis = System.currentTimeMillis();
                     log.info("Starting restarting main broker");
                     restartBroker();
-                    log.info("Finished restarting main broker");
+                    log.info("Finished restarting main broker, took {} ms",
+                            System.currentTimeMillis() - startTimeMillis);
                 } catch (Exception e) {
                     log.error("Error while restarting broker ", e);
                 }
@@ -404,24 +406,32 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 int brokerIndex = i;
                 restartRunnables.add(() -> {
                     try {
+                        long startTimeMillis = System.currentTimeMillis();
                         log.info("Starting restarting additional broker {}", brokerIndex);
                         restartAdditionalBroker(brokerIndex);
-                        log.info("Finished restarting additional broker {}", brokerIndex);
+                        log.info("Finished restarting additional broker {}, took {} ms", brokerIndex,
+                                System.currentTimeMillis() - startTimeMillis);
                     } catch (Exception e) {
                         log.error("Error while restarting additional broker {}", brokerIndex, e);
                     }
                 });
             }
-            long delayBetweenRestarts = testTimeInSeconds * 1000 / (numberOfRestarts + 1);
+            long targetIntervalBetweenRestarts = testTimeInSeconds * 1000 / (numberOfRestarts + 1);
+            log.info("Rolling restart injector will restart the brokers every {} ms", targetIntervalBetweenRestarts);
+            long restartsStartTimeMillis = System.currentTimeMillis();
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     for (Runnable restartRunnable : restartRunnables) {
                         if (Thread.currentThread().isInterrupted()
-                                || System.currentTimeMillis() >= endTimeMillis - delayBetweenRestarts) {
+                                || System.currentTimeMillis() >= endTimeMillis - targetIntervalBetweenRestarts) {
                             return;
                         }
+                        long waitingTimeMillis =
+                                targetIntervalBetweenRestarts - ((System.currentTimeMillis() - restartsStartTimeMillis)
+                                        % targetIntervalBetweenRestarts);
+                        log.info("Waiting for {} ms before restarting broker", waitingTimeMillis);
                         // Wait for some time before restarting the broker
-                        Thread.sleep(delayBetweenRestarts);
+                        Thread.sleep(waitingTimeMillis);
                         // Now restart the next broker
                         try {
                             restarting = true;
