@@ -410,6 +410,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName)
+                && !SystemTopicNames.isTransactionInternalName(topicName)
+                && !SystemTopicNames.isTransactionBufferOrPendingAckSystemTopicName(topicName)
                 && !NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())
                 && !ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
             this.transactionBuffer = brokerService.getPulsar()
