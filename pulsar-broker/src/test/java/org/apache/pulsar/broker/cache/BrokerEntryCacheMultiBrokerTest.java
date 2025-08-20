@@ -26,6 +26,10 @@ import java.io.Closeable;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -101,6 +105,8 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
 
     AtomicInteger bkReadCount = new AtomicInteger(0);
     AtomicInteger bkReadEntryCount = new AtomicInteger(0);
+    private static final DateTimeFormatter CSV_DATETIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     // comment out next line to run a single test run for the default cache type
     @Factory
@@ -438,8 +444,11 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         FileUtils.write(resultHeaderFile, resultHeader, StandardCharsets.UTF_8);
         long ts = System.currentTimeMillis();
         File resultFile = new File("target/rolling_restarts_result_" + ts + ".csv");
-        String resultMessage =
-                String.format("%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\t%d", msgArgs) + "\t" + ts + "\n";
+        List<String> csvColumns = new ArrayList<>();
+        Arrays.stream(msgArgs).map(Object::toString).forEach(csvColumns::add);
+        csvColumns.add(
+                CSV_DATETIME_FORMATTER.format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneOffset.UTC)));
+        String resultMessage = csvColumns.stream().collect(Collectors.joining("\t")) + "\n";
         FileUtils.write(resultFile, resultMessage, StandardCharsets.UTF_8);
     }
 
