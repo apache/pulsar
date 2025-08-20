@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -215,6 +216,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         // disable delays in bookkeeper writes and reads since they can skew the test results
         mockBookKeeper.setDefaultAddEntryDelayMillis(0L);
         mockBookKeeper.setDefaultReadEntriesDelayMillis(0L);
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.spyNoneByDefault();
     }
 
     @Override
