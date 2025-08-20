@@ -619,9 +619,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcpkix-jdk18on-1.81.jar
     - org.bouncycastle-bcprov-jdk18on-1.78.1.jar
-    - org.bouncycastle-bcutil-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcutil-jdk18on-1.81.jar
 
 ------------------------
 

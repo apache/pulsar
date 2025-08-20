@@ -196,9 +196,12 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.23.1</log4j2.version>
-    <bouncycastle.version>1.78.1</bouncycastle.version>
+    <!-- bouncycastle dependencies aren't necessarily aligned -->
+    <bouncycastle.bcprov-jdk18on.version>1.78.1</bouncycastle.bcprov-jdk18on.version>
+    <bouncycastle.bcpkix-jdk18on.version>1.81</bouncycastle.bcpkix-jdk18on.version>
+    <bouncycastle.bcprov-ext-jdk18on.version>1.78.1</bouncycastle.bcprov-ext-jdk18on.version>
     <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
-    <bouncycastle.bc-fips.version>1.0.2.5</bouncycastle.bc-fips.version>
+    <bouncycastle.bc-fips.version>1.0.2.6</bouncycastle.bc-fips.version>
     <jackson.version>2.17.2</jackson.version>
     <fastutil.version>8.5.14</fastutil.version>
     <reflections.version>0.10.2</reflections.version>
@@ -1012,13 +1015,19 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcprov-jdk18on</artifactId>
-        <version>${bouncycastle.version}</version>
+        <version>${bouncycastle.bcprov-jdk18on.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk18on</artifactId>
-        <version>${bouncycastle.version}</version>
+        <version>${bouncycastle.bcpkix-jdk18on.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-ext-jdk18on</artifactId>
+        <version>${bouncycastle.bcprov-ext-jdk18on.version}</version>
       </dependency>
 
       <dependency>
