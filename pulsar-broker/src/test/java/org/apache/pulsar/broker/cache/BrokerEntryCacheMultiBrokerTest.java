@@ -331,7 +331,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                     .rate(producerRatePerSecond)
                     .build();
             try {
-                while (!Thread.currentThread().isInterrupted() && System.currentTimeMillis() < endTimeMillis + 1000) {
+                while (!Thread.currentThread().isInterrupted()) {
                     producerTokenBucket.consumeTokens(1);
                     producer.sendAsync(messageId++).thenApply(msgId -> {
                         lastPublishedMessageId = msgId;
@@ -426,12 +426,14 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         // Start consumer threads to read the catch-up messages
         CountDownLatch consumersLatch = new CountDownLatch(numConsumers);
 
+        List<Thread> consumerThreads = new ArrayList<>();
+
         for (int i = 0; i < numConsumers; i++) {
             final int consumerId = i;
             Consumer<Long> consumer = consumers[consumerId];
             Thread consumerThread = new Thread(() -> {
                 try {
-                    while (!Thread.currentThread().isInterrupted() && System.currentTimeMillis() < endTimeMillis) {
+                    while (!Thread.currentThread().isInterrupted()) {
                         try {
                             Message<Long> message = consumer.receive();
                             consumer.acknowledge(message);
@@ -447,22 +449,48 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 }
             });
             consumerThread.start();
+            consumerThreads.add(consumerThread);
+        }
+        @Cleanup
+        Closeable consumerThreadsCloseable = () -> {
+            for (Thread consumerThread : consumerThreads) {
+                consumerThread.interrupt();
+            }
+            for (Thread consumerThread : consumerThreads) {
+                try {
+                    consumerThread.join();
+                } catch (InterruptedException e) {
+                }
+            }
+            for (Consumer<Long> consumer : consumers) {
+                consumer.close();
+            }
+        };
+
+        long waitingTimeMillis = endTimeMillis - System.currentTimeMillis();
+        if (waitingTimeMillis > 0) {
+            log.info("Waiting for {} ms for test to complete.", waitingTimeMillis);
+            Thread.sleep(waitingTimeMillis);
         }
 
-        // Wait for all consumers to complete
-        assertTrue(consumersLatch.await(testTimeInSeconds * 2, TimeUnit.SECONDS),
-                "All consumers should have been completed");
-
+        log.info("Stopping rolling restart injector.");
         rollingRestartInjector.interrupt();
         rollingRestartInjector.join();
 
+        log.info("Stopping producer thread.");
         producerThread.interrupt();
         producerThread.join();
 
-        // Clean up consumers
-        for (Consumer<Long> consumer : consumers) {
-            consumer.close();
-        }
+        log.info("Waiting 2 seconds for consumers to complete.");
+        // wait 2 seconds for consumers to consume
+        Thread.sleep(2000);
+        // stop consuming
+        log.info("Stopping consumers.");
+        consumerThreadsCloseable.close();
+
+        // Wait for all consumers to complete
+        assertTrue(consumersLatch.await(2, TimeUnit.SECONDS),
+                "All consumers should have been completed");
 
         double cacheHitPercentage = 100.0d * (numberOfMessagesConsumed.get() - bkReadEntryCount.get())
                 / numberOfMessagesConsumed.get();
