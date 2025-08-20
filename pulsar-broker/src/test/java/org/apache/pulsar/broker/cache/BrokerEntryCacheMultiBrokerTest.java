@@ -49,6 +49,7 @@ import org.apache.commons.lang3.BooleanUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -276,6 +277,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         final int receiverQueueSize = 200;
         int testTimeInSeconds = 30;
         int numberOfRestarts = 3;
+        int producerRatePerSecond = 50000;
 
         AtomicInteger messagesInFlight = new AtomicInteger();
         final int targetMessagesInFlight = 500000;
@@ -325,8 +327,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         Thread producerThread = new Thread(() -> {
             long messageId = 0;
             log.info("Starting producer thread");
+            AsyncTokenBucket producerTokenBucket = AsyncTokenBucket.builder()
+                    .rate(producerRatePerSecond)
+                    .build();
             try {
                 while (!Thread.currentThread().isInterrupted() && System.currentTimeMillis() < endTimeMillis + 1000) {
+                    producerTokenBucket.consumeTokens(1);
                     producer.sendAsync(messageId++).thenApply(msgId -> {
                         lastPublishedMessageId = msgId;
                         return msgId;
@@ -337,6 +343,15 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                         try {
                             // start throttling message production
                             Thread.sleep(100L);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                    // limit the rate by throttling message production if necessary
+                    long throttlingDurationNanos = producerTokenBucket.calculateThrottlingDuration();
+                    if (throttlingDurationNanos > 0) {
+                        try {
+                            Thread.sleep(TimeUnit.NANOSECONDS.toMillis(throttlingDurationNanos));
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         }
