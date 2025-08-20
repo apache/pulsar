@@ -461,7 +461,10 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 try {
                     while (!Thread.currentThread().isInterrupted()) {
                         try {
-                            Message<Long> message = consumer.receive();
+                            Message<Long> message = consumer.receive(2000, TimeUnit.MILLISECONDS);
+                            if (message == null) {
+                                break;
+                            }
                             consumer.acknowledge(message);
                             message.release();
                             messagesInFlight.decrementAndGet();
@@ -507,13 +510,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         producerThread.interrupt();
         producerThread.join();
 
-        log.info("Waiting 2 seconds for consumers to complete.");
-        // wait 2 seconds for consumers to consume
-        Thread.sleep(2000);
-        // stop consuming
+        log.info("Waiting up to 5 seconds for consumers to complete.");
+        boolean allCompleted = consumersLatch.await(5, TimeUnit.SECONDS);
+        log.info("All consumers completed: {} (latch count: {})", allCompleted, consumersLatch.getCount());
+
         log.info("Stopping consumers.");
         consumerThreadsCloseable.close();
-
         // Wait for all consumers to complete
         assertTrue(consumersLatch.await(2, TimeUnit.SECONDS),
                 "All consumers should have been completed");
