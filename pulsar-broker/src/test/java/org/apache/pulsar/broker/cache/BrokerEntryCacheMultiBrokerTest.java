@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -154,6 +155,8 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
 
     AtomicInteger bkReadCount = new AtomicInteger(0);
     AtomicInteger bkReadEntryCount = new AtomicInteger(0);
+    volatile MessageId lastPublishedMessageId;
+    volatile boolean restarting;
     private static final DateTimeFormatter CSV_DATETIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
@@ -201,8 +204,10 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                     bkReadCount.incrementAndGet();
                     int numberOfEntries = (int) (lastEntry - firstEntry + 1);
                     bkReadEntryCount.addAndGet(numberOfEntries);
-                    log.info("BK read for ledgerId {}, firstEntry {}, lastEntry {}, numberOfEntries {}",
-                            ledgerId, firstEntry, lastEntry, numberOfEntries);
+                    log.info(
+                            "BK read for ledgerId {}, firstEntry {}, lastEntry {}, numberOfEntries {}, "
+                            + "last msgid {}, restarting={}",
+                            ledgerId, firstEntry, lastEntry, numberOfEntries, lastPublishedMessageId, restarting);
                     return CompletableFuture.completedFuture(entries);
                 });
         // disable delays in bookkeeper writes and reads since they can skew the test results
@@ -225,6 +230,8 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     public void beforeMethod() {
         bkReadCount.set(0);
         bkReadEntryCount.set(0);
+        lastPublishedMessageId = null;
+        restarting = false;
     }
 
     @Override
@@ -317,7 +324,10 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
             log.info("Starting producer thread");
             try {
                 while (!Thread.currentThread().isInterrupted() && System.currentTimeMillis() < endTimeMillis + 1000) {
-                    producer.sendAsync(messageId++);
+                    producer.sendAsync(messageId++).thenApply(msgId -> {
+                        lastPublishedMessageId = msgId;
+                        return msgId;
+                    });
                     // each consumer has a unique subscription
                     messagesInFlight.addAndGet(numConsumers);
                     if (messagesInFlight.get() >= targetMessagesInFlight) {
@@ -379,7 +389,9 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                         // Wait for some time before restarting the broker
                         Thread.sleep(delayBetweenRestarts);
                         // Now restart the next broker
+                        restarting = true;
                         restartRunnable.run();
+                        restarting = false;
                         actualNumberOfRestarts.incrementAndGet();
                     }
                 } catch (InterruptedException e) {
