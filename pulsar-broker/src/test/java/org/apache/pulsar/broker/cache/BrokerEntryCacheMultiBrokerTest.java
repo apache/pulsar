@@ -383,7 +383,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                 try {
                     for (Runnable restartRunnable : restartRunnables) {
                         if (Thread.currentThread().isInterrupted()
-                                || System.currentTimeMillis() >= endTimeMillis - delayBetweenRestarts / 2) {
+                                || System.currentTimeMillis() >= endTimeMillis - delayBetweenRestarts) {
                             return;
                         }
                         // Wait for some time before restarting the broker
