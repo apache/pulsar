@@ -239,7 +239,10 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
+        configureDefaults(conf);
+    }
 
+    private void configureDefaults(ServiceConfiguration conf) {
         // configure ledger rollover to avoid OOM in test runs and slowdowns due to GC happening frequently when
         // available heap memory is low
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
@@ -250,6 +253,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         cacheType.configure(conf);
     }
 
+    @Override
+    protected ServiceConfiguration createConfForAdditionalBroker(int additionalBrokerIndex) {
+        ServiceConfiguration conf = super.createConfForAdditionalBroker(additionalBrokerIndex);
+        configureDefaults(conf);
+        return conf;
+    }
 
     String serviceUrlForFixedPorts() {
         return "pulsar://127.0.0.1:" + mainBrokerPort + "," + additionalBrokerPorts
