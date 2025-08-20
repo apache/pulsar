@@ -1153,6 +1153,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, false);
     }
 
+    private ManagedCursor getCachedNonDurableCursor(String cursorName) {
+        ManagedCursor cachedCursor = cursors.get(cursorName);
+        if (cachedCursor != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cursor was already created {}", name, cachedCursor);
+            }
+            return cachedCursor;
+        }
+        return null;
+    }
+
     @Override
     public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName,
                                              InitialPosition initialPosition, boolean isReadCompacted)
@@ -1161,18 +1172,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         checkManagedLedgerIsOpen();
         checkFenced();
 
-        ManagedCursor cachedCursor = cursors.get(cursorName);
-        if (cachedCursor != null) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Cursor was already created {}", name, cachedCursor);
-            }
-            return cachedCursor;
+        ManagedCursor cachedNonDurableCursor = getCachedNonDurableCursor(cursorName);
+        if (cachedNonDurableCursor != null) {
+            return cachedNonDurableCursor;
         }
 
         // The backlog of a non-durable cursor could be incorrect if the cursor is created before `internalTrimLedgers`
         // and added to the managed ledger after `internalTrimLedgers`.
         // For more details, see https://github.com/apache/pulsar/pull/23951.
         synchronized (this) {
+            cachedNonDurableCursor = getCachedNonDurableCursor(cursorName);
+            if (cachedNonDurableCursor != null) {
+                return cachedNonDurableCursor;
+            }
+
             NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
                     startCursorPosition, initialPosition, isReadCompacted);
             cursor.setActive();
