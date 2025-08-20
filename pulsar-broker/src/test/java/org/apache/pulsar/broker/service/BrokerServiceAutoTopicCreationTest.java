@@ -623,15 +623,22 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     public void testCreateTopicAfterGC() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
         final String topicP0 = TopicName.get(topic).getPartition(0).toString();
+        // Disable topic auto-creation.
+        boolean originalAllowAutoTopicCreation = pulsar.getConfiguration().isAllowAutoTopicCreation();
+        boolean originalDeleteInactiveTopics =
+                pulsar.getConfiguration().isBrokerDeleteInactiveTopicsEnabled();
+        boolean originalDeleteInactivePartitionedTopicMetadataE =
+                pulsar.getConfiguration().isBrokerDeleteInactivePartitionedTopicMetadataEnabled();
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         pulsar.getConfiguration().setBrokerDeleteInactiveTopicsEnabled(true);
         pulsar.getConfiguration().setBrokerDeleteInactivePartitionedTopicMetadataEnabled(false);
-
+        // Create partitioned topic.
         Assert.assertThrows(PulsarClientException.NotFoundException.class,
                 () -> pulsarClient.newProducer().topic(topic).create());
         admin.topics().createPartitionedTopic(topic, 1);
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicP0, false).join().get();
+        // Enable topic GC.
         InactiveTopicPolicies inactiveTopicPolicies =
                 new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true);
         admin.topicPolicies().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
@@ -643,17 +650,22 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             assertTrue(persistentTopic.topicPolicies.getInactiveTopicPolicies().getTopicValue()
                     .isDeleteWhileInactive());
         });
-
+        // Trigger topic GC.
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             persistentTopic.checkGC();
             assertFalse(pulsar.getPulsarResources().getTopicResources()
                     .persistentTopicExists(TopicName.get(topicP0)).get());
         });
 
+        // Verify: the missed partition can be loaded up since the partitioned topic metadata exists.
         pulsarClient.newProducer().topic(topic).create().close();
 
         // cleanup.
         admin.topics().deletePartitionedTopic(topic);
+        pulsar.getConfiguration().setAllowAutoTopicCreation(originalAllowAutoTopicCreation);
+        pulsar.getConfiguration().setBrokerDeleteInactiveTopicsEnabled(originalDeleteInactiveTopics);
+        pulsar.getConfiguration()
+                .setBrokerDeleteInactivePartitionedTopicMetadataEnabled(originalDeleteInactivePartitionedTopicMetadataE);
     }
 
 }
