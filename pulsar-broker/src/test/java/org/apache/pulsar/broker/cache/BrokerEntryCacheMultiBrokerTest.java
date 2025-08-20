@@ -79,9 +79,8 @@ import org.testng.annotations.Test;
 @Slf4j
 public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     public enum BrokerEntryCacheType {
-        CacheEvictionByExpectedReadCount("PIP430", BrokerEntryCacheMultiBrokerTest::configurePIP430),
-        CacheEvictionByExpectedReadCountDisabled("expectedReadCountDisabled",
-                BrokerEntryCacheMultiBrokerTest::disableExpectedReadCount),
+        PIP430("PIP430", BrokerEntryCacheMultiBrokerTest::configurePIP430),
+        PIP430Disabled("PIP430disabled", BrokerEntryCacheMultiBrokerTest::disablePIP430),
         CacheEvictionByMarkDeletedPosition("cacheEvictionByMarkDeletedPosition",
                 BrokerEntryCacheMultiBrokerTest::configureCacheEvictionByMarkDeletedPosition),
         PR12258Caching("PR12258", BrokerEntryCacheMultiBrokerTest::configurePR12258Caching);
@@ -103,6 +102,56 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         }
     }
 
+    /**
+     * Configures PIP430 caching explicitly, although it's enabled by default.
+     * @param conf ServiceConfiguration instance to be configured
+     */
+    private static void configurePIP430(ServiceConfiguration conf) {
+        // use cache eviction by expected read count, this is the default behavior so it's not necessary to set it,
+        // but it makes the test more explicit
+        conf.setCacheEvictionByExpectedReadCount(true);
+        // LRU cache eviction behavior is enabled by default, but we set it explicitly
+        conf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(true);
+    }
+
+    /**
+     * Disables PIP430 caching features.
+     * @param conf ServiceConfiguration instance to be configured
+     */
+    private static void disablePIP430(ServiceConfiguration conf) {
+        conf.setCacheEvictionByExpectedReadCount(false);
+        conf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(false);
+    }
+
+    /**
+     * Configures ServiceConfiguration for cache eviction based on the slowest markDeletedPosition.
+     * This method disables cache eviction by expected read count and enables eviction by markDeletedPosition.
+     * Related to https://github.com/apache/pulsar/pull/14985 - "Evicting cache data by the slowest markDeletedPosition"
+     *
+     * @param conf ServiceConfiguration instance to be configured
+     */
+    private static void configureCacheEvictionByMarkDeletedPosition(ServiceConfiguration conf) {
+        disablePIP430(conf);
+        conf.setCacheEvictionByMarkDeletedPosition(true);
+    }
+
+    /**
+     * Configures ServiceConfiguration with settings to test PR12258 behavior for caching to drain backlog consumers.
+     * This method sets configurations to enable caching for cursors with backlogged messages.
+     * To make PR12258 effective, there's an additional change made in the broker codebase to
+     * activate the cursor when a consumer connects, instead of waiting for the scheduled task to activate it.
+     * Check org.apache.pulsar.broker.service.persistent.PersistentSubscription#addConsumerInternal method
+     * for the change.
+     * @param conf ServiceConfiguration instance to be modified
+     */
+    private static void configurePR12258Caching(ServiceConfiguration conf) {
+        disablePIP430(conf);
+        conf.setManagedLedgerMinimumBacklogCursorsForCaching(1);
+        conf.setManagedLedgerMinimumBacklogEntriesForCaching(1);
+        conf.setManagedLedgerMaxBacklogBetweenCursorsForCaching(Integer.MAX_VALUE);
+        conf.setManagedLedgerCursorBackloggedThreshold(Long.MAX_VALUE);
+    }
+
     AtomicInteger bkReadCount = new AtomicInteger(0);
     AtomicInteger bkReadEntryCount = new AtomicInteger(0);
     private static final DateTimeFormatter CSV_DATETIME_FORMATTER =
@@ -118,7 +167,7 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     private final BrokerEntryCacheType cacheType;
 
     public BrokerEntryCacheMultiBrokerTest() {
-        this(BrokerEntryCacheType.CacheEvictionByExpectedReadCount);
+        this(BrokerEntryCacheType.PIP430);
     }
 
     public BrokerEntryCacheMultiBrokerTest(BrokerEntryCacheType cacheType) {
@@ -192,46 +241,6 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
         cacheType.configure(conf);
     }
 
-    private static void configurePIP430(ServiceConfiguration defaultConf) {
-        // use cache eviction by expected read count, this is the default behavior so it's not necessary to set it,
-        // but it makes the test more explicit
-        defaultConf.setCacheEvictionByExpectedReadCount(true);
-        // LRU cache eviction behavior is enabled by default, but we set it explicitly
-        defaultConf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(true);
-    }
-
-    private static void disableExpectedReadCount(ServiceConfiguration defaultConf) {
-        defaultConf.setCacheEvictionByExpectedReadCount(false);
-    }
-
-    /**
-     * Configures ServiceConfiguration for cache eviction based on the slowest markDeletedPosition.
-     * This method disables cache eviction by expected read count and enables eviction by markDeletedPosition.
-     * Related to https://github.com/apache/pulsar/pull/14985 - "Evicting cache data by the slowest markDeletedPosition"
-     *
-     * @param defaultConf ServiceConfiguration instance to be configured
-     */
-    private static void configureCacheEvictionByMarkDeletedPosition(ServiceConfiguration defaultConf) {
-        defaultConf.setCacheEvictionByExpectedReadCount(false);
-        defaultConf.setCacheEvictionByMarkDeletedPosition(true);
-    }
-
-    /**
-     * Configures ServiceConfiguration with settings to test PR12258 behavior for caching to drain backlog consumers.
-     * This method sets configurations to enable caching for cursors with backlogged messages.
-     * To make PR12258 effective, there's an additional change made in the broker codebase to
-     * activate the cursor when a consumer connects, instead of waiting for the scheduled task to activate it.
-     * Check org.apache.pulsar.broker.service.persistent.PersistentSubscription#addConsumerInternal method
-     * for the change.
-     * @param defaultConf ServiceConfiguration instance to be modified
-     */
-    private static void configurePR12258Caching(ServiceConfiguration defaultConf) {
-        defaultConf.setCacheEvictionByExpectedReadCount(false);
-        defaultConf.setManagedLedgerMinimumBacklogCursorsForCaching(1);
-        defaultConf.setManagedLedgerMinimumBacklogEntriesForCaching(1);
-        defaultConf.setManagedLedgerMaxBacklogBetweenCursorsForCaching(Integer.MAX_VALUE);
-        defaultConf.setManagedLedgerCursorBackloggedThreshold(Long.MAX_VALUE);
-    }
 
     String serviceUrlForFixedPorts() {
         return "pulsar://127.0.0.1:" + mainBrokerPort + "," + additionalBrokerPorts
