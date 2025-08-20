@@ -3013,6 +3013,7 @@ flexible messaging model and an intuitive client API.</description>
         <test.asyncprofiler.args>
           -XX:+UnlockDiagnosticVMOptions
           -XX:+DebugNonSafepoints
+          -Xms${testMaxHeapSize} -XX:+AlwaysPreTouch
           -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},jfr,file=${pulsar.basedir}/target/test_profile_${maven.build.timestamp}_${surefire.forkNumber}_%p.jfr
         </test.asyncprofiler.args>
         <testForkCount>1</testForkCount>
