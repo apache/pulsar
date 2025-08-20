@@ -208,7 +208,8 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                             "BK read for ledgerId {}, firstEntry {}, lastEntry {}, numberOfEntries {}, "
                             + "last msgid {}, restarting={}",
                             ledgerId, firstEntry, lastEntry, numberOfEntries, lastPublishedMessageId, restarting);
-                    return CompletableFuture.completedFuture(entries);
+                    return mockBookKeeper.getJfrReadHandleInterceptor()
+                            .interceptReadAsync(ledgerId, firstEntry, lastEntry, entries);
                 });
         // disable delays in bookkeeper writes and reads since they can skew the test results
         mockBookKeeper.setDefaultAddEntryDelayMillis(0L);
