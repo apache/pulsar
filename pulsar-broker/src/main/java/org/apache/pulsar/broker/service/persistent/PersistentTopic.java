@@ -1934,13 +1934,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        return checkAllowedCluster(localCluster).thenCompose(success -> {
-            if (!success) {
-                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                // because pulsar doesn't serve global topic without local repl-cluster configured.
-                return deleteForcefully().thenCompose(ignore -> {
-                    return deleteSchemaAndPoliciesIfClusterRemoved();
-                });
+        return removeTopicIfLocalClusterNotAllowed().thenCompose(topicRemoved -> {
+            if (topicRemoved) {
+                return CompletableFuture.completedFuture(null);
             }
 
             int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
@@ -2066,7 +2062,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
     }
 
-    private CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
+    /**
+     * Remove the topic if local cluster is not allowed to serve the topic.
+     * @return whether the topic was removed.
+     */
+    protected CompletableFuture<Boolean> removeTopicIfLocalClusterNotAllowed() {
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        return checkAllowedCluster(localCluster).thenCompose(isAllowed -> {
+            if (!isAllowed) {
+                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+                // because pulsar doesn't serve global topic without local repl-cluster configured.
+                return deleteForcefully().thenCompose(ignore -> {
+                    return deleteSchemaAndPoliciesIfClusterRemoved().thenApply(__ -> true);
+                });
+            }
+            return CompletableFuture.completedFuture(false);
+        });
+    }
+
+    protected CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
         List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.events.EventType;
@@ -45,6 +47,28 @@ public class NamespaceEventsSystemTopicFactory {
     public static TopicName getEventsTopicName(NamespaceName namespaceName) {
         return TopicName.get(TopicDomain.persistent.value(), namespaceName,
                 SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+    }
+
+    public static CompletableFuture<Boolean> checkSystemTopicExists(NamespaceName namespaceName, EventType eventType,
+                                                             PulsarService pulsar) {
+        // To check whether partitioned topic exists.
+        // Instead of checking partitioned metadata, we check the first partition, because there is a case
+        // does not work if we choose checking partitioned metadata.
+        // The case's details:
+        // 1. Start 2 clusters: c1 and c2.
+        // 2. Enable replication between c1 and c2 with a global ZK.
+        // 3. The partitioned metadata was shared using by c1 and c2.
+        // 4. Pulsar only delete partitions when the topic is deleting from c1, because c2 is still using
+        //    partitioned metadata.
+        TopicName topicName = getSystemTopicName(namespaceName, eventType);
+        CompletableFuture<Boolean> nonPartitionedExists =
+                pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName);
+        CompletableFuture<Boolean> partition0Exists =
+                pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName.getPartition(0));
+        return nonPartitionedExists.thenCombine(partition0Exists, (a, b) -> {
+            System.out.println("===> a: " + a + ", b: " + b);
+            return a | b;
+        });
     }
 
     public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
