@@ -48,7 +48,7 @@ public class PulsarMockBookKeeperReadEvent extends Event {
             this.ledgerId = ledgerId;
             this.firstEntry = firstEntry;
             this.lastEntry = lastEntry;
-            this.numberOfEntries = (int) (firstEntry - lastEntry + 1);
+            this.numberOfEntries = (int) (lastEntry - firstEntry + 1);
             commit();
         }
     }
