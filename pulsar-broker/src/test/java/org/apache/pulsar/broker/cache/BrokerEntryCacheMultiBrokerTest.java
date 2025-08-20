@@ -311,6 +311,8 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                     .startPaused(true) // start consumers in paused state
                     .receiverQueueSize(receiverQueueSize)
                     .poolMessages(true)
+                    // use shorter ack group time to lose less acks in restarts
+                    .acknowledgmentGroupTime(5, TimeUnit.MILLISECONDS)
                     .subscribe();
         }
 
