@@ -41,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -120,10 +121,15 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
 
     @Override
     protected void beforeSetup() {
-        String enableManualTest = System.getenv("ENABLE_MANUAL_TEST");
-        if (enableManualTest == null || !Boolean.parseBoolean(enableManualTest)) {
+        if (!BooleanUtils.toBoolean(System.getenv("ENABLE_MANUAL_TEST")) && !isRunningInIntelliJ()) {
             throw new SkipException("This test requires setting ENABLE_MANUAL_TEST=true environment variable.");
         }
+    }
+
+    static boolean isRunningInIntelliJ() {
+        // Check for IntelliJ-specific system properties
+        return System.getProperty("idea.test.cyclic.buffer.size") != null
+                || System.getProperty("java.class.path", "").contains("idea_rt.jar");
     }
 
     @Override
