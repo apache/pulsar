@@ -2236,6 +2236,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // create operation will complete, the new consumer will be discarded.
             log.info("[{}] Closed consumer before its creation was completed. consumerId={}",
                      remoteAddress, consumerId);
+            consumers.remove(consumerId, consumerFuture);
             commandSender.sendSuccessResponse(requestId);
             return;
         }
@@ -2243,6 +2244,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (consumerFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed consumer that already failed to be created. consumerId={}",
                      remoteAddress, consumerId);
+            consumers.remove(consumerId, consumerFuture);
             commandSender.sendSuccessResponse(requestId);
             return;
         }

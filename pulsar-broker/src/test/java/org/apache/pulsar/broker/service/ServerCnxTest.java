@@ -2466,6 +2466,33 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test
+    public void testCleanupCacheWhenHandleCloseConsumer() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+        int consumerId = 1;
+
+        // Assumer a consumer has been added to the cache
+        serverCnx.getConsumers().put(1, consumerFuture);
+
+        ByteBuf closeConsumer = Commands.newCloseConsumer(consumerId /* consumer id */, 1 /* request id */,
+                null /* assignedBrokerServiceUrl */, null /* assignedBrokerServiceUrlTls */);
+        channel.writeInbound(closeConsumer);
+
+        Object response;
+
+        // Close succeeds
+        response = getResponse();
+        assertEquals(response.getClass(), CommandSuccess.class);
+        assertEquals(((CommandSuccess) response).getRequestId(), 1);
+
+        assertFalse(serverCnx.hasConsumer(consumerId));
+
+        channel.finish();
+    }
+
     @Test(timeOut = 30000)
     public void testSubscribeCommand() throws Exception {
         final String failSubName = "failSub";
