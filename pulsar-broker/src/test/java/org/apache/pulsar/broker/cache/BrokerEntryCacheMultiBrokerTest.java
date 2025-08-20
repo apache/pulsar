@@ -392,9 +392,12 @@ public class BrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
                         // Wait for some time before restarting the broker
                         Thread.sleep(delayBetweenRestarts);
                         // Now restart the next broker
-                        restarting = true;
-                        restartRunnable.run();
-                        restarting = false;
+                        try {
+                            restarting = true;
+                            restartRunnable.run();
+                        } finally {
+                            restarting = false;
+                        }
                         actualNumberOfRestarts.incrementAndGet();
                     }
                 } catch (InterruptedException e) {
