@@ -260,13 +260,12 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         long ledgerId = ledger != null ? ledger.getId() : ((Position) ctx).getLedgerId();
         // Don't insert to the entry cache for the ShadowManagedLedger
         if (!(ml instanceof ShadowManagedLedgerImpl)) {
-            int activeCursorCount = ml.getActiveCursors().size();
             // Avoid caching entries if no cursor has been created
-            if (activeCursorCount > 0) {
+            if (ml.getActiveCursors().shouldCacheAddedEntry()) {
                 int expectedReadCount = 0;
                 // only use expectedReadCount if cache eviction is enabled by expected read count
                 if (ml.getConfig().isCacheEvictionByExpectedReadCount()) {
-                    expectedReadCount = activeCursorCount;
+                    expectedReadCount = ml.getActiveCursors().size();
                 }
                 EntryImpl entry = EntryImpl.create(ledgerId, entryId, data, expectedReadCount);
                 entry.setDecreaseReadCountOnRelease(false);

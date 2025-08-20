@@ -58,6 +58,14 @@ public class ManagedLedgerFactoryConfig {
     private long cacheEvictionTimeThresholdMillis = 1000;
 
     /**
+     * This setting configures the duration of continuing to cache added entries while there are no
+     * active cursors, when the last active cursor has left or immediately after initialization when
+     * the persistent topic and the managed ledger gets loaded.
+     * This setting is ignored unless cacheEvictionByExpectedReadCount is enabled.
+     */
+    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
+
+    /**
      * Maximum number of times the cache can extend the TTL of an entry that has remaining expected reads.
      * Only takes effect when cacheEvictionByExpectedReadCount is enabled.
      * This helps optimize cache efficiency for scenarios like:

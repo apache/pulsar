@@ -361,7 +361,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
         if (config.isCacheEvictionByExpectedReadCount()) {
-            activeCursors = new ActiveManagedCursorContainerImpl();
+            activeCursors = new ActiveManagedCursorContainerImpl(
+                    config.getContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis());
         } else {
             activeCursors = new ManagedCursorContainerImpl();
         }

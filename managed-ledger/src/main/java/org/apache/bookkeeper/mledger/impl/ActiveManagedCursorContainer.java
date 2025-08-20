@@ -119,4 +119,12 @@ public interface ActiveManagedCursorContainer extends Iterable<ManagedCursor> {
     default int getNumberOfCursorsAtSamePositionOrBefore(ManagedCursor cursor) {
         throw new UnsupportedOperationException("This method is not supported by this implementation");
     }
+
+    /**
+     * Returns true if added entries should be cached. The implementation s
+     * @return
+     */
+    default boolean shouldCacheAddedEntry() {
+        return !isEmpty();
+    }
 }

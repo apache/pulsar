@@ -65,8 +65,19 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     }
     // number of nodes in the double-linked list
     int trackedNodeCount = 0;
+    private final long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
+    private volatile long cursorRemovedTimestampMillis;
+    private volatile int cursorCount;
 
-    public ActiveManagedCursorContainerImpl() {}
+    public ActiveManagedCursorContainerImpl() {
+        this(-1L);
+    }
+
+    public ActiveManagedCursorContainerImpl(long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis) {
+        this.continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis =
+                continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
+        this.cursorRemovedTimestampMillis = System.currentTimeMillis();
+    }
 
     // Head of the double-linked list (sorted by position)
     private Node head = null;
@@ -122,7 +133,9 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     node.pendingPosition = position;
                     pendingPositionUpdates.add(node);
                 }
-                cursors.put(cursor.getName(), node);
+                if (cursors.put(cursor.getName(), node) == null) {
+                    cursorCount++;
+                }
             }
         } finally {
             rwLock.unlockWrite(stamp);
@@ -247,6 +260,8 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     node.pendingRemove = true;
                 }
                 node.pendingPosition = null;
+                cursorRemovedTimestampMillis = System.currentTimeMillis();
+                cursorCount--;
                 return true;
             } else {
                 return false;
@@ -679,19 +694,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
 
     @Override
     public boolean isEmpty() {
-        long stamp = rwLock.tryOptimisticRead();
-        boolean isEmpty = cursors.isEmpty();
-        if (!rwLock.validate(stamp)) {
-            // Fallback to read lock
-            stamp = rwLock.readLock();
-            try {
-                isEmpty = cursors.isEmpty();
-            } finally {
-                rwLock.unlockRead(stamp);
-            }
-        }
-
-        return isEmpty;
+        return size() < 1;
     }
 
     @Override
@@ -756,18 +759,23 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
 
     @Override
     public int size() {
-        long stamp = rwLock.tryOptimisticRead();
-        int size = cursors.size();
-        if (!rwLock.validate(stamp)) {
-            // Fallback to read lock
-            stamp = rwLock.readLock();
-            try {
-                size = cursors.size();
-            } finally {
-                rwLock.unlockRead(stamp);
+        return cursorCount;
+    }
+
+    @Override
+    public boolean shouldCacheAddedEntry() {
+        if (!isEmpty()) {
+            return true;
+        }
+        // keep on adding entries to cache for the configured amount of time since the last cursor was removed
+        // this will avoid cache misses when a cursor gets disconnected and immediately reconnects
+        if (continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis > 0) {
+            long sinceLastCursorLeftMillis = System.currentTimeMillis() - cursorRemovedTimestampMillis;
+            if (sinceLastCursorLeftMillis < continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis) {
+                return true;
             }
         }
-        return size;
+        return false;
     }
 
     /**

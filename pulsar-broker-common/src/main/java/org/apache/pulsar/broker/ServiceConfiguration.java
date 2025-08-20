@@ -3523,6 +3523,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean cacheEvictionByExpectedReadCount = true;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "This setting configures the duration of continuing to cache added entries while there are no "
+                    + "active cursors, when the last active cursor has left or immediately after initialization when "
+                    + "the persistent topic and the managed ledger gets loaded. "
+                    + "This setting is ignored unless cacheEvictionByExpectedReadCount is enabled."
+                    + "The default value is 2 * managedLedgerCacheEvictionTimeThresholdMillis."
+    )
+    private Long managedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
+
     /**** --- Transaction config variables. --- ****/
     @FieldContext(
             category = CATEGORY_TRANSACTION,
