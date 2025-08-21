@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.service.TopicEventsListener.EventContext;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
+import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * Utility class to dispatch topic events.
@@ -170,6 +171,10 @@ public class TopicEventsDispatcher {
                     .brokerVersion(pulsar.getBrokerVersion())
                     .event(event)
                     .stage(TopicEventsListener.EventStage.SUCCESS);
+            TopicName topicName = TopicName.get(topic);
+            if (topicName.isPartitioned()) {
+                builder.partitionIndex(topicName.getPartitionIndex());
+            }
         }
 
         public TopicEventBuilder role(String role, String originalRole) {
@@ -198,7 +203,7 @@ public class TopicEventsDispatcher {
         }
 
         public TopicEventBuilder proxyVersion(String version) {
-            builder.clientVersion(version);
+            builder.proxyVersion(version);
             return this;
         }
 

@@ -200,7 +200,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                     .newEvent(topicName, TopicEvent.MESSAGE_EXPIRE)
                     .data(MessageExpireEventData.builder()
                             .subscriptionName(subName)
-                            .position(position)
+                            .position(position.toString())
                             .build())
                     .dispatch();
             if (log.isDebugEnabled()) {

@@ -21,25 +21,41 @@ package org.apache.pulsar.broker;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.event.data.ProducerDisconnectEventData;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicEventsListener;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventContext;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -119,6 +135,13 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         events.clear();
     }
 
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setManagedLedgerMaxEntriesPerLedger(1);
+        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(1);
+    }
+
     @AfterMethod(alwaysRun = true)
     protected void cleanupTest() throws Exception {
         deleteNamespaceWithRetry(namespace, true);
@@ -174,7 +197,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         );
     }
 
-    @Test(dataProvider = "topicType")
+    @Test(dataProvider = "topicType", groups = "flaky")
     public void testEventsActiveSub(String topicTypePersistence, String topicTypePartitioned,
                                     boolean forceDelete) throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
@@ -208,12 +231,15 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         if (forceDelete) {
             expectedEvents = new String[]{
                     "DELETE__BEFORE",
+                    "POLICIES_APPLY__SUCCESS",
+                    "PRODUCER_DISCONNECT__SUCCESS",
                     "UNLOAD__BEFORE",
                     "UNLOAD__SUCCESS",
                     "DELETE__SUCCESS",
             };
         } else {
             expectedEvents = new String[]{
+                    "POLICIES_APPLY__SUCCESS",
                     "DELETE__BEFORE",
                     "DELETE__FAILURE"
             };
@@ -247,12 +273,32 @@ public class TopicEventsListenerTest extends BrokerTestBase {
 
         runGC();
 
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() ->
+                assertThat(events.toArray()).isEqualTo(new String[]{
                         "UNLOAD__BEFORE",
                         "UNLOAD__SUCCESS",
                 })
         );
+    }
+
+    @Test
+    public void testTopicEventContextSerialization() throws IOException {
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        EventContext eventContext = EventContext.builder()
+                .brokerId("broker-1")
+                .proxyRole("proxy-role")
+                .clientRole("client-role")
+                .topicName("persistent://prop/namespace/topic")
+                .stage(EventStage.SUCCESS)
+                .data(ProducerDisconnectEventData.builder()
+                        .producerId(1)
+                        .producerAddress("localhost:1234")
+                        .producerName("abc")
+                        .build())
+                .build();
+        byte[] bytes = objectMapper.writeValueAsBytes(eventContext);
+        EventContext deserializedEventContext = objectMapper.readValue(bytes, EventContext.class);
+        assertEquals(eventContext, deserializedEventContext);
     }
 
     private void createTopicAndVerifyEvents(String topicDomain, String topicTypePartitioned, String topicName) throws Exception {
@@ -262,17 +308,24 @@ public class TopicEventsListenerTest extends BrokerTestBase {
                 expectedEvents = new String[]{
                         "CREATE__BEFORE",
                         "CREATE__SUCCESS",
+                        "LOOKUP__SUCCESS",
                         "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
+                        "LOAD__SUCCESS",
+                        "PRODUCER_CONNECT__SUCCESS",
+                        "PRODUCER_DISCONNECT__SUCCESS",
+                        "LOOKUP__SUCCESS",
+                        "CONSUMER_CONNECT__SUCCESS",
+                        "CONSUMER_DISCONNECT__SUCCESS",
                 };
             } else {
                 expectedEvents = new String[]{
                         "LOAD__BEFORE",
                         "CREATE__BEFORE",
                         "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
+                        "LOAD__SUCCESS",
+                        "LOOKUP__SUCCESS",
+                        "CONSUMER_CONNECT__SUCCESS",
+                        "CONSUMER_DISCONNECT__SUCCESS",
                 };
             }
         } else {
@@ -286,7 +339,10 @@ public class TopicEventsListenerTest extends BrokerTestBase {
                     "LOAD__BEFORE",
                     "CREATE__BEFORE",
                     "CREATE__SUCCESS",
-                    "LOAD__SUCCESS"
+                    "LOAD__SUCCESS",
+                    "LOOKUP__SUCCESS",
+                    "CONSUMER_CONNECT__SUCCESS",
+                    "CONSUMER_DISCONNECT__SUCCESS",
             };
         }
         if (topicTypePartitioned.equals("partitioned")) {
@@ -297,15 +353,89 @@ public class TopicEventsListenerTest extends BrokerTestBase {
             topicNameToWatch = topicName;
             admin.topics().createNonPartitionedTopic(topicName);
         }
+        createConsumer(topicName);
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                assertThat(events.toArray()).containsAll(Arrays.stream(expectedEvents).toList()));
+                assertThat(events.toArray()).isEqualTo(expectedEvents));
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testEventsOnSubscription(String topicTypePersistence, String topicTypePartitioned, boolean forceDelete)
+            throws Exception {
+        String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
+
+        createTopicAndVerifyEvents(topicTypePersistence, topicTypePartitioned, topicName);
+
+        events.clear();
+
+        if (topicTypePersistence.equals("persistent")) {
+            admin.topics().createSubscription(topicName, "test-sub", MessageId.earliest);
+            admin.topics().deleteSubscription(topicName, "test-sub", forceDelete);
+
+            Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(events.stream().toList())
+                            .isEqualTo(Arrays.asList("SUBSCRIPTION_CREATE__SUCCESS", "SUBSCRIPTION_DELETE__SUCCESS"))
+            );
+        }
+    }
+
+    @Test
+    public void testTtlAndRetentionEvent()
+            throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException {
+        String topicName = TopicName.get( namespace + "/testTtlEvent-" + UUID.randomUUID()).toString();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(0, 0));
+
+        String subscriptionName = "testTtlEvent";
+        // Create consumer for ttl
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+        consumer.close();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        for (int i = 0; i < 30; i++) {
+            producer.send(("message-" + i).getBytes(StandardCharsets.UTF_8));
+            Thread.sleep(500);
+        }
+
+        // Unload topic for trim ledgers
+        admin.topics().unload(topicName);
+
+        int ttl = 3;
+        Thread.sleep(ttl * 1000);
+
+        this.topicNameToWatch = topicName;
+        events.clear();
+
+        CompletableFuture<Optional<Topic>> topicIfExists = pulsar.getBrokerService().getTopicIfExists(topicName);
+        assertThat(topicIfExists).succeedsWithin(3, TimeUnit.SECONDS);
+        Optional<Topic> topic = topicIfExists.get();
+        assertThat(topic).isPresent();
+        PersistentTopic persistentTopic = (PersistentTopic) topic.get();
+        PersistentSubscription subscription = persistentTopic.getSubscription(subscriptionName);
+        subscription.expireMessages(ttl);
+        Awaitility.await().untilAsserted(() -> assertThat(events).contains(
+                "MESSAGE_EXPIRE__SUCCESS"
+        ));
+        pulsar.getBrokerService().checkConsumedLedgers();
+        Awaitility.await().untilAsserted(() -> assertThat(events).contains(
+                "MESSAGE_PURGE__SUCCESS"
+        ));
     }
 
     private PulsarAdmin createPulsarAdmin() throws PulsarClientException {
         return PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .build();
+    }
+
+    private void createConsumer(String topicName) throws PulsarClientException {
+        Consumer<byte[]> consumer =
+                pulsarClient.newConsumer().topic(topicName).subscriptionMode(SubscriptionMode.NonDurable)
+                        .subscriptionName("create-consumer").subscribe();
+        consumer.close();
     }
 
     private void triggerPartitionsCreation(String topicName) throws Exception {

@@ -94,6 +94,7 @@ import org.apache.pulsar.broker.event.data.SubscriptionSeekEventData;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerService.TopicLoadingContext;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -1295,8 +1296,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 service.isAllowAutoTopicCreationAsync(topicName.toString())
                         .thenApply(isAllowed -> forceTopicCreation && isAllowed)
-                        .thenCompose(createTopicIfDoesNotExist ->
-                                service.getTopic(topicName.toString(), createTopicIfDoesNotExist))
+                        .thenCompose(createTopicIfDoesNotExist -> service.getTopic(TopicLoadingContext.builder()
+                                .topic(topicName.toString())
+                                .createIfMissing(createTopicIfDoesNotExist)
+                                .clientVersion(clientVersion)
+                                .proxyVersion(proxyVersion)
+                                .build()))
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
                                 return FutureUtil
@@ -1553,7 +1558,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         topicName, producerId, producerName, schema == null ? "absent" : "present");
             }
 
-            service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
+            service.getOrCreateTopic(TopicLoadingContext.builder()
+                    .topic(topicName.toString())
+                    .clientVersion(clientVersion)
+                    .proxyVersion(proxyVersion)
+                    .build()).thenCompose((Topic topic) -> {
                 // Check max producer limitation to avoid unnecessary ops wasting resources. For example: the new
                 // producer reached max producer limitation, but pulsar did schema check first, it would waste CPU
                 if (((AbstractTopic) topic).isProducersExceeded(producerName)) {
@@ -1744,6 +1753,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             newTopicEpoch, true /* producer is ready now */);
                     ProducerConnectEventDataBuilder producerConnectEventDataBuilder = ProducerConnectEventData.builder()
                             .producerAccessMode(producerAccessMode)
+                            .producerAddress(producer.getClientAddress())
                             .producerId(producer.getProducerId())
                             .producerName(producer.getProducerName());
                     newTopicEpoch.ifPresent(producerConnectEventDataBuilder::epoch);
@@ -2066,10 +2076,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 newTopicEvent(subscription.getTopicName(), TopicEvent.SUBSCRIPTION_SEEK)
                         .data(SubscriptionSeekEventData.builder()
                                 .subscriptionName(subscription.getName())
-                                .messageId(new BatchMessageIdImpl(msgIdData.getLedgerId(),
-                                        msgIdData.getEntryId(),
-                                        msgIdData.getPartition(),
-                                        msgIdData.getBatchIndex()))
+                                .messageId(position.toString())
                                 .build())
                         .dispatch();
             }).exceptionally(ex -> {
@@ -2175,6 +2182,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public TopicEventsDispatcher.TopicEventBuilder newTopicEvent(String topic, TopicEvent topicEvent) {
         return getBrokerService().getTopicEventsDispatcher().newEvent(topic, topicEvent)
                 .role(authRole, originalPrincipal)
+                .clientVersion(clientVersion)
                 .proxyVersion(proxyVersion);
     }
 
@@ -3182,6 +3190,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             ctx.executor().schedule(() -> {
                 recentlyClosedProducers.remove(producerId, epoch);
             }, service.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+            dispatchCloseProducerEvent(producer, DisconnectInitiator.BROKER);
         } else {
             close();
         }

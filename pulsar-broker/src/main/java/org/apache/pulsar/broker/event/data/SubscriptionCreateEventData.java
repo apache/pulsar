@@ -18,18 +18,21 @@
  */
 package org.apache.pulsar.broker.event.data;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 
 @Builder
 @Value
+@NoArgsConstructor(force = true)
+@AllArgsConstructor
 public class SubscriptionCreateEventData implements EventData {
     String subscriptionName;
     boolean durable;
     InitialPosition subscriptionInitialPosition;
-    MessageId messageId;
+    String messageId;
     Boolean replicateSubscriptionState;
 }

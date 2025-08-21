@@ -88,25 +88,26 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
+import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
-import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -224,6 +225,8 @@ public class ServerCnxTest {
         brokerService = pulsarTestContext.getBrokerService();
 
         namespaceService = pulsar.getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newNonPartitionedTopicExists()))
+                .when(namespaceService).checkTopicExistsAsync(any());
         doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(namespaceService)
                 .getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkBundleOwnership(any(), any());

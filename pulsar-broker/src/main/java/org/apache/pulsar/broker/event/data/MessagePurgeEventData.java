@@ -19,17 +19,23 @@
 package org.apache.pulsar.broker.event.data;
 
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
 
 @Builder
 @Value
+@NoArgsConstructor(force = true)
+@AllArgsConstructor
 public class MessagePurgeEventData implements EventData {
     List<LedgerInfo> ledgerInfos;
 
     @Builder
     @Value
+    @NoArgsConstructor(force = true)
+    @AllArgsConstructor
     public static class LedgerInfo {
         long ledgerId;
         long entries;

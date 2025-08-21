@@ -19,15 +19,17 @@
 package org.apache.pulsar.broker.event.data;
 
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
 
-
 @Builder
 @Value
+@NoArgsConstructor(force = true)
+@AllArgsConstructor
 public class TopicCreateEventData implements EventData {
     int partitions;
     Map<String, String> properties;
-    boolean implicit;
 }

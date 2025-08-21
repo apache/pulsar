@@ -20,11 +20,13 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * Policy value holder for different hierarchy level.
  * Currently, we have three hierarchy with priority : topic > namespace > broker.
  */
+@ToString
 public class PolicyHierarchyValue<T> {
     private static final AtomicReferenceFieldUpdater<PolicyHierarchyValue, Object> VALUE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(PolicyHierarchyValue.class, Object.class, "value");

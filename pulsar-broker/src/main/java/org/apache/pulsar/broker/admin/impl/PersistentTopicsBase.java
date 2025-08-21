@@ -79,10 +79,10 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.event.data.SubscriptionCreateEventData;
 import org.apache.pulsar.broker.event.data.SubscriptionDeleteEventData;
 import org.apache.pulsar.broker.event.data.SubscriptionSeekEventData;
-import org.apache.pulsar.broker.event.data.TopicCreateEventData;
 import org.apache.pulsar.broker.event.data.TopicDeleteEventData;
 import org.apache.pulsar.broker.event.data.TopicMetadataUpdateEventData;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
+import org.apache.pulsar.broker.service.BrokerService.TopicLoadingContext;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -104,7 +104,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -428,14 +427,16 @@ public class PersistentTopicsBase extends AdminResource {
                    log.warn("[{}] Topic {} already exists", clientAppId(), topicName);
                    throw new RestException(Status.CONFLICT, "This topic already exists");
                }
-               return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties);
+               return pulsar().getBrokerService()
+                       .getTopic(TopicLoadingContext.builder()
+                               .topic(topicName.toString())
+                               .createIfMissing(true)
+                               .properties(properties)
+                               .clientVersion(getClientVersion())
+                               .build()
+                       );
            })
-           .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName))
-           .thenRun(()->{
-                newTopicEvent(topicName, TopicEvent.CREATE)
-                        .data(TopicCreateEventData.builder().partitions(0).properties(properties).build())
-                        .dispatch();
-            });
+           .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
     }
 
     /**
@@ -519,7 +520,8 @@ public class PersistentTopicsBase extends AdminResource {
                                     .data(TopicMetadataUpdateEventData.builder()
                                             .oldPartitions(currentMetadataPartitions)
                                             .newPartitions(expectPartitions)
-                                            .build()));
+                                            .build())
+                                    .dispatch());
                     return updateMetadataFuture
                     // create missing partitions
                     .thenCompose(__ -> tryCreatePartitionsAsync(expectPartitions))
@@ -850,6 +852,9 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse,
                                                   boolean authoritative,
                                                   boolean force) {
+        newTopicEvent(topicName, TopicEvent.DELETE)
+                .stage(EventStage.BEFORE).data(TopicDeleteEventData.builder().force(force).build())
+                .dispatch();
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                         NamespaceOperation.DELETE_TOPIC))
@@ -1218,13 +1223,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalUnloadNonPartitionedTopicAsync(AsyncResponse asyncResponse, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenCompose(topic -> {
-                    newTopicEvent(topicName, TopicEvent.UNLOAD)
-                            .stage(EventStage.BEFORE)
-                            .dispatch();
-                    return topic.close(false)
-                            .thenRun(() -> newTopicEvent(topicName, TopicEvent.UNLOAD).dispatch());
-                })
+                .thenCompose(topic -> topic.close(false))
                 .thenRun(() -> {
                     log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
                     asyncResponse.resume(Response.noContent().build());
@@ -1264,9 +1263,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalDeleteTopicAsync(boolean authoritative, boolean force) {
         return validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC)
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force))
-                .thenRun(() -> newTopicEvent(topicName, TopicEvent.DELETE)
-                        .data(TopicDeleteEventData.builder().force(force).build()).dispatch());
+                .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force));
     }
 
     /**
@@ -1785,7 +1782,8 @@ public class PersistentTopicsBase extends AdminResource {
                                     .subscriptionName(subName)
                                     .subscriptionType(sub.getType())
                                     .force(force)
-                                    .build()));
+                                    .build())
+                            .dispatch());
                 });
     }
 
@@ -2573,8 +2571,7 @@ public class PersistentTopicsBase extends AdminResource {
                                         .durable(true)
                                         .replicateSubscriptionState(replicated)
                                         .subscriptionInitialPosition(InitialPosition.Latest)
-                                        .messageId(new MessageIdImpl(targetMessageId.getLedgerId(),
-                                                targetMessageId.getEntryId(), -1))
+                                        .messageId(targetMessageId.toString())
                                         .build())
                                 .dispatch();
                         return s;
@@ -2867,9 +2864,7 @@ public class PersistentTopicsBase extends AdminResource {
                                         .data(SubscriptionSeekEventData.builder()
                                                 .subscriptionName(subName)
                                                 .subscriptionType(sub.getType())
-                                                .messageId(new BatchMessageIdImpl(messageId.getLedgerId(),
-                                                        messageId.getEntryId(), messageId.getPartitionIndex(),
-                                                        batchIndex))
+                                                .messageId(messageId.toString())
                                                 .build())
                                         .dispatch();
                             }).exceptionally(ex -> {

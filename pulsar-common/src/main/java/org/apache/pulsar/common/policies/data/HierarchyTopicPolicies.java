@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
+import lombok.ToString;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -32,6 +33,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
  * Topic policy hierarchy value container.
  */
 @Getter
+@ToString
 public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<List<String>> replicationClusters;
     final PolicyHierarchyValue<RetentionPolicies> retentionPolicies;

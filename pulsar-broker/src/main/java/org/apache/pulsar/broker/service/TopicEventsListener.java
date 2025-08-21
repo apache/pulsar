@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -77,6 +78,7 @@ public interface TopicEventsListener {
         FAILURE
     }
 
+    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
     interface EventData {
         // Marker interface for event data
     }
@@ -90,6 +92,7 @@ public interface TopicEventsListener {
         String proxyRole;
         String clientRole;
         String topicName;
+        Integer partitionIndex;
         TopicEvent event;
         EventData data;
         EventStage stage;

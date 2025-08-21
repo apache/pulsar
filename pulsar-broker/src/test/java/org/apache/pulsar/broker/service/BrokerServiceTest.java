@@ -74,9 +74,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -84,6 +84,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerService.TopicLoadingContext;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -1165,8 +1166,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).join();
 
         // try to create topic which should fail as bundle is disable
+        TopicLoadingContext topicLoadingContext =
+                TopicLoadingContext.builder().topic(topicName).createIfMissing(true).properties(null).build();
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true, null);
+                .loadOrCreatePersistentTopic(topicLoadingContext);
 
         try {
             futureResult.get();
