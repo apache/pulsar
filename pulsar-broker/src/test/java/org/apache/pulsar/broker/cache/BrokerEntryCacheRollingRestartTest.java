@@ -38,6 +38,8 @@ import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
@@ -96,6 +98,21 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                 "BK read for ledgerId {}, firstEntry {}, lastEntry {}, numberOfEntries {}, "
                         + "last msgid {}, restarting={}",
                 ledgerId, firstEntry, lastEntry, numberOfEntries, lastPublishedMessageId, restarting);
+    }
+
+    private static final int CACHE_SIZE_MB = 500;
+    private static final int KB = 1024;
+    private static final int MESSAGE_SIZE = 8 * KB; // 8 KB
+
+    @Override
+    protected int getManagedLedgerCacheSizeMB() {
+        return CACHE_SIZE_MB;
+    }
+
+    @Override
+    protected int calculateEntryLength(ManagedLedgerImpl ml, Entry entry) {
+        // simulate message size for cache entry size calculation
+        return MESSAGE_SIZE;
     }
 
     @Test(invocationCount = 5)

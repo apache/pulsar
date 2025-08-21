@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -60,6 +61,8 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     protected static final double MB = 1024 * 1024;
     private static final double evictionTriggerThresholdPercent = 0.98;
 
+    @Setter
+    private volatile EntryLengthFunction entryLengthFunction = EntryLengthFunction.DEFAULT;
 
     public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory, OrderedScheduler scheduledExecutor,
                                       OpenTelemetry openTelemetry) {
@@ -89,7 +92,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
         EntryCache newEntryCache =
                 new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml, mlFactory.getConfig().isCopyEntriesInCache(),
-                        rangeCacheRemovalQueue);
+                        rangeCacheRemovalQueue, entryLengthFunction);
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
             return currentEntryCache;

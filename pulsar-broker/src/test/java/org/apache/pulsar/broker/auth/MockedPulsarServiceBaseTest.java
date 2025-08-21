@@ -515,10 +515,21 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf,
                                               Consumer<PulsarTestContext.Builder> builderCustomizer) throws Exception {
         var builder = createAdditionalPulsarTestContextBuilder(conf);
+        customizeAdditionalPulsarTestContextBuilder(builder);
         if (builderCustomizer != null) {
             builderCustomizer.accept(builder);
         }
         return builder.build();
+    }
+
+    /**
+     * Customize the PulsarTestContext.Builder instance used for creating the PulsarTestContext
+     * for an additional PulsarService instance.
+     *
+     * @param pulsarTestContextBuilder the PulsarTestContext.Builder instance to customize
+     */
+    protected void customizeAdditionalPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+
     }
 
     protected PulsarTestContext.Builder createAdditionalPulsarTestContextBuilder(ServiceConfiguration conf) {

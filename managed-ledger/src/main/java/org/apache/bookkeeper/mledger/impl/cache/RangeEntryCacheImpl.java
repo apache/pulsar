@@ -87,18 +87,20 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     private final LongAdder totalAddedEntriesSize = new LongAdder();
     private final LongAdder totalAddedEntriesCount = new LongAdder();
+    private final EntryLengthFunction entryLengthFunction;
 
     public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
-                               RangeCacheRemovalQueue rangeCacheRemovalQueue) {
-        this(manager, ml, copyEntries, rangeCacheRemovalQueue, null);
+                               RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction) {
+        this(manager, ml, copyEntries, rangeCacheRemovalQueue, entryLengthFunction, null);
     }
 
     RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
-                               RangeCacheRemovalQueue rangeCacheRemovalQueue, PendingReadsManager pendingReadsManager) {
-
+                        RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction,
+                        PendingReadsManager pendingReadsManager) {
         this.manager = manager;
         this.ml = ml;
         this.pendingReadsManager = pendingReadsManager == null ? new PendingReadsManager(this) : pendingReadsManager;
+        this.entryLengthFunction = entryLengthFunction;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
         this.copyEntries = copyEntries;
@@ -130,7 +132,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Override
     public boolean insert(Entry entry) {
-        int entryLength = entry.getLength();
+        int entryLength = entryLengthFunction.getEntryLength(ml, entry);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Adding entry to cache: {} - size: {}", ml.getName(), entry.getPosition(),
@@ -157,7 +159,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         ReferenceCountedEntry cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler());
         cachedData.release();
-        if (entries.put(position, cacheEntry)) {
+        if (entries.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
             totalAddedEntriesCount.increment();
             manager.entryAdded(entryLength);

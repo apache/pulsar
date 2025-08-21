@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -179,7 +181,22 @@ public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBroke
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        customizeAllPulsarTestContextBuilders(pulsarTestContextBuilder);
+    }
+
+    @Override
+    protected void customizeAdditionalPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeAdditionalPulsarTestContextBuilder(pulsarTestContextBuilder);
+        customizeAllPulsarTestContextBuilders(pulsarTestContextBuilder);
+    }
+
+    protected void customizeAllPulsarTestContextBuilders(PulsarTestContext.Builder pulsarTestContextBuilder) {
         pulsarTestContextBuilder.spyNoneByDefault();
+        pulsarTestContextBuilder.entryCacheEntryLengthFunction(this::calculateEntryLength);
+    }
+
+    protected int calculateEntryLength(ManagedLedgerImpl ml, Entry entry) {
+        return entry.getLength();
     }
 
     @Override
@@ -216,8 +233,17 @@ public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBroke
         conf.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
         conf.setManagedLedgerMaxEntriesPerLedger(100000);
 
+        // set cache size
+        // the entry sizes will be simulated using an injected EntryLengthFunction which
+        // maps to the calculateEntryLength method in this class.
+        conf.setManagedLedgerCacheSizeMB(getManagedLedgerCacheSizeMB());
+
         // configure the cache type
         cacheType.configure(conf);
+    }
+
+    protected int getManagedLedgerCacheSizeMB() {
+        return 500;
     }
 
     @Override

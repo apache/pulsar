@@ -84,7 +84,7 @@ public class RangeEntryCacheImplTest {
         }).when(pendingReadsManager).readEntries(any(), anyLong(), anyLong(), any(), any(), any());
         rangeEntryCache =
                 new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false, mockRangeCacheRemovalQueue,
-                        pendingReadsManager);
+                        EntryLengthFunction.DEFAULT, pendingReadsManager);
         lh = mock(ReadHandle.class);
         when(lh.getId()).thenReturn(1L);
         expectedReadCount = () -> 1;
