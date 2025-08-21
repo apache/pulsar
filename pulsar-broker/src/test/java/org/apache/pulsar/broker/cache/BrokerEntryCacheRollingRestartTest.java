@@ -100,7 +100,7 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                 ledgerId, firstEntry, lastEntry, numberOfEntries, lastPublishedMessageId, restarting);
     }
 
-    private static final int CACHE_SIZE_MB = 500;
+    private static final int CACHE_SIZE_MB = 250;
     private static final int KB = 1024;
     private static final int MESSAGE_SIZE = 8 * KB; // 8 KB
 
@@ -133,7 +133,11 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
         final int receiverQueueSize = 200;
         int testTimeInSeconds = 30;
         int numberOfRestarts = 3;
-        int producerRatePerSecond = 75000;
+        int producerRatePerSecond = 50000;
+        int numberOfPartitions = 10;
+        if (numberOfPartitions > 1) {
+            admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
+        }
 
         AtomicInteger messagesInFlight = new AtomicInteger();
         final int targetMessagesInFlight = 500000;
