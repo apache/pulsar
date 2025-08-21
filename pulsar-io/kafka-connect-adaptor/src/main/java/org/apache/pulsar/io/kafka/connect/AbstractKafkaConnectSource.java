@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +76,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     public OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
     private final AtomicInteger outstandingRecords = new AtomicInteger(0);
+    private final AtomicBoolean flushing = new AtomicBoolean(false);
 
     public static final String CONNECTOR_CLASS = "kafkaConnectorSourceClass";
 
@@ -163,6 +164,71 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         sourceTask.start(taskConfig);
     }
 
+    private void onOffsetsFlushed(Throwable error) {
+        if (error != null) {
+            log.error("Failed to flush offsets to storage: ", error);
+            currentBatch = null;
+            offsetWriter.cancelFlush();
+            flushFuture.completeExceptionally(new Exception("No Offsets Added Error", error));
+            return;
+        }
+        try {
+            sourceTask.commit();
+            if (log.isDebugEnabled()) {
+                log.debug("Finished flushing offsets to storage");
+            }
+            currentBatch = null;
+            flushFuture.complete(null);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.warn("Flush interrupted, cancelling", ie);
+            offsetWriter.cancelFlush();
+            flushFuture.completeExceptionally(new Exception("Failed to commit offsets", ie));
+        } catch (Throwable t) {
+            log.warn("Flush failed, cancelling", t);
+            offsetWriter.cancelFlush();
+            flushFuture.completeExceptionally(new Exception("Failed to commit offsets", t));
+        }
+    }
+
+    private void triggerOffsetsFlushIfNeeded() {
+        // Only flush when we have a batch in flight, nothing outstanding, and a pending future
+        if (flushFuture == null || flushFuture.isDone() || outstandingRecords.get() != 0) {
+            return;
+        }
+        // Ensure we initiate flush only once per batch
+        if (!flushing.compareAndSet(false, true)) {
+            return; // someone else is flushing
+        }
+        try {
+            if (offsetWriter.beginFlush()) {
+                offsetWriter.doFlush((error, ignored) -> {
+                    try {
+                        onOffsetsFlushed(error);
+                    } finally {
+                        flushing.set(false);
+                    }
+                });
+            } else {
+                // Nothing staged to flush; still treat as successful flush so read() can progress
+                try {
+                    onOffsetsFlushed(null);
+                } finally {
+                    flushing.set(false);
+                }
+            }
+        } catch (org.apache.kafka.connect.errors.ConnectException alreadyFlushing) {
+            // Another thread initiated the flush; let their callback complete the future.
+            // Keep 'flushing' = true until read() finalizes the batch.
+        } catch (Exception t) {
+            try {
+                onOffsetsFlushed(t);
+            } finally {
+                flushing.set(false);
+            }
+        }
+    }
+
     @Override
     public synchronized Record<T> read() throws Exception {
         while (true) {
@@ -179,20 +245,21 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
                 AbstractKafkaSourceRecord<T> processRecord = processSourceRecord(currentBatch.next());
                 if (processRecord == null || processRecord.isEmpty()) {
                     outstandingRecords.decrementAndGet();
-                    continue;
+                    // If the entire batch is filtered, flush offsets now so it won't block later
+                    triggerOffsetsFlushIfNeeded();
                 } else {
                     return processRecord;
                 }
             } else {
-                // there is no records any more, then waiting for the batch to complete writing
-                // to sink and the offsets are committed as well, then do next round read.
+                // No more records in this batch: wait for offsets to be committed before next batch
+                triggerOffsetsFlushIfNeeded();
                 try {
                     flushFuture.get();
                 } catch (ExecutionException ex) {
-                    // log the error, continue execution
                     log.error("execution exception while get flushFuture", ex);
                     throw new Exception("Flush failed", ex.getCause());
                 } finally {
+                    flushing.set(false);
                     flushFuture = null;
                     currentBatch = null;
                 }
@@ -272,55 +339,11 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
             return this.value == null;
         }
 
-        private void completedFlushOffset(Throwable error, Void result) {
-            if (error != null) {
-                log.error("Failed to flush offsets to storage: ", error);
-                currentBatch = null;
-                offsetWriter.cancelFlush();
-                flushFuture.completeExceptionally(new Exception("No Offsets Added Error"));
-            } else {
-                try {
-                    sourceTask.commit();
-
-                    log.info("Finished flushing offsets to storage");
-                    currentBatch = null;
-                    flushFuture.complete(null);
-                } catch (InterruptedException exception) {
-                    log.warn("Flush of {} offsets interrupted, cancelling", this);
-                    Thread.currentThread().interrupt();
-                    offsetWriter.cancelFlush();
-                    flushFuture.completeExceptionally(new Exception("Failed to commit offsets", exception));
-                } catch (Throwable t) {
-                    // SourceTask can throw unchecked ConnectException/KafkaException.
-                    // Make sure the future is cancelled in that case
-                    log.warn("Flush of {} offsets failed, cancelling", this);
-                    offsetWriter.cancelFlush();
-                    flushFuture.completeExceptionally(new Exception("Failed to commit offsets", t));
-                }
-            }
-        }
-
         @Override
         public void ack() {
-            // TODO: should flush for each batch. not wait for a time for acked all.
-            // How to handle order between each batch. QueueList<pair<batch, automicInt>>. check if head is all acked.
-            boolean canFlush = (outstandingRecords.decrementAndGet() == 0);
-
-            // consumed all the records, flush the offsets
-            if (canFlush && flushFuture != null) {
-                if (!offsetWriter.beginFlush()) {
-                    log.error("When beginFlush, No offsets to commit!");
-                    flushFuture.completeExceptionally(new Exception("No Offsets Added Error when beginFlush"));
-                    return;
-                }
-
-                Future<Void> doFlush = offsetWriter.doFlush(this::completedFlushOffset);
-                if (doFlush == null) {
-                    // Offsets added in processSourceRecord, But here no offsets to commit
-                    log.error("No offsets to commit!");
-                    flushFuture.completeExceptionally(new Exception("No Offsets Added Error"));
-                    return;
-                }
+            // Decrement and let the centralized flusher decide if we should flush now
+            if (outstandingRecords.decrementAndGet() == 0) {
+                triggerOffsetsFlushIfNeeded();
             }
         }
 
