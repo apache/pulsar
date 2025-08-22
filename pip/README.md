@@ -250,7 +250,7 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | 143 | [Support split bundle by specified boundaries](pip-143.md) |
 | 144 | [Making SchemaRegistry implementation configurable](pip-144.md) |
 | 146 | [ManagedCursorInfo compression](pip-146.md) |
-| 148 | [PIP 148](pip-148.md) |
+| 148 | [Create Pulsar client release notes](pip-148.md) |
 | 149 | [Making the REST Admin API fully async](pip-149.md) |
 | 152 | [Support subscription level dispatch rate limiter setting](pip-152.md) |
 | 154 | [Max active transaction limitation for transaction coordinator](pip-154.md) |
