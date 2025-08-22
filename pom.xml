@@ -3022,6 +3022,8 @@ flexible messaging model and an intuitive client API.</description>
           -XX:+DebugNonSafepoints
           -Xms${testMaxHeapSize} -XX:+AlwaysPreTouch
           -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},jfr,file=${pulsar.basedir}/target/test_profile_${maven.build.timestamp}_${surefire.forkNumber}_%p.jfr
+          -Dpulsar.test.logging.appender=FILE
+          -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
         </test.asyncprofiler.args>
         <testForkCount>1</testForkCount>
         <testRetryCount>0</testRetryCount>

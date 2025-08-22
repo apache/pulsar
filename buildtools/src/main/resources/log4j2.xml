@@ -36,7 +36,8 @@
     <RollingFile name="FILE"
                  fileName="${sys:pulsar.test.logging.file}"
                  filePattern="${sys:pulsar.test.logging.file}-%i.log"
-                 immediateFlush="${sys:pulsar.test.logging.file.immediateFlush}">
+                 immediateFlush="${sys:pulsar.test.logging.file.immediateFlush}"
+                 createOnDemand="true">
       <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"/>
       <Policies>
         <SizeBasedTriggeringPolicy size="10MB"/>
