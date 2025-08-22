@@ -203,6 +203,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.bc-fips.version>1.0.2.5</bouncycastle.bc-fips.version>
     <jackson.version>2.17.2</jackson.version>
     <fastutil.version>8.5.14</fastutil.version>
+    <jctools.version>4.0.5</jctools.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
@@ -966,6 +967,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>it.unimi.dsi</groupId>
         <artifactId>fastutil</artifactId>
         <version>${fastutil.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>${jctools.version}</version>
       </dependency>
 
       <dependency>
