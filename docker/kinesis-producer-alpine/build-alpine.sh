@@ -76,7 +76,7 @@ if [ ! -d "boost_${BOOST_VERSION_UNDERSCORED}" ]; then
   cd boost_${BOOST_VERSION_UNDERSCORED}
 
   LIBS="atomic,chrono,log,system,test,random,regex,thread,filesystem"
-  OPTS="-j 4 --build-type=minimal --layout=system --prefix=$INSTALL_DIR link=static threading=multi release install"
+  OPTS="--build-type=minimal --layout=system --prefix=$INSTALL_DIR link=static threading=multi release install"
 
   silence ./bootstrap.sh --with-libraries="$LIBS" --with-toolset=gcc
   silence ./b2 toolset=gcc $OPTS
