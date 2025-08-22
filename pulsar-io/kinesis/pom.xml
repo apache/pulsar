@@ -19,7 +19,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.pulsar</groupId>
@@ -31,8 +31,9 @@
   <name>Pulsar IO :: Kinesis</name>
 
   <properties>
-    <amazon-kinesis-client.version>2.2.8</amazon-kinesis-client.version>
+    <amazon-kinesis-client.version>3.1.2</amazon-kinesis-client.version>
     <amazon-kinesis-producer.version>1.0.4</amazon-kinesis-producer.version>
+    <protobuf-java.version>4.29.0</protobuf-java.version>
     <json-flattener.version>0.13.0</json-flattener.version>
     <flatbuffers-java.version>1.9.0</flatbuffers-java.version>
     <jaxb-api.version>2.3.0</jaxb-api.version>
@@ -45,6 +46,15 @@
         <groupId>org.apache.kafka</groupId>
         <artifactId>kafka-clients</artifactId>
         <version>${kafka-client.version}</version>
+      </dependency>
+      <!-- enforce protobuf-java version that is compatible with KPL 1.0.x -->
+      <!-- see https://github.com/awslabs/amazon-kinesis-producer/blob/v1.0.4/java/amazon-kinesis-producer/pom.xml#L20 -->
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-bom</artifactId>
+        <version>${protobuf-java.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -97,6 +107,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
       <version>${avro.version}</version>
@@ -123,7 +138,6 @@
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>utils</artifactId>
-      <version>2.22.12</version>
     </dependency>
 
     <dependency>
@@ -137,7 +151,7 @@
       <artifactId>amazon-kinesis-producer</artifactId>
       <version>${amazon-kinesis-producer.version}</version>
     </dependency>
-	<!-- /kinesis dependencies -->
+    <!-- /kinesis dependencies -->
 
     <dependency>
       <groupId>com.google.flatbuffers</groupId>
