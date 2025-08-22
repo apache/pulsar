@@ -317,7 +317,8 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | 302 | [Support for TableView with strong read consistency](pip-302.md) |
 | 303 | [Support PartitionedTopicStats exclude publishers and subscriptions](pip-303.md) |
 | 305 | [Add OpAddEntry and pendingData statistics info in JVM metrics](pip-305.md) |
-| 307 | [Support key value admin](pip-307.md) |
+| 306 | [Support subscribing multi topics for WebSocket](pip-306.md) |
+| 307 | [Optimize Bundle Unload(Transfer) Protocol for ExtensibleLoadManager](pip-307.md) |
 | 312 | [Use StateStoreProvider to manage state in Pulsar Functions endpoints](pip-312.md) |
 | 313 | [Support force unsubscribe using consumer api](pip-313.md) |
 | 315 | [Configurable max delay limit for delayed delivery](pip-315.md) |
