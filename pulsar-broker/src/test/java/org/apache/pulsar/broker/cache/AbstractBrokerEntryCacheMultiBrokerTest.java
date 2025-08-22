@@ -238,6 +238,10 @@ public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBroke
         // maps to the calculateEntryLength method in this class.
         conf.setManagedLedgerCacheSizeMB(getManagedLedgerCacheSizeMB());
 
+        // Adjust dispatcher retry backoff to save CPU with minimal latency
+        conf.setDispatcherRetryBackoffInitialTimeInMs(1);
+        conf.setDispatcherRetryBackoffMaxTimeInMs(1);
+
         // configure the cache type
         cacheType.configure(conf);
     }
