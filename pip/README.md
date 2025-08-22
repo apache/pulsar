@@ -112,9 +112,6 @@ email what the PIP was about and gave a link.
 
 ## List of PIPs
 
-### Historical PIPs
-You can the view list of PIPs previously managed by GitHub wiki or GitHub issues [here](https://github.com/apache/pulsar/wiki#pulsar-improvement-proposals)
-
 ### Current PIPs Table of Contents
 
 The following table lists all current PIPs in this directory, sorted by PIP number:
