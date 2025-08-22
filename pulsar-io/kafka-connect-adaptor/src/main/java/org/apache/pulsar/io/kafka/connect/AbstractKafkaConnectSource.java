@@ -33,9 +33,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -68,7 +70,6 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
     // pulsar io related variables
     private Iterator<SourceRecord> currentBatch = null;
-    private CompletableFuture<Void> flushFuture;
     private OffsetBackingStore offsetStore;
     private OffsetStorageReader offsetReader;
     private String topicNamespace;
@@ -77,6 +78,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     // number of outstandingRecords that have been polled but not been acked
     private final AtomicInteger outstandingRecords = new AtomicInteger(0);
     private final AtomicBoolean flushing = new AtomicBoolean(false);
+    private final AtomicReference<CompletableFuture<Void>> flushFutureRef = new AtomicReference<>();
 
     public static final String CONNECTOR_CLASS = "kafkaConnectorSourceClass";
 
@@ -163,13 +165,11 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         sourceTask.initialize(sourceTaskContext);
         sourceTask.start(taskConfig);
     }
-
-    private void onOffsetsFlushed(Throwable error) {
+    private void onOffsetsFlushed(Throwable error, CompletableFuture<Void> snapshotFlushFuture) {
         if (error != null) {
             log.error("Failed to flush offsets to storage: ", error);
-            currentBatch = null;
             offsetWriter.cancelFlush();
-            flushFuture.completeExceptionally(new Exception("No Offsets Added Error", error));
+            snapshotFlushFuture.completeExceptionally(new Exception("No Offsets Added Error", error));
             return;
         }
         try {
@@ -177,26 +177,25 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
             if (log.isDebugEnabled()) {
                 log.debug("Finished flushing offsets to storage");
             }
-            currentBatch = null;
-            flushFuture.complete(null);
+            snapshotFlushFuture.complete(null);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             log.warn("Flush interrupted, cancelling", ie);
             offsetWriter.cancelFlush();
-            flushFuture.completeExceptionally(new Exception("Failed to commit offsets", ie));
+            snapshotFlushFuture.completeExceptionally(new Exception("Failed to commit offsets", ie));
         } catch (Throwable t) {
             log.warn("Flush failed, cancelling", t);
             offsetWriter.cancelFlush();
-            flushFuture.completeExceptionally(new Exception("Failed to commit offsets", t));
+            snapshotFlushFuture.completeExceptionally(new Exception("Failed to commit offsets", t));
         }
     }
 
     private void triggerOffsetsFlushIfNeeded() {
+        final CompletableFuture<Void> snapshotFlushFuture = flushFutureRef.get();
         // Only flush when we have a batch in flight, nothing outstanding, and a pending future
-        if (flushFuture == null || flushFuture.isDone() || outstandingRecords.get() != 0) {
+        if (snapshotFlushFuture == null || snapshotFlushFuture.isDone() || outstandingRecords.get() != 0) {
             return;
         }
-        // Ensure we initiate flush only once per batch
         if (!flushing.compareAndSet(false, true)) {
             return; // someone else is flushing
         }
@@ -204,25 +203,24 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
             if (offsetWriter.beginFlush()) {
                 offsetWriter.doFlush((error, ignored) -> {
                     try {
-                        onOffsetsFlushed(error);
+                        onOffsetsFlushed(error, snapshotFlushFuture);
                     } finally {
                         flushing.set(false);
                     }
                 });
             } else {
-                // Nothing staged to flush; still treat as successful flush so read() can progress
                 try {
-                    onOffsetsFlushed(null);
+                    onOffsetsFlushed(null, snapshotFlushFuture);
                 } finally {
                     flushing.set(false);
                 }
             }
-        } catch (org.apache.kafka.connect.errors.ConnectException alreadyFlushing) {
+        } catch (ConnectException alreadyFlushing) {
             // Another thread initiated the flush; let their callback complete the future.
             // Keep 'flushing' = true until read() finalizes the batch.
         } catch (Exception t) {
             try {
-                onOffsetsFlushed(t);
+                onOffsetsFlushed(t, snapshotFlushFuture);
             } finally {
                 flushing.set(false);
             }
@@ -233,34 +231,37 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     public synchronized Record<T> read() throws Exception {
         while (true) {
             if (currentBatch == null) {
-                flushFuture = new CompletableFuture<>();
                 List<SourceRecord> recordList = sourceTask.poll();
                 if (recordList == null || recordList.isEmpty()) {
                     continue;
                 }
                 outstandingRecords.addAndGet(recordList.size());
                 currentBatch = recordList.iterator();
+
+                final CompletableFuture<Void> newFuture = new CompletableFuture<>();
+                flushFutureRef.set(newFuture);
             }
             if (currentBatch.hasNext()) {
                 AbstractKafkaSourceRecord<T> processRecord = processSourceRecord(currentBatch.next());
                 if (processRecord == null || processRecord.isEmpty()) {
                     outstandingRecords.decrementAndGet();
-                    // If the entire batch is filtered, flush offsets now so it won't block later
                     triggerOffsetsFlushIfNeeded();
                 } else {
                     return processRecord;
                 }
             } else {
-                // No more records in this batch: wait for offsets to be committed before next batch
-                triggerOffsetsFlushIfNeeded();
+                final CompletableFuture<Void> snapshotFlushFuture = flushFutureRef.get();
                 try {
-                    flushFuture.get();
+                    if (snapshotFlushFuture != null) {
+                        snapshotFlushFuture.get();
+                    }
                 } catch (ExecutionException ex) {
                     log.error("execution exception while get flushFuture", ex);
                     throw new Exception("Flush failed", ex.getCause());
                 } finally {
                     flushing.set(false);
-                    flushFuture = null;
+                    // Clear only if this is still the current batch future
+                    flushFutureRef.compareAndSet(snapshotFlushFuture, null);
                     currentBatch = null;
                 }
             }
@@ -349,8 +350,9 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
         @Override
         public void fail() {
-            if (flushFuture != null) {
-                flushFuture.completeExceptionally(new Exception("Sink Error"));
+            final CompletableFuture<Void> snapshotFlushFuture = flushFutureRef.get();
+            if (snapshotFlushFuture != null) {
+                snapshotFlushFuture.completeExceptionally(new Exception("Sink Error"));
             }
         }
     }
