@@ -176,6 +176,7 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                     .poolMessages(true)
                     // use shorter ack group time to lose less acks in restarts
                     .acknowledgmentGroupTime(5, TimeUnit.MILLISECONDS)
+                    .ackTimeout(0, TimeUnit.SECONDS)
                     .subscribe();
         }
 
