@@ -115,9 +115,122 @@ email what the PIP was about and gave a link.
 ### Historical PIPs
 You can the view list of PIPs previously managed by GitHub wiki or GitHub issues [here](https://github.com/apache/pulsar/wiki#pulsar-improvement-proposals)
 
-### List of PIPs
+### Current PIPs Table of Contents
+
+The following table lists all current PIPs in this directory, sorted by PIP number:
+
+| PIP Number | Title |
+|------------|-------|
+| 264 | [Support OpenTelemetry metrics in Pulsar](pip-264.md) |
+| 275 | [Rename numWorkerThreadsForNonPersistentTopic to topicOrderedExecutorThreadNum](pip-275.md) |
+| 276 | [Add pulsar prefix to topic_load_times metric](pip-276.md) |
+| 277 | [Add current cluster marking to clusters list command](pip-277.md) |
+| 278 | [Pluggable topic compaction service](pip-278.md) |
+| 279 | [Support topic-level policies using TableView API](pip-279.md) |
+| 280 | [Refactor CLI Argument Parsing Logic for Measurement Units using JCommander's custom converter](pip-280.md) |
+| 281 | [Add notifyError method on PushSource](pip-281.md) |
+| 282 | [Add Key_Shared subscription initial position support](pip-282.md) |
+| 284 | [Migrate topic policies implementation to use TableView](pip-284.md) |
+| 286 | [Support get position based on timestamp with topic compaction](pip-286.md) |
+| 289 | [Secure Pulsar Connector Configuration](pip-289.md) |
+| 290 | [Support message encryption in WebSocket proxy](pip-290.md) |
+| 292 | [Enforce token expiration time in the Websockets plugin](pip-292.md) |
+| 293 | [Support reader to read compacted data](pip-293.md) |
+| 296 | [Add getLastMessageIds API for Reader](pip-296.md) |
+| 297 | [Support terminating Function & Connector with the fatal exception](pip-297.md) |
+| 298 | [Support read transaction buffer snapshot segments from earliest](pip-298.md) |
+| 299 | [Support setting max unacked messages at subscription level](pip-299.md) |
+| 300 | [Add RedeliverCount field to CommandAck](pip-300.md) |
+| 301 | [Separate load data storage from configuration metadata store](pip-301.md) |
+| 302 | [Support for TableView with strong read consistency](pip-302.md) |
+| 303 | [Support PartitionedTopicStats exclude publishers and subscriptions](pip-303.md) |
+| 305 | [Add OpAddEntry and pendingData statistics info in JVM metrics](pip-305.md) |
+| 307 | [Support key value admin](pip-307.md) |
+| 312 | [Use StateStoreProvider to manage state in Pulsar Functions endpoints](pip-312.md) |
+| 313 | [Support force unsubscribe using consumer api](pip-313.md) |
+| 315 | [Configurable max delay limit for delayed delivery](pip-315.md) |
+| 318 | [Don't retain null-key messages during topic compaction](pip-318.md) |
+| 320 | [OpenTelemetry Scaffolding](pip-320.md) |
+| 321 | [Split the responsibilities of namespace replication-clusters](pip-321.md) |
+| 322 | [Pulsar Rate Limiting Refactoring](pip-322.md) |
+| 323 | [Complete Backlog Quota Telemetry](pip-323.md) |
+| 324 | [Switch to Alpine Linux base Docker images](pip-324.md) |
+| 325 | [Support reading from transaction buffer for pending transaction](pip-325.md) |
+| 326 | [Create a BOM to ease dependency management](pip-326.md) |
+| 327 | [Support force topic loading for unrecoverable errors](pip-327.md) |
+| 329 | [Strategy for maintaining the latest tag to Pulsar docker images](pip-329.md) |
+| 330 | [getMessagesById gets all messages](pip-330.md) |
+| 335 | [Support Oxia metadata store plugin](pip-335.md) |
+| 337 | [SSL Factory Plugin to customize SSLContext/SSLEngine generation](pip-337.md) |
+| 339 | [Introducing the --log-topic Option for Pulsar Sinks and Sources](pip-339.md) |
+| 342 | [Support OpenTelemetry metrics in Pulsar client](pip-342.md) |
+| 343 | [Use picocli instead of jcommander](pip-343.md) |
+| 344 | [Correct the behavior of the public API pulsarClient.getPartitionsForTopic(topicName)](pip-344.md) |
+| 347 | [add role field in consumer's stat](pip-347.md) |
+| 348 | [Trigger offload on topic load stage](pip-348.md) |
+| 349 | [Add additionalSystemCursorNames ignore list for ttl check](pip-349.md) |
+| 350 | [Allow to disable the managedLedgerOffloadDeletionLagInMillis](pip-350.md) |
+| 351 | [Additional options for Pulsar-Test client to support KeyStore based TLS](pip-351.md) |
+| 352 | [Event time based topic compactor](pip-352.md) |
+| 353 | [Improve transaction message visibility for peek-messages cli](pip-353.md) |
+| 354 | [apply topK mechanism to ModularLoadManagerImpl](pip-354.md) |
+| 355 | [Enhancing Broker-Level Metrics for Pulsar](pip-355.md) |
+| 356 | [Support Geo-Replication starts at earliest position](pip-356.md) |
+| 357 | [Correct the conf name in load balance module.](pip-357.md) |
+| 358 | [let resource weight work for OverloadShedder, LeastLongTermMessageRate, ModularLoadManagerImpl.](pip-358.md) |
+| 359 | [Support custom message listener executor for specific subscription](pip-359.md) |
+| 360 | [Admin API to display Schema metadata](pip-360.md) |
+| 363 | [Add callback parameters to the method: `org.apache.pulsar.client.impl.SendCallback.sendComplete`.](pip-363.md) |
+| 364 | [Introduce a new load balance algorithm AvgShedder](pip-364.md) |
+| 366 | [Support to specify different config for Configuration and Local Metadata Store](pip-366.md) |
+| 367 | [Propose a Contributor Repository for Pulsar](pip-367.md) |
+| 368 | [Support lookup based on the lookup properties](pip-368.md) |
+| 369 | [Flag based selective unload on changing ns-isolation-policy](pip-369.md) |
+| 370 | [configurable remote topic creation in geo-replication](pip-370.md) |
+| 373 | [Add a topic's system prop that indicates whether users have published TXN messages in before.](pip-373.md) |
+| 374 | [Visibility of messages in receiverQueue for the consumers](pip-374.md) |
+| 376 | [Make Topic Policies Service Pluggable](pip-376.md) |
+| 378 | [Add ServiceUnitStateTableView abstraction (ExtensibleLoadMangerImpl only)](pip-378.md) |
+| 379 | [Key_Shared Draining Hashes for Improved Message Ordering](pip-379.md) |
+| 380 | [Support setting up specific namespaces to skipping the load-shedding](pip-380.md) |
+| 381 | [Handle large PositionInfo state](pip-381.md) |
+| 383 | [Support granting/revoking permissions for multiple topics](pip-383.md) |
+| 384 | [ManagedLedger interface decoupling](pip-384.md) |
+| 389 | [Add Producer config compressMinMsgBodySize to improve compression performance](pip-389.md) |
+| 391 | [Improve Batch Messages Acknowledgment](pip-391.md) |
+| 392 | [Add configuration to enable consistent hashing to select active consumer for partitioned topic](pip-392.md) |
+| 393 | [Improve performance of Negative Acknowledgement](pip-393.md) |
+| 395 | [Add Proxy configuration to support configurable response headers for http reverse-proxy](pip-395.md) |
+| 396 | [Align WindowFunction's WindowContext with BaseContext](pip-396.md) |
+| 399 | [Fix Metric Name for Delayed Queue](pip-399.md) |
+| 401 | [Support set batching configurations for Pulsar Functions&Sources](pip-401.md) |
+| 402 | [Role Anonymizer for Pulsar Logging](pip-402.md) |
+| 404 | [Introduce per-ledger properties](pip-404.md) |
+| 406 | [Introduce metrics related to dispatch throttled events](pip-406.md) |
+| 407 | [Add a newMessage API to create a message with a schema and transaction](pip-407.md) |
+| 409 | [support producer configuration for retry/dead letter topic producer](pip-409.md) |
+| 412 | [Support setting messagePayloadProcessor in Pulsar Functions and Sinks](pip-412.md) |
+| 414 | [Enforce topic consistency check](pip-414.md) |
+| 415 | [Support getting message ID by index](pip-415.md) |
+| 416 | [Add a new topic method to implement trigger offload by size threshold](pip-416.md) |
+| 420 | [Provides an ability for Pulsar clients to integrate with third-party schema registry service](pip-420.md) |
+| 421 | [Require Java 17 as the minimum for Pulsar Java client SDK](pip-421.md) |
+| 422 | [Support global topic-level policy: replicated clusters and new API to delete topic-level policies](pip-422.md) |
+| 425 | [Support connecting with next available endpoint for multi-endpoint serviceUrls](pip-425.md) |
+| 427 | [Align pulsar-admin Default for Mark-Delete Rate with Broker Configuration](pip-427.md) |
+| 428 | [Change TopicPoliciesService interface to fix consistency issues](pip-428.md) |
+| 429 | [Optimize Handling of Compacted Last Entry by Skipping Payload Buffer Parsing](pip-429.md) |
+| 430 | [Pulsar Broker cache improvements: refactoring eviction and adding a new cache strategy based on expected read count](pip-430.md) |
+| 431 | [Add Creation and Last Publish Timestamps to Topic Stats](pip-431.md) |
+| 432 | [Add isEncrypted field to EncryptionContext](pip-432.md) |
+| 433 | [Optimize the conflicts of the replication and automatic creation mechanisms, including the automatic creation of topics and schemas](pip-433.md) |
+| 435 | [Add `startTimestamp` and `endTimestamp` for consuming messages in client cli](pip-435.md) |
+| 436 | [Add decryptFailListener to Consumer](pip-436.md) |
+
+### Additional Information
 1. You can view all PIPs (besides the historical ones) as the list of Pull Requests having title starting with `[improve][pip] PIP-`. Here is the [link](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) for it. 
    - Merged PR means the PIP was accepted.
    - Closed PR means the PIP was rejected.
    - Open PR means the PIP was submitted and is in the process of discussion.
-2. You can also take a look at the file in the `pip` folder. Each one is an approved PIP.
+2. All PIP files in the `pip` folder follow the naming convention `pip-xxx.md` where `xxx` is the PIP number.
+3. Note: There is also a duplicate file `pip-307-duplicate.md` which contains different content from the main `pip-307.md`.

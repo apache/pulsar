@@ -145,4 +145,8 @@ public class MemoryLimitController {
     public boolean isMemoryLimited() {
         return memoryLimit > 0;
     }
+
+    public long memoryLimit() {
+        return memoryLimit;
+    }
 }
