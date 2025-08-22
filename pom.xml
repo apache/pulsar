@@ -119,7 +119,10 @@ flexible messaging model and an intuitive client API.</description>
       ${test.additional.args.jdk24}
       ${test.netty.args}
       ${test.asyncprofiler.args}
+      ${test.jvm.args}
     </test.additional.args>
+    <!-- arguments to pass to test JVMs -->
+    <test.jvm.args></test.jvm.args>
     <test.additional.args.jdk24></test.additional.args.jdk24>
     <!-- Netty related JVM args, including Netty leak detection enabled in tests -->
     <test.netty.args>
@@ -3029,6 +3032,17 @@ flexible messaging model and an intuitive client API.</description>
         <testRetryCount>0</testRetryCount>
         <redirectTestOutputToFile>false</redirectTestOutputToFile>
         <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+    </profile>
+    <!-- profile that redirects log4j logs to a file -->
+    <profile>
+      <id>testLoggingToFile</id>
+      <properties>
+        <test.jvm.args>
+        -Dpulsar.test.logging.appender=FILE
+        -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
+        </test.jvm.args>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
       </properties>
     </profile>
   </profiles>
