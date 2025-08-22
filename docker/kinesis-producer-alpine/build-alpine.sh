@@ -76,7 +76,7 @@ if [ ! -d "boost_${BOOST_VERSION_UNDERSCORED}" ]; then
   cd boost_${BOOST_VERSION_UNDERSCORED}
 
   LIBS="atomic,chrono,log,system,test,random,regex,thread,filesystem"
-  OPTS="-j 8 --build-type=minimal --layout=system --prefix=$INSTALL_DIR link=static threading=multi release install"
+  OPTS="-j 4 --build-type=minimal --layout=system --prefix=$INSTALL_DIR link=static threading=multi release install"
 
   silence ./bootstrap.sh --with-libraries="$LIBS" --with-toolset=gcc
   silence ./b2 toolset=gcc $OPTS
@@ -123,7 +123,7 @@ if [ ! -d "aws-sdk-cpp" ]; then
     -DCMAKE_FIND_FRAMEWORK=LAST \
     -DENABLE_TESTING="OFF" \
     ../aws-sdk-cpp
-  silence make -j8
+  silence make -j4
   silence make install
 
   cd ..
@@ -136,7 +136,7 @@ cd ..
 cd /build/amazon-kinesis-producer
 ln -fs ../third_party
 $CMAKE -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
-make -j8
+make -j4
 
 FINAL_DIR=/opt/amazon-kinesis-producer
 # copy the binary
