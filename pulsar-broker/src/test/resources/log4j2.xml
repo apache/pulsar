@@ -22,45 +22,42 @@
 <Configuration xmlns="http://logging.apache.org/log4j/2.0/config"
                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                xsi:schemaLocation="http://logging.apache.org/log4j/2.0/config https://logging.apache.org/log4j/2.0/log4j-core.xsd">
+  <Properties>
+    <Property name="pulsar.test.logging.appender" value="CONSOLE"/>
+    <Property name="pulsar.test.logging.file" value="target/pulsar.test.log"/>
+    <Property name="pulsar.test.logging.file.immediateFlush" value="false"/>
+  </Properties>
   <Appenders>
     <!-- setting follow="true" is required for using ConsoleCaptor to validate log messages -->
     <Console name="CONSOLE" target="SYSTEM_OUT" follow="true">
       <PatternLayout pattern="%d{ISO8601} - %-5p - [%t:%c{1}] - %m%n"/>
     </Console>
+    <RollingFile name="FILE"
+                 fileName="${sys:pulsar.test.logging.file}"
+                 filePattern="${sys:pulsar.test.logging.file}-%i.log"
+                 immediateFlush="${sys:pulsar.test.logging.file.immediateFlush}">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"/>
+      <Policies>
+        <SizeBasedTriggeringPolicy size="10MB"/>
+      </Policies>
+    </RollingFile>
   </Appenders>
   <Loggers>
-<!--    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentTopic" level="DEBUG" additivity="false">-->
-<!--       <AppenderRef ref="CONSOLE" />-->
-<!--    </Logger>-->
-
     <Root level="INFO">
-      <AppenderRef ref="CONSOLE"/>
+      <!-- by setting -Dpulsar.test.logging.appender=FILE, it's possible to log to file only -->
+      <AppenderRef ref="${sys:pulsar.test.logging.appender}"/>
     </Root>
+    <!--  <Logger name="org.apache.pulsar.broker.service.persistent.PersistentTopic" level="DEBUG"/> -->
     <!-- Uncomment the following logger for debugging Key_Shared / PIP-379
-    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers" level="DEBUG" additivity="false">
-      <AppenderRef ref="CONSOLE"/>
-    </Logger>
-    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers" level="DEBUG" additivity="false">
-      <AppenderRef ref="CONSOLE"/>
-    </Logger>
-    <Logger name="org.apache.pulsar.broker.service.Consumer" level="DEBUG" additivity="false">
-      <AppenderRef ref="CONSOLE"/>
-    </Logger>
-    <Logger name="org.apache.pulsar.broker.service.DrainingHashesTracker" level="DEBUG" additivity="false">
-      <AppenderRef ref="CONSOLE"/>
-    </Logger>
-    <Logger name="org.apache.pulsar.broker.service.persistent.RescheduleReadHandler" level="DEBUG" additivity="false">
-      <AppenderRef ref="CONSOLE"/>
-    </Logger>
+    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers" level="DEBUG"/>
+    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers" level="DEBUG"/>
+    <Logger name="org.apache.pulsar.broker.service.Consumer" level="DEBUG"/>
+    <Logger name="org.apache.pulsar.broker.service.DrainingHashesTracker" level="DEBUG"/>
+    <Logger name="org.apache.pulsar.broker.service.persistent.RescheduleReadHandler" level="DEBUG"/>
      -->
-
     <!-- Uncomment the following loggers for debugging broker cache related classes
-    <Logger name="org.apache.bookkeeper.mledger.impl.cache" level="DEBUG" additivity="false">
-      <AppenderRef ref="CONSOLE"/>
-    </Logger>
-    <Logger name="org.apache.bookkeeper.mledger.util.RangeCache" level="DEBUG" additivity="false">
-      <AppenderRef ref="CONSOLE"/>
-    </Logger>
+    <Logger name="org.apache.bookkeeper.mledger.impl.cache" level="DEBUG"/>
+    <Logger name="org.apache.bookkeeper.mledger.util.RangeCache" level="DEBUG"/>
      -->
   </Loggers>
 </Configuration>
