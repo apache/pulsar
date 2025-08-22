@@ -203,7 +203,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.6</bouncycastle.bc-fips.version>
     <jackson.version>2.17.2</jackson.version>
-    <fastutil.version>8.5.14</fastutil.version>
+    <fastutil.version>8.5.16</fastutil.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
