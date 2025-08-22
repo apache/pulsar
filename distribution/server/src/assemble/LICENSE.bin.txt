@@ -262,7 +262,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.17.2.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
- * Fastutil -- it.unimi.dsi-fastutil-8.5.14.jar
+ * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.51.0.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
