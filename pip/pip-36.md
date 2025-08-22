@@ -1,4 +1,4 @@
-# PIP 36: Max Message Size
+# PIP-36: Max Message Size
 
 - Status: Proposed
 - Author: Yong Zhang
