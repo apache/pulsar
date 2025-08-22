@@ -401,9 +401,9 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | 436 | [Add decryptFailListener to Consumer](pip-436.md) |
 
 ### Additional Information
+
 1. You can view all PIPs (besides the historical ones) as the list of Pull Requests having title starting with `[improve][pip] PIP-`. Here is the [link](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) for it. 
    - Merged PR means the PIP was accepted.
    - Closed PR means the PIP was rejected.
    - Open PR means the PIP was submitted and is in the process of discussion.
 2. All PIP files in the `pip` folder follow the naming convention `pip-xxx.md` where `xxx` is the PIP number.
-3. Note: There is also a duplicate file `pip-307-duplicate.md` which contains different content from the main `pip-307.md`.
