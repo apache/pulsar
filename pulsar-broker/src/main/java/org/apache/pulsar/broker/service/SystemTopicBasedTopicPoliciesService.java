@@ -405,7 +405,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         }
                                         log.error("[{}] Failed to create reader on __change_events topic",
                                                 namespace, ex);
-                                        cleanCache(namespace, false, readerCompletableFuture.isCompletedExceptionally());
+                                        cleanCache(namespace, false,
+                                                readerCompletableFuture.isCompletedExceptionally());
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
                                         log.error("[{}] Failed to cleanup reader on __change_events topic",
@@ -481,7 +482,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 log.error("[{}] Failed to check the move events for the system topic",
                         reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
-                cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false, isAlreadyClosedException(ex));
+                cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false,
+                        isAlreadyClosedException(ex));
                 return;
             }
             if (hasMore) {
@@ -500,7 +502,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     log.error("[{}] Failed to read event from the system topic.",
                             reader.getSystemTopic().getTopicName(), e);
                     future.completeExceptionally(e);
-                    cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false, isAlreadyClosedException(e));
+                    cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false,
+                            isAlreadyClosedException(e));
                     return null;
                 });
             } else {
@@ -536,25 +539,27 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (cleanWriterCache) {
             writerCaches.synchronous().invalidate(namespace);
         }
-        if (cleanReaderCache) {
-            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
-            if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
-                readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
-                        .exceptionally(ex -> {
-                            log.warn("[{}] Close change_event reader fail.", namespace, ex);
-                            return null;
-                        });
-            }
-        }
 
         if (cleanOwnedBundlesCount) {
             ownedBundlesCountPerNamespace.remove(namespace);
         }
 
+        if (!cleanReaderCache) {
+            return;
+        }
+
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
         policyCacheInitMap.compute(namespace, (k, v) -> {
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             return null;
         });
+        if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
+            readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
+                    .exceptionally(ex -> {
+                        log.warn("[{}] Close change_event reader fail.", namespace, ex);
+                        return null;
+                    });
+        }
     }
 
     /**
