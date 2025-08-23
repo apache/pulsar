@@ -42,6 +42,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.ScheduledFuture;
+import io.prometheus.client.Counter;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -191,6 +192,12 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
+    private static final Counter EXCEPTION_CAUGHT_COUNTER = Counter.build()
+            .name("pulsar_broker_exceptions_caught")
+            .help("Total number of exceptions caught by the broker")
+            .labelNames("remote_addr")
+            .register();
+
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
@@ -447,6 +454,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        EXCEPTION_CAUGHT_COUNTER.labels(remoteAddress.toString()).inc();
         if (state != State.Failed) {
             // No need to report stack trace for known exceptions that happen in disconnections
             log.warn("[{}] Got exception {}", remoteAddress,
