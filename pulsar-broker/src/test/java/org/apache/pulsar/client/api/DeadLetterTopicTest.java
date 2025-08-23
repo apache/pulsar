@@ -1586,7 +1586,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         Thread.sleep(3000L);
 
-        assertThat(pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subscriptionName).getConsumers().get(0).getMessageRedeliverCounter())
+        assertThat(pulsar.getBrokerService().getTopicReference(topic).get()
+                .getSubscription(subscriptionName).getConsumers().get(0).getMessageRedeliverCounter())
                 .describedAs("redeliver count of topic %s should be less than or equal to 2 because of mismatch schema",
                         topic)
                 .isLessThanOrEqualTo(maxRedeliverCount + 1);
