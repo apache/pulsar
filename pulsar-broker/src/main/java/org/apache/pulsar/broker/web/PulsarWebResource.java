@@ -987,14 +987,16 @@ public abstract class PulsarWebResource {
     }
 
     protected static CompletableFuture<Void> checkAuthorizationAsync(PulsarService pulsarService, TopicName topicName,
-                        String role, String originalPrinciple, AuthenticationDataSource authenticationData) {
+                        String role, String originalPrinciple, AuthenticationDataSource authenticationData,
+                        AuthenticationDataSource originalAuthenticationData) {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return CompletableFuture.completedFuture(null);
         }
         // get zk policy manager
         return pulsarService.getBrokerService().getAuthorizationService().allowTopicOperationAsync(topicName,
-                TopicOperation.LOOKUP, originalPrinciple, role, authenticationData).thenAccept(allow -> {
+                TopicOperation.LOOKUP, originalPrinciple, role, originalAuthenticationData, authenticationData)
+                .thenAccept(allow -> {
                     if (!allow) {
                         log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
                         throw new RestException(Status.UNAUTHORIZED,

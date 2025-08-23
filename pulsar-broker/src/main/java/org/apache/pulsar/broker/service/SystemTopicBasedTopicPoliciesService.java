@@ -139,6 +139,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+        return deleteTopicPoliciesAsync(topicName, false);
+    }
+
+    /**
+     * @param keepGlobalPolicies only be used when a topic was deleted because users removes current
+     *    cluster from the policy "replicatedClusters".
+     *    See also https://github.com/apache/pulsar/blob/master/pip/pip-422.md
+     */
+    @Override
+    public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName,
+                                                            boolean keepGlobalPolicies) {
         if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject()) || isSelf(topicName)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -167,7 +178,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 log.info("Skip delete topic-level policies because {} has been removed before", changeEvents);
                 return CompletableFuture.completedFuture(null);
             }
-            return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
+            return sendTopicPolicyEvent(topicName, ActionType.DELETE, null,
+                    keepGlobalPolicies);
         });
     }
 
@@ -177,11 +189,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return CompletableFuture.failedFuture(new BrokerServiceException.NotAllowedException(
                     "Not allowed to update topic policy for the heartbeat topic"));
         }
-        return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
+        return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies, false);
     }
 
     private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
-                                                         @Nullable TopicPolicies policies) {
+         @Nullable TopicPolicies policies, boolean keepGlobalPoliciesAfterDeleting) {
         return pulsarService.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(namespacePolicies -> {
@@ -203,7 +215,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                     result.completeExceptionally(cause);
                                 } else {
                                     CompletableFuture<MessageId> writeFuture =
-                                            sendTopicPolicyEventInternal(topicName, actionType, writer, policies);
+                                            sendTopicPolicyEventInternal(topicName, actionType, writer, policies,
+                                                    keepGlobalPoliciesAfterDeleting);
                                     writeFuture.whenComplete((messageId, e) -> {
                                         if (e != null) {
                                             result.completeExceptionally(e);
@@ -223,14 +236,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private CompletableFuture<MessageId> sendTopicPolicyEventInternal(TopicName topicName, ActionType actionType,
-                                      SystemTopicClient.Writer<PulsarEvent> writer,
-                                      @Nullable TopicPolicies policies) {
+          SystemTopicClient.Writer<PulsarEvent> writer, @Nullable TopicPolicies policies,
+          boolean keepGlobalPoliciesAfterDeleting) {
         PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
         if (!ActionType.DELETE.equals(actionType)) {
             return writer.writeAsync(getEventKey(event, policies != null && policies.isGlobalPolicies()), event);
         }
         // When a topic is deleting, delete both non-global and global topic-level policies.
-        CompletableFuture<MessageId> deletePolicies = writer.deleteAsync(getEventKey(event, true), event)
+        CompletableFuture<MessageId> dealWithGlobalPolicy;
+        if (keepGlobalPoliciesAfterDeleting) {
+            dealWithGlobalPolicy = CompletableFuture.completedFuture(null);
+        } else {
+            dealWithGlobalPolicy = writer.deleteAsync(getEventKey(event, true), event);
+        }
+        CompletableFuture<MessageId> deletePolicies = dealWithGlobalPolicy
             .thenCompose(__ -> {
                 return writer.deleteAsync(getEventKey(event, false), event);
             });
@@ -620,7 +639,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     SystemTopicClient<PulsarEvent> systemTopicClient = getNamespaceEventsSystemTopicFactory()
                             .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
                     systemTopicClient.newWriterAsync().thenAccept(writer -> {
-                        sendTopicPolicyEventInternal(topicName, ActionType.DELETE, writer, event.getPolicies())
+                        sendTopicPolicyEventInternal(topicName, ActionType.DELETE, writer, event.getPolicies(), false)
                             .whenComplete((result, e) -> writer.closeAsync()
                             .whenComplete((res, ex) -> {
                                 if (ex != null) {

@@ -59,7 +59,6 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.Position;
@@ -670,6 +669,36 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.getReplicationBacklog(), 0);
     }
 
+    @Test(timeOut = 30000)
+    public void testReplicatorExpireMsgAsync() throws Exception {
+
+        // This test is to verify that reset cursor fails on global topic
+        SortedSet<String> testDests = new TreeSet<>();
+
+        final TopicName dest = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/clearBacklogTopic"));
+        testDests.add(dest.toString());
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+
+        @Cleanup
+        MessageConsumer consumer1 = new MessageConsumer(url3, dest);
+
+        // Produce from cluster1 and consume from the rest
+        producer1.produce(2);
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
+        PersistentReplicator replicator = (PersistentReplicator) spy(
+                topic.getReplicators().get(topic.getReplicators().keySet().stream().toList().get(0)));
+        replicator.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
+        replicator.clearBacklog().get();
+        Thread.sleep(100);
+        replicator.updateRates(); // for code-coverage
+        replicator.expireMessagesAsync(1).get(); // for code-coverage
+        ReplicatorStats status = replicator.computeStats();
+        assertEquals(status.getReplicationBacklog(), 0);
+    }
+
 
     @Test(timeOut = 30000)
     public void testResetReplicatorSubscriptionPosition() throws Exception {
@@ -1046,7 +1075,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 15000)
+    @Test(timeOut = 30000)
     public void testCloseReplicatorStartProducer() throws Exception {
         TopicName dest = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns1/closeCursor"));
         // Producer on r1
@@ -1063,33 +1092,30 @@ public class ReplicatorTest extends ReplicatorTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
         PersistentReplicator replicator = (PersistentReplicator) topic.getPersistentReplicator("r2");
 
+        // check that the replicator producer is not null
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(replicator.getProducer());
+        });
+
         // close the cursor
-        Field cursorField = PersistentReplicator.class.getDeclaredField("cursor");
-        cursorField.setAccessible(true);
-        ManagedCursor cursor = (ManagedCursor) cursorField.get(replicator);
-        cursor.close();
-        // try to read entries
+        replicator.getCursor().close();
+
+        // try to produce entries
         producer1.produce(10);
 
+        // attempt to read entries directly from replicator cursor
         try {
-            cursor.readEntriesOrWait(10);
+            replicator.getCursor().readEntriesOrWait(10);
             fail("It should have failed");
         } catch (Exception e) {
             assertEquals(e.getClass(), CursorAlreadyClosedException.class);
         }
 
-        // replicator-readException: cursorAlreadyClosed
-        replicator.readEntriesFailed(new CursorAlreadyClosedException("Cursor already closed exception"), null);
-
         // wait replicator producer to be closed
-        Thread.sleep(100);
-
-        // Replicator producer must be closed
-        Field producerField = AbstractReplicator.class.getDeclaredField("producer");
-        producerField.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        ProducerImpl<byte[]> replicatorProducer = (ProducerImpl<byte[]>) producerField.get(replicator);
-        assertNull(replicatorProducer);
+        // Replicator producer must be null after the producer has been closed
+        Awaitility.await().untilAsserted(() -> {
+            assertNull(replicator.getProducer());
+        });
     }
 
     @Test(timeOut = 30000)

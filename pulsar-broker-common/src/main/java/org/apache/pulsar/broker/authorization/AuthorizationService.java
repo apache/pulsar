@@ -489,7 +489,8 @@ public class AuthorizationService {
                 errorMsg = "originalPrincipal cannot be a proxy role.";
             }
         } else if (StringUtils.isNotBlank(originalPrincipal)
-                && !(allowNonProxyPrincipalsToBeEqual && originalPrincipal.equals(authenticatedPrincipal))) {
+                && !(allowNonProxyPrincipalsToBeEqual && originalPrincipal.equals(authenticatedPrincipal))
+                && !isWebsocketPrinciple(originalPrincipal)) {
             errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
         }
         if (errorMsg != null) {
@@ -860,6 +861,27 @@ public class AuthorizationService {
                                                                AuthenticationParameters authParams) {
         return allowTopicOperationAsync(topicName, operation, authParams.getOriginalPrincipal(),
                 authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
+    }
+
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
+                                                               TopicOperation operation,
+                                                               String originalRole,
+                                                               String role,
+                                                               AuthenticationDataSource originalAuthData,
+                                                               AuthenticationDataSource authData) {
+        if (!isValidOriginalPrincipal(role, originalRole, originalAuthData)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
+                    topicName, operation, role, authData);
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTopicOperationAsync(
+                    topicName, operation, originalRole, originalAuthData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowTopicOperationAsync(topicName, operation, role, authData);
+        }
     }
 
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,

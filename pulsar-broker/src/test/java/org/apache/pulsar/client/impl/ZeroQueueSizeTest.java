@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -33,11 +34,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadContext;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -423,6 +429,41 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 30000)
+    public void testZeroQueueGetExceptionWhenReceiveBatchMessage() throws PulsarClientException {
+
+        final String topic = BrokerTestUtil.newUniqueName(
+                "persistent://prop/ns-abc/testZeroQueueGetExceptionWhenReceiveBatchMessage-");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+                .subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topic)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
+
+        producerBuilder.enableBatching(true)
+                // set batchingMaxPublishDelay as 10 seconds to ensure all messages are sent as batch-messages
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+                .batchingMaxMessages(5);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        // send a batch message to trigger zeroQueueConsumer to close
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+
+        // when zeroQueueConsumer receive a batch message, it will close and receive method will throw exception
+        assertThatThrownBy(
+                consumer::receive
+        )
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessage("java.lang.InterruptedException: Queue is terminated")
+                .hasCauseInstanceOf(InterruptedException.class);
+    }
+
+    @Test(timeOut = 30000)
     public void testPauseAndResume() throws Exception {
         final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume";
         final String subName = "sub";
@@ -544,5 +585,71 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         for (int i = 0; i < numMessages; i++) {
             assertEquals(receivedMessages.get(i).intValue(), i);
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testZeroQueueSizeConsumerWithPayloadProcessorReceiveBatchMessage() throws Exception {
+        String key = "payloadProcessorReceiveBatchMessage";
+
+        // 1. Config
+        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+
+        // 2. Create Producer
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxMessages(5)
+                // set batchingMaxPublishDelay as 10 seconds to ensure all messages are sent as batch-messages
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+                .enableBatching(true)
+                .create();
+
+        // 3. Create Consumer
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .messagePayloadProcessor(new MessagePayloadProcessor() {
+                                             @Override
+                                             public <T> void process(MessagePayload payload,
+                                                             MessagePayloadContext context, Schema<T> schema,
+                                                             java.util.function.Consumer<Message<T>> messageConsumer) {
+                                                 if (context.isBatch()) {
+                                                     final int numMessages = context.getNumMessages();
+                                                     for (int i = 0; i < numMessages; i++) {
+                                                         messageConsumer.
+                                                                 accept(context.getMessageAt(i, numMessages,
+                                                                         payload, true, schema)
+                                                                 );
+                                                     }
+                                                 } else {
+                                                     messageConsumer.accept(context.asSingleMessage(payload, schema));
+                                                 }
+                                             }
+                                         }
+                )
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(0)
+                .subscribe();
+
+        ArrayList<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        // 3. producer publish batch-messages
+        for (int i = 0; i < totalMessages; i++) {
+            String message = messagePredicate + i;
+            futures.add(producer.sendAsync(message.getBytes()));
+        }
+        producer.flush();
+
+        // ensure all messages are sent as batch messages
+        for (CompletableFuture<MessageId> future : futures) {
+            assertTrue(future.get() instanceof BatchMessageIdImpl);
+        }
+
+        // 4. consumer should throw PulsarClientException when call method receive()
+        assertThatThrownBy(
+                consumer::receive
+        )
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessage("java.lang.InterruptedException: Queue is terminated")
+                .hasCauseInstanceOf(InterruptedException.class);
+        producer.close();
     }
 }

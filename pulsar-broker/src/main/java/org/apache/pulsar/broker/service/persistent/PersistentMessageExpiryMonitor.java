@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -82,6 +83,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         // check to avoid test failures
         return this.cursor.getManagedLedger() != null
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        return CompletableFuture.supplyAsync(() -> expireMessages(messageTTLInSeconds), topic.getOrderedExecutor());
     }
 
     @Override
@@ -193,6 +199,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             if (subscription != null && subscription.getType() == SubType.Key_Shared) {
                 subscription.getDispatcher().markDeletePositionMoveForward();
             }
+            expirationCheckInProgress = FALSE;
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Mark deleted {} messages", topicName, subName, numMessagesExpired);
             }
@@ -201,6 +208,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         @Override
         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
             log.warn("[{}][{}] Message expiry failed - mark delete failed", topicName, subName, exception);
+            expirationCheckInProgress = FALSE;
             updateRates();
         }
     };
@@ -219,9 +227,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] No messages to expire", topicName, subName);
             }
+            expirationCheckInProgress = FALSE;
             updateRates();
         }
-        expirationCheckInProgress = FALSE;
     }
 
     @Override

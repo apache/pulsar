@@ -974,12 +974,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     cnx.sendRequestWithId(cmd, closeRequestId);
                 }
 
+                final boolean retriable = PulsarClientException.isRetriableError(e.getCause());
+                final boolean unrecoverable = isUnrecoverableError(e.getCause());
                 if (e.getCause() instanceof PulsarClientException
-                        && PulsarClientException.isRetriableError(e.getCause())
-                        && !isUnrecoverableError(e.getCause())
+                        && retriable
+                        && !unrecoverable
                         && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
                     future.completeExceptionally(e.getCause());
-                } else if (!subscribeFuture.isDone()) {
+                } else if (!subscribeFuture.isDone() && !retriable) {
                     // unable to create new consumer, fail operation
                     setState(State.Failed);
                     final Throwable throwable = PulsarClientException.wrap(e, String.format("Failed to subscribe the "
@@ -990,7 +992,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     closeConsumerTasks();
                     subscribeFuture.completeExceptionally(throwable);
                     client.cleanupConsumer(this);
-                } else if (isUnrecoverableError(e.getCause())) {
+                } else if (unrecoverable) {
                     closeWhenReceivedUnrecoverableError(e.getCause(), cnx);
                 } else {
                     // consumer was subscribed and connected but we got some error, keep trying
@@ -1243,17 +1245,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
-        if (poolMessages) {
-            releasePooledMessagesAndStopAcceptNew();
-        }
-    }
-
-    /**
-     * If enabled pooled messages, we should release the messages after closing consumer and stop accept the new
-     * messages.
-     */
-    private void releasePooledMessagesAndStopAcceptNew() {
-        incomingMessages.terminate(message -> message.release());
+        //terminate incomingMessages queue, stop accept the new messages and waking up blocked thread.
+        incomingMessages.terminate(Message::release);
         clearIncomingMessages();
     }
 
@@ -1389,7 +1382,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    private void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
+    protected void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
                                            final MessageMetadata messageMetadata,
                                            final ByteBuf byteBuf,
                                            final MessageIdImpl messageId,

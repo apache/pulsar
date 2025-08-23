@@ -4056,6 +4056,17 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testTopicCreationAndLastPublishTimestampsIfNoEntries() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        TopicStats stats = admin.topics().getStats(topic);
+        assertTrue(stats.getTopicCreationTimeStamp() > 0);
+        assertEquals(stats.getLastPublishTimeStamp(), 0);
+        // cleanup.
+        admin.topics().delete(topic, false);
+    }
+
+    @Test
     public void testTopicCreationAndLastPublishTimestamps() throws Exception {
         final String topicName = "timestamp-test-topic";
         final String partitionedTopicName = "timestamp-test-partitioned-topic";

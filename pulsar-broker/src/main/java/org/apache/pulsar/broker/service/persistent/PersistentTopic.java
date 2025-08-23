@@ -31,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1929,7 +1930,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
 
-        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
         return checkAllowedCluster(localCluster).thenCompose(success -> {
             if (!success) {
@@ -1980,7 +1981,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    /**
+     * There are only one cases that will remove local clusters: using global metadata store, which means that
+     * namespaces will share policies cross multi clusters, including "replicated clusters" and "partitioned topic
+     * metadata", we can hardly delete partitioned topic from one cluster and keep it exists in another.
+     * Users removes local cluster "replicated clusters" to delete topic from one of clusters.
+     */
     CompletableFuture<Void> deleteSchemaAndPoliciesIfClusterRemoved() {
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         TopicName tName = TopicName.get(topic);
         if (!tName.isPartitioned()) {
             return CompletableFuture.completedFuture(null);
@@ -2018,15 +2026,36 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             }
 
                                     });
-                                    // There are only one cases that will remove local clusters: using global metadata
-                                    // store, namespaces will share policies cross multi clusters, including
-                                    // "replicated clusters" and "partitioned topic metadata", we can hardly delete
-                                    // partitioned topic from one cluster and keep it exists in another. Removing
-                                    // local cluster from the namespace level "replicated clusters" can do this.
-                                    // TODO: there is no way to delete a specify partitioned topic if users have enabled
-                                    //  Geo-Replication with a global metadata store, a PIP is needed.
-                                    // Since the system topic "__change_events" under the namespace will also be
-                                    // deleted, we can skip to delete topic-level policies.
+
+                                    // Two cases that can run up to here：
+                                    // 1. Namespace level removing local cluster: all topic policies will be removed
+                                    // when the system topic "__change_events" is deleting.
+                                    // 2. Global topic level removing local cluster: we need to remove local topic-level
+                                    // policies here, but leave global topic-level policies there to avoid the namespace
+                                    // level policies take effect, whose policies still contains local cluster.
+                                    boolean changeEventsAlsoBeingDeleted = !topicPolicies.getReplicationClusters()
+                                            .getNamespaceValue().contains(localCluster);
+                                    if (changeEventsAlsoBeingDeleted) {
+                                        log.info("Skip to deleted topic policies[{}] after all partitions[{}] were"
+                                                + " removed because the system topic __change_events will be removed.",
+                                                partitionedName, metadataOp.get().partitions);
+                                        return;
+                                    }
+                                    brokerService.getPulsar().getTopicPoliciesService()
+                                        .deleteTopicPoliciesAsync(partitionedName, true)
+                                            .whenComplete((__, ex) -> {
+                                            if (ex == null) {
+                                                log.info("Deleted topic policies[{}] after all partitions[{}] were"
+                                                    + " removed because the current cluster has bee removed from"
+                                                    + " topic policies. Global policies will not be deleted.",
+                                                    partitionedName, metadataOp.get().partitions);
+                                            } else {
+                                                log.error("Failed to delete topic policies[{}] after all partitions[{}]"
+                                                    + " were removed,  when the current cluster has bee removed from"
+                                                    + " topic policies",
+                                                    partitionedName, metadataOp.get().partitions, ex);
+                                            }
+                                    });
                                 }
                             }
                         });
@@ -2094,13 +2123,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (!isCompactionSubscription(sub.getName())
                         && (additionalSystemCursorNames.isEmpty()
                             || !additionalSystemCursorNames.contains(sub.getName()))) {
-                   sub.expireMessages(messageTtlInSeconds);
+                   sub.expireMessagesAsync(messageTtlInSeconds);
                 }
             });
             replicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+                    -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
             shadowReplicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+                    -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
         }
     }
 
@@ -3881,6 +3910,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return isOldestMessageExpired;
     }
 
+    public CompletableFuture<Boolean> isOldestMessageExpiredAsync(ManagedCursor cursor, int messageTTLInSeconds) {
+        CompletableFuture<Boolean> res = new CompletableFuture<>();
+        cursor.asyncGetNthEntry(1, IndividualDeletedEntries.Include, new AsyncCallbacks.ReadEntryCallback() {
+
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                long entryTimestamp = 0;
+                try {
+                    entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                    res.complete(MessageImpl.isEntryExpired(
+                            (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp));
+                } catch (IOException e) {
+                    log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
+                    res.complete(false);
+                }
+
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException e, Object ctx) {
+                if (brokerService.pulsar().getConfiguration().isAutoSkipNonRecoverableData()
+                        && e instanceof NonRecoverableLedgerException) {
+                    // NonRecoverableLedgerException means the ledger or entry can't be read anymore.
+                    // if AutoSkipNonRecoverableData is set to true, just return true here.
+                    res.complete(true);
+                } else {
+                    log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
+                    res.complete(false);
+                }
+            }
+        }, null);
+        return res;
+    }
+
     /**
      * Clears backlog for all cursors in the topic.
      *
@@ -4632,7 +4695,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         try {
             Position lastPosition = ledger.getLastConfirmedEntry();
-            if (lastPosition == null) {
+            if (lastPosition == null || lastPosition.getEntryId() < 0
+                    || !ledger.getLedgersInfo().containsKey(lastPosition.getLedgerId())) {
                 future.complete(0L);
                 return future;
             }

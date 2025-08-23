@@ -354,6 +354,16 @@ public class PersistentSubscription extends AbstractSubscription {
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
+            // Remove the cursor from the waiting cursors list.
+            // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.
+            // This is because internally, in the dispatcher implementations, there is a "havePendingRead" flag
+            // that is not reset. If the pending read is cancelled, the dispatcher will not continue reading from
+            // the managed ledger when a new consumer is added to the dispatcher since based on the "havePendingRead"
+            // state, it will continue to expect that a read is pending and will not submit a new read.
+            // For non-durable cursors, there's no difference since the cursor is not expected to be used again.
+
+            // remove waiting cursor from the managed ledger, this applies to both durable and non-durable cursors.
+            topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
@@ -383,15 +393,12 @@ public class PersistentSubscription extends AbstractSubscription {
                         if (!isResetCursor) {
                             try {
                                 topic.getManagedLedger().deleteCursor(cursor.getName());
-                                topic.getManagedLedger().removeWaitingCursor(cursor);
                             } catch (InterruptedException | ManagedLedgerException e) {
                                 log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                             }
                         }
                     }, topic.getBrokerService().pulsar().getExecutor());
                 });
-            } else {
-                topic.getManagedLedger().removeWaitingCursor(cursor);
             }
         }
 
@@ -1227,6 +1234,26 @@ public class PersistentSubscription extends AbstractSubscription {
         }
         this.lastExpireTimestamp = System.currentTimeMillis();
         return expiryMonitor.expireMessages(messageTTLInSeconds);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        long backlog = getNumberOfEntriesInBacklog(false);
+        if (backlog == 0) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (dispatcher != null && dispatcher.isConsumerConnected() && backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds)
+                .thenCompose(oldestMsgExpired -> {
+                    if (oldestMsgExpired) {
+                        this.lastExpireTimestamp = System.currentTimeMillis();
+                        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+                    } else {
+                        return CompletableFuture.completedFuture(false);
+                    }
+            });
+        }
+        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
     }
 
     @Override

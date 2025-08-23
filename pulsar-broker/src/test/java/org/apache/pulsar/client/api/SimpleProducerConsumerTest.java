@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -2853,6 +2854,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
+        Producer<byte[]> producer3 = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/myrsa-topic1")
+                .addEncryptionKey("client-rsa-pkcs8.pem")
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
 
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
@@ -2862,6 +2868,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             producer2.send(message.getBytes());
         }
+        for (int i = totalMsg * 2; i < totalMsg * 3; i++) {
+            String message = "my-message-" + i;
+            producer3.send(message.getBytes());
+        }
 
         MessageImpl<byte[]> msg;
 
@@ -2869,13 +2879,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // should not able to read message using normal message.
         assertNull(msg);
 
-        for (int i = 0; i < totalMsg * 2; i++) {
+        for (int i = 0; i < totalMsg * 3; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             // verify that encrypted message contains encryption-context
             msg.getEncryptionCtx()
                     .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.info("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -4138,6 +4148,75 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }).start();
         countDownLatch3.await();
     }
+
+    @Test(timeOut = 100000)
+    public void consumerReceiveThrowExceptionWhenConsumerClose() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic-");
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("my-sub")
+                .subscribe();
+
+        Thread thread = new Thread(() -> {
+            try {
+                // sleep 0.1 second to close consumer to ensure consumer.receive() is triggerd
+                Thread.sleep(1000);
+                consumer.close();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        thread.start();
+
+        assertThatThrownBy(
+                () -> consumer.receive()
+        )
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessage("java.lang.InterruptedException: Queue is terminated")
+                .hasCauseInstanceOf(InterruptedException.class);
+    }
+
+
+    @Test(timeOut = 100000)
+    public void multiThreadConsumerReceiveThrowExceptionWhenConsumerClose() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic-");
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("my-sub")
+                .subscribe();
+        int threadCount = 10;
+
+        CountDownLatch terminateCompletedLatch = new CountDownLatch(threadCount);
+        CountDownLatch allThreadReadyLatch = new CountDownLatch(threadCount);
+        AtomicInteger interruptedThreadCount = new AtomicInteger(0);
+        for (int i = 0; i < threadCount; i++) {
+            new Thread(() -> {
+                allThreadReadyLatch.countDown();
+                try {
+                    consumer.receive();
+                    fail("thread should have been interrupted");
+                } catch (PulsarClientException e) {
+                    interruptedThreadCount.incrementAndGet();
+                    terminateCompletedLatch.countDown();
+                }
+            }).start();
+        }
+        // all threads should be ready in at most 3 seconds
+        assertTrue(allThreadReadyLatch.await(3, TimeUnit.SECONDS));
+        // close consumer, and all threads should be interrupted by thrown PulsarClientException
+        consumer.close();
+        // all threads should be terminated in at most 3 seconds
+        assertTrue(terminateCompletedLatch.await(3, TimeUnit.SECONDS));
+        // Verify all threads were properly terminated
+        assertEquals(interruptedThreadCount.get(), threadCount);
+    }
+
 
     @Test(timeOut = 20000)
     public void testResetPosition() throws Exception {

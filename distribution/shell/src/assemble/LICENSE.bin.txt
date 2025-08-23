@@ -330,8 +330,8 @@ The Apache Software License, Version 2.0
  * Gson
     - gson-2.8.9.jar
  * Guava
-    - guava-32.1.2-jre.jar
-    - failureaccess-1.0.1.jar
+    - guava-33.4.8-jre.jar
+    - failureaccess-1.0.3.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-1.3.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar
@@ -342,7 +342,7 @@ The Apache Software License, Version 2.0
  * Apache Commons
     - commons-codec-1.18.0.jar
     - commons-io-2.19.0.jar
-    - commons-logging-1.2.jar
+    - commons-logging-1.3.5.jar
     - commons-lang3-3.18.0.jar
     - commons-text-1.13.1.jar
     - commons-compress-1.27.1.jar
@@ -350,22 +350,22 @@ The Apache Software License, Version 2.0
     - commons-collections-3.2.2.jar
     - commons-configuration2-2.12.0.jar
  * Netty
-    - netty-buffer-4.1.122.Final.jar
-    - netty-codec-4.1.122.Final.jar
-    - netty-codec-dns-4.1.122.Final.jar
-    - netty-codec-http-4.1.122.Final.jar
-    - netty-codec-socks-4.1.122.Final.jar
-    - netty-codec-haproxy-4.1.122.Final.jar
-    - netty-common-4.1.122.Final.jar
-    - netty-handler-4.1.122.Final.jar
-    - netty-handler-proxy-4.1.122.Final.jar
-    - netty-resolver-4.1.122.Final.jar
-    - netty-resolver-dns-4.1.122.Final.jar
-    - netty-transport-4.1.122.Final.jar
-    - netty-transport-classes-epoll-4.1.122.Final.jar
-    - netty-transport-native-epoll-4.1.122.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.1.122.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.122.Final.jar
+    - netty-buffer-4.1.124.Final.jar
+    - netty-codec-4.1.124.Final.jar
+    - netty-codec-dns-4.1.124.Final.jar
+    - netty-codec-http-4.1.124.Final.jar
+    - netty-codec-socks-4.1.124.Final.jar
+    - netty-codec-haproxy-4.1.124.Final.jar
+    - netty-common-4.1.124.Final.jar
+    - netty-handler-4.1.124.Final.jar
+    - netty-handler-proxy-4.1.124.Final.jar
+    - netty-resolver-4.1.124.Final.jar
+    - netty-resolver-dns-4.1.124.Final.jar
+    - netty-transport-4.1.124.Final.jar
+    - netty-transport-classes-epoll-4.1.124.Final.jar
+    - netty-transport-native-epoll-4.1.124.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.1.124.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.124.Final.jar
     - netty-tcnative-boringssl-static-2.0.72.Final.jar
     - netty-tcnative-boringssl-static-2.0.72.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.72.Final-linux-x86_64.jar
@@ -376,9 +376,9 @@ The Apache Software License, Version 2.0
     - netty-incubator-transport-classes-io_uring-0.0.26.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-aarch_64.jar
     - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.122.Final.jar
-    - netty-resolver-dns-native-macos-4.1.122.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.122.Final-osx-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.1.124.Final.jar
+    - netty-resolver-dns-native-macos-4.1.124.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.124.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -417,23 +417,20 @@ The Apache Software License, Version 2.0
  * Google Error Prone Annotations - error_prone_annotations-2.38.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
   * Apache Avro
-    - avro-1.11.4.jar
-    - avro-protobuf-1.11.4.jar
+    - avro-1.12.0.jar
+    - avro-protobuf-1.12.0.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
  * RoaringBitmap -- RoaringBitmap-1.2.0.jar
- * Fastutil -- fastutil-8.5.14.jar
+ * Fastutil -- fastutil-8.5.16.jar
  * JSpecify -- jspecify-1.0.0.jar
 
 BSD 3-clause "New" or "Revised" License
- * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
     - slf4j-api-2.0.13.jar
- * The Checker Framework
-    - checker-qual-3.33.0.jar
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
@@ -474,9 +471,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.78.1.jar
+    - bcpkix-jdk18on-1.81.jar
     - bcprov-jdk18on-1.78.1.jar
-    - bcutil-jdk18on-1.78.1.jar
+    - bcutil-jdk18on-1.81.jar
 
 ------------------------
 

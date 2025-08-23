@@ -2837,31 +2837,16 @@ public class PersistentTopicsBase extends AdminResource {
                         "Get message ID by timestamp on a non-persistent topic is not allowed");
                 }
                 final PersistentTopic persistentTopic = (PersistentTopic) topic;
+                final var compactionService = persistentTopic.getTopicCompactionService();
 
-                return persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenCompose(lastEntry -> {
-                    if (lastEntry == null) {
-                        return findMessageIdByPublishTime(timestamp, persistentTopic.getManagedLedger());
-                    }
-                    MessageMetadata metadata;
-                    Position position = lastEntry.getPosition();
-                    try {
-                        metadata = Commands.parseMessageMetadata(lastEntry.getDataBuffer());
-                    } finally {
-                        lastEntry.release();
-                    }
-                    if (timestamp == metadata.getPublishTime()) {
-                        return CompletableFuture.completedFuture(new MessageIdImpl(position.getLedgerId(),
-                                position.getEntryId(), topicName.getPartitionIndex()));
-                    } else if (timestamp < metadata.getPublishTime()) {
+                return compactionService.getLastMessagePosition().thenCompose(messagePosition -> {
+                    if (timestamp == messagePosition.publishTime()) {
+                        return CompletableFuture.completedFuture(new MessageIdImpl(messagePosition.ledgerId(),
+                                messagePosition.entryId(), topicName.getPartitionIndex()));
+                    } else if (timestamp < messagePosition.publishTime()) {
                         return persistentTopic.getTopicCompactionService().findEntryByPublishTime(timestamp)
-                                .thenApply(compactedEntry -> {
-                                    try {
-                                        return new MessageIdImpl(compactedEntry.getLedgerId(),
-                                                compactedEntry.getEntryId(), topicName.getPartitionIndex());
-                                    } finally {
-                                        compactedEntry.release();
-                                    }
-                                });
+                                .thenApply(__ -> new MessageIdImpl(__.getLedgerId(), __.getEntryId(),
+                                        topicName.getPartitionIndex()));
                     } else {
                         return findMessageIdByPublishTime(timestamp, persistentTopic.getManagedLedger());
                     }
@@ -3360,7 +3345,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
+    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds, boolean isGlobal) {
         if (CollectionUtils.isEmpty(clusterIds)) {
             return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "ClusterIds should not be null or empty"));
@@ -3372,6 +3357,47 @@ public class PersistentTopicsBase extends AdminResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Cannot specify global in the list of replication clusters");
                     }
+                })
+                .thenCompose(__ -> {
+                    // Set a topic-level replicated clusters that do not contain local cluster is not meaningful, except
+                    // the following scenario: User has two clusters, which enabled Geo-Replication through a global
+                    // metadata store, the resources named partitioned topic metadata and the resource namespace-level
+                    // "replicated clusters" are shared between multi clusters. Pulsar can hardly delete a specify
+                    // partitioned topic. To support this use case, the following steps can implement it:
+                    // 1. set a global topic-level replicated clusters that do not contain local cluster.
+                    // 2. the local cluster will remove the subtopics automatically, and remove the schemas and local
+                    //    topic policies. Just leave the global topic policies there, which prevents the namespace level
+                    //    replicated clusters policy taking affect.
+                    boolean clustersDoesNotContainsLocal = CollectionUtils.isEmpty(clusterIds)
+                            || !clusterIds.contains(pulsar().getConfig().getClusterName());
+                    if (clustersDoesNotContainsLocal && !isGlobal) {
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                "Can not remove local cluster from the local topic-level replication clusters policy"));
+                    }
+                    if (isGlobal) {
+                        return getNamespacePoliciesAsync(namespaceName).thenCompose(v -> {
+                            // Since global policies depends on namespace level replication, users only can set global
+                            // policies when namespace level replication exists. Otherwise, the policies will never be
+                            // copied to the remote side, which is meaningless.
+                            if (v == null || v.replication_clusters.size() < 2) {
+                                return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "Please do not use the global topic level policy when namespace-level replication"
+                                    + " is not enabled, because the global level policy relies on namespace-level"
+                                    + " replication"));
+                            }
+                            for (String clusterId : clusterIds) {
+                                if (v.replication_clusters.contains(clusterId)) {
+                                    continue;
+                                }
+                                return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "The policies at the global topic level will only be copied to the clusters"
+                                    + " included in the namespace level replication. Therefore, please do not set the"
+                                    + " policies including other clusters"));
+                            }
+                            return CompletableFuture.completedFuture(null);
+                        });
+                    }
+                    return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> clustersAsync())
                 .thenCompose(clusters -> {
@@ -3405,9 +3431,10 @@ public class PersistentTopicsBase extends AdminResource {
                                     topicMetaOp.get().partitions).values());
                         });
                 }).thenCompose(__ ->
-                    getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                    getTopicPoliciesAsyncWithRetry(topicName, isGlobal).thenCompose(op -> {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                             topicPolicies.setReplicationClusters(clusterIds);
+                            topicPolicies.setIsGlobal(isGlobal);
                             return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                                     .thenRun(() -> {
                                         log.info("[{}] Successfully set replication clusters for namespace={}, "
@@ -3421,12 +3448,16 @@ public class PersistentTopicsBase extends AdminResource {
                 ));
     }
 
-    protected CompletableFuture<Void> internalRemoveReplicationClusters() {
+    protected CompletableFuture<Void> internalRemoveReplicationClusters(boolean isGlobal) {
         return validatePoliciesReadOnlyAccessAsync()
-                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
                 .thenCompose(op -> {
+                    if (op.isEmpty()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                     topicPolicies.setReplicationClusters(null);
+                    topicPolicies.setIsGlobal(isGlobal);
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                             .thenRun(() -> {
                                 log.info("[{}] Successfully set replication clusters for namespace={}, "
@@ -4346,10 +4377,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
             PulsarService pulsar, String clientAppId, String originalPrincipal,
-            AuthenticationDataSource authenticationData, TopicName topicName) {
+            AuthenticationDataSource authenticationData, AuthenticationDataSource originalAuthenticationData,
+            TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         CompletableFuture<Void> authorizationFuture = new CompletableFuture<>();
-        checkAuthorizationAsync(pulsar, topicName, clientAppId, originalPrincipal, authenticationData)
+        checkAuthorizationAsync(pulsar, topicName, clientAppId, originalPrincipal, authenticationData,
+                originalAuthenticationData)
                 .thenRun(() -> authorizationFuture.complete(null))
                 .exceptionally(e -> {
                     Throwable throwable = FutureUtil.unwrapCompletionException(e);
