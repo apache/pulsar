@@ -32,8 +32,6 @@
 
   <properties>
     <amazon-kinesis-client.version>3.1.2</amazon-kinesis-client.version>
-    <amazon-kinesis-producer.version>1.0.4</amazon-kinesis-producer.version>
-    <protobuf-java.version>4.29.0</protobuf-java.version>
     <json-flattener.version>0.13.0</json-flattener.version>
     <flatbuffers-java.version>1.9.0</flatbuffers-java.version>
     <jaxb-api.version>2.3.0</jaxb-api.version>
@@ -47,19 +45,16 @@
         <artifactId>kafka-clients</artifactId>
         <version>${kafka-client.version}</version>
       </dependency>
-      <!-- enforce protobuf-java version that is compatible with KPL 1.0.x -->
-      <!-- see https://github.com/awslabs/amazon-kinesis-producer/blob/v1.0.4/java/amazon-kinesis-producer/pom.xml#L20 -->
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-bom</artifactId>
-        <version>${protobuf-java.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-kinesis-kpl-shaded</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-common</artifactId>
@@ -107,11 +102,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
       <version>${avro.version}</version>
@@ -146,11 +136,6 @@
       <version>${amazon-kinesis-client.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>software.amazon.kinesis</groupId>
-      <artifactId>amazon-kinesis-producer</artifactId>
-      <version>${amazon-kinesis-producer.version}</version>
-    </dependency>
     <!-- /kinesis dependencies -->
 
     <dependency>
@@ -191,6 +176,11 @@
       <plugin>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-nar-maven-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>**/amazon-kinesis-producer-*.jar</exclude>
+          </excludes>
+        </configuration>
       </plugin>
     </plugins>
   </build>
