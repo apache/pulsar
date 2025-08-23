@@ -554,7 +554,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return null;
         });
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
-            readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
+            readerFuture
+                    .thenCompose(r -> {
+                        log.info("[{}] Closing the topic policies reader.", namespace);
+                        return r.closeAsync();
+                    })
                     .exceptionally(ex -> {
                         log.warn("[{}] Close change_event reader fail.", namespace, ex);
                         return null;
