@@ -388,6 +388,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
                                 final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
                                         createSystemTopicClient(namespace);
+                                readerCompletableFuture.exceptionally(ex -> {
+                                    log.error("[{}] Failed to create reader on __change_events topic",
+                                            namespace, ex);
+                                    return null;
+                                });
+
                                 readerCaches.put(namespace, readerCompletableFuture);
                                 ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                                 final CompletableFuture<Void> initFuture = readerCompletableFuture
@@ -403,8 +409,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         if (closed.get()) {
                                             return null;
                                         }
-                                        log.error("[{}] Failed to create reader on __change_events topic",
-                                                namespace, ex);
                                         cleanCache(namespace, false,
                                                 readerCompletableFuture.isCompletedExceptionally());
                                     } catch (Throwable cleanupEx) {
