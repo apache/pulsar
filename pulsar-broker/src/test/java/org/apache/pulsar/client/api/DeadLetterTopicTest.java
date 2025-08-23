@@ -1548,4 +1548,49 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         consumer.close();
 
     }
+
+    // reproduce issue reported in https://github.com/apache/pulsar/issues/24541
+    @Test
+    public void sendDeadLetterTopicWithMismatchSchemaProducer() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("my-property/my-ns");
+        admin.namespaces().createNamespace(namespace);
+        // don't enforce schema validation
+        admin.namespaces().setSchemaValidationEnforced(namespace, false);
+        // set schema compatibility strategy to always compatible
+        admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace
+                + "/sendDeadLetterTopicWithMismatchSchemaProducer");
+
+        // create topics
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createNonPartitionedTopic(topic + "-DLQ");
+        admin.topics().createNonPartitionedTopic(topic + "-RETRY");
+
+        final int maxRedeliverCount = 1;
+        final String subscriptionName = "my-subscription";
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.AVRO(String.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subscriptionName)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .deadLetterTopic(topic + "-DLQ")
+                        .retryLetterTopic(topic + "-RETRY")
+                        .maxRedeliverCount(maxRedeliverCount)
+                        .build())
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
+                .messageListener((Consumer::negativeAcknowledge))
+                .subscribe();
+
+        Producer<Long> producer = pulsarClient.newProducer(Schema.AVRO(Long.class)).topic(topic).create();
+        producer.send(1234567890L);
+
+        Thread.sleep(3000L);
+
+        assertThat(pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subscriptionName).getConsumers().get(0).getMessageRedeliverCounter())
+                .describedAs("redeliver count of topic %s should be less than or equal to 2 because of mismatch schema",
+                        topic)
+                .isLessThanOrEqualTo(maxRedeliverCount + 1);
+        producer.close();
+        consumer.close();
+    }
 }

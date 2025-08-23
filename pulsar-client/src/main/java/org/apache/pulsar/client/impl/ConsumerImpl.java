@@ -89,6 +89,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1433,7 +1434,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             consumerEpoch = cmdMessage.getConsumerEpoch();
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
+            log.debug("[{}][{}] Received message: {}:{}", topic, subscription, messageId.getLedgerId(),
                     messageId.getEntryId());
         }
 
@@ -2353,7 +2354,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 }).exceptionally(ex -> {
                                     if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
                                         log.warn(
-                                                "[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
+                                                "[{}] [{}] [{}] Failed to send DLQ message to {} "
+                                                        + "with ProducerQueueIsFullError for message id {}: {}",
                                                 topicName, subscription, consumerName,
                                                 deadLetterPolicy.getDeadLetterTopic(), messageId, ex.getMessage());
                                     } else {
@@ -2365,9 +2367,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     return null;
                                 });
                     } catch (Exception e) {
-                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                        log.warn("[{}] [{}] [{}] Failed to process DLQ message to {} for message id {}",
                                 topicName, subscription, consumerName, deadLetterPolicy.getDeadLetterTopic(), messageId,
                                 e);
+                        if (e instanceof SchemaSerializationException) {
+                            // If a SchemaSerializationException occurs, the message should be ignored to redelivery.
+                            // Otherwise, it will be redelivered and still can't send to the DLQ
+                            // and cause an infinite loop
+                            result.complete(true);
+                        }
                         result.complete(false);
                     }
                 }
