@@ -22,8 +22,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -452,6 +454,26 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
+    public void testReadModifyUpdateOrCreateWithEmptyValue(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String path = "/testReadModifyUpdateOrCreateWithEmptyValue";
+        store.put(path, new byte[0], Optional.of(-1L)).get();
+
+        MetadataCache<Policies> objCache = store.getMetadataCache(Policies.class);
+
+        Optional<Policies> policies = objCache.get(path).get();
+        assertFalse(policies.isPresent());
+        Policies policies1 = objCache.readModifyUpdateOrCreate(path, (rp) -> {
+            Policies p = rp.orElse(new Policies());
+            p.max_unacked_messages_per_consumer = 100;
+            return p;
+        }).get();
+        assertEquals(policies1.max_unacked_messages_per_consumer.intValue(), 100);
+    }
+
+    @Test(dataProvider = "impl")
     public void readModifyUpdate(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -479,6 +501,36 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         } catch (CompletionException e) {
             assertEquals(e.getCause().getClass(), NotFoundException.class);
         }
+    }
+
+    @Test(dataProvider = "impl")
+    public void testReadModifyUpdateWithEmptyValue(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String path = "/testReadModifyUpdateWithEmptyValue";
+        store.put(path, new byte[0], Optional.of(-1L)).get();
+
+        MetadataCache<Policies> objCache = store.getMetadataCache(Policies.class);
+
+        Optional<Policies> policies = objCache.get(path).get();
+        assertFalse(policies.isPresent());
+        Policies policies1 = objCache.readModifyUpdate(path, (rp) -> {
+            if (rp != null) {
+                rp.max_unacked_messages_per_consumer = 100;
+            }
+            return rp;
+        }).get();
+        assertNull(policies1);
+
+        Policies policies2 = objCache.readModifyUpdate(path, (rp) -> {
+            if (rp == null) {
+                rp = new Policies();
+            }
+            rp.max_unacked_messages_per_consumer = 100;
+            return rp;
+        }).get();
+        assertEquals(policies2.max_unacked_messages_per_consumer.intValue(), 100);
     }
 
     /**
