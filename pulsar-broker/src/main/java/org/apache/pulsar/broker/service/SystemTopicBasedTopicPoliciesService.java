@@ -549,6 +549,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
 
         if (!cleanReaderCache) {
+            policyCacheInitMap.remove(namespace);
             return;
         }
 
@@ -559,10 +560,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             readerFuture
-                    .thenCompose(r -> {
-                        log.info("[{}] Closing the topic policies reader.", namespace);
-                        return r.closeAsync();
-                    })
+                    .thenCompose(SystemTopicClient.Reader::closeAsync)
                     .exceptionally(ex -> {
                         log.warn("[{}] Close change_event reader fail.", namespace, ex);
                         return null;
