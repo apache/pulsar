@@ -324,8 +324,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * policies message has been read by the reader and effective.
      */
     private static class TopicPolicyMessageHandlerTracker implements AutoCloseable {
-        private List<MessageIdAdv> lastHandledMessageIds = new ArrayList<>();
-        private List<PriorityQueue<PendingMessageFuture>> pendingFutures = new ArrayList<>();
+        private final List<MessageIdAdv> lastHandledMessageIds = new ArrayList<>();
+        private final List<PriorityQueue<PendingMessageFuture>> pendingFutures = new ArrayList<>();
         private boolean closed = false;
 
         /**
