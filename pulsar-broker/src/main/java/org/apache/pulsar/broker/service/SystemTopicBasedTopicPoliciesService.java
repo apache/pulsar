@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -387,14 +388,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
                             return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
                                 final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                                        createSystemTopicClient(namespace);
-                                readerCompletableFuture.exceptionally(ex -> {
-                                    log.error("[{}] Failed to create reader on __change_events topic",
-                                            namespace, ex);
-                                    return null;
-                                });
-
-                                readerCaches.put(namespace, readerCompletableFuture);
+                                        newReader(namespace);
                                 ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                                 final CompletableFuture<Void> initFuture = readerCompletableFuture
                                         .thenCompose(reader -> {
@@ -422,6 +416,22 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 return initFuture;
                             }).thenApply(__ -> true);
                         });
+    }
+
+    private CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> newReader(NamespaceName ns) {
+        return readerCaches.compute(ns, (__, existingFuture) -> {
+            if (existingFuture == null) {
+                return createSystemTopicClient(ns);
+            }
+
+            if (existingFuture.isCompletedExceptionally()) {
+                if (isAlreadyClosedException(existingFuture)) {
+                    return existingFuture;
+                }
+                return createSystemTopicClient(ns);
+            }
+            return existingFuture;
+        });
     }
 
     protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClient(
@@ -603,6 +613,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         }
                     }
                 });
+    }
+
+    private boolean isAlreadyClosedException(CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> reader) {
+        try {
+            reader.get();
+            return false;
+        } catch (InterruptedException e) {
+            return false;
+        } catch (ExecutionException e) {
+            return isAlreadyClosedException(e.getCause());
+        }
     }
 
     private boolean isAlreadyClosedException(Throwable ex) {
