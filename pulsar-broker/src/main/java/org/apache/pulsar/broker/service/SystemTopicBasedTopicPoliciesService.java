@@ -415,12 +415,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     String eventKey = getEventKey(event, isGlobalPolicy);
 
                     if (actionType == ActionType.DELETE) {
-                        return writer.deleteAsync(eventKey, event)
-                                .exceptionally(ex -> {
-                                    log.error("Failed to delete {} topic policy [{}] error.",
-                                            isGlobalPolicy ? "global" : "local", topicName, ex);
-                                    return null;
-                                });
+                        var future = writer.deleteAsync(eventKey, event);
+                        future.exceptionally(ex -> {
+                            log.error("Failed to delete {} topic policy [{}] error.",
+                                    isGlobalPolicy ? "global" : "local", topicName, ex);
+                            return null;
+                        });
+                        return future;
                     } else {
                         return writer.writeAsync(eventKey, event);
                     }
