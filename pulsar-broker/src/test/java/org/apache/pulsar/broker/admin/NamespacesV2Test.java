@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -102,7 +103,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
         admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
         admin.tenants().createTenant(this.testTenant,
-                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
+                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw", "global")));
 
         createTestNamespaces(this.testLocalNamespaces);
 
@@ -235,5 +236,54 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
         }
+    }
+
+    @Test
+    public void testNamespaceEmptyReplicationClusters() throws Exception {
+        String globalNamespaceName = "test-replication-ns";
+        asyncRequests(ctx -> namespaces.createNamespace(ctx, testTenant, globalNamespaceName, null));
+        
+        // Test 1: Set empty replication clusters (core functionality)
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, testTenant, 
+                globalNamespaceName, Collections.emptyList()));
+        
+        // Verify empty replication clusters are set
+        assertEquals(asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                testTenant, globalNamespaceName)), Collections.emptySet());
+        
+        // Test 2: Set non-empty replication clusters and verify it works
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, testTenant,
+                globalNamespaceName, List.of("use")));
+
+        assertEquals(asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                testTenant, globalNamespaceName)), Set.of("use"));
+        
+        // Test 3: Set empty replication clusters again to verify it works both ways  
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, testTenant,
+                globalNamespaceName, Collections.emptyList()));
+
+        assertEquals(asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                testTenant, globalNamespaceName)), Collections.emptySet());
+        
+        // Clean up
+        String fullNamespaceName = testTenant + "/" + globalNamespaceName;
+        admin.namespaces().deleteNamespace(fullNamespaceName);
+    }
+
+    @Test
+    public void testNamespaceEmptyReplicationClustersNoAutoPopulation() throws Exception {
+        // Create a V2 namespace using admin client API
+        NamespaceName v2Namespace = NamespaceName.get(testTenant, "v2-test-ns");
+        admin.namespaces().createNamespace(v2Namespace.toString(), Set.of("use"));
+        
+        // Set empty replication clusters
+        admin.namespaces().setNamespaceReplicationClusters(v2Namespace.toString(), Collections.emptySet());
+        
+        // Verify it remains empty (should not auto-populate to local cluster)
+        List<String> repClusters = admin.namespaces().getNamespaceReplicationClusters(v2Namespace.toString());
+        assertEquals(repClusters, Collections.emptyList());
+        
+        // Clean up
+        admin.namespaces().deleteNamespace(v2Namespace.toString());
     }
 }
