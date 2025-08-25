@@ -281,7 +281,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 return existingFuture;
             });
             if (ex != null) {
-                writerCaches.synchronous().invalidate(topicName.getNamespaceObject());
                 operationFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
             } else {
                 operationFuture.complete(res);
@@ -433,6 +432,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } else {
                         return writer.writeAsync(eventKey, event);
                     }
+                }).exceptionally(t -> {
+                    writerCaches.synchronous().invalidate(topicName.getNamespaceObject());
+                    throw FutureUtil.wrapToCompletionException(t);
                 });
     }
 
