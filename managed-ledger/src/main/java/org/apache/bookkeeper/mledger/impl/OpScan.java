@@ -128,7 +128,7 @@ class OpScan implements ReadEntriesCallback {
         }
         if (cursor.hasMoreEntries(searchPosition)) {
             OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize,
-            this, OpScan.this.ctx, null, null);
+            this, OpScan.this.ctx, null, null, false);
             ledger.asyncReadEntries(opReadEntry);
         } else {
             callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);

@@ -54,9 +54,12 @@ class OpReadEntry implements ReadEntriesCallback {
     PositionImpl maxPosition;
 
     Predicate<PositionImpl> skipCondition;
+    boolean skipOpenLedgerFullyAcked = false;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                     ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition,
+                                     Predicate<PositionImpl> skipCondition,
+                                     boolean skipOpenLedgerFullyAcked) {
         OpReadEntry op = RECYCLER.get();
         op.id = opReadIdGenerator.getAndIncrement();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
@@ -69,6 +72,7 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         op.maxPosition = maxPosition;
         op.skipCondition = skipCondition;
+        op.skipOpenLedgerFullyAcked = skipOpenLedgerFullyAcked;
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;
@@ -244,6 +248,7 @@ class OpReadEntry implements ReadEntriesCallback {
         nextReadPosition = null;
         maxPosition = null;
         skipCondition = null;
+        skipOpenLedgerFullyAcked = false;
         recyclerHandle.recycle(this);
     }
 
