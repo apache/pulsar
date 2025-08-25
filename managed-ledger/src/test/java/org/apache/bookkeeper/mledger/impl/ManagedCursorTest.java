@@ -20,11 +20,15 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -4381,7 +4385,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // op readPosition is bigger than maxReadPosition
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, ledger.lastConfirmedEntry, 10, callback,
-                null, PositionFactory.create(lastPosition.getLedgerId(), -1), null);
+                null, PositionFactory.create(lastPosition.getLedgerId(), -1), null, true);
         Field field = ManagedCursorImpl.class.getDeclaredField("readPosition");
         field.setAccessible(true);
         field.set(cursor, PositionFactory.EARLIEST);
@@ -4404,7 +4408,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup final MockedStatic<OpReadEntry> mockedStaticOpReadEntry = Mockito.mockStatic(OpReadEntry.class);
         mockedStaticOpReadEntry.when(() -> OpReadEntry.create(any(), any(), anyInt(), any(),
-                        any(), any(), any())).thenAnswer(__ -> createOpReadEntry.get());
+                        any(), any(), any(), anyBoolean())).thenAnswer(__ -> createOpReadEntry.get());
 
         final ManagedLedgerConfig ledgerConfig = new ManagedLedgerConfig();
         ledgerConfig.setNewEntriesCheckDelayInMillis(10);
@@ -5456,6 +5460,77 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             buffer.readBytes(bytes);
             return new String(bytes, StandardCharsets.UTF_8);
         }).toList(), IntStream.range(0, 10).mapToObj(i -> "msg-" + i).toList());
+    }
+
+    @Test
+    public void testSkipOpenLedgerFullyAcked() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(10);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedger ledger = factory.open("testSkipOpenLedgerFullyAcked", managedLedgerConfig);
+        ManagedCursor cursor = ledger.openCursor("cursor");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            Position pos = ledger.addEntry(("entry-" + i).getBytes());
+            positions.add(pos);
+        }
+
+        ((ManagedLedgerImpl) ledger).rollCurrentLedgerIfFull();
+
+        for (int i = 10; i < 20; i++) {
+            Position pos = ledger.addEntry(("entry-" + i).getBytes());
+            positions.add(pos);
+        }
+
+        ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
+        ManagedCursorImpl cursorImpl = (ManagedCursorImpl) cursor;
+
+        for (int i = 0; i < 5; i++) {
+            cursor.markDelete(positions.get(i));
+        }
+
+        for (int i = 5; i < 10; i++) {
+            cursor.delete(positions.get(i));
+        }
+
+        long firstLedgerId = positions.get(0).getLedgerId();
+        long secondLedgerId = positions.get(10).getLedgerId();
+        log.info("First ledger id is {}, Second ledger id is {}", firstLedgerId, secondLedgerId);
+
+        ManagedLedgerImpl spyLedger = spy(ledgerImpl);
+
+        Position readPosition = PositionFactory.create(firstLedgerId, 0);
+        CountDownLatch readLatch = new CountDownLatch(1);
+
+        ReadEntriesCallback callback = new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                try {
+                    if (!entries.isEmpty()) {
+                        entries.forEach(Entry::release);
+                    }
+                } finally {
+                    readLatch.countDown();
+                }
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Read failed", exception);
+                readLatch.countDown();
+            }
+        };
+
+        OpReadEntry opReadEntry = OpReadEntry.create(cursorImpl, readPosition, 5, callback, null, null, null, true);
+
+        spyLedger.asyncReadEntries(opReadEntry);
+
+        assertTrue(readLatch.await(10, TimeUnit.SECONDS));
+
+        verify(spyLedger, never()).getLedgerHandle(firstLedgerId);
+
+        ledger.close();
     }
 
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
