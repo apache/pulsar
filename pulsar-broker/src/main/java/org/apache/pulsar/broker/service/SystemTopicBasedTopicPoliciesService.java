@@ -424,11 +424,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 return createSystemTopicClient(ns);
             }
 
-            if (existingFuture.isCompletedExceptionally()) {
-                if (isAlreadyClosedException(existingFuture)) {
-                    return existingFuture;
-                }
-                return createSystemTopicClient(ns);
+            if (existingFuture.isDone() && existingFuture.isCompletedExceptionally()) {
+                return existingFuture.exceptionallyCompose(ex ->
+                        isAlreadyClosedException(ex) ? existingFuture : createSystemTopicClient(ns));
             }
             return existingFuture;
         });
@@ -610,17 +608,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         }
                     }
                 });
-    }
-
-    private boolean isAlreadyClosedException(CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> reader) {
-        try {
-            reader.get();
-            return false;
-        } catch (InterruptedException e) {
-            return false;
-        } catch (ExecutionException e) {
-            return isAlreadyClosedException(e.getCause());
-        }
     }
 
     private boolean isAlreadyClosedException(Throwable ex) {
