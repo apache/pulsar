@@ -751,8 +751,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 .thenAccept(msg -> {
                     try {
                         refreshTopicPoliciesCache(msg);
-                        getMessageHandlerTracker(namespaceObject).handleMessageId((MessageIdAdv) msg.getMessageId());
-                        notifyListener(msg);
+                        try {
+                            getMessageHandlerTracker(namespaceObject).handleMessageId(
+                                    (MessageIdAdv) msg.getMessageId());
+                        } finally {
+                            notifyListener(msg);
+                        }
                     } finally {
                         msg.release();
                     }
