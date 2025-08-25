@@ -3521,7 +3521,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                             }
                             return pulsar().getTopicPoliciesService()
-                                    .updateTopicPoliciesAsync(topicName, isGlobal, retentionToSet == null, policies -> {
+                                    .updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
                                         policies.setRetentionPolicies(retentionToSet);
                                     });
                         }));
