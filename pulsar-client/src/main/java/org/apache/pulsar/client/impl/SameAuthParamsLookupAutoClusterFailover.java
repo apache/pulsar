@@ -133,7 +133,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
     }
 
     private int findFailoverTo() {
-        for (int i = currentPulsarServiceIndex + 1; i <= pulsarServiceUrlArray.length; i++) {
+        for (int i = currentPulsarServiceIndex + 1; i < pulsarServiceUrlArray.length; i++) {
             if (probeAvailable(i)) {
                 return i;
             }

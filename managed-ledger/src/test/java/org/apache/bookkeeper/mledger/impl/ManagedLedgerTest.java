@@ -692,7 +692,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
 
                     }
-                }, null, maxPosition, null);
+                }, null, maxPosition, null, false);
         Assert.assertEquals(opReadEntry.readPosition, position);
     }
 
