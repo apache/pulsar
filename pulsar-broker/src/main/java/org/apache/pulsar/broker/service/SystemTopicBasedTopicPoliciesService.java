@@ -403,8 +403,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         if (closed.get()) {
                                             return null;
                                         }
-                                        cleanCache(namespace, false,
-                                                readerCompletableFuture.isCompletedExceptionally());
+                                        cleanPoliciesCacheInitMap(
+                                                namespace, readerCompletableFuture.isCompletedExceptionally());
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
                                         log.error("[{}] Failed to cleanup reader on __change_events topic",
@@ -458,7 +458,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
         AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
         if (bundlesCount == null || bundlesCount.decrementAndGet() <= 0) {
-            cleanCache(namespace, true, true, true);
+            cleanPoliciesCacheInitMap(namespace, true);
+            cleanWriterCache(namespace);
+            cleanOwnedBundlesCount(namespace);
         }
     }
 
@@ -488,7 +490,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
         if (closed.get()) {
             future.completeExceptionally(new BrokerServiceException(getClass().getName() + " is closed."));
-            cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false, true);
+            cleanPoliciesCacheInitMap(reader.getSystemTopic().getTopicName().getNamespaceObject(), true);
             return;
         }
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
@@ -496,7 +498,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 log.error("[{}] Failed to check the move events for the system topic",
                         reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
-                cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false,
+                cleanPoliciesCacheInitMap(reader.getSystemTopic().getTopicName().getNamespaceObject(),
                         isAlreadyClosedException(ex));
                 return;
             }
@@ -516,8 +518,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     log.error("[{}] Failed to read event from the system topic.",
                             reader.getSystemTopic().getTopicName(), e);
                     future.completeExceptionally(e);
-                    cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false,
-                            isAlreadyClosedException(e));
+                    cleanPoliciesCacheInitMap(reader.getSystemTopic().getTopicName().getNamespaceObject(),
+                            isAlreadyClosedException(ex));
                     return null;
                 });
             } else {
@@ -543,22 +545,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
-    private void cleanCache(@NonNull NamespaceName namespace, boolean cleanOwnedBundlesCount,
-                            boolean closeReaderCache) {
-        cleanCache(namespace, cleanOwnedBundlesCount, false, closeReaderCache);
-    }
 
-    private void cleanCache(@NonNull NamespaceName namespace, boolean cleanOwnedBundlesCount,
-                            boolean cleanWriterCache, boolean cleanReaderCache) {
-        if (cleanWriterCache) {
-            writerCaches.synchronous().invalidate(namespace);
-        }
-
-        if (cleanOwnedBundlesCount) {
-            ownedBundlesCountPerNamespace.remove(namespace);
-        }
-
-        if (!cleanReaderCache) {
+    private void cleanPoliciesCacheInitMap(@NonNull NamespaceName namespace, boolean closeReader) {
+        if (!closeReader) {
             policyCacheInitMap.remove(namespace);
             return;
         }
@@ -578,6 +567,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
+    private void cleanWriterCache(@NonNull NamespaceName namespace) {
+        writerCaches.synchronous().invalidate(namespace);
+    }
+
+    private void cleanOwnedBundlesCount(@NonNull NamespaceName namespace) {
+        ownedBundlesCountPerNamespace.remove(namespace);
+    }
+
     /**
      * This is an async method for the background reader to continue syncing new messages.
      *
@@ -586,7 +583,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      */
     private void readMorePoliciesAsync(SystemTopicClient.Reader<PulsarEvent> reader) {
         if (closed.get()) {
-            cleanCache(reader.getSystemTopic().getTopicName().getNamespaceObject(), false, true);
+            cleanPoliciesCacheInitMap(reader.getSystemTopic().getTopicName().getNamespaceObject(), true);
             return;
         }
         reader.readNextAsync()
@@ -605,8 +602,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         if (isAlreadyClosedException(ex)) {
                             log.info("Closing the topic policies reader for {}",
                                     reader.getSystemTopic().getTopicName());
-                            cleanCache(
-                                    reader.getSystemTopic().getTopicName().getNamespaceObject(), false, true);
+                            cleanPoliciesCacheInitMap(
+                                    reader.getSystemTopic().getTopicName().getNamespaceObject(), true);
                         } else {
                             log.warn("Read more topic polices exception, read again.", ex);
                             readMorePoliciesAsync(reader);
