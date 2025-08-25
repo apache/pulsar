@@ -191,10 +191,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 return CompletableFuture.completedFuture(null);
             }
             // delete local policy
-            return updateTopicPoliciesAsync(topicName, null, false, ActionType.DELETE, true)
-                    .thenCompose(__ ->
-                            // delete global policy
-                            updateTopicPoliciesAsync(topicName, null, true, ActionType.DELETE, true));
+            return updateTopicPoliciesAsync(topicName, null, false, ActionType.DELETE, true).thenCompose(__ -> {
+                if (keepGlobalPolicies) {
+                    // skip deleting global policy due to PIP-422
+                    return CompletableFuture.completedFuture(null);
+                }
+                // delete global policy
+                return updateTopicPoliciesAsync(topicName, null, true, ActionType.DELETE, true);
+            });
         });
     }
 
