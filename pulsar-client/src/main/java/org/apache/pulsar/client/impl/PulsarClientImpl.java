@@ -74,6 +74,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.MemoryBufferStats;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -146,6 +147,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     protected final EventLoopGroup eventLoopGroup;
     private final MemoryLimitController memoryLimitController;
+    private final MemoryBufferStats memoryBufferStats;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache =
             CacheBuilder.newBuilder().maximumSize(100000)
@@ -265,6 +267,12 @@ public class PulsarClientImpl implements PulsarClient {
             memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes(),
                     (long) (conf.getMemoryLimitBytes() * THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING),
                     this::reduceConsumerReceiverQueueSize);
+            // Only create memory buffer metrics if memory limiting is enabled
+            if (memoryLimitController.isMemoryLimited()) {
+                memoryBufferStats = new MemoryBufferStats(instrumentProvider, memoryLimitController);
+            } else {
+                memoryBufferStats = null;
+            }
             state.set(State.Open);
         } catch (Throwable t) {
             // Log the exception first, or it could be missed if there are any subsequent exceptions in the
@@ -937,6 +945,14 @@ public class PulsarClientImpl implements PulsarClient {
                 shutdownExecutors();
             } catch (PulsarClientException e) {
                 throwable = e;
+            }
+            if (memoryBufferStats != null) {
+                try {
+                    memoryBufferStats.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to close memoryBufferStats", t);
+                    throwable = t;
+                }
             }
             if (conf != null && conf.getAuthentication() != null) {
                 try {
