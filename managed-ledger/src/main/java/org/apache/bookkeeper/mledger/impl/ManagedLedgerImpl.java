@@ -1940,6 +1940,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
+            // Optimization: Check if all entries in this ledger have been deleted (acknowledged)
+            // If so, skip opening the ledger and move to the next one
+            if (opReadEntry.cursor != null && opReadEntry.skipOpenLedgerFullyAcked
+                && isLedgerFullyAcked(ledgerId, ledgerInfo, opReadEntry.cursor)) {
+                log.info("[{}] All entries in ledger {} have been acked, skipping ledger opening", name, ledgerId);
+                // Move to the next ledger
+                Long nextLedgerId = ledgers.ceilingKey(ledgerId + 1);
+                opReadEntry.updateReadPosition(
+                    PositionFactory.create(Objects.requireNonNullElseGet(nextLedgerId, () -> ledgerId + 1), 0));
+                opReadEntry.checkReadCompletion();
+                return;
+            }
+
             // Get a ledger handle to read from
             getLedgerHandle(ledgerId).thenAccept(ledger -> internalReadFromLedger(ledger, opReadEntry)).exceptionally(ex
                     -> {
@@ -1950,6 +1963,56 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return null;
             });
         }
+    }
+
+    /**
+     * Check if all entries in the specified ledger have been acknowledged by the cursor.
+     * This optimization helps avoid opening ledgers that have no unacked entries.
+     *
+     * @param ledgerId the ledger ID to check
+     * @param ledgerInfo the ledger information
+     * @param cursor the cursor reading from this ledger
+     * @return true if all entries in the ledger have been acknowledged, false otherwise
+     */
+    private boolean isLedgerFullyAcked(long ledgerId, LedgerInfo ledgerInfo, ManagedCursorImpl cursor) {
+        if (ledgerInfo == null || ledgerInfo.getEntries() == 0) {
+            return true;
+        }
+
+        // Get the cursor's mark delete position
+        Position markDeletedPosition = cursor.getMarkDeletedPosition();
+        if (markDeletedPosition == null) {
+            return false;
+        }
+
+        // If the mark delete position is in a later ledger, then this ledger is fully acknowledged
+        if (markDeletedPosition.getLedgerId() > ledgerId) {
+            return true;
+        }
+
+        // Check if all entries in this ledger are individually deleted
+        if (markDeletedPosition.getLedgerId() <= ledgerId) {
+            final long lastEntryInLedger = ledgerInfo.getEntries() - 1;
+            Position startPosition = PositionFactory.create(ledgerId, 0);
+            if (markDeletedPosition.getLedgerId() == ledgerId) {
+                // The mark delete position represents the last acknowledged entry
+                // If it points to the last entry in the ledger, then the ledger is fully acknowledged
+                if (markDeletedPosition.getEntryId() >= lastEntryInLedger) {
+                    return true;
+                }
+
+                startPosition = markDeletedPosition;
+            }
+
+            Range<Position> scanRange =
+                Range.closed(startPosition, PositionFactory.create(ledgerId, lastEntryInLedger));
+            long unackMessages = cursor.getNumberOfEntries(scanRange);
+            // All entries are individually deleted
+            return unackMessages == 0;
+        }
+
+        // If mark delete position is in an earlier ledger, this ledger is not consumed
+        return false;
     }
 
     public CompletableFuture<LedgerMetadata> getLedgerMetadata(long ledgerId) {
