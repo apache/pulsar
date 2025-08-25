@@ -273,12 +273,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             // remove the current future from the sequencer map, if it is done
             // this would remove the future from the sequencer map when the last operation completes in the chained
             // future
-            topicPolicyUpdateSequencer.compute(sequencerKey, (key, existingFuture) -> {
-                if (existingFuture != null && existingFuture.isDone()) {
+            topicPolicyUpdateSequencer.compute(sequencerKey, (key, chainedFuture) -> {
+                if (chainedFuture != null && chainedFuture.isDone()) {
                     // Remove the completed future from the sequencer map
                     return null;
                 }
-                return existingFuture;
+                return chainedFuture;
             });
             if (ex != null) {
                 operationFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
