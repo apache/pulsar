@@ -89,7 +89,6 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -103,6 +102,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -2331,8 +2331,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     try {
                         String originMessageIdStr = message.getMessageId().toString();
                         String originTopicNameStr = getOriginTopicNameStr(message);
+                        AutoProduceBytesSchema<byte[]> deadLetterMessageSchema =
+                            (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get());
+                        deadLetterMessageSchema.setRequireSchemaValidation(false);
                         TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                                producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                                producerDLQ.newMessage(deadLetterMessageSchema)
                                         .value(message.getData())
                                         .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
                         copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
@@ -2370,12 +2373,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         log.warn("[{}] [{}] [{}] Failed to process DLQ message to {} for message id {}",
                                 topicName, subscription, consumerName, deadLetterPolicy.getDeadLetterTopic(), messageId,
                                 e);
-                        if (e instanceof SchemaSerializationException) {
-                            // If a SchemaSerializationException occurs, the message should be ignored to redelivery.
-                            // Otherwise, it will be redelivered and still can't send to the DLQ
-                            // and cause an infinite loop
-                            result.complete(true);
-                        }
                         result.complete(false);
                     }
                 }
@@ -2408,8 +2405,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
+                        AutoProduceBytesSchema<byte[]> deadLetterProducerSchema =
+                                (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES(schema);
+                        deadLetterProducerSchema.setRequireSchemaValidation(false);
                         ProducerBuilder<byte[]> builder =
-                                ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                ((ProducerBuilderImpl<byte[]>) client.newProducer(deadLetterProducerSchema))
                                         .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                         .producerName(
