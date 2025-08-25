@@ -350,7 +350,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 PriorityQueue<PendingMessageFuture> pq = pendingFutures.get(partitionIndex);
                 while (!pq.isEmpty() && pq.peek().messageId.compareTo(messageId) <= 0) {
                     PendingMessageFuture pendingFuture = pq.poll();
-                    pendingFuture.future.complete(null);
+                    completeFuture(pendingFuture.messageId(), pendingFuture.future());
                 }
             }
         }
@@ -363,7 +363,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
          */
         public synchronized void addPendingFuture(MessageIdAdv messageId, CompletableFuture<Void> future) {
             if (closed) {
-                future.complete(null);
+                completeFuture(messageId, future);
                 return;
             }
             int partitionIndex = messageId.getPartitionIndex();
@@ -377,7 +377,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     lastHandledMessageIds.size() > partitionIndex ? lastHandledMessageIds.get(partitionIndex) : null;
             if (lastHandledMessageId != null && lastHandledMessageId.compareTo(messageId) >= 0) {
                 // If the messageId is already handled, complete the future immediately
-                future.complete(null);
+                completeFuture(messageId, future);
                 return;
             }
             pendingFutures.get(partitionIndex).add(new PendingMessageFuture(messageId, future));
@@ -390,11 +390,19 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 for (PriorityQueue<PendingMessageFuture> pq : pendingFutures) {
                     while (!pq.isEmpty()) {
                         PendingMessageFuture pendingFuture = pq.poll();
-                        pendingFuture.future.complete(null);
+                        completeFuture(pendingFuture.messageId(), pendingFuture.future());
                     }
                 }
                 pendingFutures.clear();
                 lastHandledMessageIds.clear();
+            }
+        }
+
+        private void completeFuture(MessageId messageId, CompletableFuture<Void> future) {
+            try {
+                future.complete(null);
+            } catch (Exception ex) {
+                log.error("Failed to complete pending future for message id {}.", messageId, ex);
             }
         }
     }
