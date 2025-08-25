@@ -467,8 +467,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (msg.getValue() == null) {
             TopicName topicName = TopicName.get(TopicPoliciesService.unwrapEventKey(msg.getKey())
                     .getPartitionedTopicName());
-            if (listeners.get(topicName) != null) {
-                for (TopicPolicyListener listener : listeners.get(topicName)) {
+            List<TopicPolicyListener> listeners = this.listeners.get(topicName);
+            if (listeners != null) {
+                for (TopicPolicyListener listener : listeners) {
                     try {
                         listener.onUpdate(null);
                     } catch (Throwable error) {
@@ -485,9 +486,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
         TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(),
                 event.getNamespace(), event.getTopic());
-        if (listeners.get(topicName) != null) {
+        List<TopicPolicyListener> listeners = this.listeners.get(topicName);
+        if (listeners != null) {
             TopicPolicies policies = event.getPolicies();
-            for (TopicPolicyListener listener : listeners.get(topicName)) {
+            for (TopicPolicyListener listener : listeners) {
                 try {
                     listener.onUpdate(policies);
                 } catch (Throwable error) {
