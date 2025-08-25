@@ -711,6 +711,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
 
+    @VisibleForTesting
+    public Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> getReaderCaches() {
+        return readerCaches;
+    }
 
     @VisibleForTesting
     long getPoliciesCacheSize() {

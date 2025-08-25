@@ -3579,12 +3579,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Map<TopicName, TopicPolicies> globalPoliciesCache =
                 WhiteboxImpl.getInternalState(topicPoliciesService, "globalPoliciesCache");
 
-        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches = WhiteboxImpl
-                .getInternalState(topicPoliciesService, "readerCaches");
         policyCacheInitMap.clear();
         policiesCache.clear();
         globalPoliciesCache.clear();
 
+        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches =
+                ((SystemTopicBasedTopicPoliciesService) topicPoliciesService).getReaderCaches();
         readerCaches.clear();
     }
 
