@@ -71,7 +71,6 @@ class StructSchemaDataValidator implements SchemaDataValidator {
         } catch (InvalidSchemaDataException invalidSchemaDataException) {
             throw invalidSchemaDataException;
         } catch (Exception e) {
-            e.printStackTrace();
             throwInvalidSchemaDataException(schemaData, e);
         }
     }
