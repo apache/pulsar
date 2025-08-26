@@ -227,7 +227,8 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.9.0</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
-    <aws-sdk.version>1.12.638</aws-sdk.version>
+    <aws-sdk.version>1.12.788</aws-sdk.version>
+    <aws-sdk2.version>2.32.28</aws-sdk2.version>
     <avro.version>1.11.4</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
@@ -1358,6 +1359,14 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-java-sdk-bom</artifactId>
         <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk2.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
