@@ -80,9 +80,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 }
             }).orElseGet(() -> {
                 EncodeData encodeData = schema.encode(producer.topic, value);
-                content = ByteBuffer.wrap(encodeData.getData());
-                if (encodeData.getSchemaId() != null && encodeData.getSchemaId().length > 0) {
-                    msgMetadata.setSchemaId(encodeData.getSchemaId());
+                content = ByteBuffer.wrap(encodeData.data());
+                if (encodeData.schemaId() != null && encodeData.schemaId().length > 0) {
+                    msgMetadata.setSchemaId(encodeData.schemaId());
                 }
                 return this;
             });
@@ -314,7 +314,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         // set key as the message key
         if (keyValue.getKey() != null) {
             keyEncoded = keyValueSchema.getKeySchema().encode(producer.topic, keyValue.getKey());
-            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(keyEncoded.getData()));
+            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(keyEncoded.data()));
             msgMetadata.setPartitionKeyB64Encoded(true);
         } else {
             msgMetadata.setNullPartitionKey(true);
@@ -324,14 +324,14 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         // set value as the payload
         if (keyValue.getValue() != null) {
             valueEncoded = keyValueSchema.getValueSchema().encode(producer.topic, keyValue.getValue());
-            content = ByteBuffer.wrap(valueEncoded.getData());
+            content = ByteBuffer.wrap(valueEncoded.data());
         } else {
             msgMetadata.setNullValue(true);
         }
 
         byte[] schemaId = KeyValue.generateKVSchemaId(
-                keyEncoded == null ? null : keyEncoded.getSchemaId(),
-                valueEncoded == null ? null : valueEncoded.getSchemaId());
+                keyEncoded == null ? null : keyEncoded.schemaId(),
+                valueEncoded == null ? null : valueEncoded.schemaId());
         if (schemaId != null && schemaId.length > 0) {
             msgMetadata.setSchemaId(schemaId);
         }

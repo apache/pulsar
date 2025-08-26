@@ -397,16 +397,16 @@ public class MessageImpl<T> implements Message<T> {
         if (schema == null) {
             return Optional.empty();
         }
-        byte[] schemaFlag = getSchemaFlag();
-        if (schemaFlag == null) {
+        byte[] schemaVersion = getSchemaVersion();
+        if (schemaVersion == null) {
             return Optional.of(schema);
         }
         if (schema instanceof AutoConsumeSchema) {
             return Optional.of(((AutoConsumeSchema) schema)
-                    .atSchemaVersion(schemaFlag));
+                    .atSchemaVersion(schemaVersion));
         } else if (schema instanceof AbstractSchema) {
             return Optional.of(((AbstractSchema<?>) schema)
-                    .atSchemaVersion(schemaFlag));
+                    .atSchemaVersion(schemaVersion));
         } else {
             return Optional.of(schema);
         }
@@ -425,15 +425,20 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public byte[] getSchemaId() {
+    public Optional<byte[]> getSchemaId() {
         if (msgMetadata.hasSchemaId()) {
             byte[] schemaId = msgMetadata.getSchemaId();
-            return (schemaId.length == 0) ? null : schemaId;
+            return (schemaId.length == 0) ? Optional.empty() : Optional.of(schemaId);
         }
-        return null;
+        return Optional.empty();
     }
 
-    private byte[] getSchemaFlag() {
+    /**
+     * Get schema id or schema version. If schema id is present, return schema id, otherwise return schema version.
+     * This method is only used to decode the message payload.
+     * @return schema id or version, null if neither is present
+     */
+    private byte[] getSchemaIdOrVersion() {
         if (msgMetadata.hasSchemaId()) {
             byte[] schemaId = msgMetadata.getSchemaId();
             return (schemaId.length == 0) ? null : schemaId;
@@ -456,7 +461,7 @@ public class MessageImpl<T> implements Message<T> {
         }
         ensureSchemaIsLoaded();
         if (schema instanceof AutoConsumeSchema) {
-            return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaFlag());
+            return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion());
         }
         return schema.getSchemaInfo();
     }
@@ -483,7 +488,7 @@ public class MessageImpl<T> implements Message<T> {
         SchemaInfo schemaInfo = getSchemaInfo();
         if (schemaInfo != null && SchemaType.KEY_VALUE == schemaInfo.getType()) {
             if (schema.supportSchemaVersioning()) {
-                return getKeyValueBySchemaFlag();
+                return getKeyValueBySchemaIdOrVersion();
             } else {
                 return getKeyValue();
             }
@@ -493,14 +498,14 @@ public class MessageImpl<T> implements Message<T> {
             }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
-            return decode(schema.supportSchemaVersioning() ? getSchemaFlag() : null);
+            return decode(schema.supportSchemaVersioning() ? getSchemaIdOrVersion() : null);
         }
     }
 
 
     private KeyValueSchemaImpl getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaFlag());
+            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
             return (KeyValueSchemaImpl) schema;
         }
@@ -518,16 +523,16 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private T decodeBySchema(byte[] schemaFlag) {
-        T value = poolMessage ? schema.decode(topic, payload.nioBuffer(), schemaFlag) : null;
+    private T decodeBySchema(byte[] schemaIdOrVersion) {
+        T value = poolMessage ? schema.decode(topic, payload.nioBuffer(), schemaIdOrVersion) : null;
         if (value != null) {
             return value;
         }
 
-        if (null == schemaFlag) {
+        if (null == schemaIdOrVersion) {
             return schema.decode(getByteBuffer());
         } else {
-            return schema.decode(topic, getByteBuffer(), schemaFlag);
+            return schema.decode(topic, getByteBuffer(), schemaIdOrVersion);
         }
     }
 
@@ -538,20 +543,20 @@ public class MessageImpl<T> implements Message<T> {
         return this.payload.nioBuffer();
     }
 
-    private T getKeyValueBySchemaFlag() {
+    private T getKeyValueBySchemaIdOrVersion() {
         KeyValueSchemaImpl kvSchema = getKeyValueSchema();
-        byte[] schemaFlag = getSchemaFlag();
+        byte[] schemaIdOrVersion = getSchemaIdOrVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
-                    kvSchema.decode(topic, getKeyBytes(), getData(), schemaFlag);
+                    kvSchema.decode(topic, getKeyBytes(), getData(), schemaIdOrVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaFlag).getType(), schemaFlag);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), schemaIdOrVersion);
             } else {
                 return (T) keyValue;
             }
         } else {
-            return decode(schemaFlag);
+            return decode(schemaIdOrVersion);
         }
     }
 
@@ -562,7 +567,7 @@ public class MessageImpl<T> implements Message<T> {
                     kvSchema.decode(topic, getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaFlag()).getType(), null);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);
             } else {
                 return (T) keyValue;
             }

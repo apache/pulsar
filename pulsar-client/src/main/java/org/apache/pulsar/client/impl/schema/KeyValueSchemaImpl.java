@@ -111,10 +111,12 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         if (valueSchema != null && valueSchema.getSchemaInfo() != null) {
             valueSchemaType = valueSchema.getSchemaInfo().getType();
         }
-        if ((SchemaType.EXTERNAL.equals(keySchemaType) && SchemaType.isStructType(valueSchemaType))
-                || SchemaType.EXTERNAL.equals(valueSchemaType) && SchemaType.isStructType(keySchemaType)) {
-            throw new IllegalArgumentException("External schema cannot be used with struct schema type. "
-                    + "Key schema type: " + keySchemaType + ", Value schema type: " + valueSchemaType);
+        if ((SchemaType.EXTERNAL.equals(keySchemaType)
+                && valueSchemaType != null && SchemaType.isStructType(valueSchemaType))
+                || (SchemaType.EXTERNAL.equals(valueSchemaType)
+                && keySchemaType != null && SchemaType.isStructType(keySchemaType))) {
+            throw new IllegalArgumentException("External schema cannot be used with other Pulsar struct schema types,"
+                    + "keySchemaType: " + keySchemaType + ", valueSchemaType: " + valueSchemaType);
         }
 
         this.keySchema = keySchema;
@@ -148,7 +150,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
     public byte[] encode(KeyValue<K, V> message) {
-        return encode(null, message).getData();
+        return encode(null, message).data();
     }
 
     @Override
@@ -201,13 +203,13 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         return decode(ByteBufUtil.getBytes(byteBuf), schemaVersion);
     }
 
-    public KeyValue<K, V> decode(String topic, byte[] keyBytes, byte[] valueBytes, byte[] schemaFlag) {
+    public KeyValue<K, V> decode(String topic, byte[] keyBytes, byte[] valueBytes, byte[] schemaIdOrVersion) {
         K k;
         if (keyBytes == null) {
             k = null;
         } else {
-            if (keySchema.supportSchemaVersioning() && schemaFlag != null) {
-                k = keySchema.decode(topic, keyBytes, schemaFlag);
+            if (keySchema.supportSchemaVersioning() && schemaIdOrVersion != null) {
+                k = keySchema.decode(topic, keyBytes, KeyValue.getSchemaId(schemaIdOrVersion, true));
             } else {
                 k = keySchema.decode(keyBytes);
             }
@@ -217,8 +219,8 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         if (valueBytes == null) {
             v = null;
         } else {
-            if (valueSchema.supportSchemaVersioning() && schemaFlag != null) {
-                v = valueSchema.decode(topic, valueBytes, schemaFlag);
+            if (valueSchema.supportSchemaVersioning() && schemaIdOrVersion != null) {
+                v = valueSchema.decode(topic, valueBytes, KeyValue.getSchemaId(schemaIdOrVersion, false));
             } else {
                 v = valueSchema.decode(valueBytes);
             }

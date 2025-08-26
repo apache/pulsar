@@ -165,6 +165,16 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public byte[] getSchemaVersion() {
+        return msg.getSchemaVersion();
+    }
+
+    @Override
+    public Optional<byte[]> getSchemaId() {
+        return msg.getSchemaId();
+    }
+
+    @Override
     public boolean isReplicated() {
         return msg.isReplicated();
     }
@@ -216,13 +226,4 @@ public class TopicMessageImpl<T> implements Message<T> {
         return msg.getIndex();
     }
 
-    @Override
-    public byte[] getSchemaVersion() {
-        return new byte[0];
-    }
-
-    @Override
-    public byte[] getSchemaId() {
-        return new byte[0];
-    }
 }

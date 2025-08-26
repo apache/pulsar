@@ -65,4 +65,18 @@ public class ExternalSchemaCompatibilityCheckTest {
         }
     }
 
+    @Test
+    public void testExternalSchemaData() {
+        try {
+            SchemaData exSchemaData = SchemaData.builder()
+                    .type(SchemaType.EXTERNAL)
+                    .data(new byte[0])
+                    .build();
+            compatibilityCheck.checkCompatible(
+                    exSchemaData, externalSchemaData, SchemaCompatibilityStrategy.FULL);
+        } catch (IncompatibleSchemaException e) {
+            fail("Did not expect IncompatibleSchemaException to be thrown");
+        }
+    }
+
 }

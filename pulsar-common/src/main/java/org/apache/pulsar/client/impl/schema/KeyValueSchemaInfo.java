@@ -47,7 +47,7 @@ public final class KeyValueSchemaInfo {
 
         @Override
         public byte[] encode(SchemaInfo si) {
-            return encode(null, si).getData();
+            return encode(null, si).data();
         }
 
         @Override

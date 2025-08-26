@@ -1864,6 +1864,9 @@ public class Commands {
         if (builder.hasSchemaVersion()) {
             messageMetadata.setSchemaVersion(builder.getSchemaVersion());
         }
+        if (builder.hasSchemaId()) {
+            messageMetadata.setSchemaId(builder.getSchemaId());
+        }
 
         return builder.getSequenceId();
     }

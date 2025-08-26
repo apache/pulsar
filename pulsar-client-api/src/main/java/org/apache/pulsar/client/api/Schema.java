@@ -76,7 +76,7 @@ public interface Schema<T> extends Cloneable {
     byte[] encode(T message);
 
     default EncodeData encode(String topic, T message) {
-        return new EncodeData(encode(message), null);
+        return new EncodeData(encode(message));
     }
 
     /**

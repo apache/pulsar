@@ -101,7 +101,7 @@ public class KeyValue<K, V> {
      */
     public static <K, V> byte[] encode(K key, Schema<K> keyWriter,
                                        V value, Schema<V> valueWriter) {
-        return encode(null, key, keyWriter, value, valueWriter).getData();
+        return encode(null, key, keyWriter, value, valueWriter).data();
     }
 
     public static <K, V> EncodeData encode(String topic, K key, Schema<K> keyWriter,
@@ -120,16 +120,28 @@ public class KeyValue<K, V> {
             valueEncodeData = valueWriter.encode(topic, value);
         }
         ByteBuffer byteBuffer = ByteBuffer.allocate(
-                4 + keyEncodeData.getData().length + 4 + valueEncodeData.getData().length);
+                4 + keyEncodeData.data().length + 4 + valueEncodeData.data().length);
         byteBuffer
-                .putInt(key == null ? -1 : keyEncodeData.getData().length)
-                .put(keyEncodeData.getData())
-                .putInt(value == null ? -1 : valueEncodeData.getData().length)
-                .put(valueEncodeData.getData());
+                .putInt(key == null ? -1 : keyEncodeData.data().length)
+                .put(keyEncodeData.data())
+                .putInt(value == null ? -1 : valueEncodeData.data().length)
+                .put(valueEncodeData.data());
         return new EncodeData(byteBuffer.array(),
-                generateKVSchemaId(keyEncodeData.getSchemaId(), valueEncodeData.getSchemaId()));
+                generateKVSchemaId(keyEncodeData.schemaId(), valueEncodeData.schemaId()));
     }
 
+    /**
+     * Generate a combined schema id for key/value schema.
+     * The format is:
+     * schemaId = schemaKeyLength + keySchemaIdBytes + schemaValueLength + valueSchemaIdBytes
+     * where schemaKeyLength and schemaValueLength are 4 bytes integer.
+     * If keySchemaIdBytes or valueSchemaIdBytes is null, the length will be 0.
+     * So the total length of schemaId is:
+     * 4 + keySchemaIdBytes.length + 4 + valueSchemaIdBytes.length
+     *
+     * @param keySchemaId the schema id of key schema
+     * @param valueSchemaId the schema id of value schema
+     */
     public static byte[] generateKVSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
         if (keySchemaId == null && valueSchemaId == null) {
             return null;
@@ -144,6 +156,25 @@ public class KeyValue<K, V> {
                 .putInt(valueSchemaId.length)
                 .put(valueSchemaId);
         return byteBuffer.array();
+    }
+
+    public static byte[] getSchemaId(byte[] schemaId, boolean isKey) {
+        ByteBuffer buffer = ByteBuffer.wrap(schemaId);
+        int keySchemaLength = buffer.getInt();
+        if (keySchemaLength > 0) {
+            byte[] keySchemaId = new byte[keySchemaLength];
+            buffer.get(keySchemaId);
+            if (isKey) {
+                return keySchemaId;
+            }
+        }
+        int valueSchemaLength = buffer.getInt();
+        if (valueSchemaLength > 0) {
+            byte[] valueSchemaId = new byte[valueSchemaLength];
+            buffer.get(valueSchemaId);
+            return valueSchemaId;
+        }
+        throw new IllegalArgumentException("Invalid schemaId length: " + schemaId.length);
     }
 
     /**

@@ -18,20 +18,16 @@
  */
 package org.apache.pulsar.client.api;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-@AllArgsConstructor
-@Data
-public class EncodeData {
-
-    private byte[] data;
-
-    private byte[] schemaId;
+/**
+ * Data to be encoded by an external schema.
+ *
+ * @param data the message payload to be encoded
+ * @param schemaId the schema id return by the schema registry, it can be null if not applicable
+ */
+public record EncodeData(byte[] data, byte[] schemaId) {
 
     public EncodeData(byte[] data) {
-        this.data = data;
-        this.schemaId = new byte[0];
+        this(data, null);
     }
 
 }
