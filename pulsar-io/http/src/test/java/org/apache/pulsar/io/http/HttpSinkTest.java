@@ -385,8 +385,8 @@ public class HttpSinkTest {
                     }
 
                     @Override
-                    public byte[] getSchemaId() {
-                        return new byte[0];
+                    public Optional<byte[]> getSchemaId() {
+                        return Optional.of(new byte[0]);
                     }
 
                     @Override
