@@ -741,9 +741,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return;
         }
 
+        TopicPolicyMessageHandlerTracker topicPolicyMessageHandlerTracker =
+                topicPolicyMessageHandlerTrackers.remove(namespace);
+        if (topicPolicyMessageHandlerTracker != null) {
+            topicPolicyMessageHandlerTracker.close();
+        }
+
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
         policyCacheInitMap.compute(namespace, (k, v) -> {
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+            globalPoliciesCache.entrySet()
+                    .removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             return null;
         });
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
@@ -764,10 +772,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         ownedBundlesCountPerNamespace.remove(namespace);
     }
 
-
-    private void cleanCacheAndCloseReader(@NonNull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
-        cleanCacheAndCloseReader(namespace, cleanOwnedBundlesCount, false);
-    }
 
     private void cleanCacheAndCloseReader(@NonNull NamespaceName namespace, boolean cleanOwnedBundlesCount,
                                           boolean cleanWriterCache) {
