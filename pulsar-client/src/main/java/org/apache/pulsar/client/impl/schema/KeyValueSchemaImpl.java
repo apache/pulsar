@@ -209,7 +209,11 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
             k = null;
         } else {
             if (keySchema.supportSchemaVersioning() && schemaIdOrVersion != null) {
-                k = keySchema.decode(topic, keyBytes, KeyValue.getSchemaId(schemaIdOrVersion, true));
+                byte[] keySchemaIdOrVersion = schemaIdOrVersion;
+                if (SchemaType.EXTERNAL.equals(keySchema.getSchemaInfo().getType())) {
+                    keySchemaIdOrVersion = KeyValue.getSchemaId(schemaIdOrVersion, true);
+                }
+                k = keySchema.decode(topic, keyBytes, keySchemaIdOrVersion);
             } else {
                 k = keySchema.decode(keyBytes);
             }
@@ -220,7 +224,11 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
             v = null;
         } else {
             if (valueSchema.supportSchemaVersioning() && schemaIdOrVersion != null) {
-                v = valueSchema.decode(topic, valueBytes, KeyValue.getSchemaId(schemaIdOrVersion, false));
+                byte[] valueSchemaIdOrVersion = schemaIdOrVersion;
+                if (SchemaType.EXTERNAL.equals(valueSchema.getSchemaInfo().getType())) {
+                    valueSchemaIdOrVersion = KeyValue.getSchemaId(schemaIdOrVersion, false);
+                }
+                v = valueSchema.decode(topic, valueBytes, valueSchemaIdOrVersion);
             } else {
                 v = valueSchema.decode(valueBytes);
             }
