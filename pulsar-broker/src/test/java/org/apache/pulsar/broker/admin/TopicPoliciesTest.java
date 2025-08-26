@@ -3900,12 +3900,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(persistenceTopic, 5);
 
         Integer maxConsumerPerTopic = TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
-                TopicName.get(persistenceTopic)).orElseThrow().getMaxConsumerPerTopic();
+                TopicName.get(persistenceTopic), false).orElseThrow().getMaxConsumerPerTopic();
 
         assertEquals(maxConsumerPerTopic, 5);
         admin.topics().delete(persistenceTopic, true);
         assertTrue(TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
-                TopicName.get(persistenceTopic)).isEmpty());
+                TopicName.get(persistenceTopic), false).isEmpty());
     }
 
     @Test

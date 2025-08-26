@@ -2597,7 +2597,7 @@ public class BrokerService implements Closeable {
     private void handlePoliciesUpdates(NamespaceName namespace) {
         pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                 .thenAcceptAsync(optPolicies -> {
-                    if (!optPolicies.isPresent()) {
+                    if (!optPolicies.isPresent() || optPolicies.get().deleted) {
                         return;
                     }
 
