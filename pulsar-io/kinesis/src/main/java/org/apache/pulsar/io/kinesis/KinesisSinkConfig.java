@@ -26,7 +26,6 @@ import java.io.Serializable;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-import software.amazon.kinesis.producer.KinesisProducerConfiguration;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
