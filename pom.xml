@@ -2980,6 +2980,46 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
 
     <profile>
+      <id>jdk21</id>
+      <activation>
+        <jdk>21</jdk>
+      </activation>
+      <properties>
+        <!-- nifi-nar-maven-plugin >= 2.0.0 require Java 21+ -->
+        <nifi-nar-maven-plugin.version>2.1.0</nifi-nar-maven-plugin.version>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.nifi</groupId>
+              <artifactId>nifi-nar-maven-plugin</artifactId>
+              <version>${nifi-nar-maven-plugin.version}</version>
+              <extensions>true</extensions>
+              <configuration>
+                <!--
+                skips nifi nar specific doc generation which isn't used for Pulsar nar files
+                see https://github.com/apache/nifi-maven/pull/35
+                -->
+                <skipDocGeneration>true</skipDocGeneration>
+                <finalName>${project.artifactId}-${project.version}</finalName>
+              </configuration>
+              <executions>
+                <execution>
+                  <id>default-nar</id>
+                  <phase>${narPluginPhase}</phase>
+                  <goals>
+                    <goal>nar</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
+    <profile>
       <id>jdk24</id>
       <activation>
         <jdk>24</jdk>
