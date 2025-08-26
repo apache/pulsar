@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
 
 /**
  * Definition of the inactive topic policy.
@@ -28,8 +29,14 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class InactiveTopicPolicies {
+public class InactiveTopicPolicies implements Cloneable {
     private InactiveTopicDeleteMode inactiveTopicDeleteMode;
     private int maxInactiveDurationSeconds;
     private boolean deleteWhileInactive;
+
+    @SneakyThrows
+    @Override
+    protected InactiveTopicPolicies clone() {
+        return InactiveTopicPolicies.class.cast(super.clone());
+    }
 }
