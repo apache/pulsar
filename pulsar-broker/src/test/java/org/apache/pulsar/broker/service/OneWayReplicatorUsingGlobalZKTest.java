@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.GLOBAL_ONLY;
+import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCAL_ONLY;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -341,6 +342,15 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
                     .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
         });
 
+        // Verify that global topic policies exist before deleting the topic explicitly
+        {
+            Optional<TopicPolicies> op1 = pulsar1.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
+            assertTrue(op1.isPresent());
+            Optional<TopicPolicies> op2 = pulsar2.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
+            assertTrue(op2.isPresent());
+        }
 
         // Delete topic.
         admin1.topics().deletePartitionedTopic(topicName);
@@ -355,20 +365,25 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
                     .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
         });
 
-        Awaitility.await().untilAsserted(() -> {
+        // Verify that local topic policies have been deleted
+        {
+            Optional<TopicPolicies> op1 = pulsar1.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topicName), LOCAL_ONLY).join();
+            assertFalse(op1.isPresent());
+            Optional<TopicPolicies> op2 = pulsar2.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topicName), LOCAL_ONLY).join();
+            assertFalse(op2.isPresent());
+        }
+
+        // Verify that global topic policies have been deleted too
+        {
             Optional<TopicPolicies> op1 = pulsar1.getTopicPoliciesService()
                     .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
             assertFalse(op1.isPresent());
             Optional<TopicPolicies> op2 = pulsar2.getTopicPoliciesService()
                     .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
-            assertTrue(op2.isPresent());
-        });
-        admin2.topicPolicies().deleteTopicPolicies(topicName);
-        Awaitility.await().untilAsserted(() -> {
-            Optional<TopicPolicies> op2 = pulsar2.getTopicPoliciesService()
-                    .getTopicPoliciesAsync(TopicName.get(topicName), GLOBAL_ONLY).join();
             assertFalse(op2.isPresent());
-        });
+        }
     }
 
     @Test(enabled = false)

@@ -20,7 +20,6 @@ package org.apache.pulsar.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,6 +30,7 @@ import lombok.EqualsAndHashCode;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -245,7 +245,7 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
 
     @FieldDoc(
             defaultValue = "",
-            help = "Extra KinesisProducerConfiguration parameters. See https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.15.2/index.html?com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html for all the available parameters."
+            help = "Extra KinesisProducerConfiguration parameters. See https://javadoc.io/static/software.amazon.kinesis/amazon-kinesis-producer/1.0.4/software/amazon/kinesis/producer/KinesisProducerConfiguration.html for all the available parameters."
                     + "Parameters that are explicitly set take preference over extra config.")
     private Map<String, String> extraKinesisProducerConfig = new HashMap<>();
 
