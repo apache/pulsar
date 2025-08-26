@@ -23,7 +23,7 @@ ARG ALPINE_VERSION=3.21
 
 # Build stage
 FROM alpine:$ALPINE_VERSION AS kinesis-producer-build
-ENV KINESIS_PRODUCER_LIB_VERSION=0.15.12
+ENV KINESIS_PRODUCER_LIB_VERSION=1.0.4
 
 # Install build dependencies
 RUN apk update && apk add --no-cache \

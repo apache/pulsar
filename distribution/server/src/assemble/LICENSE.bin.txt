@@ -262,7 +262,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.17.2.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
- * Fastutil -- it.unimi.dsi-fastutil-8.5.14.jar
+ * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.51.0.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
@@ -295,26 +295,26 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-lang3-3.18.0.jar
     - org.apache.commons-commons-text-1.13.1.jar
  * Netty
-    - io.netty-netty-buffer-4.1.122.Final.jar
-    - io.netty-netty-codec-4.1.122.Final.jar
-    - io.netty-netty-codec-dns-4.1.122.Final.jar
-    - io.netty-netty-codec-http-4.1.122.Final.jar
-    - io.netty-netty-codec-http2-4.1.122.Final.jar
-    - io.netty-netty-codec-socks-4.1.122.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.122.Final.jar
-    - io.netty-netty-common-4.1.122.Final.jar
-    - io.netty-netty-handler-4.1.122.Final.jar
-    - io.netty-netty-handler-proxy-4.1.122.Final.jar
-    - io.netty-netty-resolver-4.1.122.Final.jar
-    - io.netty-netty-resolver-dns-4.1.122.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.122.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.122.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.122.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.1.122.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.122.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.122.Final-linux-aarch_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.122.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.1.122.Final.jar
+    - io.netty-netty-buffer-4.1.124.Final.jar
+    - io.netty-netty-codec-4.1.124.Final.jar
+    - io.netty-netty-codec-dns-4.1.124.Final.jar
+    - io.netty-netty-codec-http-4.1.124.Final.jar
+    - io.netty-netty-codec-http2-4.1.124.Final.jar
+    - io.netty-netty-codec-socks-4.1.124.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.124.Final.jar
+    - io.netty-netty-common-4.1.124.Final.jar
+    - io.netty-netty-handler-4.1.124.Final.jar
+    - io.netty-netty-handler-proxy-4.1.124.Final.jar
+    - io.netty-netty-resolver-4.1.124.Final.jar
+    - io.netty-netty-resolver-dns-4.1.124.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.124.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.124.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.124.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.1.124.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.124.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.124.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.124.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.1.124.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.72.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.72.Final-linux-aarch_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.72.Final-linux-x86_64.jar
@@ -619,9 +619,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcpkix-jdk18on-1.81.jar
     - org.bouncycastle-bcprov-jdk18on-1.78.1.jar
-    - org.bouncycastle-bcutil-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcutil-jdk18on-1.81.jar
 
 ------------------------
 
