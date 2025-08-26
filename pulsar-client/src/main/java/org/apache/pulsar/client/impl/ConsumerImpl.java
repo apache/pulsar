@@ -100,6 +100,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -1410,7 +1411,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             consumerEpoch = cmdMessage.getConsumerEpoch();
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
+            log.debug("[{}][{}] Received message: {}:{}", topic, subscription, messageId.getLedgerId(),
                     messageId.getEntryId());
         }
 
@@ -2247,8 +2248,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     try {
                         String originMessageIdStr = message.getMessageId().toString();
                         String originTopicNameStr = getOriginTopicNameStr(message);
+                        AutoProduceBytesSchema<byte[]> deadLetterMessageSchema =
+                            (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get());
+                        deadLetterMessageSchema.setRequireSchemaValidation(false);
                         TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                                producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                                producerDLQ.newMessage(deadLetterMessageSchema)
                                         .value(message.getData())
                                         .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
                         copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
@@ -2270,7 +2274,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 }).exceptionally(ex -> {
                                     if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
                                         log.warn(
-                                                "[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
+                                                "[{}] [{}] [{}] Failed to send DLQ message to {} "
+                                                        + "with ProducerQueueIsFullError for message id {}: {}",
                                                 topicName, subscription, consumerName,
                                                 deadLetterPolicy.getDeadLetterTopic(), messageId, ex.getMessage());
                                     } else {
@@ -2282,7 +2287,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     return null;
                                 });
                     } catch (Exception e) {
-                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                        log.warn("[{}] [{}] [{}] Failed to process DLQ message to {} for message id {}",
                                 topicName, subscription, consumerName, deadLetterPolicy.getDeadLetterTopic(), messageId,
                                 e);
                         result.complete(false);
@@ -2307,8 +2312,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
+                        AutoProduceBytesSchema<byte[]> deadLetterProducerSchema =
+                                (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES(schema);
+                        deadLetterProducerSchema.setRequireSchemaValidation(false);
                         CompletableFuture<Producer<byte[]>> newProducer =
-                                ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                ((ProducerBuilderImpl<byte[]>) client.newProducer(deadLetterProducerSchema))
                                         .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                         .producerName(
