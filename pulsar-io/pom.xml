@@ -56,6 +56,7 @@
         <module>kafka</module>
         <module>rabbitmq</module>
         <module>kinesis</module>
+        <module>kinesis-kpl-shaded</module>
         <module>hdfs3</module>
         <module>jdbc</module>
         <module>data-generator</module>
@@ -93,6 +94,7 @@
         <module>http</module>
         <module>rabbitmq</module>
         <module>kinesis</module>
+        <module>kinesis-kpl-shaded</module>
         <module>hdfs3</module>
         <module>jdbc</module>
         <module>data-generator</module>

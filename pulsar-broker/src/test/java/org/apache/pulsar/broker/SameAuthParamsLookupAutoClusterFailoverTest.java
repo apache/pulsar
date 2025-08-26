@@ -113,7 +113,7 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
         });
         Assert.assertTrue(checkStatesFuture1.join());
 
-        // Test failover 0 --> 3.
+        // Test failover 0 --> 2.
         pulsar1.close();
         Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
             CompletableFuture<Boolean> checkStatesFuture2 = new CompletableFuture<>();
