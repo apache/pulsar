@@ -22,8 +22,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
-    <parent>
-      <groupId>com.datastax.oss</groupId>
+  <parent>
+    <groupId>com.datastax.oss</groupId>
     <artifactId>pulsar</artifactId>
     <version>4.0.3.7-SNAPSHOT</version>
   </parent>
@@ -56,6 +56,7 @@
         <module>kafka</module>
         <module>rabbitmq</module>
         <module>kinesis</module>
+        <module>kinesis-kpl-shaded</module>
         <module>hdfs3</module>
         <module>jdbc</module>
         <module>data-generator</module>
@@ -93,6 +94,7 @@
         <module>http</module>
         <module>rabbitmq</module>
         <module>kinesis</module>
+        <module>kinesis-kpl-shaded</module>
         <module>hdfs3</module>
         <module>jdbc</module>
         <module>data-generator</module>

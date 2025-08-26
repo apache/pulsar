@@ -22,11 +22,6 @@ import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.kinesis.producer.KinesisProducer;
-import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
-import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration.ThreadingModel;
-import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
-import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,6 +51,12 @@ import org.apache.pulsar.io.core.annotations.IOType;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.kinesis.producer.KinesisProducer;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration.ThreadingModel;
+import software.amazon.kinesis.producer.UserRecordFailedException;
+import software.amazon.kinesis.producer.UserRecordResult;
 
 /**
  * A Kinesis sink which can be configured by {@link KinesisSinkConfig}.
@@ -191,10 +192,10 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
                 && kinesisSinkConfig.getSkipCertificateValidation()) {
             kinesisConfig.setVerifyCertificate(false);
         }
-        AWSCredentialsProvider credentialsProvider = createCredentialProvider(
+        AwsCredentialsProvider credentialsProvider = createCredentialProvider(
                 kinesisSinkConfig.getAwsCredentialPluginName(),
                 kinesisSinkConfig.getAwsCredentialPluginParam())
-            .getCredentialProvider();
+            .getV2CredentialsProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
         kinesisConfig.setNativeExecutable(StringUtils.trimToEmpty(kinesisSinkConfig.getNativeExecutable()));
         kinesisConfig.setAggregationEnabled(kinesisSinkConfig.isAggregationEnabled());

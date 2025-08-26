@@ -82,7 +82,7 @@
       <!-- include the docker image only when docker profile is active -->
       <properties>
         <!-- reference to the image built from docker/kinesis-producer-alpine/Dockerfile -->
-        <PULSAR_IO_KINESIS_KPL_IMAGE>apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:0.15.12</PULSAR_IO_KINESIS_KPL_IMAGE>
+        <PULSAR_IO_KINESIS_KPL_IMAGE>apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:1.0.4</PULSAR_IO_KINESIS_KPL_IMAGE>
       </properties>
       <dependencies>
         <dependency>
