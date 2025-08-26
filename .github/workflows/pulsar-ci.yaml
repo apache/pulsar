@@ -1438,9 +1438,16 @@ jobs:
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
-
       - name: build package
-        run: mvn -B clean package -DskipTests -T 1C -ntp
+        run: |
+          # needs workaround for https://issues.apache.org/jira/browse/MNG-7868
+          # https://github.com/apache/maven/issues/9049
+          mvn -Daether.connector.basic.threads=8 \
+              -Daether.metadataResolver.threads=8 \
+              -Daether.syncContext.named.time=120 \
+              -Daether.syncContext.named.factory=file-lock \
+              -Daether.syncContext.named.nameMapper=file-gav \
+              -B clean package -DskipTests -T 1C -ntp
 
   codeql:
     name: Run CodeQL Analysis
