@@ -27,6 +27,7 @@ import lombok.EqualsAndHashCode;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration;
 
 @Data
 @EqualsAndHashCode(callSuper = true)

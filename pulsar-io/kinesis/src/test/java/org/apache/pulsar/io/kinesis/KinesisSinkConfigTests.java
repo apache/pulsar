@@ -20,7 +20,6 @@ package org.apache.pulsar.io.kinesis;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +27,7 @@ import java.util.Map;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration;
 
 public class KinesisSinkConfigTests {
 
