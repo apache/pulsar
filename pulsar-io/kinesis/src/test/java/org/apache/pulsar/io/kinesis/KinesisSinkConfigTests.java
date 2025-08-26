@@ -30,6 +30,7 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration;
 
 public class KinesisSinkConfigTests {
 
