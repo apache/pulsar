@@ -27,11 +27,11 @@ import static org.testng.AssertJUnit.assertEquals;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -40,7 +40,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -151,28 +150,34 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
     /***
      * Verify finding position task only executes once for multiple subscriptions of a topic.
      */
-    @Test
+    @Test(invocationCount = 2)
     void testTopicExpireMessages() throws Exception {
         // Create topic.
         final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        managedLedgerConfig.setMaxEntriesPerLedger(2);
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar.getDefaultManagedLedgerFactory()
-                .open(TopicName.get(topicName).getPersistenceNamingEncoding(), managedLedgerConfig);
-        long firstLedger = ml.currentLedger.getId();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         final String cursorName1 = "s1";
         final String cursorName2 = "s2";
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
         admin.topics().createSubscriptionAsync(topicName, cursorName1, MessageId.earliest);
         admin.topics().createSubscriptionAsync(topicName, cursorName2, MessageId.earliest);
         admin.topicPolicies().setMessageTTL(topicName, 1);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(1, persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get().intValue());
+        });
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ml.getConfig().setMaxEntriesPerLedger(2);
+        ml.getConfig().setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        long firstLedger = ml.currentLedger.getId();
+        System.out.println("maxEntriesPerLedger 1 : " + ml.getConfig().getMaxEntriesPerLedger());
         // Trigger 3 ledgers creation.
-        producer.send("1");
-        producer.send("2");
-        producer.send("3");
-        producer.send("4");
-        producer.send("5");
-        Assert.assertEquals(3, ml.getLedgersInfo().size());
+        for (int i = 0; i < 5; i++) {
+            producer.send("" + i);
+            Thread.sleep(100);
+        }
+        System.out.println("maxEntriesPerLedger 2 : " + ml.getConfig().getMaxEntriesPerLedger());
+        assertEquals(3, ml.getLedgersInfo().size());
         // Do a injection to count the access of the first ledger.
         AtomicInteger accessedCount = new AtomicInteger();
         ReadHandle readHandle = ml.getLedgerHandle(firstLedger).get();
@@ -186,8 +191,6 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         }).when(spyReadHandle).readAsync(anyLong(), anyLong());
         ml.ledgerCache.put(firstLedger, CompletableFuture.completedFuture(spyReadHandle));
         // Verify: the first ledger will be accessed only once after expiry for two subscriptions.
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         persistentTopic.checkMessageExpiry();
         Thread.sleep(2000);
         assertEquals(1, accessedCount.get());
