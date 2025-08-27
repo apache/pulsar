@@ -22,6 +22,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,11 +37,13 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.impl.cache.RangeCacheTestUtil;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Ipv4Proxy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -46,16 +51,15 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * This test class current contains test cases that are exploratory in nature and are not intended to be run
- * as part of the regular test suite. This might change later.
- * The current intent is to show how the PIP-430 caching results in better cache hit rates in catch-up reads.
- * The way how catch-up reads are simulated is by disconnecting all broker connections at once using a failure proxy.
- * This forces the consumers to reconnect and read from the beginning of the backlog.
+ * Some end-to-end test for Broker cache.
+ * The tests disabled by default are exploratory in nature and are not intended to be run as part of the
+ * regular test suite.
  */
 @Test(groups = "broker-api")
 @Slf4j
@@ -90,6 +94,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         // LRU cache eviction behavior is enabled by default, but we set it explicitly
         defaultConf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(true);
 
+        // while performing exploratory testing,
         // uncomment one or many of these to compare with existing caching behavior
         //defaultConf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(false);
         //defaultConf.setCacheEvictionByExpectedReadCount(false);
@@ -569,7 +574,9 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
             }
         });
 
-        Thread.sleep(2 * conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        // sleep for 3 * cache eviction time threshold to count for TTL
+        // and managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed behavior
+        Thread.sleep(3 * conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
         assertThat(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getSize()).isEqualTo(0L);
 
         // Clean up consumers
@@ -690,12 +697,64 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         lastConsumerThread.start();
         lastConsumerThread.join();
 
-        Thread.sleep(2 * conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        // sleep for 3 * cache eviction time threshold to count for TTL
+        // and managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed behavior
+        Thread.sleep(3 * conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        // now the cache should be empty
         assertThat(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getSize()).isEqualTo(0L);
 
         // Clean up consumers
         for (Consumer<Long> consumer : consumers) {
             consumer.close();
         }
+    }
+
+    // Test case for https://github.com/apache/pulsar/issues/16421
+    @Test
+    public void testConsumerFlowOnSharedSubscriptionIssue16421() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/topic");
+        admin.topics().createNonPartitionedTopic(topic);
+        String subName = "my-sub";
+        int numMessages = 20_000;
+        final CountDownLatch count = new CountDownLatch(numMessages);
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscriptionName(subName)
+                .messageListener(new MessageListener<byte[]>() {
+                    @Override
+                    public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
+                        //log.info("received {} - {}", msg, count.getCount());
+                        consumer.acknowledgeAsync(msg);
+                        count.countDown();
+                    }
+                })
+                .subscribe();
+             Producer<byte[]> producer = pulsarClient
+                     .newProducer()
+                     .blockIfQueueFull(true)
+                     .enableBatching(true)
+                     .topic(topic)
+                     .create()) {
+            consumer.pause();
+            byte[] message = "foo".getBytes(StandardCharsets.UTF_8);
+            List<CompletableFuture<?>> futures = new ArrayList<>();
+            for (int i = 0; i < numMessages; i++) {
+                futures.add(producer.sendAsync(message).whenComplete((id, e) -> {
+                    if (e != null) {
+                        log.error("error", e);
+                    }
+                }));
+                if (futures.size() == 1000) {
+                    FutureUtil.waitForAll(futures).get();
+                    futures.clear();
+                }
+            }
+            producer.flush();
+            consumer.resume();
+            assertTrue(count.await(20, TimeUnit.SECONDS));
+        }
+        // no BookKeeper reads should occur in this use case
+        assertThat(bkReadCount.get()).isEqualTo(0);
     }
 }
