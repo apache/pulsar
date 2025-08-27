@@ -26,7 +26,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 public interface MessageExpirer {
 
     /**
-     * Mark delete the largest position that is less than the {@param position}.
+     * Mark delete the largest position that is less than or equals the {@param position}.
      */
     boolean expireMessages(Position position);
 

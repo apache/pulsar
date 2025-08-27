@@ -2181,10 +2181,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         && (additionalSystemCursorNames.isEmpty()
                         || !additionalSystemCursorNames.contains(sub.getName()))) {
                     // The variable "position" is to mark delete position.
-                    // The method "expireMessages(position)" will mark delete the previous position of the given
-                    // position.
-                    // So we give it a next valid position.
-                    sub.expireMessages(PositionFactory.create(position.getLedgerId(), position.getEntryId() + 1));
+                    // Regarding the method "expireMessages(position)", it will mark delete the target position if the
+                    // position is valid, otherwise, it mark deletes the previous valid position.
+                    // So we give it the position to be mark deleted.
+                    sub.expireMessages(position);
                 }
             });
             replicators.forEach((__, replicator)

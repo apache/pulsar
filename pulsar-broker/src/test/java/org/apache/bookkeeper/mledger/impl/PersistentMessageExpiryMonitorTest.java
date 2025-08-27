@@ -169,6 +169,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         // Trigger 3 ledgers creation.
         producer.send("1");
         producer.send("2");
+        producer.send("3");
         producer.send("4");
         producer.send("5");
         Assert.assertEquals(3, ml.getLedgersInfo().size());

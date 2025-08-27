@@ -143,11 +143,16 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         Position topicLastPosition = this.topic.getLastPosition();
         ManagedLedger managedLedger = cursor.getManagedLedger();
         if (managedLedger instanceof ManagedLedgerImpl ml) {
-            Position positionToExpire = ml.getPreviousPosition(messagePosition);
-            if (positionToExpire.getEntryId() >= 0) {
-                findEntryComplete(positionToExpire, null);
+            // Confirm the position is valid.
+            Optional<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoOptional =
+                    ml.getOptionalLedgerInfo(messagePosition.getLedgerId());
+            if (ledgerInfoOptional.isPresent()) {
+                if (messagePosition.getEntryId() >= 0
+                        && ledgerInfoOptional.get().getEntries() -1 >= messagePosition.getEntryId()) {
+                    findEntryComplete(messagePosition, null);
+                    return true;
+                }
             }
-            return true;
         }
         // Fallback to the slower solution if the managed ledger is not an instance of ManagedLedgerImpl.
         if (topicLastPosition.compareTo(messagePosition) < 0) {
