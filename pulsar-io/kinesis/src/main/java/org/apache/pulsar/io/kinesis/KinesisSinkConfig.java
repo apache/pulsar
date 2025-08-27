@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
