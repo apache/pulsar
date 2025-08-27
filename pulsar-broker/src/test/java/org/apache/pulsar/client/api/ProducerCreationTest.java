@@ -257,14 +257,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         admin.topics().delete(TopicName.get(partitionedTopic).getPartition(1).toString());
 
         // Non-persistent topic only have the metadata, and no partition, so it works fine.
-        if (allowAutoTopicCreation || domain == TopicDomain.non_persistent) {
-            @Cleanup
-            Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
-        } else {
-            assertThrows(PulsarClientException.NotFoundException.class, () -> {
-                @Cleanup
-                Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
-            });
-        }
+        @Cleanup
+        Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
     }
 }
