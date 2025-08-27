@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -51,7 +52,6 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
     }
 
     protected void doInitConf() throws Exception {
-        this.conf.setPreciseTimeBasedBacklogQuotaCheck(true);
         this.conf.setManagedLedgerMaxEntriesPerLedger(2);
         this.conf.setManagedLedgerMaxLedgerRolloverTimeMinutes(10);
         this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
@@ -106,6 +106,48 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
         // Verify: "persistentTopic.estimatedTimeBasedBacklogQuotaCheck" will not get a NullPointerException.
         PositionImpl oldestPosition = ml.getCursors().getCursorWithOldestPosition().getPosition();
         persistentTopic.estimatedTimeBasedBacklogQuotaCheck(oldestPosition);
+
+        p1.close();
+        c1.close();
+        admin.topics().delete(tp, false);
+    }
+
+    @Test
+    public void testEstimatedTimeBasedBacklogQuotaCheckWithTopicUnloading() throws Exception {
+        final String tp = BrokerTestUtil.newUniqueName("public/default/tp-with-topic-unloading");
+        admin.topics().createNonPartitionedTopic(tp);
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer().topic(tp).subscriptionName("s1").subscribe();
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic(tp).create();
+
+        byte[] content = new byte[]{1};
+        for (int i = 0; i < 10; i++) {
+            p1.send(content);
+        }
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(tp, false).join().get();
+
+        Awaitility.await().untilAsserted(() -> {
+            admin.brokers().backlogQuotaCheck();
+            assertTrue(persistentTopic.getBestEffortOldestUnacknowledgedMessageAgeSeconds() > 0);
+        });
+
+        for (int i = 0; i < 10; i++) {
+            c1.acknowledge(c1.receive());
+        }
+
+        Awaitility.await().untilAsserted(() -> assertEquals(persistentTopic.getBacklogSize(), 0));
+        admin.topics().unload(tp);
+        for (int i = 0; i < 10; i++) {
+            p1.send(content);
+        }
+
+        PersistentTopic persistentTopicNew = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(tp, false).join().get();
+        Awaitility.await().untilAsserted(() -> {
+            admin.brokers().backlogQuotaCheck();
+            assertTrue(persistentTopicNew.getBestEffortOldestUnacknowledgedMessageAgeSeconds() > 0);
+        });
 
         p1.close();
         c1.close();
