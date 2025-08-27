@@ -664,8 +664,8 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         admin.topics().deletePartitionedTopic(topic);
         pulsar.getConfiguration().setAllowAutoTopicCreation(originalAllowAutoTopicCreation);
         pulsar.getConfiguration().setBrokerDeleteInactiveTopicsEnabled(originalDeleteInactiveTopics);
-        pulsar.getConfiguration()
-                .setBrokerDeleteInactivePartitionedTopicMetadataEnabled(originalDeleteInactivePartitionedTopicMetadataE);
+        pulsar.getConfiguration().setBrokerDeleteInactivePartitionedTopicMetadataEnabled(
+                originalDeleteInactivePartitionedTopicMetadataE);
     }
 
 }
