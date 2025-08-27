@@ -42,10 +42,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.util.RangeCache;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,18 +54,30 @@ import org.slf4j.LoggerFactory;
  * Cache data payload for entries of all ledgers.
  */
 public class RangeEntryCacheImpl implements EntryCache {
+    /**
+     * The Netty allocator used when managedLedgerCacheCopyEntries=true.
+     */
+    public static final PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect
+            0, // nHeapArenas,
+            PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
+            PooledByteBufAllocator.defaultPageSize(), // pageSize
+            PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
+            PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
+            PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
+            true // Use cache for all threads
+    );
 
     /**
      * Overhead per-entry to take into account the envelope.
      */
     public static final long BOOKKEEPER_READ_OVERHEAD_PER_ENTRY = 64;
-    private static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
+    public static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
     private static final boolean DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY = false;
 
     private final RangeEntryCacheManagerImpl manager;
     final ManagedLedgerImpl ml;
     private ManagedLedgerInterceptor interceptor;
-    private final RangeCache<Position, EntryImpl> entries;
+    private final RangeCache entries;
     private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
@@ -74,12 +86,14 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final LongAdder totalAddedEntriesSize = new LongAdder();
     private final LongAdder totalAddedEntriesCount = new LongAdder();
 
-    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries) {
+    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+                               RangeCacheRemovalQueue rangeCacheRemovalQueue) {
+
         this.manager = manager;
         this.ml = ml;
         this.pendingReadsManager = new PendingReadsManager(this);
         this.interceptor = ml.getManagedLedgerInterceptor();
-        this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
+        this.entries = new RangeCache(rangeCacheRemovalQueue);
         this.copyEntries = copyEntries;
 
         if (log.isDebugEnabled()) {
@@ -107,26 +121,9 @@ public class RangeEntryCacheImpl implements EntryCache {
         return manager.getInflightReadsLimiter();
     }
 
-    public static final PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect
-            0, // nHeapArenas,
-            PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
-            PooledByteBufAllocator.defaultPageSize(), // pageSize
-            PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
-            PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
-            PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
-            true // Use cache for all threads
-    );
-
     @Override
-    public boolean insert(EntryImpl entry) {
+    public boolean insert(Entry entry) {
         int entryLength = entry.getLength();
-        if (!manager.hasSpaceInCache()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Skipping cache while doing eviction: {} - size: {}", ml.getName(), entry.getPosition(),
-                        entryLength);
-            }
-            return false;
-        }
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Adding entry to cache: {} - size: {}", ml.getName(), entry.getPosition(),
@@ -135,6 +132,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
         Position position = entry.getPosition();
         if (entries.exists(position)) {
+            // If the entry is already in the cache, don't insert it again
             return false;
         }
 
@@ -149,7 +147,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             cachedData = entry.getDataBuffer().retain();
         }
 
-        EntryImpl cacheEntry = EntryImpl.create(position, cachedData);
+        ReferenceCountedEntry cacheEntry = EntryImpl.createWithRetainedDuplicate(position, cachedData);
         cachedData.release();
         if (entries.put(position, cacheEntry)) {
             totalAddedEntriesSize.add(entryLength);
@@ -163,7 +161,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
     }
 
-    private ByteBuf copyEntry(EntryImpl entry) {
+    private ByteBuf copyEntry(Entry entry) {
         // Copy the entry into a buffer owned by the cache. The reason is that the incoming entry is retaining a buffer
         // from netty, usually allocated in 64Kb chunks. So if we just retain the entry without copying it, we might
         // retain actually the full 64Kb even for a small entry
@@ -303,7 +301,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             doAsyncReadEntriesByPosition(lh, firstPosition, lastPosition, numberOfEntries, shouldCacheEntry,
                     originalCallback, ctx);
         } else {
-            long estimatedEntrySize = getEstimatedEntrySize();
+            long estimatedEntrySize = getEstimatedEntrySize(lh);
             long estimatedReadSize = numberOfEntries * estimatedEntrySize;
             if (log.isDebugEnabled()) {
                 log.debug("Estimated read size: {} bytes for {} entries with {} estimated entry size",
@@ -335,11 +333,10 @@ public class RangeEntryCacheImpl implements EntryCache {
             String message = String.format(
                     "Couldn't acquire enough permits on the max reads in flight limiter to read from ledger "
                             + "%d, %s, estimated read size %d bytes for %d entries (check "
-                            + "managedLedgerMaxReadsInFlightSizeInMB, "
+                            + "managedLedgerMaxReadsInFlightPermitsAcquireQueueSize (direct config), "
                             + "managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis and "
-                            + "managedLedgerMaxReadsInFlightPermitsAcquireQueueSize)", lh.getId(), getName(),
+                            + "managedLedgerMaxReadsInFlightSizeInMB)", lh.getId(), getName(),
                     estimatedReadSize, numberOfEntries);
-            log.error(message);
             originalCallback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(message), ctx);
             return;
         }
@@ -376,9 +373,9 @@ public class RangeEntryCacheImpl implements EntryCache {
     void doAsyncReadEntriesByPosition(ReadHandle lh, Position firstPosition, Position lastPosition, int numberOfEntries,
                                       boolean shouldCacheEntry, final ReadEntriesCallback callback,
                                       Object ctx) {
-        Collection<EntryImpl> cachedEntries;
+        Collection<ReferenceCountedEntry> cachedEntries;
         if (firstPosition.compareTo(lastPosition) == 0) {
-            EntryImpl cachedEntry = entries.get(firstPosition);
+            ReferenceCountedEntry cachedEntry = entries.get(firstPosition);
             if (cachedEntry == null) {
                 cachedEntries = Collections.emptyList();
             } else {
@@ -393,7 +390,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             final List<Entry> entriesToReturn = new ArrayList<>(numberOfEntries);
 
             // All entries found in cache
-            for (EntryImpl entry : cachedEntries) {
+            for (Entry entry : cachedEntries) {
                 entriesToReturn.add(EntryImpl.create(entry));
                 totalCachedSize += entry.getLength();
                 entry.release();
@@ -408,6 +405,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             callback.readEntriesComplete(entriesToReturn, ctx);
 
         } else {
+            // TODO: consider reusing the partially cached entries and only reading the missing ones
             if (!cachedEntries.isEmpty()) {
                 cachedEntries.forEach(entry -> entry.release());
             }
@@ -419,12 +417,12 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     @VisibleForTesting
-    public long getEstimatedEntrySize() {
-        long estimatedEntrySize = getAvgEntrySize();
-        if (estimatedEntrySize == 0) {
-            estimatedEntrySize = DEFAULT_ESTIMATED_ENTRY_SIZE;
+    public long getEstimatedEntrySize(ReadHandle lh) {
+        if (lh.getLength() == 0 || lh.getLastAddConfirmed() < 0) {
+            // No entries stored.
+            return Math.max(getAvgEntrySize(), DEFAULT_ESTIMATED_ENTRY_SIZE) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
         }
-        return estimatedEntrySize + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        return Math.max(1, lh.getLength() / (lh.getLastAddConfirmed() + 1)) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
     }
 
     private long getAvgEntrySize() {
@@ -441,10 +439,10 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @param shouldCacheEntry if we should put the entry into the cache
      * @return a handle to the operation
      */
-    CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
-                                                       long firstEntry, long lastEntry, boolean shouldCacheEntry) {
+    CompletableFuture<List<Entry>> readFromStorage(ReadHandle lh, long firstEntry, long lastEntry,
+                                                   boolean shouldCacheEntry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
-        CompletableFuture<List<EntryImpl>> readResult = ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry)
+        CompletableFuture<List<Entry>> readResult = ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry)
                 .thenApply(
                         ledgerEntries -> {
                             requireNonNull(ml.getName());
@@ -453,15 +451,13 @@ public class RangeEntryCacheImpl implements EntryCache {
                             try {
                                 // We got the entries, we need to transform them to a List<> type
                                 long totalSize = 0;
-                                final List<EntryImpl> entriesToReturn = new ArrayList<>(entriesToRead);
+                                final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
                                 for (LedgerEntry e : ledgerEntries) {
-                                    EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
+                                    EntryImpl entry = EntryImpl.create(e, interceptor);
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                     if (shouldCacheEntry) {
-                                        EntryImpl cacheEntry = EntryImpl.create(entry);
-                                        insert(cacheEntry);
-                                        cacheEntry.release();
+                                        insert(entry);
                                     }
                                 }
 
@@ -497,33 +493,6 @@ public class RangeEntryCacheImpl implements EntryCache {
     @Override
     public long getSize() {
         return entries.getSize();
-    }
-
-    @Override
-    public int compareTo(EntryCache other) {
-        return Long.compare(getSize(), other.getSize());
-    }
-
-    @Override
-    public Pair<Integer, Long> evictEntries(long sizeToFree) {
-        checkArgument(sizeToFree > 0);
-        Pair<Integer, Long> evicted = entries.evictLeastAccessedEntries(sizeToFree);
-        int evictedEntries = evicted.getLeft();
-        long evictedSize = evicted.getRight();
-        if (log.isDebugEnabled()) {
-            log.debug(
-                    "[{}] Doing cache eviction of at least {} Mb -- Deleted {} entries - Total size deleted: {} Mb "
-                            + " -- Current Size: {} Mb",
-                    ml.getName(), sizeToFree / MB, evictedEntries, evictedSize / MB, entries.getSize() / MB);
-        }
-        manager.entriesRemoved(evictedSize, evictedEntries);
-        return evicted;
-    }
-
-    @Override
-    public void invalidateEntriesBeforeTimestamp(long timestamp) {
-        Pair<Integer, Long> evictedPair = entries.evictLEntriesBeforeTimestamp(timestamp);
-        manager.entriesRemoved(evictedPair.getRight(), evictedPair.getLeft());
     }
 
     private static final Logger log = LoggerFactory.getLogger(RangeEntryCacheImpl.class);

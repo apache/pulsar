@@ -23,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.re2j.Pattern;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -50,7 +49,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -76,6 +74,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.MemoryBufferStats;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -92,10 +91,13 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,6 +147,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     protected final EventLoopGroup eventLoopGroup;
     private final MemoryLimitController memoryLimitController;
+    private final MemoryBufferStats memoryBufferStats;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache =
             CacheBuilder.newBuilder().maximumSize(100000)
@@ -202,6 +205,10 @@ public class PulsarClientImpl implements PulsarClient {
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
+            if (conf == null || isBlank(conf.getServiceUrl())) {
+                throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
+            }
+            this.conf = conf;
             this.createdEventLoopGroup = eventLoopGroup == null;
             this.createdCnxPool = connectionPool == null;
             if ((externalExecutorProvider == null) != (internalExecutorProvider == null)) {
@@ -213,10 +220,6 @@ public class PulsarClientImpl implements PulsarClient {
             this.createdLookupProviders = lookupExecutorProvider == null;
             eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
-            if (conf == null || isBlank(conf.getServiceUrl())) {
-                throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
-            }
-            this.conf = conf;
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
@@ -264,6 +267,12 @@ public class PulsarClientImpl implements PulsarClient {
             memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes(),
                     (long) (conf.getMemoryLimitBytes() * THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING),
                     this::reduceConsumerReceiverQueueSize);
+            // Only create memory buffer metrics if memory limiting is enabled
+            if (memoryLimitController.isMemoryLimited()) {
+                memoryBufferStats = new MemoryBufferStats(instrumentProvider, memoryLimitController);
+            } else {
+                memoryBufferStats = null;
+            }
             state.set(State.Open);
         } catch (Throwable t) {
             // Log the exception first, or it could be missed if there are any subsequent exceptions in the
@@ -513,6 +522,10 @@ public class PulsarClientImpl implements PulsarClient {
                                                   ProducerInterceptors interceptors,
                                                   CompletableFuture<Producer<T>> producerCreatedFuture,
                                                   Optional<String> overrideProducerName) {
+        if (conf.isReplProducer()) {
+            return new GeoReplicationProducerImpl(PulsarClientImpl.this, topic, conf, producerCreatedFuture,
+                    partitionIndex, schema, interceptors, overrideProducerName);
+        }
         return new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, partitionIndex, schema,
                 interceptors, overrideProducerName);
     }
@@ -634,7 +647,7 @@ public class PulsarClientImpl implements PulsarClient {
         Mode subscriptionMode = convertRegexSubscriptionMode(conf.getRegexSubscriptionMode());
         TopicName destination = TopicName.get(regex);
         NamespaceName namespaceName = destination.getNamespaceObject();
-        Pattern pattern = Pattern.compile(conf.getTopicsPattern().pattern());
+        TopicsPattern pattern = TopicsPatternFactory.create(conf.getTopicsPattern());
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
         lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode, regex, null)
@@ -932,6 +945,14 @@ public class PulsarClientImpl implements PulsarClient {
                 shutdownExecutors();
             } catch (PulsarClientException e) {
                 throwable = e;
+            }
+            if (memoryBufferStats != null) {
+                try {
+                    memoryBufferStats.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to close memoryBufferStats", t);
+                    throwable = t;
+                }
             }
             if (conf != null && conf.getAuthentication() != null) {
                 try {

@@ -48,6 +48,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -125,15 +126,102 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     public Object[][] topicAndSubscription() {
         return new Object[][]{
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, true},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true, true},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub2", true, true},
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, true},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false, true},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub4", false, true},
 
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, false},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true, false},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub2", true, false},
                 {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, false},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false, false},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
+                        + UUID.randomUUID(), "my-sub4", false, false},
         };
+    }
+
+    @Test
+    public void testSubscriptionStatsDispatchThrottled() throws Exception {
+
+        final String topic = "persistent://my-property/my-ns/testSubscriptionStatsDispatchThrottled-"
+                + UUID.randomUUID();
+        final String subName = "my-sub";
+
+        // Create topic and set subscription level dispatch rate
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, subName, DispatchRateImpl.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(1024)
+                .ratePeriodInSecond(1)
+                .build());
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().value(UUID.randomUUID().toString()).send();
+        }
+
+        for (int i = 0; i < 100; i++) {
+            Message<String> message = consumer.receive(100, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            consumer.acknowledge(message);
+        }
+
+        // Assert subscription stats
+        TopicStats topicStats = admin.topics().getStats(topic);
+        SubscriptionStats stats = topicStats.getSubscriptions().get(subName);
+        Assert.assertNotNull(stats);
+        Assert.assertTrue(stats.getDispatchThrottledMsgEventsBySubscriptionLimit() > 0);
+        Assert.assertTrue(stats.getDispatchThrottledBytesEventsBySubscriptionLimit() > 0);
+        Assert.assertEquals(stats.getDispatchThrottledMsgEventsByTopicLimit(), 0);
+        Assert.assertEquals(stats.getDispatchThrottledBytesEventsByTopicLimit(), 0);
+        Assert.assertEquals(stats.getDispatchThrottledMsgEventsByBrokerLimit(), 0);
+        Assert.assertEquals(stats.getDispatchThrottledBytesEventsByBrokerLimit(), 0);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, output);
+        String metricsStr = output.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        // Assert subscription metrics reason by subscription limit
+        Collection<Metric> subscriptionDispatchThrottledMsgCountMetrics =
+                metrics.get("pulsar_subscription_dispatch_throttled_msg_events");
+        Assert.assertFalse(subscriptionDispatchThrottledMsgCountMetrics.isEmpty());
+        double subscriptionDispatchThrottledMsgCount = subscriptionDispatchThrottledMsgCountMetrics.stream()
+                .filter(m -> m.tags.get("subscription").equals(subName)
+                        && m.tags.get("topic").equals(topic) && m.tags.get("reason").equals("subscription"))
+                .mapToDouble(m-> m.value).sum();
+        Assert.assertTrue(subscriptionDispatchThrottledMsgCount > 0);
+
+        double subscriptionAllDispatchThrottledMsgCount = subscriptionDispatchThrottledMsgCountMetrics.stream()
+                .filter(m -> m.tags.get("subscription").equals(subName) && m.tags.get("topic").equals(topic))
+                .mapToDouble(m-> m.value).sum();
+        Assert.assertEquals(subscriptionDispatchThrottledMsgCount, subscriptionAllDispatchThrottledMsgCount);
+
+        Collection<Metric> subscriptionDispatchThrottledBytesCountMetrics =
+                metrics.get("pulsar_subscription_dispatch_throttled_bytes_events");
+        Assert.assertFalse(subscriptionDispatchThrottledBytesCountMetrics.isEmpty());
+        double subscriptionDispatchThrottledBytesCount = subscriptionDispatchThrottledBytesCountMetrics.stream()
+                .filter(m -> m.tags.get("subscription").equals(subName)
+                        && m.tags.get("topic").equals(topic) && m.tags.get("reason").equals("subscription"))
+                .mapToDouble(m-> m.value).sum();
+        Assert.assertTrue(subscriptionDispatchThrottledBytesCount > 0);
+        double subscriptionAllDispatchThrottledBytesCount = subscriptionDispatchThrottledBytesCountMetrics.stream()
+                .filter(m -> m.tags.get("subscription").equals(subName) && m.tags.get("topic").equals(topic))
+                .mapToDouble(m-> m.value).sum();
+        Assert.assertEquals(subscriptionDispatchThrottledBytesCount, subscriptionAllDispatchThrottledBytesCount);
     }
 
     @Test(dataProvider = "testSubscriptionMetrics")
@@ -255,7 +343,8 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(stats.getFilterAcceptedMsgCount(), acceptCount);
             if (persistent) {
                 Assert.assertEquals(stats.getFilterRejectedMsgCount(), rejectedCount);
-                // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
+                // Only works on the test, if there are some markers,
+                // the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
                 Assert.assertEquals(stats.getFilterProcessedMsgCount(),
                         stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
                                 + stats.getFilterRescheduledMsgCount(),

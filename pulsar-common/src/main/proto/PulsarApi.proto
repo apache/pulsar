@@ -163,6 +163,16 @@ message MessageMetadata {
 
     // Indicate if the message partition key is set
     optional bool null_partition_key = 30 [default = false];
+
+    // Indicates the indexes of messages retained in the batch after compaction. When a batch is compacted,
+    // some messages may be removed (compacted out). For example, if the original batch contains:
+    // `k0 => v0, k1 => v1, k2 => v2, k1 => null`, the compacted batch will retain only `k0 => v0` and `k2 => v2`.
+    // In this case, this field will be set to `[0, 2]`, and the payload buffer will only include the retained messages.
+    //
+    // Note: Batches compacted by older versions of the compaction service do not include this field. For such batches,
+    // the `compacted_out` field in `SingleMessageMetadata` must be checked to identify and filter out compacted
+    // messages (e.g., `k1 => v1` and `k1 => null` in the example above).
+    repeated int32 compacted_batch_indexes = 31;
 }
 
 message SingleMessageMetadata {
@@ -302,6 +312,7 @@ message FeatureFlags {
   optional bool supports_partial_producer = 3 [default = false];
   optional bool supports_topic_watchers = 4 [default = false];
   optional bool supports_get_partitioned_metadata_without_auto_creation = 5 [default = false];
+  optional bool supports_repl_dedup_by_lid_and_eid = 6 [default = false];
 }
 
 message CommandConnected {

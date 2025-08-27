@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
-    private final String CLUSTER = "test";
+    private static final String CLUSTER = "test";
 
     @BeforeMethod
     @Override

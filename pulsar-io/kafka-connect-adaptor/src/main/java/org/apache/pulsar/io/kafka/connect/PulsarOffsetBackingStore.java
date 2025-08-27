@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -259,5 +260,12 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         } else {
             return Collections.emptyMap();
         }
+    }
+
+    @Override
+    public Set<Map<String, Object>> connectorPartitions(String connectorName) {
+        // skip implementing this method which was added in Kafka for
+        // KIP-875: First-class offsets support in Kafka Connect
+        return null;
     }
 }

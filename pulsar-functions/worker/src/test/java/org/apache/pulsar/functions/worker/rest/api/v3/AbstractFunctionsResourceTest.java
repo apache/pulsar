@@ -79,12 +79,12 @@ import org.testng.annotations.BeforeMethod;
 
 public abstract class AbstractFunctionsResourceTest {
 
-    protected static final String tenant = "test-tenant";
-    protected static final String namespace = "test-namespace";
-    protected static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
-    protected static final String subscriptionName = "test-subscription";
+    protected static final String TENANT = "test-tenant";
+    protected static final String NAMESPACE = "test-namespace";
+    protected static final Map<String, String> TOPICS_TO_SER_DE_CLASS_NAME = new HashMap<>();
+    protected static final String SUBSCRIPTION_NAME = "test-subscription";
     protected static final String CASSANDRA_STRING_SINK = "org.apache.pulsar.io.cassandra.CassandraStringSink";
-    protected static final int parallelism = 1;
+    protected static final int PARALLELISM = 1;
     private static final String SYSTEM_PROPERTY_NAME_CASSANDRA_NAR_FILE_PATH = "pulsar-io-cassandra.nar.path";
     private static final String SYSTEM_PROPERTY_NAME_TWITTER_NAR_FILE_PATH = "pulsar-io-twitter.nar.path";
     private static final String SYSTEM_PROPERTY_NAME_INVALID_NAR_FILE_PATH = "pulsar-io-invalid.nar.path";
@@ -93,8 +93,8 @@ public abstract class AbstractFunctionsResourceTest {
     protected static Map<String, MockedStatic> mockStaticContexts = new HashMap<>();
 
     static {
-        topicsToSerDeClassName.put("test_src", DEFAULT_SERDE);
-        topicsToSerDeClassName.put("persistent://public/default/test_src", TopicSchema.DEFAULT_SERDE);
+        TOPICS_TO_SER_DE_CLASS_NAME.put("test_src", DEFAULT_SERDE);
+        TOPICS_TO_SER_DE_CLASS_NAME.put("persistent://public/default/test_src", TopicSchema.DEFAULT_SERDE);
     }
 
     protected PulsarWorkerService mockedWorkerService;
@@ -158,7 +158,7 @@ public abstract class AbstractFunctionsResourceTest {
         this.mockedFunctions = mock(Functions.class);
         this.mockedLeaderService = mock(LeaderService.class);
         this.mockedPackages = mock(Packages.class);
-        namespaceList.add(tenant + "/" + namespace);
+        namespaceList.add(TENANT + "/" + NAMESPACE);
 
         this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);

@@ -29,14 +29,14 @@ import org.testng.annotations.Test;
 
 public class AsyncTokenBucketTest {
     private AtomicLong manualClockSource;
-    private MonotonicSnapshotClock clockSource;
+    private MonotonicClock clockSource;
 
     private AsyncTokenBucket asyncTokenBucket;
 
     @BeforeMethod
     public void setup() {
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        clockSource = requestSnapshot -> manualClockSource.get();
+        clockSource = () -> manualClockSource.get();
     }
 
 
@@ -51,7 +51,7 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldAddTokensWithConfiguredRate() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().consistentConsumedTokens(true)
+                AsyncTokenBucket.builder()
                         .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
         incrementSeconds(5);
         assertEquals(asyncTokenBucket.getTokens(), 50);
@@ -94,7 +94,6 @@ public class AsyncTokenBucketTest {
     void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens() {
         asyncTokenBucket =
                 AsyncTokenBucket.builder().capacity(100)
-                        .resolutionNanos(TimeUnit.MILLISECONDS.toNanos(1))
                         .rate(10)
                         .initialTokens(0)
                         .clock(clockSource)
@@ -115,7 +114,6 @@ public class AsyncTokenBucketTest {
     void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens2() {
         asyncTokenBucket =
                 AsyncTokenBucket.builder().capacity(100)
-                        .resolutionNanos(TimeUnit.MILLISECONDS.toNanos(1))
                         .rate(1)
                         .initialTokens(0)
                         .clock(clockSource)
@@ -138,8 +136,6 @@ public class AsyncTokenBucketTest {
     void shouldHandleNegativeBalanceWithEventuallyConsistentTokenUpdates() {
         asyncTokenBucket =
                 AsyncTokenBucket.builder()
-                        // intentionally pick a coarse resolution
-                        .resolutionNanos(TimeUnit.SECONDS.toNanos(51))
                         .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
         // assert that the token balance is 0 initially
         assertThat(asyncTokenBucket.getTokens()).isEqualTo(0);
@@ -161,8 +157,6 @@ public class AsyncTokenBucketTest {
     void shouldNotExceedTokenBucketSizeWithNegativeTokens() {
         asyncTokenBucket =
                 AsyncTokenBucket.builder()
-                        // intentionally pick a coarse resolution
-                        .resolutionNanos(TimeUnit.SECONDS.toNanos(51))
                         .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
         // assert that the token balance is 0 initially
         assertThat(asyncTokenBucket.getTokens()).isEqualTo(0);
@@ -185,47 +179,11 @@ public class AsyncTokenBucketTest {
     }
 
     @Test
-    void shouldAccuratelyCalculateTokensWhenTimeIsLaggingBehindInInconsistentUpdates() {
-        clockSource = requestSnapshot -> {
-          if (requestSnapshot) {
-              return manualClockSource.get();
-          } else {
-              // let the clock lag behind
-              return manualClockSource.get() - TimeUnit.SECONDS.toNanos(52);
-          }
-        };
-        incrementSeconds(1);
-        asyncTokenBucket =
-                AsyncTokenBucket.builder().resolutionNanos(TimeUnit.SECONDS.toNanos(51))
-                        .capacity(100).rate(10).initialTokens(100).clock(clockSource).build();
-        assertThat(asyncTokenBucket.getTokens()).isEqualTo(100);
-
-        // consume tokens without exceeding the rate
-        for (int i = 0; i < 10000; i++) {
-            asyncTokenBucket.consumeTokens(500);
-            incrementSeconds(i == 0 ? 40 : 50);
-        }
-
-        // let 9 seconds pass
-        incrementSeconds(9);
-
-        // there should be 90 tokens available
-        assertThat(asyncTokenBucket.getTokens()).isEqualTo(90);
-    }
-
-    @Test
     void shouldHandleEventualConsistency() {
-        AtomicLong offset = new AtomicLong(0);
-        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(1);
-        DefaultMonotonicSnapshotClock monotonicSnapshotClock =
-                new DefaultMonotonicSnapshotClock(resolutionNanos,
-                        () -> offset.get() + manualClockSource.get());
         long initialTokens = 500L;
         asyncTokenBucket =
                 AsyncTokenBucket.builder()
-                        .consistentConsumedTokens(true)
-                        .resolutionNanos(resolutionNanos)
-                        .capacity(100000).rate(1000).initialTokens(initialTokens).clock(monotonicSnapshotClock).build();
+                        .capacity(100000).rate(1000).initialTokens(initialTokens).clock(clockSource).build();
         for (int i = 0; i < 100000; i++) {
             // increment the clock by 1ms, since rate is 1000 tokens/s, this should make 1 token available
             incrementMillis(1);

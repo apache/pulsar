@@ -125,7 +125,7 @@ public class LoadSimulationClient extends CmdBase{
         // messages continue to be sent after broker
         // restarts occur.
         private Producer<byte[]> getNewProducer() throws Exception {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
                     return client.newProducer()
                                 .topic(topic)
@@ -136,6 +136,7 @@ public class LoadSimulationClient extends CmdBase{
                     Thread.sleep(10000);
                 }
             }
+            throw new InterruptedException();
         }
 
         private class MutableBoolean {
@@ -151,6 +152,9 @@ public class LoadSimulationClient extends CmdBase{
                     // Unset the well flag in the case of an exception so we can
                     // try to get a new Producer.
                     wellnessFlag.value = false;
+                    if (PerfClientUtils.hasInterruptedException(e)) {
+                        Thread.currentThread().interrupt();
+                    }
                     return null;
                 };
                 while (!stop.get() && wellnessFlag.value) {
@@ -345,7 +349,7 @@ public class LoadSimulationClient extends CmdBase{
     public void start() throws Exception {
         final ServerSocket serverSocket = new ServerSocket(port);
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             // Technically, two controllers can be connected simultaneously, but
             // non-sequential handling of commands
             // has not been tested or considered and is not recommended.

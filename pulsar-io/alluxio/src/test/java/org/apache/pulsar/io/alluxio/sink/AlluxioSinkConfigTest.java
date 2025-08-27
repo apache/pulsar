@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.io.alluxio.sink;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import alluxio.client.WriteType;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.testng.annotations.Test;
 
 /**
- * AlluxioSinkConfig test
+ * AlluxioSinkConfig test.
  */
 public class AlluxioSinkConfigTest {
 

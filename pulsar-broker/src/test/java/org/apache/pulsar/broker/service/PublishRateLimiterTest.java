@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class PublishRateLimiterTest {
-    private final String CLUSTER_NAME = "clusterName";
+    private static final String CLUSTER_NAME = "clusterName";
     private final Policies policies = new Policies();
     private final PublishRate publishRate = new PublishRate(10, 100);
     private final PublishRate newPublishRate = new PublishRate(20, 200);
@@ -56,7 +56,7 @@ public class PublishRateLimiterTest {
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        publishRateLimiter = new PublishRateLimiterImpl(requestSnapshot -> manualClockSource.get());
+        publishRateLimiter = new PublishRateLimiterImpl(() -> manualClockSource.get());
         publishRateLimiter.update(policies, CLUSTER_NAME);
         producer = mock(Producer.class);
         throttleCount.set(0);

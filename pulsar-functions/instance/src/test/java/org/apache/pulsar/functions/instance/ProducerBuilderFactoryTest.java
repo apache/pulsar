@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.testng.Assert.assertEquals;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.functions.BatchingConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.mockito.internal.util.MockUtil;
@@ -80,7 +82,7 @@ public class ProducerBuilderFactoryTest {
         pulsarClient = null;
         MockUtil.resetMock(producerBuilder);
         producerBuilder = null;
-        TestCryptoKeyReader.LAST_INSTANCE = null;
+        TestCryptoKeyReader.lastInstance = null;
     }
 
     @Test
@@ -139,6 +141,62 @@ public class ProducerBuilderFactoryTest {
         cryptoConfig.setCryptoKeyReaderConfig(Map.of("key", "value"));
         cryptoConfig.setCryptoKeyReaderClassName(TestCryptoKeyReader.class.getName());
         producerConfig.setCryptoConfig(cryptoConfig);
+        BatchingConfig batchingConfig = new BatchingConfig();
+        batchingConfig.setEnabled(true);
+        batchingConfig.setBatchingMaxPublishDelayMs(20);
+        batchingConfig.setBatchingMaxMessages(100);
+        batchingConfig.setBatchingMaxBytes(-1);
+        producerConfig.setBatchingConfig(batchingConfig);
+        ProducerBuilderFactory builderFactory = new ProducerBuilderFactory(pulsarClient, producerConfig, null, null);
+        builderFactory.createProducerBuilder("topic", Schema.STRING, "producerName");
+
+        verify(pulsarClient).newProducer(Schema.STRING);
+        verify(producerBuilder).blockIfQueueFull(true);
+        // enableBatching will be called twice here:
+        // the first time is called by default to keep the backward compability
+        // the second call is called when the producerConfig and producerConfig.batchingConfig are not null
+        verify(producerBuilder, times(2)).enableBatching(true);
+        verify(producerBuilder).batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
+        verify(producerBuilder).hashingScheme(HashingScheme.Murmur3_32Hash);
+        verify(producerBuilder).messageRoutingMode(MessageRoutingMode.CustomPartition);
+        verify(producerBuilder).messageRouter(FunctionResultRouter.of());
+        verify(producerBuilder).sendTimeout(0, TimeUnit.SECONDS);
+        verify(producerBuilder).topic("topic");
+        verify(producerBuilder).producerName("producerName");
+
+        verify(producerBuilder).compressionType(CompressionType.SNAPPY);
+        verify(producerBuilder).batcherBuilder(BatcherBuilder.KEY_BASED);
+        verify(producerBuilder).maxPendingMessages(5000);
+        verify(producerBuilder).maxPendingMessagesAcrossPartitions(50000);
+        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.lastInstance;
+        assertNotNull(lastInstance);
+        assertEquals(lastInstance.configs, cryptoConfig.getCryptoKeyReaderConfig());
+        verify(producerBuilder).cryptoKeyReader(lastInstance);
+        verify(producerBuilder).cryptoFailureAction(ProducerCryptoFailureAction.FAIL);
+        verify(producerBuilder).addEncryptionKey("key1");
+        verify(producerBuilder).addEncryptionKey("key2");
+        verify(producerBuilder).batchingMaxPublishDelay(20, TimeUnit.MILLISECONDS);
+        verify(producerBuilder).batchingMaxMessages(100);
+        verifyNoMoreInteractions(producerBuilder);
+    }
+
+    @Test
+    public void testCreateProducerBuilderWithBatchingDisabled() {
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchBuilder("KEY_BASED");
+        producerConfig.setCompressionType(CompressionType.SNAPPY);
+        producerConfig.setMaxPendingMessages(5000);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(50000);
+        CryptoConfig cryptoConfig = new CryptoConfig();
+        cryptoConfig.setProducerCryptoFailureAction(ProducerCryptoFailureAction.FAIL);
+        cryptoConfig.setEncryptionKeys(new String[]{"key1", "key2"});
+        cryptoConfig.setCryptoKeyReaderConfig(Map.of("key", "value"));
+        cryptoConfig.setCryptoKeyReaderClassName(TestCryptoKeyReader.class.getName());
+        producerConfig.setCryptoConfig(cryptoConfig);
+        BatchingConfig batchingConfig = new BatchingConfig();
+        batchingConfig.setEnabled(false);
+        batchingConfig.setBatchingMaxPublishDelayMs(0);
+        producerConfig.setBatchingConfig(batchingConfig);
         ProducerBuilderFactory builderFactory = new ProducerBuilderFactory(pulsarClient, producerConfig, null, null);
         builderFactory.createProducerBuilder("topic", Schema.STRING, "producerName");
         verifyCommon();
@@ -146,23 +204,25 @@ public class ProducerBuilderFactoryTest {
         verify(producerBuilder).batcherBuilder(BatcherBuilder.KEY_BASED);
         verify(producerBuilder).maxPendingMessages(5000);
         verify(producerBuilder).maxPendingMessagesAcrossPartitions(50000);
-        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.LAST_INSTANCE;
+        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.lastInstance;
         assertNotNull(lastInstance);
         assertEquals(lastInstance.configs, cryptoConfig.getCryptoKeyReaderConfig());
         verify(producerBuilder).cryptoKeyReader(lastInstance);
         verify(producerBuilder).cryptoFailureAction(ProducerCryptoFailureAction.FAIL);
         verify(producerBuilder).addEncryptionKey("key1");
         verify(producerBuilder).addEncryptionKey("key2");
+        verify(producerBuilder).enableBatching(false);
         verifyNoMoreInteractions(producerBuilder);
     }
 
     public static class TestCryptoKeyReader implements CryptoKeyReader {
-        static TestCryptoKeyReader LAST_INSTANCE;
+        static TestCryptoKeyReader lastInstance;
         Map<String, Object> configs;
+
         public TestCryptoKeyReader(Map<String, Object> configs) {
             this.configs = configs;
-            assert LAST_INSTANCE == null;
-            LAST_INSTANCE = this;
+            assert lastInstance == null;
+            lastInstance = this;
         }
 
         @Override

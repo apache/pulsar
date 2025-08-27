@@ -162,13 +162,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
                 // next iteration doesn't send corrupt message to broker.
-                for (int j = 0; j <= i; j++) {
-                    MessageImpl<?> previousMsg = messages.get(j);
-                    previousMsg.getDataBuffer().resetReaderIndex();
-                }
                 batchedMessageMetadataAndPayload.writerIndex(batchWriteIndex);
                 batchedMessageMetadataAndPayload.readerIndex(batchReadIndex);
                 throw new RuntimeException(th);
+            } finally {
+                msg.getDataBuffer().resetReaderIndex();
             }
         }
 
@@ -341,6 +339,14 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         op.setBatchSizeByte(currentBatchSizeBytes);
         lowestSequenceId = -1L;
         return op;
+    }
+
+    @Override
+    public void resetPayloadAfterFailedPublishing() {
+        if (batchedMessageMetadataAndPayload != null) {
+            batchedMessageMetadataAndPayload.readerIndex(0);
+            batchedMessageMetadataAndPayload.writerIndex(0);
+        }
     }
 
     protected void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {

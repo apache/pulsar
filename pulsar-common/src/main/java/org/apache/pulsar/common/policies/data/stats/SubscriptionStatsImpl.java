@@ -93,6 +93,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
 
+    /** The count of expired messages on this subscription. */
+    public long msgExpired;
+
     /** Total messages expired on this subscription. */
     public long totalMsgExpired;
 
@@ -168,6 +171,24 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public long filterRescheduledMsgCount;
 
+    /** total number of times message dispatching was throttled on a subscription due to subscription rate limits. */
+    public long dispatchThrottledMsgEventsBySubscriptionLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to subscription rate limits. */
+    public long dispatchThrottledBytesEventsBySubscriptionLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to topic rate limits. */
+    public long dispatchThrottledMsgEventsByTopicLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to topic rate limits. */
+    public long dispatchThrottledBytesEventsByTopicLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
+    public long dispatchThrottledMsgEventsByBrokerLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
+    public long dispatchThrottledBytesEventsByBrokerLimit;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -191,6 +212,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         unackedMessages = 0;
         type = null;
         msgRateExpired = 0;
+        msgExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
@@ -208,6 +230,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         filterAcceptedMsgCount = 0;
         filterRejectedMsgCount = 0;
         filterRescheduledMsgCount = 0;
+        dispatchThrottledMsgEventsBySubscriptionLimit = 0;
+        dispatchThrottledBytesEventsBySubscriptionLimit = 0;
+        dispatchThrottledMsgEventsByBrokerLimit = 0;
+        dispatchThrottledBytesEventsByBrokerLimit = 0;
+        dispatchThrottledMsgEventsByTopicLimit = 0;
+        dispatchThrottledBytesEventsByTopicLimit = 0;
         bucketDelayedIndexStats.clear();
     }
 
@@ -230,6 +258,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.unackedMessages += stats.unackedMessages;
         this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
+        this.msgExpired += stats.msgExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
         this.isDurable |= stats.isDurable;
@@ -267,6 +296,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
         this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
         this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
+        this.dispatchThrottledMsgEventsBySubscriptionLimit += stats.dispatchThrottledMsgEventsBySubscriptionLimit;
+        this.dispatchThrottledBytesEventsBySubscriptionLimit += stats.dispatchThrottledBytesEventsBySubscriptionLimit;
+        this.dispatchThrottledMsgEventsByBrokerLimit += stats.dispatchThrottledMsgEventsByBrokerLimit;
+        this.dispatchThrottledBytesEventsByBrokerLimit += stats.dispatchThrottledBytesEventsByBrokerLimit;
+        this.dispatchThrottledMsgEventsByTopicLimit += stats.dispatchThrottledMsgEventsByTopicLimit;
+        this.dispatchThrottledBytesEventsByTopicLimit += stats.dispatchThrottledBytesEventsByTopicLimit;
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
                     this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());

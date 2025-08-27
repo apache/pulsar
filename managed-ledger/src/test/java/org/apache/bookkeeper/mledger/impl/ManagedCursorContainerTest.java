@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -58,13 +60,24 @@ public class ManagedCursorContainerTest {
     private static class MockManagedCursor implements ManagedCursor {
 
         ManagedCursorContainer container;
-        Position position;
+        Position markDeletePosition;
+        Position readPosition;
+        private final boolean updateMarkDeletePosition;
+        private final boolean durable;
         String name;
 
-        public MockManagedCursor(ManagedCursorContainer container, String name, Position position) {
+        public MockManagedCursor(ManagedCursorContainer container, String name, Position markDeletePosition) {
+            this(container, name, markDeletePosition, null, true, true);
+        }
+
+        public MockManagedCursor(ManagedCursorContainer container, String name, Position markDeletePosition,
+                                 Position readPosition, boolean updateMarkDeletePosition, boolean durable) {
             this.container = container;
             this.name = name;
-            this.position = position;
+            this.markDeletePosition = markDeletePosition;
+            this.readPosition = readPosition;
+            this.updateMarkDeletePosition = updateMarkDeletePosition;
+            this.durable = durable;
         }
 
         @Override
@@ -104,7 +117,7 @@ public class ManagedCursorContainerTest {
 
         @Override
         public boolean isDurable() {
-            return true;
+            return durable;
         }
 
         @Override
@@ -146,8 +159,10 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void markDelete(Position position, Map<String, Long> properties) {
-            this.position = position;
-            container.cursorUpdated(this, position);
+            this.markDeletePosition = position;
+            if (updateMarkDeletePosition) {
+                container.cursorUpdated(this, position);
+            }
         }
 
         @Override
@@ -163,12 +178,12 @@ public class ManagedCursorContainerTest {
 
         @Override
         public Position getMarkDeletedPosition() {
-            return position;
+            return markDeletePosition;
         }
 
         @Override
         public Position getPersistentMarkDeletedPosition() {
-            return position;
+            return markDeletePosition;
         }
 
         @Override
@@ -187,12 +202,12 @@ public class ManagedCursorContainerTest {
         }
 
         public String toString() {
-            return String.format("%s=%s", name, position);
+            return String.format("%s=%s/%s", name, markDeletePosition, readPosition);
         }
 
         @Override
         public Position getReadPosition() {
-            return null;
+            return readPosition;
         }
 
         @Override
@@ -201,6 +216,10 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void seek(Position newReadPosition, boolean force) {
+            this.readPosition = newReadPosition;
+            if (!updateMarkDeletePosition) {
+                container.cursorUpdated(this, newReadPosition);
+            }
         }
 
         @Override
@@ -290,12 +309,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
+                                                        ReadEntriesCallback callback, Object ctx) {
             return Sets.newConcurrentHashSet();
         }
 
         @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
+                                                        ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
             return Sets.newConcurrentHashSet();
         }
 
@@ -321,12 +342,12 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Entry getNthEntry(int N, IndividualDeletedEntries deletedEntries) {
+        public Entry getNthEntry(int num, IndividualDeletedEntries deletedEntries) {
             return null;
         }
 
         @Override
-        public void asyncGetNthEntry(int N, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
+        public void asyncGetNthEntry(int num, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
                 Object ctx) {
         }
 
@@ -441,6 +462,8 @@ public class ManagedCursorContainerTest {
         public void updateReadStats(int readEntriesCount, long readEntriesSize) {
 
         }
+
+
     }
 
     @Test
@@ -449,7 +472,7 @@ public class ManagedCursorContainerTest {
         assertNull(container.getSlowestReaderPosition());
 
         // Add no durable cursor
-        Position position = PositionFactory.create(5,5);
+        Position position = PositionFactory.create(5, 5);
         ManagedCursor cursor1 = spy(new MockManagedCursor(container, "test1", position));
         doReturn(false).when(cursor1).isDurable();
         doReturn(position).when(cursor1).getReadPosition();
@@ -457,7 +480,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 5));
 
         // Add no durable cursor
-        position = PositionFactory.create(1,1);
+        position = PositionFactory.create(1, 1);
         ManagedCursor cursor2 = spy(new MockManagedCursor(container, "test2", position));
         doReturn(false).when(cursor2).isDurable();
         doReturn(position).when(cursor2).getReadPosition();
@@ -465,13 +488,13 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(1, 1));
 
         // Move forward cursor, cursor1 = 5:5, cursor2 = 5:6, slowest is 5:5
-        position = PositionFactory.create(5,6);
+        position = PositionFactory.create(5, 6);
         container.cursorUpdated(cursor2, position);
         doReturn(position).when(cursor2).getReadPosition();
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 5));
 
         // Move forward cursor, cursor1 = 5:8, cursor2 = 5:6, slowest is 5:6
-        position = PositionFactory.create(5,8);
+        position = PositionFactory.create(5, 8);
         doReturn(position).when(cursor1).getReadPosition();
         container.cursorUpdated(cursor1, position);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));
@@ -504,7 +527,7 @@ public class ManagedCursorContainerTest {
         assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
                 cursor3, PositionFactory.create(2, 0));
 
-        assertEquals(container.toString(), "[test1=5:5, test2=2:2, test3=2:0]");
+        assertEquals(container.toString(), "[test1=5:5/null, test2=2:2/null, test3=2:0/null]");
 
         ManagedCursor cursor4 = new MockManagedCursor(container, "test4", PositionFactory.create(4, 0));
         container.add(cursor4, cursor4.getMarkDeletedPosition());
@@ -543,7 +566,7 @@ public class ManagedCursorContainerTest {
         container.add(cursor6, cursor6.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(6, 5));
 
-        assertEquals(container.toString(), "[test6=6:5]");
+        assertEquals(container.toString(), "[test6=6:5/null]");
     }
 
     @Test
@@ -558,12 +581,12 @@ public class ManagedCursorContainerTest {
         container.add(cursor2, cursor2.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(2, 2));
 
-        cursor2.position = PositionFactory.create(8, 8);
+        cursor2.markDeletePosition = PositionFactory.create(8, 8);
 
         // Until we don't update the container, the ordering will not change
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(2, 2));
 
-        container.cursorUpdated(cursor2, cursor2.position);
+        container.cursorUpdated(cursor2, cursor2.markDeletePosition);
 
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 5));
         assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
@@ -666,32 +689,32 @@ public class ManagedCursorContainerTest {
 
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 1));
 
-        c1.position = PositionFactory.create(5, 8);
-        container.cursorUpdated(c1, c1.position);
+        c1.markDeletePosition = PositionFactory.create(5, 8);
+        container.cursorUpdated(c1, c1.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 1));
 
-        c2.position = PositionFactory.create(5, 6);
-        container.cursorUpdated(c2, c2.position);
+        c2.markDeletePosition = PositionFactory.create(5, 6);
+        container.cursorUpdated(c2, c2.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));
 
-        c1.position = PositionFactory.create(6, 8);
-        container.cursorUpdated(c1, c1.position);
+        c1.markDeletePosition = PositionFactory.create(6, 8);
+        container.cursorUpdated(c1, c1.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));
 
-        c3.position = PositionFactory.create(8, 5);
-        container.cursorUpdated(c3, c3.position);
+        c3.markDeletePosition = PositionFactory.create(8, 5);
+        container.cursorUpdated(c3, c3.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));
 
-        c1.position = PositionFactory.create(8, 4);
-        container.cursorUpdated(c1, c1.position);
+        c1.markDeletePosition = PositionFactory.create(8, 4);
+        container.cursorUpdated(c1, c1.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));
 
-        c2.position = PositionFactory.create(8, 4);
-        container.cursorUpdated(c2, c2.position);
+        c2.markDeletePosition = PositionFactory.create(8, 4);
+        container.cursorUpdated(c2, c2.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(6, 4));
 
-        c4.position = PositionFactory.create(7, 1);
-        container.cursorUpdated(c4, c4.position);
+        c4.markDeletePosition = PositionFactory.create(7, 1);
+        container.cursorUpdated(c4, c4.markDeletePosition);
 
         // ////
 
@@ -731,32 +754,32 @@ public class ManagedCursorContainerTest {
 
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 1));
 
-        c1.position = PositionFactory.create(5, 8);
-        container.cursorUpdated(c1, c1.position);
+        c1.markDeletePosition = PositionFactory.create(5, 8);
+        container.cursorUpdated(c1, c1.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 1));
 
-        c1.position = PositionFactory.create(5, 6);
-        container.cursorUpdated(c1, c1.position);
+        c1.markDeletePosition = PositionFactory.create(5, 6);
+        container.cursorUpdated(c1, c1.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 1));
 
-        c2.position = PositionFactory.create(6, 8);
-        container.cursorUpdated(c2, c2.position);
+        c2.markDeletePosition = PositionFactory.create(6, 8);
+        container.cursorUpdated(c2, c2.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));
 
-        c3.position = PositionFactory.create(8, 5);
-        container.cursorUpdated(c3, c3.position);
+        c3.markDeletePosition = PositionFactory.create(8, 5);
+        container.cursorUpdated(c3, c3.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(5, 6));
 
-        c1.position = PositionFactory.create(8, 4);
-        container.cursorUpdated(c1, c1.position);
+        c1.markDeletePosition = PositionFactory.create(8, 4);
+        container.cursorUpdated(c1, c1.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(6, 4));
 
-        c2.position = PositionFactory.create(4, 4);
-        container.cursorUpdated(c2, c2.position);
+        c2.markDeletePosition = PositionFactory.create(4, 4);
+        container.cursorUpdated(c2, c2.markDeletePosition);
         assertEquals(container.getSlowestReaderPosition(), PositionFactory.create(4, 4));
 
-        c4.position = PositionFactory.create(7, 1);
-        container.cursorUpdated(c4, c4.position);
+        c4.markDeletePosition = PositionFactory.create(7, 1);
+        container.cursorUpdated(c4, c4.markDeletePosition);
 
         // ////
 
@@ -828,5 +851,24 @@ public class ManagedCursorContainerTest {
         newVersion = container.getCursorWithOldestPosition().getVersion();
         // newVersion > version
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(newVersion, version)).isPositive();
+    }
+
+    @Test
+    public void testSlowestReader() {
+        // test 100 times
+        for (int i = 0; i < 100; i++) {
+            ManagedCursorContainer container = new ManagedCursorContainer();
+            List<ManagedCursor> cursors = IntStream.rangeClosed(1, 100)
+                    .mapToObj(idx -> createCursor(container, "cursor" + idx, PositionFactory.create(0, idx)))
+                    .collect(Collectors.toList());
+            // randomize adding order
+            Collections.shuffle(cursors);
+            cursors.forEach(cursor -> container.add(cursor, cursor.getReadPosition()));
+            assertEquals(container.getSlowestReader().getName(), "cursor1");
+        }
+    }
+
+    private static ManagedCursor createCursor(ManagedCursorContainer container, String name, Position position) {
+        return new MockManagedCursor(container, name, position, position, false, true);
     }
 }

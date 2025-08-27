@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.elasticsearch.data;
 
 import java.util.Date;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

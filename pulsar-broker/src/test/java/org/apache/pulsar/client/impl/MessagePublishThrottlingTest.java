@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -48,7 +47,6 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        AsyncTokenBucket.switchToConsistentTokensView();
         this.conf.setClusterName("test");
         this.conf.setTopicPublisherThrottlingTickTimeMillis(1);
         this.conf.setBrokerPublisherThrottlingTickTimeMillis(1);
@@ -60,7 +58,6 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        AsyncTokenBucket.resetToDefaultEventualConsistentTokensView();
     }
 
     /**
@@ -362,7 +359,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         List<ProducerImpl<byte[]>> producers = Lists.newArrayListWithExpectedSize(topicNumber);
         List<PersistentTopic> topics = Lists.newArrayListWithExpectedSize(topicNumber);
 
-        for (int i = 0 ; i < topicNumber; i ++) {
+        for (int i = 0; i < topicNumber; i++) {
             String iTopicName = topicNameBase + i;
             ProducerImpl<byte[]> iProducer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(iTopicName)
@@ -385,7 +382,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         final AtomicInteger index = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(topicNumber);
 
-        for (int i = 0; i < topicNumber; i ++) {
+        for (int i = 0; i < topicNumber; i++) {
             topicRatesCounter.add(() -> {
                 int id = index.incrementAndGet();
                 ProducerImpl<byte[]> iProducer = producers.get(id);

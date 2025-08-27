@@ -41,18 +41,18 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        final int N_KEYS = 128;
-        final int N_GETS = 1_000_000;
+        final int nKeys = 128;
+        final int nGets = 1_000_000;
 
         String key = newKey();
-        generateKeys(store, key, N_KEYS);
+        generateKeys(store, key, nKeys);
 
         Semaphore s = new Semaphore(10_000);
-        CountDownLatch latch = new CountDownLatch(N_GETS);
+        CountDownLatch latch = new CountDownLatch(nGets);
 
         long startTime = System.nanoTime();
-        for (int i = 0; i < N_GETS; i++) {
-            int k = i % (N_KEYS - 1);
+        for (int i = 0; i < nGets; i++) {
+            int k = i % (nKeys - 1);
             s.acquire();
             store.get(key + "/" + k)
                     .thenAccept(__ -> {
@@ -66,7 +66,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
 
         latch.await();
         long endTime = System.nanoTime();
-        double throughput = 1e9 * N_GETS / (endTime - startTime);
+        double throughput = 1e9 * nGets / (endTime - startTime);
 
         log.info("[{}] Get Throughput: {} Kops/s", provider, throughput / 1_000);
     }
@@ -76,17 +76,17 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        final int N_KEYS = 128;
-        final int N_GETS = 1_000_000;
+        final int nKeys = 128;
+        final int nGets = 1_000_000;
 
         String key = newKey();
-        generateKeys(store, key, N_KEYS);
+        generateKeys(store, key, nKeys);
 
         Semaphore s = new Semaphore(10_000);
-        CountDownLatch latch = new CountDownLatch(N_GETS);
+        CountDownLatch latch = new CountDownLatch(nGets);
 
         long startTime = System.nanoTime();
-        for (int i = 0; i < N_GETS; i++) {
+        for (int i = 0; i < nGets; i++) {
             s.acquire();
             store.getChildren(key)
                     .thenAccept(__ -> {
@@ -100,7 +100,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
 
         latch.await();
         long endTime = System.nanoTime();
-        double throughput = 1e9 * N_GETS / (endTime - startTime);
+        double throughput = 1e9 * nGets / (endTime - startTime);
 
         log.info("[{}] Get Children Throughput: {} Kops/s", provider, throughput / 1_000);
     }
@@ -110,20 +110,20 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        final int N_KEYS = 10_000;
-        final int N_PUTS = 100_000;
+        final int nKeys = 10_000;
+        final int nPuts = 100_000;
 
         String key = newKey();
 
         Semaphore s = new Semaphore(10_000);
-        CountDownLatch latch = new CountDownLatch(N_PUTS);
+        CountDownLatch latch = new CountDownLatch(nPuts);
 
-        generateKeys(store, key, N_KEYS);
+        generateKeys(store, key, nKeys);
 
         long startTime = System.nanoTime();
         byte[] data = new byte[100];
-        for (int i = 0; i < N_PUTS; i++) {
-            int k = i % (N_KEYS - 1);
+        for (int i = 0; i < nPuts; i++) {
+            int k = i % (nKeys - 1);
             s.acquire();
             store.put(key + "/" + k, data, Optional.empty())
                     .thenAccept(__ -> {
@@ -137,7 +137,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
 
         latch.await();
         long endTime = System.nanoTime();
-        double throughput = 1e9 * N_PUTS / (endTime - startTime);
+        double throughput = 1e9 * nPuts / (endTime - startTime);
 
         log.info("[{}] Put Throughput: {} Kops/s", provider, throughput / 1_000);
     }
