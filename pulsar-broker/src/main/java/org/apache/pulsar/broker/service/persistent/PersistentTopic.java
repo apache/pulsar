@@ -3390,7 +3390,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         PositionImpl oldestMarkDeletePosition = oldestMarkDeleteCursorInfo.getPosition();
         OldestPositionInfo lastOldestPositionInfo = oldestPositionInfo;
         if (lastOldestPositionInfo != null
-            && oldestMarkDeletePosition.compareTo(lastOldestPositionInfo.getOldestCursorMarkDeletePosition()) == 0) {
+            && oldestMarkDeletePosition.compareTo(lastOldestPositionInfo.getOldestCursorMarkDeletePosition()) == 0
+            && oldestMarkDeletePosition.compareTo(((ManagedLedgerImpl) ledger).getFirstPosition()) >= 0) {
             // Same position, but the cursor causing it has changed?
             if (!lastOldestPositionInfo.getCursorName().equals(oldestMarkDeleteCursorInfo.getCursor().getName())) {
                 updateResultIfNewer(new OldestPositionInfo(
@@ -3519,6 +3520,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
                 markDeletePositionLedgerInfo = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get();
+
+        // If markDeletePositionLedgerInfo is null (ledger no longer exists due to retention/cleanup),
+        // use the next valid position instead to get a meaningful timestamp
+        if (markDeletePositionLedgerInfo == null) {
+            PositionImpl nextValidPosition = ((ManagedLedgerImpl) ledger).getNextValidPosition(markDeletePosition);
+            markDeletePositionLedgerInfo = ledger.getLedgerInfo(nextValidPosition.getLedgerId()).get();
+            markDeletePosition = nextValidPosition;
+        }
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo positionToCheckLedgerInfo =
                 markDeletePositionLedgerInfo;
