@@ -228,7 +228,7 @@ public class ManagedCursorContainerImpl implements ManagedCursorContainer, Activ
     }
 
     /**
-     *  Check whether there are any cursors.
+     * Check whether there are any cursors.
      * @return true is there are no cursors and false if there are
      */
     @Override
@@ -265,7 +265,7 @@ public class ManagedCursorContainerImpl implements ManagedCursorContainer, Activ
     }
 
     /**
-     * Check whether that are any durable cursors.
+     * Check whether there are any durable cursors.
      * @return true if there are durable cursors and false if there are not
      */
     @Override

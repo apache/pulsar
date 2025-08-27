@@ -229,7 +229,7 @@ public interface ManagedLedgerFactory {
 
     /**
      * time threshold for eviction. Similar as
-     * {@link ManagedLedgerFactoryConfig#setCacheEvictionTimeThresholdMillis(long)}
+     * {@link ManagedLedgerFactoryConfig#getCacheEvictionTimeThresholdMillis()}
      * but the value is in nanos.
      * @return time threshold for eviction.
      */

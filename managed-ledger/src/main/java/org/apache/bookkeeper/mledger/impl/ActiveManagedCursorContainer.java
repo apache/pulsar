@@ -25,7 +25,7 @@ import org.apache.commons.lang3.tuple.Pair;
 /**
  * Contains cursors for a ManagedLedger that are actively being used.
  * <p>
- * The goal is to be able to use the container to be used for cache eviction where the tracking of the slowest cursor
+ * The goal is to be able to use the container for cache eviction where the tracking of the slowest cursor
  * is important for determining which cache entries can be evicted.
  * <p>
  * The usage depends on the cache eviction configuration:
@@ -121,8 +121,9 @@ public interface ActiveManagedCursorContainer extends Iterable<ManagedCursor> {
     }
 
     /**
-     * Returns true if added entries should be cached. The implementation s
-     * @return
+     * Returns true if added entries should be cached. By default, added entries are cached if the container is not
+     * empty. The implementation can override this method to change the default behavior.
+     * @return true if added entries should be cached, false otherwise
      */
     default boolean shouldCacheAddedEntry() {
         return !isEmpty();
