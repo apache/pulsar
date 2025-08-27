@@ -482,6 +482,31 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        CompletableFuture<List<String>> cb = new CompletableFuture<>();
+        zkc.sync(path, (rc1, path1, ctx1) -> {
+            Code code1 = Code.get(rc1);
+            if (code1 != Code.OK) {
+                log.error("ZK error syncing nodes when getting children: ", KeeperException
+                        .create(code1, path1));
+                cb.completeExceptionally(getException(code1, path1));
+                return;
+            }
+            zkc.getChildren(path, false, (rc2, path2, ctx2, nodes) -> {
+                Code code2 = Code.get(rc1);
+                if (code2 != Code.OK) {
+                    log.error("Error polling ZK for the available nodes: ", KeeperException
+                            .create(code2, path2));
+                    cb.completeExceptionally(getException(code2, path2));
+                    return;
+                }
+                cb.complete(nodes);
+            }, null);
+        }, null);
+        return cb;
+    }
+
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
         return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime(),
                 zkStat.getEphemeralOwner() != NOT_EPHEMERAL,

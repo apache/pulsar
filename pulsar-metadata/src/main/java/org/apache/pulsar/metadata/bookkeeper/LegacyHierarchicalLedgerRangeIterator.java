@@ -84,8 +84,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
                 continue;
             }
             String path = ledgersRoot + "/" + curL1Nodes;
-            List<String> l2Nodes = store.sync(path)
-                    .thenCompose(__ -> store.getChildren(path))
+            List<String> l2Nodes = store.getChildrenFromStore(path)
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             l2NodesIter = l2Nodes.iterator();
             if (!l2NodesIter.hasNext()) {
@@ -101,8 +100,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
             boolean hasMoreElements = false;
             try {
                 if (l1NodesIter == null) {
-                    List<String> l1Nodes = store.sync(ledgersRoot)
-                            .thenCompose(__ -> store.getChildren(ledgersRoot))
+                    List<String> l1Nodes = store.getChildrenFromStore(ledgersRoot)
                             .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                     l1NodesIter = l1Nodes.iterator();
                     hasMoreElements = nextL1Node();
@@ -165,8 +163,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
         String nodePath = nodeBuilder.toString();
         List<String> ledgerNodes = null;
         try {
-            ledgerNodes = store.sync(nodePath)
-                    .thenCompose(__ -> store.getChildren(nodePath))
+            ledgerNodes = store.getChildrenFromStore(nodePath)
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (ExecutionException | TimeoutException e) {
             throw new IOException("Error when get child nodes from zk", e);
