@@ -488,10 +488,15 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         zkc.getChildren(path, false, (rc, path1, ctx1, nodes) -> {
             Code code = Code.get(rc);
             if (code != Code.OK) {
-                log.error("Error polling ZK for the available nodes: ", KeeperException
-                        .create(code, path1));
-                cb.completeExceptionally(getException(code, path1));
-                return;
+                if (code == Code.NONODE) {
+                    cb.complete(Collections.emptyList());
+                    return;
+                } else {
+                    log.error("Error polling ZK for the available nodes: ", KeeperException
+                            .create(code, path1));
+                    cb.completeExceptionally(getException(code, path1));
+                    return;
+                }
             }
             cb.complete(nodes);
         }, null);
