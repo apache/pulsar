@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.prometheus.client.Counter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +42,11 @@ import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 
 @Slf4j
 public class PulsarCommandSenderImpl implements PulsarCommandSender {
+    private static final Counter PROCESS_FAILURE_COUNTER = Counter.build()
+            .name("pulsar_broker_process_request_failures")
+            .help("Number of send error responses sent by the broker")
+            .labelNames("error")
+            .register();
 
     private final BrokerInterceptor interceptor;
     private final ServerCnx cnx;
@@ -52,6 +58,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendPartitionMetadataResponse(ServerError error, String errorMsg, long requestId) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newPartitionMetadataResponseCommand(error, errorMsg, requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
@@ -76,6 +85,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendErrorResponse(long requestId, ServerError error, String message) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newErrorCommand(requestId, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
@@ -113,6 +125,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newSendErrorCommand(producerId, sequenceId, error, errorMsg);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
@@ -139,6 +154,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendGetSchemaErrorResponse(long requestId, ServerError error, String errorMessage) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newGetSchemaResponseErrorCommand(requestId, error, errorMessage);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
@@ -155,6 +173,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendGetOrCreateSchemaErrorResponse(long requestId, ServerError error, String errorMessage) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command =
                 Commands.newGetOrCreateSchemaResponseErrorCommand(requestId, error, errorMessage);
         safeIntercept(command, cnx);
@@ -184,6 +205,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendLookupResponse(ServerError error, String errorMsg, long requestId) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newLookupErrorResponseCommand(error, errorMsg, requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
@@ -304,6 +328,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendTcClientConnectResponse(long requestId, ServerError error, String message) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newTcClientConnectResponse(requestId, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
@@ -329,6 +356,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendNewTxnErrorResponse(long requestId, long tcID, ServerError error, String message) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newTxnResponse(requestId, tcID, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
@@ -349,6 +379,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message) {
+        if (error != null) {
+            PROCESS_FAILURE_COUNTER.labels(error.name()).inc();
+        }
         BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getLeastSigBits(),
                 txnID.getMostSigBits(), error, message);
         safeIntercept(command, cnx);
