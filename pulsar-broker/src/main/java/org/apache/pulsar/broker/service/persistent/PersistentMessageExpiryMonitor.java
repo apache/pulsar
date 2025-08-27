@@ -148,7 +148,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                     ml.getOptionalLedgerInfo(messagePosition.getLedgerId());
             if (ledgerInfoOptional.isPresent()) {
                 if (messagePosition.getEntryId() >= 0
-                        && ledgerInfoOptional.get().getEntries() -1 >= messagePosition.getEntryId()) {
+                        && ledgerInfoOptional.get().getEntries() - 1 >= messagePosition.getEntryId()) {
                     findEntryComplete(messagePosition, null);
                     return true;
                 }
