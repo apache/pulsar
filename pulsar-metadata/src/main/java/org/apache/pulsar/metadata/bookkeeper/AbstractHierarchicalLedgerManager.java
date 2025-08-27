@@ -68,7 +68,8 @@ abstract class AbstractHierarchicalLedgerManager {
             final AsyncCallback.VoidCallback finalCb, final Object context,
             final int successRc, final int failureRc) {
 
-        store.getChildrenFromStore(path)
+        store.sync(path)
+                .thenCompose(__ -> store.getChildrenFromStore(path))
                 .thenAccept(levelNodes -> {
                     if (levelNodes.isEmpty()) {
                         finalCb.processResult(successRc, null, context);
@@ -188,7 +189,8 @@ abstract class AbstractHierarchicalLedgerManager {
             final String path, final BookkeeperInternalCallbacks.Processor<Long> processor,
             final AsyncCallback.VoidCallback finalCb, final Object ctx,
             final int successRc, final int failureRc) {
-        store.getChildrenFromStore(path)
+        store.sync(path)
+                .thenCompose(__ -> store.getChildrenFromStore(path))
                 .thenAccept(ledgerNodes -> {
                     Set<Long> activeLedgers = HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes,
                             ledgerRootPath, path);
