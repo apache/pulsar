@@ -3626,7 +3626,7 @@ public class BrokerService implements Closeable {
                     if (partitionedTopicMetadata.get().deleted) {
                         return false;
                     }
-                    return partitionedTopicMetadata.get().partitions + 1 >= topicName.getPartitionIndex();
+                    return partitionedTopicMetadata.get().partitions > topicName.getPartitionIndex();
                 });
         } else {
             return CompletableFuture.completedFuture(allowed);

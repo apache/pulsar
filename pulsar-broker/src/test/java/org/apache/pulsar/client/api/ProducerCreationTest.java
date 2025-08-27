@@ -231,7 +231,13 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         }
 
         // Partition index is out of range.
-        assertThrows(NotAllowedException.class, () -> {
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
+            @Cleanup
+            Producer<byte[]> ignored =
+                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(3).toString())
+                            .create();
+        });
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
                     pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
