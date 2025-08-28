@@ -55,7 +55,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
+public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase {
 
     @BeforeClass
     @Override
@@ -75,7 +75,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoNonPartitionedTopicCreation() throws Exception{
+    public void testAutoNonPartitionedTopicCreation() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
@@ -88,7 +88,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoNonPartitionedTopicCreationOnProduce() throws Exception{
+    public void testAutoNonPartitionedTopicCreationOnProduce() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
@@ -100,7 +100,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoPartitionedTopicCreation() throws Exception{
+    public void testAutoPartitionedTopicCreation() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(3);
@@ -116,7 +116,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoPartitionedTopicCreationOnProduce() throws Exception{
+    public void testAutoPartitionedTopicCreationOnProduce() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(3);
@@ -131,7 +131,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoTopicCreationDisable() throws Exception{
+    public void testAutoTopicCreationDisable() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
 
         final String topicString = "persistent://prop/ns-abc/test-topic";
@@ -170,7 +170,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
      * even if the option to automatically create partitioned topic is configured
      */
     @Test
-    public void testGetPartitionedMetadataWithoutCheckAllowAutoCreation() throws Exception{
+    public void testGetPartitionedMetadataWithoutCheckAllowAutoCreation() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(3);
@@ -335,7 +335,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
 
     @Test
-    public void testNotAllowSubscriptionTopicCreation() throws Exception{
+    public void testNotAllowSubscriptionTopicCreation() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         String topicName = "persistent://prop/ns-abc/non-partitioned-topic" + System.currentTimeMillis();
         String subscriptionName = "non-partitioned-topic-sub";
@@ -470,9 +470,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         List<String> topics = admin.topics().getList(namespaceName).stream().filter(tp -> {
             return TopicName.get(tp).getPartitionedTopicName().equals(topic);
         }).toList();
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
-            return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();
+        List<String> partitionedTopicList =
+                admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
+                    return TopicName.get(tp).getPartitionedTopicName().equals(topic);
+                }).toList();
         assertEquals(topics.size(), 1);
         assertEquals(partitionedTopicList.size(), 0);
         producer.close();
@@ -500,13 +501,14 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             assertEquals(pulsar.getConfiguration().getDefaultNumPartitions(), 4);
 
         });
-        Producer<byte[]> producer  = pulsarClient.newProducer().topic(topic).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         List<String> topics = admin.topics().getList(namespaceName).stream().filter(tp -> {
             return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();;
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
-            return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();;
+        }).toList();
+        List<String> partitionedTopicList =
+                admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
+                    return TopicName.get(tp).getPartitionedTopicName().equals(topic);
+                }).toList();
         PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
         assertEquals(topics.size(), 4);
         assertEquals(partitionedTopicList.size(), 1);
@@ -534,9 +536,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         List<String> topics = admin.topics().getList(namespaceName).stream().filter(tp -> {
             return TopicName.get(tp).getPartitionedTopicName().equals(topic);
         }).toList();
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
-            return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();
+        List<String> partitionedTopicList =
+                admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
+                    return TopicName.get(tp).getPartitionedTopicName().equals(topic);
+                }).toList();
         PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
         assertEquals(topics.size(), 2);
         assertEquals(partitionedTopicList.size(), 1);
