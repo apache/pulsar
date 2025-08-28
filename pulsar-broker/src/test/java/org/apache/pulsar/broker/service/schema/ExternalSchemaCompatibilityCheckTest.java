@@ -63,6 +63,14 @@ public class ExternalSchemaCompatibilityCheckTest {
         } catch (IncompatibleSchemaException e) {
             // Expected exception, as external schema is not compatible with the other schemas
         }
+
+        try {
+            compatibilityCheck.checkCompatible(
+                    externalSchemaData, schemaData, SchemaCompatibilityStrategy.FULL);
+            fail("Expected IncompatibleSchemaException not thrown");
+        } catch (IncompatibleSchemaException e) {
+            // Expected exception, as external schema is not compatible with the other schemas
+        }
     }
 
     @Test
