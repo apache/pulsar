@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
