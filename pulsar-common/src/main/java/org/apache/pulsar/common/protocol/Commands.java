@@ -1974,6 +1974,13 @@ public class Commands {
         }
     }
 
+    public static void peekMessageMetadata(ByteBuf metadataAndPayload, MessageMetadata msgMetadata) {
+        // save the reader index and restore after parsing
+        int readerIdx = metadataAndPayload.readerIndex();
+        Commands.parseMessageMetadata(metadataAndPayload, msgMetadata);
+        metadataAndPayload.readerIndex(readerIdx);
+    }
+
     /**
      * Peek the message metadata from the buffer and return a deep copy of the metadata.
      *
@@ -1983,12 +1990,13 @@ public class Commands {
      */
     public static MessageMetadata peekAndCopyMessageMetadata(
             ByteBuf metadataAndPayload, String subscription, long consumerId) {
-        final MessageMetadata localMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
-        if (localMetadata == null) {
+        final MessageMetadata metadata = new MessageMetadata();
+        try {
+            peekMessageMetadata(metadataAndPayload, metadata);
+        } catch (Throwable t) {
+            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
             return null;
         }
-        final MessageMetadata metadata = new MessageMetadata();
-        metadata.copyFrom(localMetadata);
         return metadata;
     }
 
