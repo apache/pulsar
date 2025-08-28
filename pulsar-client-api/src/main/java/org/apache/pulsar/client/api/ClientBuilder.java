@@ -717,5 +717,4 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * - The `loadManagerClassName` config in broker is a class that implements the `ExtensibleLoadManager` interface
      */
     ClientBuilder lookupProperties(Map<String, String> properties);
-
 }
