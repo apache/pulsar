@@ -466,6 +466,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     // the entry is blocked by hash, add the consumer to the blocked set
                     blockedByHashConsumers.add(consumer);
                 }
+                if (entry.getReadCountHandler() != null) {
+                    // increment the expected read count for the entry, so that it can be cached for a longer time
+                    entry.getReadCountHandler().incrementExpectedReadCount();
+                }
                 // add the message to replay
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 // release the entry as it will not be dispatched

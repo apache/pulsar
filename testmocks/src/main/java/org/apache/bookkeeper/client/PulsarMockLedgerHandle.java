@@ -101,18 +101,26 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncReadEntries(final long firstEntry, final long lastEntry, final ReadCallback cb, final Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
+                if (log.isDebugEnabled()) {
+                    log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
+                }
                 final Queue<LedgerEntry> seq = new ArrayDeque<LedgerEntry>();
                 long entryId = firstEntry;
                 while (entryId <= lastEntry && entryId < entries.size()) {
                     seq.add(new LedgerEntry(entries.get((int) entryId++).duplicate()));
                 }
 
-                log.debug("Entries read: {}", seq);
+                if (log.isDebugEnabled()) {
+                    log.debug("Entries read: {}", seq);
+                }
 
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
+                long readEntriesDelay = bk.getReadEntriesDelayMillis();
+                if (readEntriesDelay > 0) {
+                    try {
+                        Thread.sleep(readEntriesDelay);
+                    } catch (InterruptedException e) {
+                        // ignore
+                    }
                 }
 
                 Enumeration<LedgerEntry> entries = new Enumeration<LedgerEntry>() {
@@ -169,14 +177,12 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
         bk.getAddEntryFailure().thenComposeAsync((res) -> {
-                Long delayMillis = bk.addEntryDelaysMillis.poll();
-                if (delayMillis == null) {
-                    delayMillis = 1L;
-                }
-
-                try {
-                    Thread.sleep(delayMillis);
-                } catch (InterruptedException e) {
+                long delayMillis = bk.getNextAddEntryDelayMillis();
+                if (delayMillis > 0) {
+                    try {
+                        Thread.sleep(delayMillis);
+                    } catch (InterruptedException e) {
+                    }
                 }
 
                 if (fenced) {
@@ -197,8 +203,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                         cb.addComplete(PulsarMockBookKeeper.getExceptionCode(exception),
                                        PulsarMockLedgerHandle.this, LedgerHandle.INVALID_ENTRY_ID, ctx);
                     } else {
-                        Long responseDelayMillis = bk.addEntryResponseDelaysMillis.poll();
-                        if (responseDelayMillis != null) {
+                        long responseDelayMillis = bk.getNextAddEntryResponseDelayMillis();
+                        if (responseDelayMillis > 0) {
                             try {
                                 Thread.sleep(responseDelayMillis);
                             } catch (InterruptedException e) {

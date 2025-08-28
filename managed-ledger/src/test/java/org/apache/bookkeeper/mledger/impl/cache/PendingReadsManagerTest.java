@@ -21,13 +21,14 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
-import static org.testng.AssertJUnit.assertSame;
 import io.opentelemetry.api.OpenTelemetry;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.IntSupplier;
 import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -112,14 +114,14 @@ public class PendingReadsManagerTest  {
                 ReadHandle rh = invocationOnMock.getArgument(0);
                 long startEntry = invocationOnMock.getArgument(1);
                 long endEntry = invocationOnMock.getArgument(2);
-                boolean shouldCacheEntry = invocationOnMock.getArgument(3);
+                IntSupplier expectedReadCount = invocationOnMock.getArgument(3);
                 AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(4);
                 Object ctx = invocationOnMock.getArgument(5);
-                pendingReadsManager.readEntries(lh, startEntry, endEntry, shouldCacheEntry, callback, ctx);
+                pendingReadsManager.readEntries(lh, startEntry, endEntry, expectedReadCount, callback, ctx);
                 return null;
             }
         }).when(rangeEntryCache).asyncReadEntry0(any(), anyLong(), anyLong(),
-                anyBoolean(), any(), any(), anyBoolean());
+                any(), any(), any(), anyBoolean());
 
         lh = mock(ReadHandle.class);
         ml = mock(ManagedLedgerImpl.class);
@@ -176,17 +178,17 @@ public class PendingReadsManagerTest  {
     private static class PreparedReadFromStorage extends CompletableFuture<List<EntryImpl>> {
         final long firstEntry;
         final long endEntry;
-        final boolean shouldCacheEntry;
+        final IntSupplier expectedReadCount;
 
-        public PreparedReadFromStorage(long firstEntry, long endEntry, boolean shouldCacheEntry) {
+        public PreparedReadFromStorage(long firstEntry, long endEntry, IntSupplier expectedReadCount) {
             this.firstEntry = firstEntry;
             this.endEntry = endEntry;
-            this.shouldCacheEntry = shouldCacheEntry;
+            this.expectedReadCount = expectedReadCount;
         }
 
         @Override
         public String toString() {
-            return "PreparedReadFromStorage(" + firstEntry + "," + endEntry + "," + shouldCacheEntry + ")";
+            return "PreparedReadFromStorage(" + firstEntry + "," + endEntry + "," + expectedReadCount + ")";
         }
 
         public void storageReadCompleted() {
@@ -195,13 +197,16 @@ public class PendingReadsManagerTest  {
     }
 
     private PreparedReadFromStorage prepareReadFromStorage(ReadHandle lh, RangeEntryCacheImpl rangeEntryCache,
-                                                     long firstEntry, long endEntry, boolean shouldCacheEntry) {
-        PreparedReadFromStorage read = new PreparedReadFromStorage(firstEntry, endEntry, shouldCacheEntry);
-        log.info("prepareReadFromStorage from {} to {} shouldCacheEntry {}", firstEntry, endEntry, shouldCacheEntry);
-        when(rangeEntryCache.readFromStorage(eq(lh), eq(firstEntry), eq(endEntry), eq(shouldCacheEntry))).thenAnswer(
+                                                           long firstEntry, long endEntry,
+                                                           IntSupplier expectedReadCount) {
+        PreparedReadFromStorage read = new PreparedReadFromStorage(firstEntry, endEntry, expectedReadCount);
+        log.info("prepareReadFromStorage from {} to {} expectedReadCount {}", firstEntry, endEntry, expectedReadCount);
+        when(rangeEntryCache.readFromStorage(eq(lh), eq(firstEntry), eq(endEntry),
+                argThat(expectedReadCountArg -> expectedReadCountArg.getAsInt()
+                        == expectedReadCount.getAsInt()))).thenAnswer(
                 (invocationOnMock -> {
-                    log.info("readFromStorage from {} to {} shouldCacheEntry {}", firstEntry, endEntry,
-                            shouldCacheEntry);
+                    log.info("readFromStorage from {} to {} expectedReadCount {}", firstEntry, endEntry,
+                            expectedReadCount);
                     entryRangeReadCount.computeIfAbsent(Pair.of(firstEntry, endEntry), __ -> new AtomicInteger(0))
                             .getAndIncrement();
                     return read;
@@ -215,13 +220,13 @@ public class PendingReadsManagerTest  {
 
         long firstEntry = 100;
         long endEntry = 199;
-        boolean shouldCacheEntry = false;
+        IntSupplier expectedReadCount = () -> 0;
 
         PreparedReadFromStorage read1 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
 
         // complete the read
         read1.storageReadCompleted();
@@ -240,17 +245,17 @@ public class PendingReadsManagerTest  {
 
         long firstEntry = 100;
         long endEntry = 199;
-        boolean shouldCacheEntry = false;
+        IntSupplier expectedReadCount = () -> 0;
 
         PreparedReadFromStorage read1 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback2, CTX2);
 
         // complete the read from BK
         // only one read completes 2 callbacks
@@ -282,19 +287,19 @@ public class PendingReadsManagerTest  {
         long firstEntrySecondRead = firstEntry + 10;
         long endEntrySecondRead = endEntry - 10;
 
-        boolean shouldCacheEntry = false;
+        IntSupplier expectedReadCount = () -> 0;
 
         PreparedReadFromStorage read1 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
 
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead,
-                shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
+                CTX2);
 
         // complete the read from BK
         // only one read completes 2 callbacks
@@ -329,21 +334,21 @@ public class PendingReadsManagerTest  {
         long firstEntrySecondRead = firstEntry - 10;
         long endEntrySecondRead = endEntry;
 
-        boolean shouldCacheEntry = false;
+        IntSupplier expectedReadCount = () -> 0;
 
         PreparedReadFromStorage read1 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         PreparedReadFromStorage readForLeft =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntrySecondRead, firstEntry - 1, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntrySecondRead, firstEntry - 1, expectedReadCount);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead,
-                endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
+                CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -370,21 +375,21 @@ public class PendingReadsManagerTest  {
         long firstEntrySecondRead = firstEntry;
         long endEntrySecondRead = endEntry + 10;
 
-        boolean shouldCacheEntry = false;
+        IntSupplier expectedReadCount = () -> 0;
 
         PreparedReadFromStorage read1 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         PreparedReadFromStorage readForRight =
-                prepareReadFromStorage(lh, rangeEntryCache, endEntry + 1, endEntrySecondRead, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, endEntry + 1, endEntrySecondRead, expectedReadCount);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead,
-                endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
+                CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -411,24 +416,24 @@ public class PendingReadsManagerTest  {
         long firstEntrySecondRead = firstEntry - 10;
         long endEntrySecondRead = endEntry + 10;
 
-        boolean shouldCacheEntry = false;
+        IntSupplier expectedReadCount = () -> 0;
 
         PreparedReadFromStorage read1 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         PreparedReadFromStorage readForLeft =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntrySecondRead, firstEntry - 1, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntrySecondRead, firstEntry - 1, expectedReadCount);
 
         PreparedReadFromStorage readForRight =
-                prepareReadFromStorage(lh, rangeEntryCache, endEntry + 1, endEntrySecondRead, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, endEntry + 1, endEntrySecondRead, expectedReadCount);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead,
-                endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
+                CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -456,21 +461,22 @@ public class PendingReadsManagerTest  {
         long firstEntrySecondRead = 1000;
         long endEntrySecondRead = 1099;
 
-        boolean shouldCacheEntry = false;
+        IntSupplier expectedReadCount = () -> 0;
 
         PreparedReadFromStorage read1 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         PreparedReadFromStorage read2 =
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntrySecondRead, endEntrySecondRead,
+                        expectedReadCount);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead,
-                endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
+                CTX2);
 
         read1.storageReadCompleted();
         callback.get();
@@ -491,11 +497,11 @@ public class PendingReadsManagerTest  {
         final var readFutures = new ArrayList<CapturingReadEntriesCallback>();
         final BiConsumer<Long, Long> readEntries = (firstEntry, lastEntry) -> {
             final var callback = new CapturingReadEntriesCallback();
-            pendingReadsManager.readEntries(lh, firstEntry, lastEntry, false, callback, CTX);
+            pendingReadsManager.readEntries(lh, firstEntry, lastEntry, () -> 0, callback, CTX);
             readFutures.add(callback);
         };
         final BiFunction<Long, Long, PreparedReadFromStorage> mockReadFromStorage = (firstEntry, lastEntry) ->
-                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, lastEntry, false);
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, lastEntry, () -> 0);
 
         final var read0 = mockReadFromStorage.apply(10L, 70L);
         readEntries.accept(10L, 70L);

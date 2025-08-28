@@ -21,6 +21,7 @@ package org.apache.bookkeeper.client;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,6 +47,7 @@ import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.api.DeleteBuilder;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
@@ -75,6 +77,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
     final OrderedExecutor orderedExecutor;
     final ExecutorService executor;
     final ScheduledExecutorService scheduler;
+    private volatile long defaultAddEntryDelayMillis = 1L;
+    private volatile long defaultReadEntriesDelayMillis = 1L;
 
     @Override
     public ClientConfiguration getConf() {
@@ -486,6 +490,58 @@ public class PulsarMockBookKeeper extends BookKeeper {
     @Override
     public MetadataClientDriver getMetadataClientDriver() {
         return metadataClientDriver;
+    }
+
+    public long getReadEntriesDelayMillis() {
+        return defaultReadEntriesDelayMillis;
+    }
+
+    public long getNextAddEntryDelayMillis() {
+        Long delay = addEntryDelaysMillis.poll();
+        if (delay != null) {
+            return delay;
+        }
+        return defaultAddEntryDelayMillis;
+    }
+
+    public long getNextAddEntryResponseDelayMillis() {
+        Long delay = addEntryResponseDelaysMillis.poll();
+        if (delay != null) {
+            return delay;
+        }
+        return 0;
+    }
+
+    public void setDefaultAddEntryDelayMillis(long defaultAddEntryDelayMillis) {
+        this.defaultAddEntryDelayMillis = defaultAddEntryDelayMillis;
+    }
+
+    public void setDefaultReadEntriesDelayMillis(long defaultReadEntriesDelayMillis) {
+        this.defaultReadEntriesDelayMillis = defaultReadEntriesDelayMillis;
+    }
+
+    private final FastThreadLocal<PulsarMockBookKeeperReadEvent> readEventThreadLocal = new FastThreadLocal<>() {
+        @Override
+        protected PulsarMockBookKeeperReadEvent initialValue() throws Exception {
+            return new PulsarMockBookKeeperReadEvent();
+        }
+    };
+
+    /**
+     * A PulsarMockReadHandleInterceptor implementation that creates custom Java Flight Recorder events
+     * for each Pulsar MockBookKeeper read.
+     * This is useful when profiling a test with JFR recording or with Async Profiler and its jfrsync option.
+     */
+    @Getter
+    PulsarMockReadHandleInterceptor jfrReadHandleInterceptor =
+            (long ledgerId, long firstEntry, long lastEntry, LedgerEntries entries) -> {
+                PulsarMockBookKeeperReadEvent event = readEventThreadLocal.get();
+                event.maybeApplyAndCommit(ledgerId, firstEntry, lastEntry);
+                return CompletableFuture.completedFuture(entries);
+            };
+
+    public void useJfrReadHandleInterceptor() {
+        setReadHandleInterceptor(jfrReadHandleInterceptor);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarMockBookKeeper.class);
