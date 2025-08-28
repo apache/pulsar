@@ -65,10 +65,7 @@ public class NamespaceEventsSystemTopicFactory {
                 pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName);
         CompletableFuture<Boolean> partition0Exists =
                 pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName.getPartition(0));
-        return nonPartitionedExists.thenCombine(partition0Exists, (a, b) -> {
-            System.out.println("===> a: " + a + ", b: " + b);
-            return a | b;
-        });
+        return nonPartitionedExists.thenCombine(partition0Exists, (a, b) -> a | b);
     }
 
     public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
