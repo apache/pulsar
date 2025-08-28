@@ -457,7 +457,7 @@ public class Commands {
 
     public static void skipChecksumIfPresent(ByteBuf buffer) {
         if (hasChecksum(buffer)) {
-            readChecksum(buffer);
+            buffer.skipBytes(Short.BYTES + Integer.BYTES);
         }
     }
 
