@@ -147,7 +147,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
         var pathWithSlash = path + "/";
 
         return client
