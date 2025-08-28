@@ -30,4 +30,8 @@ public record EncodeData(byte[] data, byte[] schemaId) {
         this(data, null);
     }
 
+    public boolean hasSchemaId() {
+        return schemaId != null && schemaId.length > 0;
+    }
+
 }

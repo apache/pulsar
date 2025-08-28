@@ -433,19 +433,6 @@ public class MessageImpl<T> implements Message<T> {
         return Optional.empty();
     }
 
-    /**
-     * Get schema id or schema version. If schema id is present, return schema id, otherwise return schema version.
-     * This method is only used to decode the message payload.
-     * @return schema id or version, null if neither is present
-     */
-    private byte[] getSchemaIdOrVersion() {
-        if (msgMetadata.hasSchemaId()) {
-            byte[] schemaId = msgMetadata.getSchemaId();
-            return (schemaId.length == 0) ? null : schemaId;
-        }
-        return getSchemaVersion();
-    }
-
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
             ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
@@ -486,9 +473,13 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public T getValue() {
         SchemaInfo schemaInfo = getSchemaInfo();
+        var schemaIdOp = getSchemaId();
         if (schemaInfo != null && SchemaType.KEY_VALUE == schemaInfo.getType()) {
+            if (schemaIdOp.isPresent()) {
+                return getKeyValueBySchemaId(schemaIdOp.get());
+            }
             if (schema.supportSchemaVersioning()) {
-                return getKeyValueBySchemaIdOrVersion();
+                return getKeyValueBySchemaVersion();
             } else {
                 return getKeyValue();
             }
@@ -496,9 +487,12 @@ public class MessageImpl<T> implements Message<T> {
             if (msgMetadata.isNullValue()) {
                 return null;
             }
+            if (schemaIdOp.isPresent()) {
+                return decodeBySchemaId(schemaIdOp.get());
+            }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
-            return decode(schema.supportSchemaVersioning() ? getSchemaIdOrVersion() : null);
+            return decode(schema.supportSchemaVersioning() ? getSchemaVersion() : null);
         }
     }
 
@@ -523,16 +517,25 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private T decodeBySchema(byte[] schemaIdOrVersion) {
-        T value = poolMessage ? schema.decode(topic, payload.nioBuffer(), schemaIdOrVersion) : null;
+    private T decodeBySchema(byte[] schemaVersion) {
+        T value = poolMessage ? schema.decode(payload.nioBuffer(), schemaVersion) : null;
         if (value != null) {
             return value;
         }
 
-        if (null == schemaIdOrVersion) {
+        if (null == schemaVersion) {
             return schema.decode(getByteBuffer());
         } else {
-            return schema.decode(topic, getByteBuffer(), schemaIdOrVersion);
+            return schema.decode(getByteBuffer(), schemaVersion);
+        }
+    }
+
+    private T decodeBySchemaId(byte[] schemaId) {
+        try {
+            return schema.decode(topic, getByteBuffer(), schemaId);
+        } catch (Exception e) {
+            throw new SchemaSerializationException("Failed to decode message from topic " + topic
+                    + " with schemaId " + Base64.getEncoder().encodeToString(schemaId), e);
         }
     }
 
@@ -543,20 +546,34 @@ public class MessageImpl<T> implements Message<T> {
         return this.payload.nioBuffer();
     }
 
-    private T getKeyValueBySchemaIdOrVersion() {
+    private T getKeyValueBySchemaVersion() {
         KeyValueSchemaImpl kvSchema = getKeyValueSchema();
-        byte[] schemaIdOrVersion = getSchemaIdOrVersion();
+        byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
-                    kvSchema.decode(topic, getKeyBytes(), getData(), schemaIdOrVersion);
+                    kvSchema.decode(topic, getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), schemaIdOrVersion);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
             } else {
                 return (T) keyValue;
             }
         } else {
-            return decode(schemaIdOrVersion);
+            return decode(schemaVersion);
+        }
+    }
+
+    private T getKeyValueBySchemaId(byte[] schemaId) {
+        if (schema instanceof AutoConsumeSchema) {
+            throw new UnsupportedOperationException("AutoConsumeSchema is not supported with schemaId");
+        }
+        if (!(schema instanceof KeyValueSchemaImpl<?, ?> kvSchema)) {
+            throw new IllegalStateException("The schema is not a KeyValueSchema");
+        }
+        if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+            return (T) kvSchema.decode(topic, getKeyBytes(), getData(), schemaId);
+        } else {
+            return decodeBySchemaId(schemaId);
         }
     }
 

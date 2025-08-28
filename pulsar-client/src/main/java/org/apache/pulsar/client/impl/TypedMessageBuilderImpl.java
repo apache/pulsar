@@ -81,7 +81,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             }).orElseGet(() -> {
                 EncodeData encodeData = schema.encode(producer.topic, value);
                 content = ByteBuffer.wrap(encodeData.data());
-                if (encodeData.schemaId() != null && encodeData.schemaId().length > 0) {
+                if (encodeData.hasSchemaId()) {
                     msgMetadata.setSchemaId(encodeData.schemaId());
                 }
                 return this;
@@ -330,8 +330,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         }
 
         byte[] schemaId = KeyValue.generateKVSchemaId(
-                keyEncoded == null ? null : keyEncoded.schemaId(),
-                valueEncoded == null ? null : valueEncoded.schemaId());
+                keyEncoded != null && keyEncoded.hasSchemaId() ? keyEncoded.schemaId() : null,
+                valueEncoded != null && valueEncoded.hasSchemaId() ? valueEncoded.schemaId() : null);
         if (schemaId != null && schemaId.length > 0) {
             msgMetadata.setSchemaId(schemaId);
         }
