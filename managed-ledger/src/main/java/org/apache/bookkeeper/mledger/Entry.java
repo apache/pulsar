@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger;
 import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 /**
  * An Entry represent a ledger entry data and its associated position.
@@ -97,5 +98,9 @@ public interface Entry {
      */
     default boolean matchesPosition(Position position) {
         return position != null && position.compareTo(getLedgerId(), getEntryId()) == 0;
+    }
+
+    default MessageMetadata getMessageMetadata() {
+        return null;
     }
 }
