@@ -42,6 +42,8 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.cache.EntryLengthFunction;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -269,6 +271,7 @@ public class PulsarTestContext implements AutoCloseable {
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
         protected PulsarTestContext otherContextToClose;
         protected WithMockZooKeeperOrTestZKServer withMockZooKeeperOrTestZKServer;
+        protected EntryLengthFunction entryCacheEntryLengthFunction;
 
         /**
          * Initialize the ServiceConfiguration with default values.
@@ -375,6 +378,11 @@ public class PulsarTestContext implements AutoCloseable {
 
         public Builder spyConfigCustomizer(Consumer<SpyConfig.Builder> spyConfigCustomizer) {
             spyConfigCustomizer.accept(spyConfigBuilder);
+            return this;
+        }
+
+        public Builder entryCacheEntryLengthFunction(EntryLengthFunction entryCacheEntryLengthFunction) {
+            this.entryCacheEntryLengthFunction = entryCacheEntryLengthFunction;
             return this;
         }
 
@@ -619,6 +627,12 @@ public class PulsarTestContext implements AutoCloseable {
             }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
+            if (entryCacheEntryLengthFunction != null) {
+                RangeEntryCacheManagerImpl entryCacheManager =
+                        (RangeEntryCacheManagerImpl) super.pulsarService.getDefaultManagedLedgerFactory()
+                                .getEntryCacheManager();
+                entryCacheManager.setEntryLengthFunction(entryCacheEntryLengthFunction);
+            }
             if (pulsarServiceCustomizer != null) {
                 pulsarServiceCustomizer.accept(super.pulsarService);
             }

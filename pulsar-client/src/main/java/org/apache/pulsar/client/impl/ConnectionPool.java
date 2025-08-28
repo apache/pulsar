@@ -446,15 +446,19 @@ public class ConnectionPool implements AutoCloseable {
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
+                    .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         } else {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
+                    .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         }
+    }
+
+    protected CompletableFuture<Channel> connectToPhysicalAddress(Channel channel, InetSocketAddress physicalAddress) {
+        return toCompletableFuture(channel.connect(physicalAddress));
     }
 
     public void releaseConnection(ClientCnx cnx) {

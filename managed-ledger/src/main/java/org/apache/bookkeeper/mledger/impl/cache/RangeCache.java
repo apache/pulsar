@@ -61,20 +61,20 @@ class RangeCache {
      * Insert.
      *
      * @param key
-     * @param value ref counted value with at least 1 ref to pass on the cache
+     * @param value       ref counted value with at least 1 ref to pass on the cache
+     * @param entryLength size of the entry in bytes
      * @return whether the entry was inserted in the cache
      */
-    public boolean put(Position key, ReferenceCountedEntry value) {
+    public boolean put(Position key, ReferenceCountedEntry value, int entryLength) {
         // retain value so that it's not released before we put it in the cache and calculate the weight
         value.retain();
         try {
             if (!value.matchesPosition(key)) {
                 throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
             }
-            long entrySize = value.getLength();
-            boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entrySize, newWrapper -> {
+            boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, newWrapper -> {
                 if (entries.putIfAbsent(key, newWrapper) == null && removalQueue.addEntry(newWrapper)) {
-                    this.size.addAndGet(entrySize);
+                    this.size.addAndGet(entryLength);
                     return true;
                 } else {
                     // recycle the new wrapper as it was not used
@@ -86,6 +86,17 @@ class RangeCache {
         } finally {
             value.release();
         }
+    }
+
+    /**
+     * Insert to cache with entry length determined directly from the value.
+     * This method is used in tests.
+     * @param key
+     * @param value
+     * @return
+     */
+    public boolean put(Position key, ReferenceCountedEntry value) {
+        return put(key, value, value.getLength());
     }
 
     public boolean exists(Position key) {

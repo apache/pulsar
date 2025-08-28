@@ -68,6 +68,29 @@ public interface Entry {
     boolean release();
 
     /**
+     * Returns the handler used to track the entry's expected read count for the cacheEvictionByExpectedReadCount
+     * strategy (PIP-430). May return null if unsupported by a custom Managed Ledger implementation,
+     * or not applicable.
+     *
+     * @return the read count handler, or null
+     */
+    default EntryReadCountHandler getReadCountHandler() {
+        return null;
+    }
+
+    /**
+     * Check if the entry has an associated {@link EntryReadCountHandler} and it has remaining expected reads.
+     * @return true if the entry has remaining expected reads, false otherwise
+     */
+    default boolean hasExpectedReads() {
+        EntryReadCountHandler readCountHandler = getReadCountHandler();
+        if (readCountHandler != null) {
+            return readCountHandler.hasExpectedReads();
+        }
+        return false;
+    }
+
+    /**
      * Check if this entry is for the given Position.
      * @param position the position to check against
      * @return true if the entry matches the position, false otherwise

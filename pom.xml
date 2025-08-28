@@ -118,7 +118,11 @@ flexible messaging model and an intuitive client API.</description>
       -Xshare:off <!-- suppress sharing warning -->
       ${test.additional.args.jdk24}
       ${test.netty.args}
+      ${test.asyncprofiler.args}
+      ${test.jvm.args}
     </test.additional.args>
+    <!-- arguments to pass to test JVMs -->
+    <test.jvm.args></test.jvm.args>
     <test.additional.args.jdk24></test.additional.args.jdk24>
     <!-- Netty related JVM args, including Netty leak detection enabled in tests -->
     <test.netty.args>
@@ -148,6 +152,7 @@ flexible messaging model and an intuitive client API.</description>
       -Dio.netty.leakDetection.acquireAndReleaseOnly=true
       -Dio.netty.leakDetection.samplingInterval=32
     </test.netty.leakdetection.args>
+    <test.asyncprofiler.args></test.asyncprofiler.args>
     <testExitJvmOnLeak>false</testExitJvmOnLeak>
     <testExitJvmOnLeakDelayMillis>1000</testExitJvmOnLeakDelayMillis>
     <testLeakDetectionLevel>paranoid</testLeakDetectionLevel>
@@ -204,6 +209,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.bc-fips.version>1.0.2.6</bouncycastle.bc-fips.version>
     <jackson.version>2.17.2</jackson.version>
     <fastutil.version>8.5.16</fastutil.version>
+    <jctools.version>4.0.5</jctools.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
@@ -968,6 +974,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>it.unimi.dsi</groupId>
         <artifactId>fastutil</artifactId>
         <version>${fastutil.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>${jctools.version}</version>
       </dependency>
 
       <dependency>
@@ -2016,6 +2028,8 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/zk-3.5-test-data/*</exclude>
                 <exclude>**/*_pb2.py</exclude>
                 <exclude>**/*_pb2_grpc.py</exclude>
+                <exclude>jmh-result-*</exclude>
+                <exclude>profile-results/**</exclude>
                 <!--
                 Exclude any files from license checks that are in hidden directories (name starting with ".")
                 at the top level. This helps exclude directories used by AI tools
@@ -3037,6 +3051,56 @@ flexible messaging model and an intuitive client API.</description>
       </activation>
       <properties>
        <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+    </profile>
+
+    <!-- This profile is used to run tests with Async Profiler profiling.
+         Download Async Profiler from https://github.com/async-profiler/async-profiler/releases and
+         after installing set LIBASYNCPROFILER_PATH environment variable to the full path of the
+         libasyncProfiler.so (Linux) or libasyncProfiler.dylib (MacOS) file.
+         The profiler will generate a JFR file in the target directory with the name test_profile_<timestamp>_<forkNumber>.jfr
+         Async Profiler's jfrconv tool can be used to convert the JFR file to different type of flamegraphs.
+         For example, to convert the JFR file to a CPU flamegraph, run the following command:
+         jfrconv \-\-cpu target/test_profile_<timestamp>_<forkNumber>_<pid>.jfr
+         the result will be in a .html file in the target directory.
+         You can also use Eclipse Mission Control (https://adoptium.net/jmc) to open the JFR file and analyze it.
+         example usage:
+         ENABLE_MANUAL_TEST=true mvn -PtestAsyncProfiler test -pl pulsar-broker -Dtest=BrokerEntryCacheRollingRestartTest
+         On Linux, it's recommended to pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling:
+         ENABLE_MANUAL_TEST=true mvn -PtestAsyncProfiler -Dtest.asyncprofiler.event=cpu test -pl pulsar-broker -Dtest=BrokerEntryCacheRollingRestartTest
+    -->
+    <profile>
+      <id>testAsyncProfiler</id>
+      <properties>
+        <!-- On Linux, pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling.
+        See https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md for more details.
+        -->
+        <test.asyncprofiler.event>itimer</test.asyncprofiler.event>
+        <!-- Assumes Async Profiler 4.1+ to be installed, which supports "all" option -->
+        <test.asyncprofiler.opts>event=${test.asyncprofiler.event},all,jfrsync=profile</test.asyncprofiler.opts>
+        <test.asyncprofiler.args>
+          -XX:+UnlockDiagnosticVMOptions
+          -XX:+DebugNonSafepoints
+          -Xms${testMaxHeapSize} -XX:+AlwaysPreTouch
+          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},jfr,file=${pulsar.basedir}/target/test_profile_${maven.build.timestamp}_${surefire.forkNumber}_%p.jfr
+          -Dpulsar.test.logging.appender=FILE
+          -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
+        </test.asyncprofiler.args>
+        <testForkCount>1</testForkCount>
+        <testRetryCount>0</testRetryCount>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
+        <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+    </profile>
+    <!-- profile that redirects log4j logs to a file -->
+    <profile>
+      <id>testLoggingToFile</id>
+      <properties>
+        <test.jvm.args>
+        -Dpulsar.test.logging.appender=FILE
+        -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
+        </test.jvm.args>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
       </properties>
     </profile>
   </profiles>

@@ -84,6 +84,11 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
+    @Getter
+    @Setter
+    private boolean cacheEvictionByExpectedReadCount = true;
+    @Getter
+    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
