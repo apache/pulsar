@@ -4,10 +4,10 @@
 
 **Author**: Enrico Olivelli
 
-**Pull Request**: https://github.com/apache/pulsar/pull/11838 
+**Pull Request**: https://github.com/apache/pulsar/pull/11838
 
-**Mailing List discussion**: 
-https://lists.apache.org/x/thread.html/r259cfd0d20162e5e24290bc2ea8f8ac74d53489975e0c7b40d326fec@%3Cdev.pulsar.apache.org%3E 
+**Mailing List discussion**:
+https://lists.apache.org/x/thread.html/r259cfd0d20162e5e24290bc2ea8f8ac74d53489975e0c7b40d326fec@%3Cdev.pulsar.apache.org%3E
 
 **Release**: 2.9.0
 
@@ -36,7 +36,7 @@ Adding **Proxy Extensions** (PE) to the Pulsar proxy, you will see these benefit
 We are going to follow the same conventions of the Broker Protocol Handlers and of the Pulsar Proxy, in order to make the installation of Proxy Extensions very intuitive and straightforward for the users:
 - Configuration in proxy.conf
 - Using NAR packaging
-- Use a dedicated directory pulsar/proxyextensions 
+- Use a dedicated directory pulsar/proxyextensions
 
 ## Public Interfaces
 This PIP will add the same set of Interterfaces we have for the Broker Protocol Handlers, with these differences:

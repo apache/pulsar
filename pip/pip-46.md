@@ -8,7 +8,7 @@
 
 ## Goals
 
-Currently the proxy is used simply to forward messages to brokers but it has the potential to be much more.  I propose to develop a next-gen version of the proxy that allows the proxy to become more pluggable and able to support more ways to publish and consume message from Pulsar. The next-gen proxy will not serve its uses as a traditional proxy but also become a translation layer for Pulsar that allows different protocols to be able to interact with a Pulsar cluster. This will help attract more users to use Apache Pulsar as it could minimize users' migration costs. 
+Currently the proxy is used simply to forward messages to brokers but it has the potential to be much more.  I propose to develop a next-gen version of the proxy that allows the proxy to become more pluggable and able to support more ways to publish and consume message from Pulsar. The next-gen proxy will not serve its uses as a traditional proxy but also become a translation layer for Pulsar that allows different protocols to be able to interact with a Pulsar cluster. This will help attract more users to use Apache Pulsar as it could minimize users' migration costs.
 
 **Initial design goals:**
 

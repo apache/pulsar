@@ -10,7 +10,7 @@
 The machine hosting the Pulsar proxy will have a public IP and susceptible to all kinds of web attacks. The aim of this PIP is to minimize the damage caused by a compromised proxy on the entire service. Specifically, we want to make the following changes:-
 
 ### a. Access to zookeeper
-The current implementation of Pulsar proxy requires access to zookeeper in order to find the next available broker and Authorize the client. If the Proxy is compromised and the attacker has access to zookeeper machines then the entire service is compromised and can be brought down. In order to prevent this, the proxy will no longer talk directly to zookeeper. 
+The current implementation of Pulsar proxy requires access to zookeeper in order to find the next available broker and Authorize the client. If the Proxy is compromised and the attacker has access to zookeeper machines then the entire service is compromised and can be brought down. In order to prevent this, the proxy will no longer talk directly to zookeeper.
 
 ### b. Limit proxy access to specific topics only
 Currently, if a proxy is compromised and the attacker has knowledge of the Athens principal name of a topic/admin - the proxy can produce/consume from any topic. In order to prevent this, the proxy will be authorized to access only specific topic (AuthAction - proxy). In the worse case scenario if the compromised and the attacker has knowledge of the Athens principal name of a topic/admin - the proxy can produce/consume from only specific topics - just like any other client.
@@ -18,7 +18,7 @@ Currently, if a proxy is compromised and the attacker has knowledge of the Athen
 ## Proposed Solution:
 Following has been done to make the Pulsar Proxy more secure:-
 
-### a. Make discovery service optional 
+### a. Make discovery service optional
 The proxy can now connect to broker service URL for lookups if discovery service is disabled in the proxy.
 
 ### b. Proxy AuthAction

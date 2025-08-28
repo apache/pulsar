@@ -4,9 +4,9 @@
 
 **Author**: Yunze Xu
 
-**Pull Request**: https://github.com/apache/pulsar/pull/12088 
+**Pull Request**: https://github.com/apache/pulsar/pull/12088
 
-**Mailing List discussion**: 
+**Mailing List discussion**:
 https://lists.apache.org/thread.html/rb4df052fdea1d6791ecdebdd09bb4cbc27ffec307ad678afb1157c6c%40%3Cdev.pulsar.apache.org%3E
 
 **Release**: 2.9.0
@@ -15,7 +15,7 @@ https://lists.apache.org/thread.html/rb4df052fdea1d6791ecdebdd09bb4cbc27ffec307a
 
 The initial motivation was from Kafka's protocol handler, i.e. KoP (https://github.com/streamnative/kop). KoP allows Kafka producer to configure entry format to `kafka`, which means the message from Kafka producer can be written to bookies directly without any conversion between Kafka's message format and Pulsar's message format. This improves the performance significantly. However, it also introduced the limit that Pulsar consumer cannot consume this topic because it cannot recognize the entry's format.
 
-The existing `ConsumerInterceptor` cannot work for this case because it's based on a `Message<T>` object that is converted from an entry with valid Pulsar format. 
+The existing `ConsumerInterceptor` cannot work for this case because it's based on a `Message<T>` object that is converted from an entry with valid Pulsar format.
 
 ## Goal
 

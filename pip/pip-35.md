@@ -2,14 +2,14 @@
 
 * **Status**: Proposal
  * **Author**: Zhengxin Cai, Lin Lin
- * **Pull Request**: 
+ * **Pull Request**:
  * **Mailing List discussion**: http://mail-archives.apache.org/mod_mbox/pulsar-dev/201904.mbox/%3CCAHQi0xemFAGC6P9e240-8Ho0z4qtUv0uSBLtHfSs5ZeBDJXEug%40mail.gmail.com%3E
 
 ## Motivation
 
 As this [github issue](https://github.com/apache/pulsar/issues/1088) brings up, for a partitioned topic, client has to send LookUp request for each partition. Here we propose a solution to make lookup easier for partitioned topic.
 
-We could either make current LookUp(getBroker) api smarter and it will check if topic is a partitioned topic or not. If it’s a normal topic just return normal LookUp response which will be Pair<InetSocketAddress, InetSocketAddress>, if it’s a partitioned topic then it will return 
+We could either make current LookUp(getBroker) api smarter and it will check if topic is a partitioned topic or not. If it’s a normal topic just return normal LookUp response which will be Pair<InetSocketAddress, InetSocketAddress>, if it’s a partitioned topic then it will return
 List<Pair<InetSocketAddress, InetSocketAddress>> contains all brokers that serving that partitioned topic.
 
 Or we could create a new BatchLookUp api, like getBrokers. It can take a list of topic as input, where each topic has to be either a non partitioned topic or a partition of a partitioned topic and it’ll return Map<TopicName, Pair<InetSocketAddress, InetSocketAddress>> where it’s a map of input topic to corresponding address.
@@ -18,7 +18,7 @@ Prefer to go with second approach as it not only support lookup for all partitio
 
 ## Proposal
 
-In TopicLookupBase is where the core lookup logic will happens. 
+In TopicLookupBase is where the core lookup logic will happens.
 Add new lookupTopicBatchAsync,  within the method, after validation, for each topic, we’ll fist find out the bundle it belong, then invoke NameSpaceService.findBrokerServiceUrl for each bundle and create a Map<Bundle , List<TopicName>>.
 Then iterate through map and create response for each topicname.
 
@@ -29,7 +29,7 @@ Here’s proposed change to protocal buffer definition and apis:
 *PulsarApi.proto*
 
 ```
-	Add 
+	Add
 	Type enum:
 		BATCH_LOOKUP           = 23;
 		BATCH_LOOKUP_RESPONSE  = 24;
@@ -45,7 +45,7 @@ Here’s proposed change to protocal buffer definition and apis:
 	}
 
 	CommandTopicResponse:
-	{	
+	{
 		repeated string topicname               = 10;
 	}
 ```
@@ -61,7 +61,7 @@ Here’s proposed change to protocal buffer definition and apis:
 - ServiceCnx.java
 	- Add handleBatchLookup
 
-- LookupProxyHandler.java   
+- LookupProxyHandler.java
 	- Add handleBatchLookup
 
 - ProxyConnection.java

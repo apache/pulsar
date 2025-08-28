@@ -2,11 +2,11 @@
 
 * **Status**: Accepted
 * **Author**: Jia Zhai, Sijie Guo
-* **Pull Request**: 
+* **Pull Request**:
 * **Mailing List discussion**:
 * **Release**: 2.5.0
 
-Design Proposal: 
+Design Proposal:
 
 ## Motivation
 
@@ -119,7 +119,7 @@ Pulsar broker calls `#close()` to shutdown a protocol handler. The implementatio
 
 ## Configuration
 
-`messagingProtocols` is a newly introduced setting in Pulsar broker for configuring the list of protocols that Pulsar broker will load in addition to Pulsar protocol handler. 
+`messagingProtocols` is a newly introduced setting in Pulsar broker for configuring the list of protocols that Pulsar broker will load in addition to Pulsar protocol handler.
 
 The `ProtocolHandler` will be loaded by using `ServiceLoader`. So Pulsar broker will get a list of candidate protocol handler when it starts up. Pulsar broker will test all the candidate protocol handlers to see if they support one of the messaging protocols configured in `messagingProtocols`. It only initializes the protocol handlers for the configured protocols.
 

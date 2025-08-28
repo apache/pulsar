@@ -8,7 +8,7 @@ Instead, we should have a new standard way for users to use Function easily and 
 
 Before Function starts, some resources only need to be initialized once, and there is no need to make various judgments in the process() method of the Function interface
 
-After closing the Function, in the process of using process(), you need to manually close the referenced external resources, which need to be released separately in the close() of javaInstance 
+After closing the Function, in the process of using process(), you need to manually close the referenced external resources, which need to be released separately in the close() of javaInstance
 
 ## API and Implementation Changes
 
@@ -42,14 +42,14 @@ public class DemoFunction implements HookFunction<String, String>{
         Map<String, Object> connectInfo = context.getUserConfigMap();
         client=init();
     }
- 
+
     @Override
     public  String process(String str, Context context) {
         Object object = client.get(key);
         //Data enrichment
         return null;
     }
- 
+
     @Override
     public void cleanup() {
         client.close();

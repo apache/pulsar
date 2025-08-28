@@ -2,9 +2,9 @@
 
 - Status: Proposal
 - Author: Sijie Guo
-- Pull Request: 
+- Pull Request:
 - Mailing List discussion:
-- Release: 
+- Release:
 
 ## Motivation
 

@@ -10,7 +10,7 @@
 ## Motivation
 
 Pulsar has a [pluggable authentication mechanism](http://pulsar.apache.org/docs/en/security-extending/#authentication) that currently supports several auth providers.
-But currently all the provided authentication are a kind of “single-step" authentication. And under current api it is not able to support mutual authentication between client and server， such as [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer). 
+But currently all the provided authentication are a kind of “single-step" authentication. And under current api it is not able to support mutual authentication between client and server， such as [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer).
 So this PIP is try to discuss the interface changes to support mutual authentication.
 
 ## Proposal
@@ -39,7 +39,7 @@ message AuthData {
 }
 ```
 
-The propose is to reuse these 2 commands related to connecting and auth, and also add auth data fields in CommandConnected. So when server need send auth data back to client, broker could reuse command CommandConnected. 
+The propose is to reuse these 2 commands related to connecting and auth, and also add auth data fields in CommandConnected. So when server need send auth data back to client, broker could reuse command CommandConnected.
 
 A basic logic for the mutual authentication is like this :
 
@@ -48,7 +48,7 @@ A basic logic for the mutual authentication is like this :
 - If auth is complete Broker.newConnected(), finish the auth, and send command back to Client.
 - If auth is not complete, Broker.newAuthChallenge(authDataBroker) and send command back to Client.
 3, Client side
-- If received Connected command, complete the auth, and connection established. 
+- If received Connected command, complete the auth, and connection established.
 - If received AuthChallenge command, do the auth with authDataBroker, and get authDataClient, then send AuthResponse back to Broker. Broker will repeat the process of step 2 until auth complete.
 
 
@@ -61,7 +61,7 @@ A basic logic for the mutual authentication is like this :
 
 #### setCommandData changes in `AuthenticationDataSource` and `AuthenticationDataProvider`:
 
-When establish connection(between client and broker), in each connection, Broker side will have a [AuthenticationDataSource](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationDataSource.java), and Client side will have a 
+When establish connection(between client and broker), in each connection, Broker side will have a [AuthenticationDataSource](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationDataSource.java), and Client side will have a
 [AuthenticationDataProvider.java](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationDataProvider.java). They both have a `getCommandData` method, which get command data from proto command.
 To achieve the mutual authn, we need a method `authenticate`, which instead `getCommandData` but will compute use passed in data and return evaluated and challenged data back to peer.
 
@@ -69,12 +69,12 @@ And since in PulsarApi.proto, we store auth data as bytes in [CommandConnected](
 ```
 byte[]  evaluateResponse(byte[] response)
 ```
-It would be better to use byte[] in method `authenticate`, this could avoid the converting 
+It would be better to use byte[] in method `authenticate`, this could avoid the converting
 `bytes(proto cmd) <-> String(pulsar api) <-> bytes(sasl api)`
-each time. 
+each time.
 
 
-Client change in: [AuthenticationDataProvider](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/AuthenticationDataProvider.java) 
+Client change in: [AuthenticationDataProvider](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/AuthenticationDataProvider.java)
 
 ```
     /**
@@ -162,7 +162,7 @@ interface AuthState {
 }
 ```
 
-Then add a `newAuthState` in the [AuthenticationProvider](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProvider.java). The default implementation can be the `OneStageAuthState`, It can be shared across existing authentication providers. 
+Then add a `newAuthState` in the [AuthenticationProvider](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProvider.java). The default implementation can be the `OneStageAuthState`, It can be shared across existing authentication providers.
 
 
 So the implementation in serverCnx can be very simple:

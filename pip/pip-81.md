@@ -56,7 +56,7 @@ As shown below:
 # Changes
 
 ## API Changes
-1.add API 
+1.add API
 `List<List<MLDataFormats.MessageRange>> buildIndividualDeletedMessageRanges()`
 The returned results are stored in accordance with the ledger dimension, and each ledger has a list
 

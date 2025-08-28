@@ -19,7 +19,7 @@ BookKeeper uses the same type of storage for all three patterns. Moveover, bookk
 
 However, once a segment has been sealed it is immutable. I.e. The set of entries, the content of those entries and the order of the entries can never change. As a result once a segment is sealed you don’t need store it on your expensive 3X replicated SSD cluster. It can be transferred to some object store using Reed-Solomon on HDDs.
 
-The remainder of this document covers how we will do this (in the context of Pulsar). 
+The remainder of this document covers how we will do this (in the context of Pulsar).
 
 ## Background
 
@@ -96,7 +96,7 @@ The metadata has a new context object for each segment in the managed ledger. Th
 
 There will be a admin rest endpoint on the broker, to which a managed ledger position can be passed, and this will call `asyncOffloadPrefix` on the managed ledger.
 
-Offloading can also be enabled to occur automatically for all topics within a namespace. There are two new configurations on a namespace, `offloadTimeInMinutes` and `offloadSizeInMB` similar to the corresponding configurations for retention. 
+Offloading can also be enabled to occur automatically for all topics within a namespace. There are two new configurations on a namespace, `offloadTimeInMinutes` and `offloadSizeInMB` similar to the corresponding configurations for retention.
 
 Setting `offloadTimeInMinutes` will cause a segment to be offloaded to longterm storage when it has been sealed for that many minutes. This value must be lower than `retentionTimeInMinutes`, as otherwise the segment would be deleted before being offloaded.
 

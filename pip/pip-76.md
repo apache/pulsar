@@ -96,7 +96,7 @@ message OffloadContext { // one per ledger
     optional bool bookkeeperDeleted = 4;
     optional int64 timestamp = 5;
     optional OffloadDriverMetadata driverMetadata = 6;
-    repeated OffloadSegment offloadSegment = 7; // new 
+    repeated OffloadSegment offloadSegment = 7; // new
 }
 
 message OffloadSegment {
@@ -214,7 +214,7 @@ public class OffloadResult {
 public interface LedgerOffloader {
 
     CompletableFuture<OffloadHandle> streamingOffload(UUID uuid, Map<String, String> driverMetadata);
-    
+
     CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
                                                        Map<String, String> offloadDriverMetadata);
 
@@ -238,7 +238,7 @@ interface OffloadHandle {
 }
 ```
 
-## 
+##
 
 ## Configuration changes
 
