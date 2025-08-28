@@ -3593,11 +3593,20 @@ public class BrokerService implements Closeable {
             allowed = pulsar.getConfiguration().isAllowAutoTopicCreation();
         }
 
-        if (allowed && topicName.isPartitioned()) {
+        if (topicName.isPartitioned()) {
+            TopicName partitionedTopic = TopicName.get(topicName.getPartitionedTopicName());
             // cannot re-create topic while it is being deleted
             return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                    .isPartitionedTopicBeingDeletedAsync(topicName)
-                    .thenApply(beingDeleted -> !beingDeleted);
+                .getPartitionedTopicMetadataAsync(partitionedTopic, true)
+                .thenApply(partitionedTopicMetadata -> {
+                    if (partitionedTopicMetadata.isEmpty()) {
+                        return allowed;
+                    }
+                    if (partitionedTopicMetadata.get().deleted) {
+                        return false;
+                    }
+                    return partitionedTopicMetadata.get().partitions > topicName.getPartitionIndex();
+                });
         } else {
             return CompletableFuture.completedFuture(allowed);
         }

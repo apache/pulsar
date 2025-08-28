@@ -122,7 +122,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                     .topic(partition.toString())
                     .create();
             fail("unexpected behaviour");
-        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
+        } catch (PulsarClientException.NotFoundException ignored) {
 
         }
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
