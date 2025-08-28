@@ -154,29 +154,6 @@ class RangeCacheEntryWrapper {
         }
     }
 
-    <R> R withOptimisticReadLock(Function<RangeCacheEntryWrapper, R> function) {
-        long stamp = lock.tryOptimisticRead();
-        R result = function.apply(this);
-        if (!lock.validate(stamp)) {
-            stamp = lock.readLock();
-            try {
-                result = function.apply(this);
-            } finally {
-                lock.unlockRead(stamp);
-            }
-        }
-        return result;
-    }
-
-    <R> R withReadLock(Function<RangeCacheEntryWrapper, R> function) {
-        long stamp = lock.readLock();
-        try {
-            return function.apply(this);
-        } finally {
-            lock.unlockRead(stamp);
-        }
-    }
-
     void markRequeued() {
         timestampNanos = System.nanoTime();
         accessed = false;
