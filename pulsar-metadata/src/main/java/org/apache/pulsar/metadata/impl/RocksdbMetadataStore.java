@@ -405,7 +405,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
         if (log.isDebugEnabled()) {
             log.debug("getChildrenFromStore.path={},instanceId={}", path, instanceId);
         }

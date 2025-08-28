@@ -98,7 +98,7 @@ public class MetadataStoreFactoryImplTest {
         }
 
         @Override
-        protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        public CompletableFuture<List<String>> getChildrenFromStore(String path) {
             return null;
         }
 
