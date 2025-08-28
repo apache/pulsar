@@ -84,8 +84,6 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
-    protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
-
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore(String metadataStoreName) {

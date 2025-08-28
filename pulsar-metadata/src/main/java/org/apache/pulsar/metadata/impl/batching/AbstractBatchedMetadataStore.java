@@ -134,7 +134,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     @Override
-    protected final CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public final CompletableFuture<List<String>> getChildrenFromStore(String path) {
         OpGetChildren op = new OpGetChildren(path);
         enqueue(readOps, op);
         return op.getFuture();
