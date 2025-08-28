@@ -736,7 +736,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             NamespaceName namespaceName = TopicName.get(topic.getName()).getNamespaceObject();
             PulsarService pulsar = topic.getBrokerService().getPulsar();
             CompletableFuture<Void> deleteSegmentFuture = NamespaceEventsSystemTopicFactory.checkSystemTopicExists(
-                            namespaceName, EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,pulsar)
+                            namespaceName, EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS, pulsar)
                     .thenCompose(exists -> {
                         if (exists) {
                             return persistentWorker.clearAllSnapshotSegments();

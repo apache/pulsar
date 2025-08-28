@@ -115,7 +115,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         NamespaceName namespaceName = TopicName.get(topic.getName()).getNamespaceObject();
         PulsarService pulsar = topic.getBrokerService().getPulsar();
         return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(
-                    namespaceName, EventType.TRANSACTION_BUFFER_SNAPSHOT,pulsar)
+                    namespaceName, EventType.TRANSACTION_BUFFER_SNAPSHOT, pulsar)
             .thenCompose(exists -> {
                 if (exists) {
                     return this.takeSnapshotWriter.getFuture().thenCompose(writer -> {
