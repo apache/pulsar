@@ -307,9 +307,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public void initializeMessageMetadataIfNeeded(String managedLedgerName) {
         if (messageMetadata == null) {
-            messageMetadata = new MessageMetadata();
             try {
-                Commands.peekMessageMetadata(data, messageMetadata);
+                MessageMetadata msgMetadata = new MessageMetadata();
+                Commands.peekMessageMetadata(data, msgMetadata);
+                this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
                 log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,
                         t);

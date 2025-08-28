@@ -2659,8 +2659,10 @@ public class PersistentTopicsBase extends AdminResource {
                                 if (entry == null) {
                                     batchSizeFuture.complete(0);
                                 } else {
-                                    MessageMetadata metadata =
-                                            Commands.parseMessageMetadata(entry.getDataBuffer());
+                                    MessageMetadata metadata = entry.getMessageMetadata();
+                                    if (metadata == null) {
+                                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                                    }
                                     batchSizeFuture.complete(metadata.getNumMessagesInBatch());
                                 }
                             } catch (Exception e) {
@@ -2839,7 +2841,7 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<MessageId> findMessageIdByPublishTime(long timestamp, ManagedLedger managedLedger) {
         return managedLedger.asyncFindPosition(entry -> {
             try {
-                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                long entryTimestamp = entry.getEntryTimestamp();
                 return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
             } catch (Exception e) {
                 log.error("[{}] Error deserializing message for message position find",
@@ -3009,7 +3011,10 @@ public class PersistentTopicsBase extends AdminResource {
 
         long totalSize = metadataAndPayload.readableBytes();
         BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
-        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        MessageMetadata metadata = entry.getMessageMetadata();
+        if (metadata == null) {
+            metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        }
 
         ResponseBuilder responseBuilder = Response.ok();
         responseBuilder.header("X-Pulsar-Message-ID", pos.toString());
@@ -5451,11 +5456,12 @@ public class PersistentTopicsBase extends AdminResource {
 
 
     private static Long getIndexFromEntry(Entry entry) {
-        final var brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-            return brokerEntryMetadata.getIndex();
-        } else {
-            return null;
-        }
+        return Commands.peekBrokerEntryMetadataToObject(entry.getDataBuffer(), brokerEntryMetadata -> {
+            if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+                return brokerEntryMetadata.getIndex();
+            } else {
+                return null;
+            }
+        });
     }
 }

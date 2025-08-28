@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * An Entry represent a ledger entry data and its associated position.
@@ -102,5 +103,24 @@ public interface Entry {
 
     default MessageMetadata getMessageMetadata() {
         return null;
+    }
+
+    /**
+     * Returns the timestamp of the entry.
+     * @return
+     */
+    default long getEntryTimestamp() {
+        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
+        return Commands.peekBrokerEntryMetadataToLong(getDataBuffer(), brokerEntryMetadata -> {
+            if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+                return brokerEntryMetadata.getBrokerTimestamp();
+            }
+            // otherwise get the publish_time
+            MessageMetadata messageMetadata = getMessageMetadata();
+            if (messageMetadata == null) {
+                messageMetadata = Commands.peekMessageMetadata(getDataBuffer(), null, -1);
+            }
+            return messageMetadata.getPublishTime();
+        });
     }
 }
