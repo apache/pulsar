@@ -178,7 +178,8 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
                         Mockito.eq(PersistentTopic.class));
 
-        brokerService.createPersistentTopic0(topic, true, new CompletableFuture<>(), Collections.emptyMap());
+        brokerService.createPersistentTopic0(TopicName.get(topic), true, new CompletableFuture<>(),
+                Collections.emptyMap(), System.currentTimeMillis());
 
         Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();
