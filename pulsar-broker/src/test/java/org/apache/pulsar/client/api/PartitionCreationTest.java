@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -135,15 +134,9 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         // simulate partitioned topic without partitions
         pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .createPartitionedTopicAsync(TopicName.get(topic),
-                new PartitionedTopicMetadata(numPartitions));
-        Consumer<byte[]> consumer = null;
-        try {
-            consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1")
-                    .subscribeAsync().get(3, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            //ok here, consumer will create failed with 'Topic does not exist'
-        }
-        Assert.assertNull(consumer);
+                new PartitionedTopicMetadata(numPartitions)).join();
+        Assert.assertEquals(admin.topics().getList("public/default").stream()
+            .filter(tp -> TopicName.get(topic).getPartitionedTopicName().endsWith(topic)).toList().size(), 0);
         if (useRestApi) {
             admin.topics().createMissedPartitions(topic);
         } else {
@@ -152,7 +145,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
                 admin.topics().createNonPartitionedTopic(topicName.getPartition(i).toString());
             }
         }
-        consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
         Assert.assertNotNull(consumer);
         Assert.assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         Assert.assertEquals(((MultiTopicsConsumerImpl) consumer).getConsumers().size(), 3);
