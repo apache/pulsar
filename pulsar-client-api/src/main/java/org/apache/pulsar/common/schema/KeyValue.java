@@ -143,9 +143,6 @@ public class KeyValue<K, V> {
      * @param valueSchemaId the schema id of value schema
      */
     public static byte[] generateKVSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
-        if (keySchemaId == null && valueSchemaId == null) {
-            return null;
-        }
         keySchemaId = keySchemaId == null ? new byte[0] : keySchemaId;
         valueSchemaId = valueSchemaId == null ? new byte[0] : valueSchemaId;
         ByteBuffer byteBuffer = ByteBuffer.allocate(
@@ -161,20 +158,22 @@ public class KeyValue<K, V> {
     public static byte[] getSchemaId(byte[] schemaId, boolean isKey) {
         ByteBuffer buffer = ByteBuffer.wrap(schemaId);
         int keySchemaLength = buffer.getInt();
+        byte[] keySchemaId = new byte[0];
         if (keySchemaLength > 0) {
-            byte[] keySchemaId = new byte[keySchemaLength];
+            keySchemaId = new byte[keySchemaLength];
             buffer.get(keySchemaId);
-            if (isKey) {
-                return keySchemaId;
-            }
         }
+        if (isKey) {
+            return keySchemaId;
+        }
+
         int valueSchemaLength = buffer.getInt();
+        byte[] valueSchemaId = new byte[0];
         if (valueSchemaLength > 0) {
-            byte[] valueSchemaId = new byte[valueSchemaLength];
+            valueSchemaId = new byte[valueSchemaLength];
             buffer.get(valueSchemaId);
-            return valueSchemaId;
         }
-        throw new IllegalArgumentException("Invalid schemaId length: " + schemaId.length);
+        return valueSchemaId;
     }
 
     /**

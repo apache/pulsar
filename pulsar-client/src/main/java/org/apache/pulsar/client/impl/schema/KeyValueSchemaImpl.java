@@ -204,36 +204,31 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     }
 
     public KeyValue<K, V> decode(String topic, byte[] keyBytes, byte[] valueBytes, byte[] schemaIdOrVersion) {
-        K k;
-        if (keyBytes == null) {
-            k = null;
-        } else {
+        K k = null;
+        if (keyBytes != null) {
             if (keySchema.supportSchemaVersioning() && schemaIdOrVersion != null) {
-                byte[] keySchemaIdOrVersion = schemaIdOrVersion;
-                if (SchemaType.EXTERNAL.equals(keySchema.getSchemaInfo().getType())) {
-                    keySchemaIdOrVersion = KeyValue.getSchemaId(schemaIdOrVersion, true);
-                }
-                k = keySchema.decode(topic, keyBytes, keySchemaIdOrVersion);
+                k = keySchema.decode(topic, keyBytes, getSchemaIdOrVersion(schemaIdOrVersion, true));
             } else {
                 k = keySchema.decode(keyBytes);
             }
         }
 
-        V v;
-        if (valueBytes == null) {
-            v = null;
-        } else {
+        V v = null;
+        if (valueBytes != null) {
             if (valueSchema.supportSchemaVersioning() && schemaIdOrVersion != null) {
-                byte[] valueSchemaIdOrVersion = schemaIdOrVersion;
-                if (SchemaType.EXTERNAL.equals(valueSchema.getSchemaInfo().getType())) {
-                    valueSchemaIdOrVersion = KeyValue.getSchemaId(schemaIdOrVersion, false);
-                }
-                v = valueSchema.decode(topic, valueBytes, valueSchemaIdOrVersion);
+                v = valueSchema.decode(topic, valueBytes, getSchemaIdOrVersion(schemaIdOrVersion, false));
             } else {
                 v = valueSchema.decode(valueBytes);
             }
         }
         return new KeyValue<>(k, v);
+    }
+
+    private byte[] getSchemaIdOrVersion(byte[] schemaIdOrVersion, boolean isKey) {
+        if (!SchemaType.EXTERNAL.equals(valueSchema.getSchemaInfo().getType())) {
+            return schemaIdOrVersion;
+        }
+        return KeyValue.getSchemaId(schemaIdOrVersion, isKey);
     }
 
     public SchemaInfo getSchemaInfo() {
