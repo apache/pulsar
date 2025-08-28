@@ -2056,8 +2056,16 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             assertTrue(ternaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
 
             ternaryLoadManager.disableBroker();
-
-            assertFalse(ternaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+            try {
+                primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle)
+                        .get(3, TimeUnit.SECONDS);;
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                assertTrue(cause instanceof org.apache.pulsar.metadata.api.MetadataStoreException);
+                assertTrue(cause.getMessage().contains(
+                        "broker is unavailable so far because it is in the state that tries to reconnect to the "
+                                + "metadata store."));
+            }
             if (primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get()) {
                 assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
             } else {
