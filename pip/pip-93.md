@@ -14,7 +14,7 @@ Now, transaction basic development has been completed. The user must test the pe
 
 What  we need to do is create or update perf test tools to test the performance of the transaction component.
 
-- test performance of `transactionBuffer`: 
+- test performance of `transactionBuffer`:
    - compare the performance difference between sending messages with transaction and without transaction.
 - test performance of `PendingAck`:
     - compare the performance difference with transaction and without transaction ack message
@@ -26,7 +26,7 @@ What  we need to do is create or update perf test tools to test the performance 
 
 We implemented the performance tests of the three components of transaction separately.
 
-- update `PerformanceProducer`     ———test `TransactionBuffer` 
+- update `PerformanceProducer`     ———test `TransactionBuffer`
     - Add `isTransactionEnable` to control whether transactions need to be opened.
     - Add `numMessagesPerTransaction` to control the number messages of a transaction produced
 - update `PerformanceConsumer`  ———test `PendingAckHnadler`
@@ -60,7 +60,7 @@ We implemented the performance tests of the three components of transaction sepa
     - private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
     - public String confFile;
     - public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
-    - public int numThreads = 1; 
+    - public int numThreads = 1;
     - public String adminURL;
     - public String serviceURL;
     - public Integer partitions = null;

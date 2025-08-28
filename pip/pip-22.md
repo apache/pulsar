@@ -3,12 +3,12 @@
 - **Status**: Done
 - **Author**: [Penghui Li](https://github.com/codelipenghui)
 - **Pull Request**: [#2508](https://github.com/apache/incubator-pulsar/pull/2508)
-- **Mailing List discussion**: 
+- **Mailing List discussion**:
 - **Release**: 2.2.0
 
 ## Motivation
 
-When consumer got messages from pulsar, It's difficult to ensure every message can be consume success. Pulsar support message redelivery feature by set acknowledge timeout when create a new consumer. This is a good feature guarantee consumer will not lost messages. 
+When consumer got messages from pulsar, It's difficult to ensure every message can be consume success. Pulsar support message redelivery feature by set acknowledge timeout when create a new consumer. This is a good feature guarantee consumer will not lost messages.
 
 But however, some message will redelivery so many times possible, even to the extent that it can be never stop.
 
@@ -23,8 +23,8 @@ The Pulsar Dead Letter Topic should have the following capabilities:
 
 ## Design
 
-This design tries to do most of the work on broker side, This could make the client and broker side implementation easier, reduce the proto command executing between client and broker, and avoid the catching up work for multiple language clients. 
- 
+This design tries to do most of the work on broker side, This could make the client and broker side implementation easier, reduce the proto command executing between client and broker, and avoid the catching up work for multiple language clients.
+
 The main work is in `Subscription` or `Dispatcher`(e.g. `PersistentSubscription` or `PersistentDispatcherMultipleConsumers`), in which place we could define  a Redelivery Tracker to track every un-acked messages send to from this subscription. Redelivery Tracker record the number of deliver times in memory, it will increment at each time of message redelivery.
 
 The subscription contains user defined maximum times of redeliveries and the the name of Dead Letter Topic for enable this feature. Usually the name of Dead Letter Topic is not necessary.If the the name of Dead Letter Topic is absent, pulsar broker need generate with topic name and subscription name and suffix with -DLQ.

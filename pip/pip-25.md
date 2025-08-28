@@ -53,7 +53,7 @@ The 3 parts are:
     can be attached when creating a token and used later during the
     validation
  3. **Signature**: Crypto signature that ensures authenticity of the
-    token    
+    token
 
 The main properties of JSON Web Tokens are:
   1. Tokens are created and signed with a secret key

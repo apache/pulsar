@@ -3,8 +3,8 @@
 * **Status**: Adopted
 * **Author**: Guangning E
 * **Pull Request**: https://lists.apache.org/thread.html/ec4437456d399aaefbca0b980bbfb2c63fd83ad1d15a2d05d8046962@%3Cdev.pulsar.apache.org%3E
-* **Mailing List discussion**: 
-* **Release**: 
+* **Mailing List discussion**:
+* **Release**:
 
 Pulsar Manager is already accepted as part of Pulsar project. The repo is available at - https://github.com/apache/pulsar-manager.
 
@@ -36,7 +36,7 @@ Github Repo*: \[[https://github.com/streamnative/pulsar-manager](https://github.
 
 *\#\#\# Concepts*
 
-*We introduced a concept \`Environment\` (aka Instance) in Pulsar Manager for managing multiple distinguished or isolated Pulsar environments. For example, within an organization, you might have a \`Staging\` environment for development and testing and a \`Production\` environment for serving production traffic.* 
+*We introduced a concept \`Environment\` (aka Instance) in Pulsar Manager for managing multiple distinguished or isolated Pulsar environments. For example, within an organization, you might have a \`Staging\` environment for development and testing and a \`Production\` environment for serving production traffic.*
 
 *Within an environment, there are multiple geo-replicated clusters sharing the same global configuration store. Each cluster has its own dedicated local zookeeper and a list of brokers and bookies.*
 
@@ -44,45 +44,45 @@ Github Repo*: \[[https://github.com/streamnative/pulsar-manager](https://github.
 
 *Pulsar Manager features are listed as follows:*
 
-- *Management*  
-  - *Environment : (operations on environment)*  
-    - *Create / Delete / Update / List / Get*  
-  - *Cluster : (operations on clusters)*  
-    - *Create / Delete / Update / List / Get*  
-  - *Brokers : (operations on brokers)*  
-    - *Heartbeat / Unload*  
-  - *Tenants:*  
-    - *Create / Delete / Update / List*  
-  - *Namespaces:*  
-    - *Create / Delete / List*  
-    - *Manage Namespace Policy*   
-    - *Unload*  
-    - *Operations on Namespace Bundles*  
-  - *Topics*  
-    - *Create / Delete / List*  
-    - *Unload / Terminate / Offload / Compact*  
-    - *Topic Details*  
-  - *Subscriptions*  
-    - *Create / Delete / List*  
-    - *Reset Cursor / Skip / Clear backlog / Unsubscribe*  
-  - *Namespace Isolation Policies*  
-    - *Create / Delete / Update / Get / List*  
-  - *Failure Domains*  
-    - *Create / Delete / Update / Get / List*  
-- *Monitoring: (display \*aggregated\* stats at different levels)*  
-  - *Tenants*  
-    - *List the total number of namespaces per tenant (both aggregated and per-cluster basis)*  
-  - *Namespaces*  
-    - *List the total number of topics per namespace*  
-    - *List the aggregated stats per namespace (such as rate-in, rate-out, throughput-in, and throughput-out)*  
-    - *List the distributions of namespace bundles*  
-  - *Topics*  
-    - *List the total number of partitions per topic*  
-    - *List the aggregated stats per topic (such as rate-in, rate-out, throughput-in, and throughput-out)*  
-    - *Detailed stats per topic partition*  
-    - *Detailed stats of storage per topic partition*  
-    - *Detailed stats of subscription per topic and per partition*  
-    - *Detailed stats of producers*  
+- *Management*
+  - *Environment : (operations on environment)*
+    - *Create / Delete / Update / List / Get*
+  - *Cluster : (operations on clusters)*
+    - *Create / Delete / Update / List / Get*
+  - *Brokers : (operations on brokers)*
+    - *Heartbeat / Unload*
+  - *Tenants:*
+    - *Create / Delete / Update / List*
+  - *Namespaces:*
+    - *Create / Delete / List*
+    - *Manage Namespace Policy*
+    - *Unload*
+    - *Operations on Namespace Bundles*
+  - *Topics*
+    - *Create / Delete / List*
+    - *Unload / Terminate / Offload / Compact*
+    - *Topic Details*
+  - *Subscriptions*
+    - *Create / Delete / List*
+    - *Reset Cursor / Skip / Clear backlog / Unsubscribe*
+  - *Namespace Isolation Policies*
+    - *Create / Delete / Update / Get / List*
+  - *Failure Domains*
+    - *Create / Delete / Update / Get / List*
+- *Monitoring: (display \*aggregated\* stats at different levels)*
+  - *Tenants*
+    - *List the total number of namespaces per tenant (both aggregated and per-cluster basis)*
+  - *Namespaces*
+    - *List the total number of topics per namespace*
+    - *List the aggregated stats per namespace (such as rate-in, rate-out, throughput-in, and throughput-out)*
+    - *List the distributions of namespace bundles*
+  - *Topics*
+    - *List the total number of partitions per topic*
+    - *List the aggregated stats per topic (such as rate-in, rate-out, throughput-in, and throughput-out)*
+    - *Detailed stats per topic partition*
+    - *Detailed stats of storage per topic partition*
+    - *Detailed stats of subscription per topic and per partition*
+    - *Detailed stats of producers*
     - *Detailed stats of consumers*
 
 ![][image2]
@@ -101,7 +101,7 @@ Github Repo*: \[[https://github.com/streamnative/pulsar-manager](https://github.
 
 *\`\`\`*
 
-*GET /pulsar-manager/admin/v2/namespaces/{tenant}* 
+*GET /pulsar-manager/admin/v2/namespaces/{tenant}*
 
 *\`\`\`*
 
@@ -117,19 +117,19 @@ Github Repo*: \[[https://github.com/streamnative/pulsar-manager](https://github.
 
 *This request is posted to endpoints under \`/admin\`. It is forwarded  directly to the given broker.*
 
-*\#\#\#\# Timer*  
+*\#\#\#\# Timer*
 *The timer is responsible for collecting the statistical information of each environment and each broker under each cluster and storing it into database. With the collected stats, it is very convenient to aggregate the stats at different dimensions (subscription, topic, namespace, tenant, broker, cluster, and so on).*
 
 *\#\#\#\# Zuul router*
 
-*Pulsar provides a rich RESTful API to manage Pulsar clusters. Pulsar manager reuses these features to the greatest extent possible. Therefore, a Zuul component is added to Pulsar Manager for routing RESTful requests. For all non-idempotent operations, it is directly forwarded to broker.* 
+*Pulsar provides a rich RESTful API to manage Pulsar clusters. Pulsar manager reuses these features to the greatest extent possible. Therefore, a Zuul component is added to Pulsar Manager for routing RESTful requests. For all non-idempotent operations, it is directly forwarded to broker.*
 
 *Zuul is also responsible for handling request redirection. Since Pulsar manager aims at managing multiple Pulsar environment and Pulsar clusters. The Pulsar manager has to make sure it forwards the request to the right Pulsar clusters (brokers). Hence the RESTful requests sent from frontend to backend carries additional environment or cluster related headers to tell Zuul which pulsar cluster (broker) that this request should be sent to.*
 
 *These headers are:*
 
-- *X-pulsar-cluster: the name of the pulsar cluster*  
-- *X-pulsar-broker: the name of the pulsar broker*  
+- *X-pulsar-cluster: the name of the pulsar cluster*
+- *X-pulsar-broker: the name of the pulsar broker*
 - *Environment: the name of the pulsar environment. The environment is also stored as part of the cookie.*
 
 *\#\#\#\# Pluggable database*
@@ -148,12 +148,12 @@ Github Repo*: \[[https://github.com/streamnative/pulsar-manager](https://github.
 
 *The first version of the front end consists of several parts:*
 
-* *Tenants management*  
-* *Namespaces management*  
-* *Topics management*  
-* *Subscriptions management*  
-* *Brokers management*  
-* *Clusters management*  
+* *Tenants management*
+* *Namespaces management*
+* *Topics management*
+* *Subscriptions management*
+* *Brokers management*
+* *Clusters management*
 * *Dynamic environments with multiple changes*
 
 *\#\#\#\# Dynamic environments with multiple changes*
@@ -188,7 +188,7 @@ Github Repo*: \[[https://github.com/streamnative/pulsar-manager](https://github.
 
 *We have the following test plans:*
 
-* *Add unit tests for backend*  
+* *Add unit tests for backend*
 * *Add integration tests for frontend*
 
 # **Rejected Alternatives**

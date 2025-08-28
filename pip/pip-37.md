@@ -45,7 +45,7 @@ We discussed how message chunking works without any broker changes when there is
 
 #### Option 1: Broker caches mapping of message-UUID and consumerId
 
-Message chunking/split and joins requires all chunks related to one message must be delivered to one consumer. So, in the case of shared consumers we need broker change where broker reads message metadata before dispatching the messages. Broker keeps a sorted list of shared consumer based on consumer connected time and based on message-id hash , broker selects a consumer to send all chunks attached to that message-id. Broker also keeps track of hash-id for on-fly messages which will avoid conflict when new consumer connects to broker and joins the party. 
+Message chunking/split and joins requires all chunks related to one message must be delivered to one consumer. So, in the case of shared consumers we need broker change where broker reads message metadata before dispatching the messages. Broker keeps a sorted list of shared consumer based on consumer connected time and based on message-id hash , broker selects a consumer to send all chunks attached to that message-id. Broker also keeps track of hash-id for on-fly messages which will avoid conflict when new consumer connects to broker and joins the party.
 
 Broker can also use [PersistentStickyKeyDispatcherMultipleConsumers](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/persistent/PersistentStickyKeyDispatcherMultipleConsumers.java) to dispatch chunked messages of specific original message by considering message-uuid as Key.
 
@@ -62,7 +62,7 @@ This approach will not work very well in case of redelivery. In case of redelive
 
 #### Option 2: Producer publish marker message after publishing all chunked messages.
 
-One of the main issues in Option 1 was to manage dispatching of redelivered messages which are stored into unsorted map. 
+One of the main issues in Option 1 was to manage dispatching of redelivered messages which are stored into unsorted map.
 To solve this problem, producer will publish a marker-message with all list of chunked messages's messageIds(ledgerId,entryId) once all the chunked messages are published successfully. There will not be any change at broker while persisting these messages and they will be persisted into the same ledger with other messages.
 
 However, while dispatching messages, broker will read metadata of the message and skip the message if it is chunked message. Broker will deliver these chunked messages when it is dispatching appropriate marker-message attached to those chunked messages. When broker is trying to dispatch maker-message it will deserialize payload of that marker message and retrieve list of chunked message-ids present into the payload. Broker reads those list of chunked messages and dispatch them together to one specific consumer in order. Consumer will stitch these messages together, process the original message and ack all the chunked messages along with the marker message.
@@ -99,7 +99,7 @@ Eg:
 ## Client and Broker changes for Non-shared subscription:
 
 ### Client changes:
-There will not be any change require into producer and consumer api. 
+There will not be any change require into producer and consumer api.
 
 Producer will split the original message into chunks and publish them with chunked metadata. Producer will have configuration `chunkingEnabled` to enable chunking if message payload size is larger than broker can support. If we want to support non-shared subscription then producer have to publish marker message along with chunked messages as we have discussed in the previous section.
 
@@ -113,7 +113,7 @@ will have new fields under metadata to pass chunking metadata from producer to c
 ```
 optional string uuid; // Original message uuid that will be same for all the chunks
 optional int32 num_chunks_from_msg;
-optional int32 total_chunk_msg_size; 
+optional int32 total_chunk_msg_size;
 optional int32 chunk_id;
 ```
 

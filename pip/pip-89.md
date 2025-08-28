@@ -10,7 +10,7 @@
 
 As our pulsar clusters have grown we have found it harder and harder to debug production issues. We have found that we have to rely on domain experts and find the causes of issues, and often find that key information is missing to discover the root cause. We often end up having to access zookeeper directly to discover the state. When we have a question like "To which broker was topic X assigned at time Y?", we have to dig into the code to find the exact log messages which give some indication to the answer.
 
-The core of the problem is Pulsar's logging. In general it does not surface enough information about state changes in the system. 
+The core of the problem is Pulsar's logging. In general it does not surface enough information about state changes in the system.
 
 Pulsar's logging makes heavy use of string interpolation. String interpolation makes it cumbersome and error prone to add new fields, and result in log messages which require complex regexes to search.
 
@@ -26,7 +26,7 @@ No public interface change
 ## TL;DR
 We are proposing to add structured, documented event logging to Pulsar. We will add a wrapper to slf4j to instrument the code. The change will be gradual, and work equally as well with grep as with complex tools like Splunk. The aim is to log all state changes in the control plane.
 ## Structured, documented event logging
-Structured logging means that logged events have context added to them in key value form. This is in contrast to unstructured logging, where events are interpolated into the string in an ad hoc manner. 
+Structured logging means that logged events have context added to them in key value form. This is in contrast to unstructured logging, where events are interpolated into the string in an ad hoc manner.
 
 For example, for a lookup request the logged event should have the following data added to the log:
 * RequestId
@@ -47,7 +47,7 @@ LoggedEvent e = parentEvent.newTimedEvent()
     .attr("topic", topic)
     .attr("permitsAvailable", permitsAvailable);
 
-// DO THE LOOKUP 
+// DO THE LOOKUP
 
 e.attr("result", lookupResult)
  .info(Events.LOOKUP);
@@ -68,7 +68,7 @@ public enum Events {
 ```
 
 ## Logging errors in the data plane
-So far the discussion has focussed on the control plane. Logging in generally is quite heavy, so we want to avoid it as much as possible in the data plane. However, there are cases where we want to log in the data plane, namely when an error occurs. 
+So far the discussion has focussed on the control plane. Logging in generally is quite heavy, so we want to avoid it as much as possible in the data plane. However, there are cases where we want to log in the data plane, namely when an error occurs.
 Not all errors in the data plane are interesting. Pulsar writes asynchronously to bookkeeper, so the common case is that there are multiple requests in flight at any time. If one write request to a ledger throws an error, all subsequent write requests will also throw an error. Only the first error is interesting. To log the rest would create a lot of noise in the logs. For this scenario we'll use sampled logging. If a log is sampled, it will only log once every given time period.
 ```java
 parentEvent.newSampledEvent(1, TimeUnit.SECOND)
@@ -79,7 +79,7 @@ parentEvent.newSampledEvent(1, TimeUnit.SECOND)
 ```
 
 ## Passing context down the call stack
-It is very useful to be able to tie events pertaining to the same operation together. For example, when a topic is created, there is a ledger creation event, and a managed ledger update event. When the user initiates the topic creation, an ID will be generated which will be threaded through the subsequent events. 
+It is very useful to be able to tie events pertaining to the same operation together. For example, when a topic is created, there is a ledger creation event, and a managed ledger update event. When the user initiates the topic creation, an ID will be generated which will be threaded through the subsequent events.
 
 However, we don't want to have to modify all function signatures to pass in this context information. Instead we will take advantage of thread local storage. When the root event is created, it stores its context in a TLS variable. This can then be retrieved further down the call stack.
 ```java
@@ -95,8 +95,8 @@ public void method2() {
 }
 ```
 ## Wrapping Slf4j
-This change is necessarily a brownfield development. Not all subcomponents can be changed at once so structured logging will have to coexist with traditional logging for some time. We also want structured logging to work with existing logging configuration. 
-For this reason, the backend for structured logging will be slf4j. The actual structured information will be transmitted using MDC, which is available in all the backends supported by slf4j. 
+This change is necessarily a brownfield development. Not all subcomponents can be changed at once so structured logging will have to coexist with traditional logging for some time. We also want structured logging to work with existing logging configuration.
+For this reason, the backend for structured logging will be slf4j. The actual structured information will be transmitted using MDC, which is available in all the backends supported by slf4j.
 
 ## Proposed API
 ```java

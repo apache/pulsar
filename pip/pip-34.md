@@ -29,7 +29,7 @@ The hash value of message key determines the target consumer. The hash layer has
 1. The whole range of hash value could be covered by all the consumers.
 1. Once a consumer is removed, the left consumers could still serve the whole range.
 
-Here is an example hash method: In the dispatcher, broker could collect the dispatch rate for each consumer. 
+Here is an example hash method: In the dispatcher, broker could collect the dispatch rate for each consumer.
 When a new consumer is added, we could choose the busiest consumer and split its hash range, and share a half of the hash range to the new consumer.
 When a consumer is closed, we could assign its hash range to adjacent consumer, which has less dispatch rate.
 
@@ -44,9 +44,9 @@ There are 3 kinds of blocks, each block represents one consumer. vertical axis r
 1. at time T4, C2 is closed, and its hash range is assigned to C3. C3 will serve the whole range(0--1).
 
 ### change in PulsarApi.proto
-Add a new sub type in CommandSubscribe.SubType. 
+Add a new sub type in CommandSubscribe.SubType.
 Add a new field in MessageMetadata, which served for this feature only. By using a new Key, it could avoid impacting other features. e.g. user want to use original key for compact/partition-routing, while want to use a new key for the key ordering.
- 
+
 ```
 message CommandSubscribe {
 	enum SubType {
@@ -67,7 +67,7 @@ PersistentStickyKeyDispatcherMultipleConsumers.
 The main methods will include:
 ```
 void addConsumer(Consumer consumer) throws BrokerServiceException {
-// add consumer 
+// add consumer
 // and update the hash range of related consumer.
 }
 
@@ -80,13 +80,13 @@ Consumer getConsumer(String key) {
 // return the consumer that serves this hash key
 }
 
-// once complete read entries from BookKeeper, 
+// once complete read entries from BookKeeper,
 // dispatch messages to consumer according to the key value.
 void readEntriesComplete(List<Entry> entries, Object ctx) {
 // 1. fetch Key out of Entry.
 // 1. dispatch message to target consumer.
 // 1. if consumer not have available permit, add message to messagestoReplay.
-} 
+}
 ```
 
 ## Some future work

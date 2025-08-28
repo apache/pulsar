@@ -2,13 +2,13 @@
 
 * **Status**: In Progress
 * **Authors**: Jerry Peng, Matteo Merli
-* **Mailing List discussion**: 
+* **Mailing List discussion**:
 N/A
 * **Prototype**: https://github.com/jerrypeng/presto/tree/pulsar_connector
 
 ## What are we trying to do?
 
-We are trying to create a method in which users can explore, in a natural manner,  the data already stored within Pulsar topics.  We believe the best way to accomplish this is to expose SQL interface that allows users to query existing data within a Pulsar cluster.  
+We are trying to create a method in which users can explore, in a natural manner,  the data already stored within Pulsar topics.  We believe the best way to accomplish this is to expose SQL interface that allows users to query existing data within a Pulsar cluster.
 
 Just to be absolutely clear,  the SQL we are proposing is for querying data already in Pulsar and we are currently not proposing the implementation of any sort of SQL on data streams
 
@@ -36,14 +36,14 @@ Thus, Pulsar will be queried for metadata concerning topics and schemas and from
 	* Queries from users or groups should not overly impact other queries from other users or groups
 * We would like to target two types of deployments:
 	1. Embedded with pulsar cluster
-		* Run Presto coordinator and workers as part of the existing function worker service. 
+		* Run Presto coordinator and workers as part of the existing function worker service.
 	2. Allow existing presto clusters to be used to query a Pulsar cluster
 
 ## Implementation
 
 ### Presto-Pulsar connector
 
-Presto has a SPI system to add connectors. We need to create a connector able to perform the following tasks: 
+Presto has a SPI system to add connectors. We need to create a connector able to perform the following tasks:
 * Discover schema for a particular topic
 	* This will be done through Pulsar Schema REST API
 * Discover the amount of entries stored in a topic and break down the entries across multiple workers
@@ -52,13 +52,13 @@ Presto has a SPI system to add connectors. We need to create a connector able to
 	* Each worker positions itself on a particular entry and read a determined number of entries
 	* Parse Pulsar message metadata and extract messages from the BookKeeper entries
 	* Deserialize entries, based on schema definition, and feed the objects to Presto
-	
-    
+
+
 ### Presto deployment
 
-Presto is composed of a coordination and multiple worker nodes (https://prestodb.io/overview.html). We plan to have Presto run in embedded mode with regular Pulsar scripts for uniform operations. 
+Presto is composed of a coordination and multiple worker nodes (https://prestodb.io/overview.html). We plan to have Presto run in embedded mode with regular Pulsar scripts for uniform operations.
 
-One of the nodes will be elected as coordinator (in the same way as function workers elect a leader already). Since all the requests to Presto coordinator are made through HTTP/HTTPS, it would be possible to proxy/redirect requests made through the regular Pulsar service URL. 
+One of the nodes will be elected as coordinator (in the same way as function workers elect a leader already). Since all the requests to Presto coordinator are made through HTTP/HTTPS, it would be possible to proxy/redirect requests made through the regular Pulsar service URL.
 
 Regarding worker nodes, one possibility is to co-locate with Pulsar function worker nodes, which can in their turn be co-located with brokers, when deploying on a small single-tenant cluster.
 

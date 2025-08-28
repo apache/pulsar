@@ -9,22 +9,22 @@
 
 With the increase of contributions, more and more features are added pretty quickly. However these features
 are not documented. And there is no checklist for contributors to check when contributing a feature. This PIP
-is proposing to improve the github pull request template by adding a checklist for contributors to check. It also help improve the review process. 
+is proposing to improve the github pull request template by adding a checklist for contributors to check. It also help improve the review process.
 
 ## Github Pull Request Template
 
 ```
 <--
 ## Contribution Checklist
-  
+
   - Name the pull request in the form "[component] Title of the pull request". Skip *component* if you are unsure about which is the best component. E.g. `[docs] Fix typo in produce method`.
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
-  
+
   - Make sure that the change passes the CI checks.
 
   - Each pull request should address only one issue, not mix up code from multiple issues.
-  
+
   - Each commit in the pull request has a meaningful commit message
 
   - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.

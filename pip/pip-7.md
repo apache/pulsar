@@ -16,15 +16,15 @@ In Pulsar, each cluster will have multiple pre-configured failure domains and ea
 - **Deploy a patch or release to specific domain:**
 Sometimes, there will be a need to deploy a change/patch which requires for set of clients (eg. some critical/high-traffic namespace requires immediate attention or bug-fix).
 
-- **Rollout a new release domain by domain:** 
+- **Rollout a new release domain by domain:**
 We can do new release roll out domain by domain which can make sure that other domains are always available if current domain is going through maintenance or deployment-rollout.
 
-- **Support anti-affinity namespace group:** 
+- **Support anti-affinity namespace group:**
 Sometimes application has multiple namespaces and wants one of them available all the time to avoid any downtime. In this case, we can distribute such namespaces to different failure domains. We will discuss this feature in details in next section.
 
 Therefore, we want to introduce "Failure domain" and "Anti-Affinity namespace" in pulsar .
 
-## Proposal 
+## Proposal
 
 ## Pulsar failure domain
 
@@ -36,7 +36,7 @@ Broker will store domain configuration in global-zookeeper at path: `/admin/clus
 - One broker can’t be part of multiple domains and API validates it before adding broker into domain
 
 ### Admin api:
-- **Create domain:** 
+- **Create domain:**
 It creates a domain under a specific cluster
 ```
 $ pulsar-admin clusters create-failure-domain <cluster-name> --domain-name <domain-name> --broker-list <broker-list-comma-separated>
@@ -64,13 +64,13 @@ Sometimes application has multiple namespaces and we want one of them available 
 
 Therefore, such group of namespaces have anti-affinity to each other and together they make an anti-affinity-group which describes that all the namespaces that are part of this anti-affinity group have anti-affinity and load-balancer should try to place these namespaces to different failure domains. _**if there are more anti-affinity namespaces than failure domains then, load-balancer distributes namespaces evenly across all the domains and also every domain should distribute namespaces evenly across all the brokers under that domain.**_
 
-For instance in figure 1: 
+For instance in figure 1:
 - Pulsar has 2 failure domains (Domain-1 and Domain-2) and each domain has 2 brokers in it. Now, we have one anti-affinity group which has 4 namespaces in it so, all 4 namespaces have anti-affinity to each other and load-balancer should try to place them to different failure domains.
 - However, Pulsar has only 2 failure domains so, each domain will own 2 namespaces each. Also, load-balancer will try to distribute namespaces evenly across all the brokers in the same domain. Each domain has 2 brokers so, every broker owns one namespace from this anti-affinity namespace-group.
 - So, finally in figure 1, we can see that domain-1 and domain-2 owns 2 namespaces each and all 4 brokers owns 1 namespace each.
 
 ![image](https://user-images.githubusercontent.com/2898254/31748935-8c62baba-b42b-11e7-856e-e315fbe2b340.png)
-           
+
 [Figure 1: anti-affinity namespace distribution across failure domains]
 
 ### Admin api:
@@ -80,23 +80,23 @@ An anti-affinity group is created automatically when the first namespace is assi
 
 Each namespace can belong to only one anti-affinity group. If a namespace with an existing anti-affinity assignment is  assigned to another anti-affinity group, the original assignment will be dropped.
 
-(1) Assign a namespace to an  anti-affinity group:  It sets anti-affinity group name for a namespace. 
-```	
+(1) Assign a namespace to an  anti-affinity group:  It sets anti-affinity group name for a namespace.
+```
 $ pulsar-admin namespaces set-anti-affinity-group <namespace> --group <group-name>
 ```
 
 (2) Get the anti-affinity group a namespace is bound to
-```	
-$ pulsar-admin namespaces get-anti-affinity-group <namespace> 
+```
+$ pulsar-admin namespaces get-anti-affinity-group <namespace>
 ```
 
-(3) Remove namespace from an anti-affinity group: It removes the namespace from the anti-affinity group 
-```	
-$ pulsar-admin namespaces delete-anti-affinity-group <namespace> 
+(3) Remove namespace from an anti-affinity group: It removes the namespace from the anti-affinity group
+```
+$ pulsar-admin namespaces delete-anti-affinity-group <namespace>
 ```
 
 (4) Get all namespaces assigned to a given anti-affinity group
-```	
+```
 $ pulsar-admin namespaces get-anti-affinity-namespaces --cluster <cluster-name> --group <group-name>
 ```
 
@@ -107,7 +107,7 @@ $ pulsar-admin namespaces get-anti-affinity-namespaces --cluster <cluster-name> 
 To describe anti-affinity between namespaces, we have to bind them under one anti-affinity group which indicates that all namespaces under this group have anti-affinity to each other. Therefore, we will introduce a new field `antiAffinityGroup` under a  namespace-policies.
 
 **Load-balancer**
-While assigning namespace-bundle ownership, load-balancer will first check the anti-affinity group name for this namespace and if it exists then load-balancer will get list of all namespaces which belong to same anti-affinity group. Once, load-balancer will retrieve list of anti-affinity namespaces that belong to this group, load-balancer will try to place them under different failure domains. 
+While assigning namespace-bundle ownership, load-balancer will first check the anti-affinity group name for this namespace and if it exists then load-balancer will get list of all namespaces which belong to same anti-affinity group. Once, load-balancer will retrieve list of anti-affinity namespaces that belong to this group, load-balancer will try to place them under different failure domains.
 
 As we described earlier, load-balancer will provide a best effort to distribute such namespaces to different failure domains but it does not give guarantee if we have more number of anti-affinity namespaces than number of failure domains.
 
