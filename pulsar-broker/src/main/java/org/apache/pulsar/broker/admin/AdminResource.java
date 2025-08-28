@@ -761,7 +761,8 @@ public abstract class AdminResource extends PulsarWebResource {
                     if (persistentResourceCreated) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    return getPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()), true, false).thenApply(metadata -> {
+                    return getPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()), true,
+                            false).thenApply(metadata -> {
                         return metadata.partitions > topicName.getPartitionIndex();
                     });
                 });
