@@ -10,7 +10,7 @@ Design Proposal:
 
 ## Motivation
 
-As a cloud-native messaging system, Pulsar is designed in a modern layered architecture. It provides a lot of elegant components such as load manager, namespace bundle distribution, topic lookup and the streaming storage abstraction. These components can be reused for supporting other messaging protocols such as Kafka, AMQP and MQTT protocols. In [PIP-42: KoP - Kafka on Pulsar](https://github.com/apache/pulsar/wiki/PIP-42%3A-KoP---Kafka-on-Pulsar) we will be implementing Kafka protocol natively in Pulsar broker. This PIP proposes introducing a pluggable protocol handler mechanism in Pulsar broker. So Pulsar broker can dynamically load additional protocol handlers on runtime and support other message protocols. This also allows developers to extend Pulsar capabilities to other messaging domains by leveraging all the benefits provided by Pulsar architecture.
+As a cloud-native messaging system, Pulsar is designed in a modern layered architecture. It provides a lot of elegant components such as load manager, namespace bundle distribution, topic lookup and the streaming storage abstraction. These components can be reused for supporting other messaging protocols such as Kafka, AMQP and MQTT protocols. In [PIP-42: KoP - Kafka on Pulsar](pip-42.md) we will be implementing Kafka protocol natively in Pulsar broker. This PIP proposes introducing a pluggable protocol handler mechanism in Pulsar broker. So Pulsar broker can dynamically load additional protocol handlers on runtime and support other message protocols. This also allows developers to extend Pulsar capabilities to other messaging domains by leveraging all the benefits provided by Pulsar architecture.
 
 ## Scope
 

@@ -20,7 +20,7 @@ The topic name is composed of all the names:
 persistent://my-tenant/my-cluster/my-namespace/my-topic
 ```
 
-In [PIP-10](https://github.com/apache/incubator-pulsar/wiki/PIP-10:-Remove-cluster-for-namespace-and-topic-names), we have already introduced the proposal to hide the cluster name from
+In [PIP-10](pip-10.md), we have already introduced the proposal to hide the cluster name from
 the topic name, resulting in a topic name such as:
 
 ```

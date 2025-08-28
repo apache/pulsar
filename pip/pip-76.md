@@ -9,7 +9,7 @@
 
 # Motivation
 
-[PIP 17](https://github.com/apache/pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics) introduced the data offloading mechanism for Pulsar and many users enable the data offloading to reduce the cold data storage costs. But in [PIP 17](https://github.com/apache/pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics), the data offloading is triggered automatically when rolling over a ledger or manually trigger data offloading through the Pulsar admin CLI. Both of these two ways to offload data are tight coupling with the leger rollover mechanism. So if you want to control the size of each offloaded data block, you need to tune the ledger rollover policy.
+[PIP 17](pip-17.md) introduced the data offloading mechanism for Pulsar and many users enable the data offloading to reduce the cold data storage costs. But in [PIP 17](pip-17.md), the data offloading is triggered automatically when rolling over a ledger or manually trigger data offloading through the Pulsar admin CLI. Both of these two ways to offload data are tight coupling with the leger rollover mechanism. So if you want to control the size of each offloaded data block, you need to tune the ledger rollover policy.
 
 There are some drawbacks to the current data offloading mechanism:
 
@@ -17,7 +17,7 @@ There are some drawbacks to the current data offloading mechanism:
 1. For the topic with high message write throughput, if the ledger rollover policy is based on the max size of a ledger, the ledger rollover might be triggered very frequently, this will bring more overhead to the metadata server(Apache Zookeeper). So in Pulsar, we can specify the min ledger rollover time duration. But if the rollover policy is based on the time duration, the offloaded data block size might become huge. For the historical data reading, we always want to be able to read data as quickly as possible. So it&#39;s better to split the huge blob object into multiple reasonably sized data blocks and read these data blocks in parallel.
 1. The data offloading will read the ledger data from the bookies directly, this will bring more overhead to the bookies and might make the message writing latency unstable.
 
-So, this proposal aims to decouple the data offloading and ledger rollover and offload the cached data as much as possible based on [PIP 17](https://github.com/apache/pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics). And provide a flexible user perspective approach to control the data offloading behavior.
+So, this proposal aims to decouple the data offloading and ledger rollover and offload the cached data as much as possible based on [PIP 17](pip-17.md). And provide a flexible user perspective approach to control the data offloading behavior.
 
 # Approach
 
@@ -138,7 +138,7 @@ The payload data is a sequence of entries of the format
 - `entry_id` : 8 bytes, the ID of the entry
 - `entry_data` : as many bytes as specified in `entry_len`
 
-Padding may be added at the end to bring the block to the correct size. The payload part is totally the same with [PIP-17](https://github.com/apache/pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics#payload-format)
+Padding may be added at the end to bring the block to the correct size. The payload part is totally the same with [PIP-17](pip-17.md#payload-format)
 
 ### Block Data object
 

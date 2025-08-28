@@ -8,7 +8,7 @@
 
 # Motivation
 
-Implemented since v2.5.0, [PIP 41](https://github.com/apache/pulsar/wiki/PIP-41%3A-Pluggable-Protocol-Handler) allows implementing custom protocols natively inside a Pulsar Broker.
+Implemented since v2.5.0, [PIP 41](pip-41.md) allows implementing custom protocols natively inside a Pulsar Broker.
 This PIP proposes to implement a protocol based on gRPC as an alternative to the Pulsar binary protocol.
 Contrary to Kafka-on-Pulsar or MQTT-on-Pulsar, this would only be a replacement of the lower transport/session protocol while keeping Pulsar Producer/Consumer logic.
 This will allow clients in languages that have a gRPC implementation but not yet a Pulsar driver to communicate with Pulsar without going through a proxy that limits the performance.
@@ -85,4 +85,4 @@ The client can then attach the token to its call to perform authentication.
 The server will verify the signature of the token and if valid, will put the role in gRPC Context.
 
 ## Topic lookup / advertisement
-The handler will advertise the host and ports (plaintext and TLS) of the gRPC servers in the [protocol data](https://github.com/apache/pulsar/wiki/PIP-41%3A-Pluggable-Protocol-Handler#protocol-data). This data can then be retrieved during lookup by reading from Zookeeper the load report of the broker owning the topic.
+The handler will advertise the host and ports (plaintext and TLS) of the gRPC servers in the [protocol data](pip-41.md#protocol-data). This data can then be retrieved during lookup by reading from Zookeeper the load report of the broker owning the topic.

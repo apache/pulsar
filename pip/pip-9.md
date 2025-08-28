@@ -4,7 +4,7 @@
 **Author:** [Jai Asher](https://github.com/Jai1)
 **Pull Request:** [#1002](https://github.com/apache/incubator-pulsar/pull/1002)
 
-**Reference:** https://github.com/apache/incubator-pulsar/wiki/PIP-1:-Pulsar-Proxy
+**Reference:** [PIP-1](pip-1.md)
 
 ## Problem Description:
 The machine hosting the Pulsar proxy will have a public IP and susceptible to all kinds of web attacks. The aim of this PIP is to minimize the damage caused by a compromised proxy on the entire service. Specifically, we want to make the following changes:-

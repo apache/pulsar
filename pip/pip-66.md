@@ -8,7 +8,7 @@
 
 ## Background
 
-[Pulsar Functions](https://github.com/apache/pulsar/wiki/PIP-15:-Pulsar-Functions) has been a convenient tool for simple real-time message processing scenario. It allows users to implement business logic with a minimum interface and then submit directly to the existing Pulsar cluster to execute. The `simplicity` comes in two folds: 1. Simple Interface; 2. Simple Deployment. People don't need to learn a complicated bundle of new interfaces in order to express their simple jobs. And they also don't need to set up and maintain a new stream processing infrastructure cluster in order to run the functions.
+[Pulsar Functions](pip-15.md) has been a convenient tool for simple real-time message processing scenario. It allows users to implement business logic with a minimum interface and then submit directly to the existing Pulsar cluster to execute. The `simplicity` comes in two folds: 1. Simple Interface; 2. Simple Deployment. People don't need to learn a complicated bundle of new interfaces in order to express their simple jobs. And they also don't need to set up and maintain a new stream processing infrastructure cluster in order to run the functions.
 
 As the functions have been used for some time, we realized that the native support of allowing multiple functions to be organized together is demanding. With support, people can express and manage multi-stage jobs easily. In addition, this support also provides the possibility of higher-level abstraction DSL to further simplify the job composition. We call this new feature -- Pulsar Function Mesh.
 

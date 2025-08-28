@@ -7,7 +7,7 @@
 
 Since the initial open source release of Pulsar, the term “instance” has been used to describe a group of Pulsar clusters that work together as a single unit. For an example of this usage, see the [Deploying a Pulsar instance on bare metal](http://pulsar.incubator.apache.org/docs/latest/deployment/instance/) guide.
 
-The problem that has emerged is that the term “instance” is now being used by the [Pulsar Functions](https://github.com/apache/incubator-pulsar/wiki/PIP-15:-Pulsar-Functions) feature, to refer to a process in which a Pulsar Function runs. This usage is inherited from the [Heron](http://heronstreaming.io/) stream processing engine (a key inspiration for Pulsar Functions). A Heron instance is a “[process that handles a single task of a bolt or spout](https://twitter.github.io/heron/docs/concepts/architecture/#heron-instance).”
+The problem that has emerged is that the term “instance” is now being used by the [Pulsar Functions](pip-15.md) feature, to refer to a process in which a Pulsar Function runs. This usage is inherited from the [Heron](http://heronstreaming.io/) stream processing engine (a key inspiration for Pulsar Functions). A Heron instance is a “[process that handles a single task of a bolt or spout](https://twitter.github.io/heron/docs/concepts/architecture/#heron-instance).”
 
 The problem with using the same term to refer to two very different things in the same project—and thus in the same documentation and codebase—should be immediately clear.
 
