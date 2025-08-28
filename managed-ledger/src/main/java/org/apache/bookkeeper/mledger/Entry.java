@@ -68,14 +68,26 @@ public interface Entry {
     boolean release();
 
     /**
-     * Managed Ledger implementations of EntryImpl should implement this method to return the read count handler
-     * associated with the entry.
-     * This handler is used to track how many times the entry has been read and to manage
-     * the eviction of entries from the broker cache based on their expected read count.
-     * @return
+     * Returns the handler used to track the entry's expected read count for the cacheEvictionByExpectedReadCount
+     * strategy (PIP-430). May return null if unsupported by a custom Managed Ledger implementation,
+     * or not applicable.
+     *
+     * @return the read count handler, or null
      */
     default EntryReadCountHandler getReadCountHandler() {
         return null;
+    }
+
+    /**
+     * Check if the entry has an associated {@link EntryReadCountHandler} and it has remaining expected reads.
+     * @return true if the entry has remaining expected reads, false otherwise
+     */
+    default boolean hasExpectedReads() {
+        EntryReadCountHandler readCountHandler = getReadCountHandler();
+        if (readCountHandler != null) {
+            return readCountHandler.hasExpectedReads();
+        }
+        return false;
     }
 
     /**
