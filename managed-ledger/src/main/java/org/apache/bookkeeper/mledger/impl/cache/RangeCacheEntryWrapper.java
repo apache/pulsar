@@ -114,12 +114,12 @@ class RangeCacheEntryWrapper {
         long stamp = lock.tryOptimisticRead();
         Position localKey = this.key;
         ReferenceCountedEntry localValue = this.value;
-        boolean messageMetadataInitialized = localValue.getMessageMetadata() != null;
+        boolean messageMetadataInitialized = localValue != null && localValue.getMessageMetadata() != null;
         if (!lock.validate(stamp)) {
             stamp = lock.readLock();
             localKey = this.key;
             localValue = this.value;
-            messageMetadataInitialized = localValue.getMessageMetadata() != null;
+            messageMetadataInitialized = localValue != null && localValue.getMessageMetadata() != null;
             lock.unlockRead(stamp);
         }
         // check that the given key matches the key associated with the value in the entry
@@ -130,7 +130,7 @@ class RangeCacheEntryWrapper {
             return null;
         }
         // Initialize the metadata if it's not already initialized
-        if (!messageMetadataInitialized) {
+        if (localValue != null && !messageMetadataInitialized) {
             localValue = withWriteLock(wrapper -> {
                 // ensure that the key still matches
                 if (wrapper.key != key && (requireSameKeyInstance || wrapper.key == null || !wrapper.key.equals(key))) {
