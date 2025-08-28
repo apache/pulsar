@@ -116,7 +116,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         final String topicName = "non-persistent://prop/ns-abc/testCreateNonExistentPartitions";
         admin.topics().createPartitionedTopic(topicName, 4);
         TopicName partition = TopicName.get(topicName).getPartition(4);
-        assertThrows(PulsarClientException.NotAllowedException.class, () -> {
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored = pulsarClient.newProducer()
                     .topic(partition.toString())
