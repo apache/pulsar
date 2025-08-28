@@ -12,6 +12,8 @@ docs:
   - 'deployment/**'
   - 'wiki/**'
   - 'pip/**'
+  - '.gitignore'
+  - '.gitattributes'
 java_non_tests:
   - '**/src/main/java/**/*.java'
 tests:
