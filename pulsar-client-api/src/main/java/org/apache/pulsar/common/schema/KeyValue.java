@@ -122,10 +122,10 @@ public class KeyValue<K, V> {
         ByteBuffer byteBuffer = ByteBuffer.allocate(
                 4 + keyEncodeData.data().length + 4 + valueEncodeData.data().length);
         byteBuffer
-                .putInt(key == null ? -1 : keyEncodeData.data().length)
-                .put(keyEncodeData.data())
-                .putInt(value == null ? -1 : valueEncodeData.data().length)
-                .put(valueEncodeData.data());
+            .putInt(key == null ? -1 : keyEncodeData.data().length)
+            .put(keyEncodeData.data())
+            .putInt(value == null ? -1 : valueEncodeData.data().length)
+            .put(valueEncodeData.data());
         return new EncodeData(byteBuffer.array(),
                 generateKVSchemaId(keyEncodeData.schemaId(), valueEncodeData.schemaId()));
     }
@@ -145,14 +145,14 @@ public class KeyValue<K, V> {
     public static byte[] generateKVSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
         keySchemaId = keySchemaId == null ? new byte[0] : keySchemaId;
         valueSchemaId = valueSchemaId == null ? new byte[0] : valueSchemaId;
-        ByteBuffer byteBuffer = ByteBuffer.allocate(
+        ByteBuffer buffer = ByteBuffer.allocate(
                 4 + keySchemaId.length + 4 + valueSchemaId.length);
-        byteBuffer
+        buffer
                 .putInt(keySchemaId.length)
                 .put(keySchemaId)
                 .putInt(valueSchemaId.length)
                 .put(valueSchemaId);
-        return byteBuffer.array();
+        return buffer.array();
     }
 
     public static byte[] getSchemaId(byte[] schemaId, boolean isKey) {
