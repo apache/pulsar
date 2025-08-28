@@ -59,7 +59,7 @@ class LongHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIt
      */
     List<String> getChildrenAt(String path) throws IOException {
         try {
-            return store.getChildren(path)
+            return store.sync(path).thenCompose(__ -> store.getChildrenFromStore(path))
                     .get(AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (ExecutionException | TimeoutException e) {
             if (log.isDebugEnabled()) {
