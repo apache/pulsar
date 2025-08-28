@@ -2165,6 +2165,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>
             <exclude>**/.gitignore</exclude>
+            <exclude>**/.gitattributes</exclude>
             <exclude>**/.svn</exclude>
             <exclude>**/*.iws</exclude>
             <exclude>**/*.ipr</exclude>
