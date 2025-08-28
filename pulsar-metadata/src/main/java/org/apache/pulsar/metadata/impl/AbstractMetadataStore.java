@@ -88,8 +88,6 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected MetadataNodeSizeStats nodeSizeStats;
 
-    protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
-
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore(String metadataStoreName,
