@@ -4991,4 +4991,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             throw new RuntimeException(e);
         }
     }
+
+    boolean shouldCacheAddedEntry() {
+        // Avoid caching entries if no cursor has been created
+        return getActiveCursors().shouldCacheAddedEntry();
+    }
 }
