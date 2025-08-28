@@ -86,7 +86,7 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
         }
 
         // Partition index is out of range.
-        assertThrows(NotAllowedException.class, () -> {
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Consumer<byte[]> ignored =
                     pulsarClient.newConsumer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
