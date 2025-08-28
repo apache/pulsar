@@ -470,9 +470,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         List<String> topics = admin.topics().getList(namespaceName).stream().filter(tp -> {
             return TopicName.get(tp).getPartitionedTopicName().equals(topic);
         }).toList();
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
-            return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();
+        List<String> partitionedTopicList =
+                admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
+                    return TopicName.get(tp).getPartitionedTopicName().equals(topic);
+                }).toList();
         assertEquals(topics.size(), 1);
         assertEquals(partitionedTopicList.size(), 0);
         producer.close();
@@ -503,10 +504,11 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         Producer<byte[]> producer  = pulsarClient.newProducer().topic(topic).create();
         List<String> topics = admin.topics().getList(namespaceName).stream().filter(tp -> {
             return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();;
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
-            return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();;
+        }).toList();
+        List<String> partitionedTopicList =
+                admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
+                    return TopicName.get(tp).getPartitionedTopicName().equals(topic);
+                }).toList();
         PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
         assertEquals(topics.size(), 4);
         assertEquals(partitionedTopicList.size(), 1);
@@ -534,9 +536,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         List<String> topics = admin.topics().getList(namespaceName).stream().filter(tp -> {
             return TopicName.get(tp).getPartitionedTopicName().equals(topic);
         }).toList();
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
-            return TopicName.get(tp).getPartitionedTopicName().equals(topic);
-        }).toList();
+        List<String> partitionedTopicList =
+                admin.topics().getPartitionedTopicList(namespaceName).stream().filter(tp -> {
+                    return TopicName.get(tp).getPartitionedTopicName().equals(topic);
+                }).toList();
         PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
         assertEquals(topics.size(), 2);
         assertEquals(partitionedTopicList.size(), 1);
