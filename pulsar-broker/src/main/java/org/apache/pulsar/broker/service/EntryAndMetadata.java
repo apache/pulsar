@@ -43,12 +43,22 @@ public class EntryAndMetadata implements Entry {
     }
 
     public static EntryAndMetadata create(final Entry entry, final MessageMetadata metadata) {
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata;
+        }
         return new EntryAndMetadata(entry, metadata);
     }
 
     @VisibleForTesting
     public static EntryAndMetadata create(final Entry entry) {
-        return create(entry, Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1));
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata;
+        }
+        MessageMetadata msgMetadata = entry.getMessageMetadata();
+        if (msgMetadata == null) {
+            msgMetadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1);
+        }
+        return create(entry, msgMetadata);
     }
 
     public byte[] getStickyKey() {
