@@ -3078,12 +3078,14 @@ flexible messaging model and an intuitive client API.</description>
         -->
         <test.asyncprofiler.event>itimer</test.asyncprofiler.event>
         <!-- Assumes Async Profiler 4.1+ to be installed, which supports "all" option -->
-        <test.asyncprofiler.opts>event=${test.asyncprofiler.event},all,jfrsync=profile</test.asyncprofiler.opts>
+        <!-- See https://github.com/async-profiler/async-profiler/blob/v4.1/src/arguments.cpp#L45 for supported options -->
+        <test.asyncprofiler.opts>event=${test.asyncprofiler.event},all,alloc=2m,jfrsync=profile</test.asyncprofiler.opts>
+        <test.asyncprofiler.outputformat>jfr</test.asyncprofiler.outputformat>
         <test.asyncprofiler.args>
           -XX:+UnlockDiagnosticVMOptions
           -XX:+DebugNonSafepoints
           -Xms${testMaxHeapSize} -XX:+AlwaysPreTouch
-          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},jfr,file=${pulsar.basedir}/target/test_profile_${maven.build.timestamp}_${surefire.forkNumber}_%p.jfr
+          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},quiet,file=${pulsar.basedir}/target/test_profile_${git.commit.id.abbrev}_${maven.build.timestamp}_${surefire.forkNumber}_%p.${test.asyncprofiler.outputformat}
           -Dpulsar.test.logging.appender=FILE
           -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
         </test.asyncprofiler.args>
@@ -3092,6 +3094,19 @@ flexible messaging model and an intuitive client API.</description>
         <redirectTestOutputToFile>false</redirectTestOutputToFile>
         <test.netty.leakdetection.args></test.netty.leakdetection.args>
       </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <injectAllReactorProjects>true</injectAllReactorProjects>
+              <skipPoms>false</skipPoms>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <!-- profile that redirects log4j logs to a file -->
     <profile>
