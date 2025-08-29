@@ -220,7 +220,7 @@
 
 # PIP-31: Transactional Streaming
 
-# Motivation {#motivation}
+# Motivation <a id="motivation"></a>
 
 This document outlines a proposal for supporting transactional messaging at Apache Pulsar. Transactions are used for strengthening the message delivery semantics of Apache Pulsar and processing guarantees at Pulsar Functions.
 
@@ -230,9 +230,9 @@ Similarly, Pulsar Functions only guarantees exactly-once processing on a single 
 
 Users of Pulsar and Pulsar Functions will greatly benefit from transactional semantic support. Every message written or processed will be happening exactly once, without duplicates and without data loss \- even in the event of broker or function instance failures. A transactional messaging semantic not only makes writing applications using Pulsar or Pulsar Functions easier, it expands the scope which Pulsar can provide.
 
-## Use Cases {#use-cases}
+## Use Cases <a id="use-cases"></a>
 
-### Event Processing {#event-processing}
+### Event Processing <a id="event-processing"></a>
 
 Event Processing (aka Event Streaming, Stream Processing) applications will hugely benefit from transactional guarantees. Event processing application, which is typically a pipeline of ‘consume-transform-produce’ tasks, requires transactional guarantees when duplicate processing of the event stream is unacceptable.
 
@@ -242,7 +242,7 @@ Many SPE (stream processing engines) or customized event processing logic (using
 
 The number of messages produced and number of messages acknowledged in a single transaction can vary \- from a few messages or a ton of messages. The number of topic-partitions (aka partitions)[^3] can vary \- from one single partition to many partitions. It depends on the processing efficiency, windowing/buffering logic and many other application related factors. A typical example for understanding the variants described above is windowing operators in an event processing application. As the reader works through this document, we encourage him/her to keep this category of use cases in mind as it will motivate many design choices in the remaining part of this proposal.
 
-### Atomic Produce {#atomic-produce}
+### Atomic Produce <a id="atomic-produce"></a>
 
 Atomically producing multiple messages is a variant of \`consume-transfer-produce\`, where it only requires \`produce\` messages in an atomic way.
 
@@ -250,7 +250,7 @@ Another variant of atomic-produce is for going beyond the 5MB message size limit
 
 Database CDC or using Apache Pulsar as commit log are typical use cases for atomic producing.
 
-# Transactional Guarantees {#transactional-guarantees}
+# Transactional Guarantees <a id="transactional-guarantees"></a>
 
 As described in [Motivation](#bookmark=id.g2xdepks9p63) section, providing transactional semantics will enable event streaming applications to consume, process, and produce messages in one atomic operation.
 
@@ -263,7 +263,7 @@ However, we are not guaranteed the messages produced within a committed transact
 
 *However, we might be able to support consuming messages committed to one single partition all together. But it depends on the design we choose below. As there is no strong requirement for this feature, I will leave this point outside of guarantees for now.*
 
-## Isolation Levels {#isolation-levels}
+## Isolation Levels <a id="isolation-levels"></a>
 
 Similar as Database Transactions, Transactions in an event streaming system will also have isolation levels. The isolations levels are:
 
@@ -273,19 +273,19 @@ Similar as Database Transactions, Transactions in an event streaming system will
 
 The isolation level that Pulsar transaction must support is **READ\_COMMITTED**. Whether to support READ\_UNCOMMITTED or SERIALIZABILITY requires inputs from Pulsar users.
 
-# A 10,000 Foot View  {#a-10,000-foot-view}
+# A 10,000 Foot View  <a id="a-10,000-foot-view"></a>
 
 There are many ways to design the transaction support in Pulsar. All these proposals can be shaped into one common framework, which we will discuss in this section. Further sections will describe the details based on this framework in detail.
 
-## Concepts {#concepts}
+## Concepts <a id="concepts"></a>
 
-### Transaction Coordinator {#transaction-coordinator}
+### Transaction Coordinator <a id="transaction-coordinator"></a>
 
 In order to achieve transactional messaging, we will have to introduce a server-side module named ***Transaction Coordinator*** (aka TC). TC manages transactions of messages sent by producers and acknowledgements sent by consumers, and commit or abort the operations as a whole.
 
 The Transaction Coordinator will be persisting transaction statuses in some persistent storage (e.g. a transaction log backed by a separated topic, or a table in table service) for recovery. We will talk about how a TC can be implemented and how it manages the transaction statuses in further section.
 
-### Transaction Buffer {#transaction-buffer}
+### Transaction Buffer <a id="transaction-buffer"></a>
 
 Messages produced within a transaction will be stored  in ***Transaction Buffer*** (aka TB). The messages in TB will not be materialized (visible) to consumers until their transactions are committed. The messages in TB will be discarded when their transactions are aborted. A cleanup process (e.g. compaction) might be required to clean up messages of aborted transactions depending on how TB is implemented.
 
@@ -296,7 +296,7 @@ A TB implementation requires :
 
 There are other factors to be considered such as cleaning up messages of aborted transactions, write amplifications, ordering, and etc. We will discuss the solutions of how a TB can be implemented and what are the tradeoffs.
 
-### Acknowledgements in Transactions {#acknowledgements-in-transactions}
+### Acknowledgements in Transactions <a id="acknowledgements-in-transactions"></a>
 
 Many event streaming applications (e.g. Pulsar Functions) include both consumers and producers, where the applications consume messages from input Pulsar topics and produce new messages to output Pulsar topics. To achieve \`exactly once\` streaming, we need to make sure acknowledgements on the input messages happen as part of the transaction in order to achieve atomicity. Otherwise, if there is a failure between acknowledging inputs and producing the messages to output topics, data duplicates or data loss will occur depending on the ordering of the two operations: if committing produced messages happens first, then the input messages will be re-delivered upon recovery since they are not acknowledged, hence data duplicates; if acknowledging input messages happens first, the output messages failed to commit will not be re-generated because input messages has been acknowledged, hence data loss.
 
@@ -304,7 +304,7 @@ Hence, we need to include acknowledgments in transactions to guarantee atomicity
 
 We also need to consider commit conflicts between individual acknowledgements and cumulative acknowledgements. We will talk about how to enhance consumer protocol and cursor management for supporting acknowledgements in transactions in further sections.
 
-### Materialization Mechanism {#materialization-mechanism}
+### Materialization Mechanism <a id="materialization-mechanism"></a>
 
 For messages appended to TB, the transaction implementation should also provide materialize mechanism to materialize uncommitted messages to make them visible to consumer when transactions are committed. This materialize mechanism varies based on the implementation of TB.
 
@@ -312,7 +312,7 @@ The materialization mechanism should also be considering isolation levels (if we
 
 We will talk about how transaction materializes uncommitted messages in further sections.
 
-## Transaction Flow {#transaction-flow}
+## Transaction Flow <a id="transaction-flow"></a>
 
 All transaction implementations can be shaped using these key components/concepts described in the above sections.
 
@@ -327,19 +327,19 @@ In [Figure 1\. Transaction Flow](#bookmark=id.5x2yklb5p0ig):
 - Each arrow represents the request flow or message flow. These operations occur in sequence indicated by the numbers next to each arrow.
 - The sections below are numbered to match the operations showed in the diagram.
 
-### 1\. Begin Transaction {#1.-begin-transaction}
+### 1\. Begin Transaction <a id="1.-begin-transaction"></a>
 
 At the beginning of a transaction, the pulsar client will find a Transaction Coordinator. The TC will allocate a transaction id (aka TxnID) for the transaction. The transaction will be logged with its transaction id and a status of OPEN (indicating the transaction is OPEN) in the transaction log (as shown in step 1a). This ensures the transaction status is persisted regardless TC crashes. After a transaction status entry is logged, TC responds the transaction id back to the pulsar client.
 
-### 2\. Transaction Loop {#2.-transaction-loop}
+### 2\. Transaction Loop <a id="2.-transaction-loop"></a>
 
 In this stage, the pulsar client will enter a transaction loop, repeating the actions of consume-transform-produce the messages that comprise the transaction. This is a long phase and is potentially comprised of multiple produce and acknowledgement requests.
 
-#### 2.1 Add Partitions To Txn {#2.1-add-partitions-to-txn}
+#### 2.1 Add Partitions To Txn <a id="2.1-add-partitions-to-txn"></a>
 
 Before the pulsar client produces messages to a new topic partition, the client sends a request to TC to add the partition to the transaction. TC logs the partitions changes of the transaction into its transaction log for durability (as shown in 2.1a). This step ensures TC knows all the partitions that a transaction is touching, so TC can commit or abort changes on each partition at the end-partition phase.
 
-#### 2.2 Produce Messages to Partitions {#2.2-produce-messages-to-partitions}
+#### 2.2 Produce Messages to Partitions <a id="2.2-produce-messages-to-partitions"></a>
 
 The pulsar client starts producing messages to partitions. This produce flow is same as the normal message produce flow. The only difference is the batch of messages produced by a transaction will be containing the transaction id. The broker receiving the batch of messages checks if the batch of messages belongs to a transaction. If it doesn’t belong to a transaction, the broker writes the batch directly into the partition’s managed ledger (it is the normal produce flow). If it belongs to a transaction, the broker will write the batch into the transaction’s transaction buffer.
 
@@ -351,21 +351,21 @@ The transaction buffer must meet the following requirements:
 
 The transaction buffer can be implemented in many ways. It can be managed ledger itself, a separated sidecar managed ledger, or some other implementation. We will be discussing more details about the design choices of transaction buffer in further sections.
 
-#### 2.3 Add Subscriptions To Txn {#2.3-add-subscriptions-to-txn}
+#### 2.3 Add Subscriptions To Txn <a id="2.3-add-subscriptions-to-txn"></a>
 
 The pulsar client sends a request to TC the first time a new subscription is acknowledged to as part of a transaction. The addition of the subscription to the transaction is logged by TC in step 2.3a. This step ensures TC knows all the subscription that a transaction is touching, so TC can commit or abort changes on each subscription at the EndTxn phase.
 
-#### 2.4 Ack Messages on Subscriptions {#2.4-ack-messages-on-subscriptions}
+#### 2.4 Ack Messages on Subscriptions <a id="2.4-ack-messages-on-subscriptions"></a>
 
 The pulsar client start acknowledging messages on subscriptions. This transactional acknowledgement flow is same as the normal acknowledgement flow. However the ack request will be carrying a transaction id. The broker receiving the acknowledgement request checks if the acknowledge belongs to a transaction or not. If it belongs to a transaction, the broker will mark the message as in PENDING\_ACK state. PENDING\_ACK state means the message can not be acknowledged or negative-acknowledged by other consumers until the ack is committed or aborted. (See details at Section “[New Acknowledgement State](#bookmark=id.4bikq6sjiy8u)”) This allows if there are two transactions attempted to acknowledge on one message, only one will succeed and the other one will be aborted.
 
 The pulsar client will abort the whole transaction when it tries to acknowledge but a conflict is detected. The conflict can be detected on both individual acks and cumulative acks.
 
-### 3\. End Transaction {#3.-end-transaction}
+### 3\. End Transaction <a id="3.-end-transaction"></a>
 
 At the end of a transaction, the application will decide to commit or abort the transaction. The transaction can also be aborted when a conflict is detected on acknowledging messages.
 
-#### 3.1 End Transaction Request {#3.1-end-transaction-request}
+#### 3.1 End Transaction Request <a id="3.1-end-transaction-request"></a>
 
 When a pulsar client is finished with a transaction, it can issue an end transaction request to TC, with a field indicating whether the transaction is to be committed or aborted.
 
@@ -375,7 +375,7 @@ Upon receiving this request, the TC:
 2. Begins the process of committing or aborting messages or acknowledgments to all the partitions involved in this transaction. It is shown in 3.2 and described in section 3.2 below.
 3. After all the partitions involved in this transaction have been successfully committed or aborted, TC writes COMMITTED or ABORTED messages to its transaction log. It is shown in 3.3 in the diagram and described in section 3.3 below.
 
-#### 3.2 Finalizing Process {#3.2-finalizing-process}
+#### 3.2 Finalizing Process <a id="3.2-finalizing-process"></a>
 
 At this stage, TC will finalize the transaction by committing or aborting messages or acknowledgments on all the partitions involved in this transaction.
 
@@ -385,7 +385,7 @@ Aborting produced message is discarding the messages in TB. TB has to ensure cle
 
 Committing acknowledgments moves a message from PENDING\_ACK to ACK. Aborting acknowledgments will negative acks a message, so the message will be re-deliver to other consumers.
 
-#### 3.3 Mark Transaction as COMMITTED or ABORTED {#3.3-mark-transaction-as-committed-or-aborted}
+#### 3.3 Mark Transaction as COMMITTED or ABORTED <a id="3.3-mark-transaction-as-committed-or-aborted"></a>
 
 After all produced messages and acknowledgements to all partitions are committed or aborted, the TC writes the final COMMITTED or ABORTED transaction status message to its transaction log, indicating that the transaction is complete (shown as 3.3a in the diagram). At this point, all the messages pertaining to the transaction in its transaction log can safely be removed.
 
@@ -395,11 +395,11 @@ This diagram shows the whole transaction flows involving different components. H
 
 Also there are many optimizations can be made on improving the transaction flow. Those are left out of this proposal to make sure we start with a reliable and robust implementation to get things right first.
 
-# Design Choices {#design-choices}
+# Design Choices <a id="design-choices"></a>
 
 \`[Transaction Coordinator](#bookmark=id.s49iko5e8j8a)\` and \`[Transactional Acknowledgement](#bookmark=id.asf2ci9pcdeb)\` are pretty straightforward to implement. See details at Section “[A Full Proposal](#bookmark=id.qw636l7pty05)”. The most challenge part will be the \`Transaction Buffer\` part, as there will be many proposals with different tradeoffs there. These proposals are discussed below.
 
-## Transaction Buffer {#transaction-buffer-1}
+## Transaction Buffer <a id="transaction-buffer-1"></a>
 
 Recapping what we have described of a transactional flow above, a transaction buffer implementation should consider followings:
 
@@ -411,7 +411,7 @@ Recapping what we have described of a transactional flow above, a transaction bu
    1. How messages are materialized will impact how we dispatch messages to consumers
 3. A sweep mechanism to discard the messages from transaction buffer for reclaiming disk spaces.
 
-### Marker Approach {#marker-approach}
+### Marker Approach <a id="marker-approach"></a>
 
 One of the approaches to implement the transaction buffer is:
 
@@ -421,7 +421,7 @@ One of the approaches to implement the transaction buffer is:
 - Mark the messages as visible when the transaction is committed
 - Cleanup (in background) the messages when the transaction is aborted.
 
-#### Overview {#overview}
+#### Overview <a id="overview"></a>
 
 ![](images/pip-31/image-002-e0ba17.png)
 Figure 2\. Marker Approach
@@ -432,11 +432,11 @@ In this approach, all the transactional messages are appended directly to the pa
 
 Figure 2 demonstrates 3 transactions, \`txn1\`, \`txn2\`, and \`txn3\`. \`txn1\` and \`txn2\` are committed, while \`txn3\` is aborted.
 
-#### Challenges {#challenges}
+#### Challenges <a id="challenges"></a>
 
 There are a few challenges in this approach.
 
-##### Materialization {#materialization}
+##### Materialization <a id="materialization"></a>
 
 \`\<txn\>-commit\` is the commit marker used for marking the transaction as \`COMMITTED\` and materializing the messages to the consumers. It is also a “fencing” point for the transaction \- any messages produced to the same transaction after this marker will be rejected.
 
@@ -449,15 +449,15 @@ This can be done via MessageDeduplication cursor. Currently the MessageDeduplica
 3. When the marker is successfully written, remove the transaction from MessageDeduplication cursor, since the transaction has already been materialized.
 4. The transaction can be added to a transaction cache for fast lookup if needed (optional).
 
-##### Sweep {#sweep}
+##### Sweep <a id="sweep"></a>
 
 \`\<txn\>-abort\` is the commit marker used for marking the transaction as \`ABORTED\`. Once a transaction is marked as \`ABORTED\`, the messages of the transaction is safe to be removed. However since managed ledger is append-only, there is no way for deleting individual messages from the partition. So the messages are not easy to remove. The messages have to wait until retention kick in, or an additional “compacting” process is required to compact the segments to delete messages of aborted transactions. This requires rewriting a new segment. We can either improve current Pulsar’s compaction logic to do it, or piggyback the process as part of moving data to tiered storage.
 
-##### Retention {#retention}
+##### Retention <a id="retention"></a>
 
 In current approach, since transactional messages (both committed and aborted messages) are interleaving with normal messages, there are care should be taken by the broker on acknowledgements. As the cursor can not be moved forward if the transaction that a message belongs to is not finalized (committed or aborted) yet.
 
-#### Changes {#changes}
+#### Changes <a id="changes"></a>
 
 In summary of this approach, it requires to change following components:
 
@@ -469,7 +469,7 @@ In summary of this approach, it requires to change following components:
 
 In this approach, we might end up touching almost every pieces at Broker.
 
-#### Discussions {#discussions}
+#### Discussions <a id="discussions"></a>
 
 There are also a few more performance related discussion points:
 
@@ -477,7 +477,7 @@ Since the transactional messages appended and transaction commits can happen at 
 
 Not only that, in this proposal, we are mixing normal messages with transactional messages, it will significantly change the caching behavior for normal messages, which might results in more network I/O for brokers.
 
-### Sidecar Approach {#sidecar-approach}
+### Sidecar Approach <a id="sidecar-approach"></a>
 
 In contrast to the marker approach, the other approaches can be described as a sidecar approach. Basically,
 
@@ -487,7 +487,7 @@ In contrast to the marker approach, the other approaches can be described as a s
 - When committing a transaction, write a \`COMMIT\` message to the partition, including the list of message ids of its messages and then write the same \`COMMIT\` message to the transaction log. We will discuss why we need two \`COMMIT\` messages in further sections.
 - When aborting a transaction, write a \`ABORT\` message to the transaction log to mark the transaction as aborted. A background process cleans up the messages of aborted transactions.
 
-#### Overview {#overview-1}
+#### Overview <a id="overview-1"></a>
 
 ![](images/pip-31/image-003-3cc02b.png)
 Figure 3\. Sidecar Approach
@@ -506,23 +506,23 @@ Comparing to the [Marker Approach](#bookmark=id.llk60f1xr4ae), only the \`commit
 
 Figure 3 demonstrates 3 transactions, \`txn1\`, \`txn2\`, and \`txn3\`. \`txn1\` and \`txn2\` are committed, while \`txn3\` is aborted.
 
-#### Challenges {#challenges-1}
+#### Challenges <a id="challenges-1"></a>
 
 There are a few challenges in this approach.
 
-##### Materialization {#materialization-1}
+##### Materialization <a id="materialization-1"></a>
 
 Similar as Marker Approach, we use the commit marker \`\<txn\>-commit\` to mark a transaction as \`COMMITTED\` to materialize the messages to the consumers.
 
-##### Sweep {#sweep-1}
+##### Sweep <a id="sweep-1"></a>
 
 \`\<txn\>-abort\` is the commit marker used for marking the transaction as \`ABORTED\`. Once a transaction is marked as \`ABORTED\`, the messages of the transaction is safe to be removed. However since the transaction log is append-only, there is no way for deleting individual messages from the partition. An additional \`compacting\` process is required to be running at background to compact the transaction log to remove the messages of aborted transactions.
 
-##### Retention {#retention-1}
+##### Retention <a id="retention-1"></a>
 
 Retention becomes much easier comparing to the marker approach. When an acknowledgement happens on a commit marker, it will load the commit marker into the memory and find the message ids of the transaction to acknowledge. Then it will mark those messages as acknowledged in transaction log.
 
-#### Changes {#changes-1}
+#### Changes <a id="changes-1"></a>
 
 In summary of this approach, it requires to change following components:
 
@@ -530,20 +530,20 @@ In summary of this approach, it requires to change following components:
 - Change MessageDeduplication to maintain a map between transaction id and its list of message ids, and handle cursors for both transaction log and the partition.
 - Introduce a new compacting logic to compact a segment to discard the messages of abort transactions
 
-#### Discussions {#discussions-1}
+#### Discussions <a id="discussions-1"></a>
 
-##### Huge Size Transaction {#huge-size-transaction}
+##### Huge Size Transaction <a id="huge-size-transaction"></a>
 
 If we modeled supporting unlimited size message as a transaction of a sequence of message chunks, we can introduce a setting to tell broker to use a separate ledger for storing the messages for a given transaction on a partition. In this approach, we can just let the commit marker to point to the ledger directly. The deletion of the ledger will be similarly as deleting the messages when the commit marker is deleted.
 ---
 
 The detailed implementation of the Sidecar Approach is described at Section “[Broker \- Transaction Buffer](#bookmark=id.atfdy9rs9x26)”.
 
-# A Full Proposal {#a-full-proposal}
+# A Full Proposal <a id="a-full-proposal"></a>
 
 In the rest of this design doc we will provide a detailed description of the above transactional flow along with the proposed changes on different modules.
 
-## Public APIs {#public-apis}
+## Public APIs <a id="public-apis"></a>
 
 We will introduce a new public API named \`Transaction\`. Transaction is for representing a txn in Pulsar.
 
@@ -644,7 +644,7 @@ When Transaction\#abort() is called, the following steps will be executed:
 1. Immediately fail and drop any buffered messages and acknowledges. Await any outstanding requests which haven’t been acknowledged.
 2. Send an CommandEndTxn with ABORT flag to TC, block until the corresponding response is received.
 
-### Examples {#examples}
+### Examples <a id="examples"></a>
 
 Below is an example on showing how to use Pulsar’s transactional API.
 
@@ -681,17 +681,17 @@ try {
 
 \`\`\`
 
-## Data Structures {#data-structures}
+## Data Structures <a id="data-structures"></a>
 
-#### TxnID {#txnid}
+#### TxnID <a id="txnid"></a>
 
 The TxnID (transaction id) is identifying a unique transaction in pulsar. The transaction id will be 128-bits. The highest 16 bits will be reserved for the id of transaction coordinator, and the remaining bits will be used for monotonically increasing numbers in each TC. so given a TxnID, we can quickly locate the TC.
 
-## Wire Protocol Changes {#wire-protocol-changes}
+## Wire Protocol Changes <a id="wire-protocol-changes"></a>
 
-### New Commands {#new-commands}
+### New Commands <a id="new-commands"></a>
 
-#### TxnAction {#txnaction}
+#### TxnAction <a id="txnaction"></a>
 
 This is a enum indicating the action for a [*CommandEndTxn*](#bookmark=kix.hoewy3ptkbwj) request.
 
@@ -702,7 +702,7 @@ This is a enum indicating the action for a [*CommandEndTxn*](#bookmark=kix.hoewy
 *}*
 \`\`\`
 
-#### CommandNewTxn {#commandnewtxn}
+#### CommandNewTxn <a id="commandnewtxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator when opening a new transaction.
 
@@ -713,7 +713,7 @@ This is a request sent from pulsar client to transaction coordinator when openin
 *}*
 \`\`\`
 
-#### CommandNewTxnResponse {#commandnewtxnresponse}
+#### CommandNewTxnResponse <a id="commandnewtxnresponse"></a>
 
 This is a response for [*CommandNewTxn*](#bookmark=id.gtfkqevwo97j), sent from transaction coordinator to pulsar client.
 
@@ -725,7 +725,7 @@ This is a response for [*CommandNewTxn*](#bookmark=id.gtfkqevwo97j), sent from t
 *}*
 \`\`\`
 
-#### CommandAddPartitionToTxn {#commandaddpartitiontotxn}
+#### CommandAddPartitionToTxn <a id="commandaddpartitiontotxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator to add a partition to the transaction.
 
@@ -738,7 +738,7 @@ This is a request sent from pulsar client to transaction coordinator to add a pa
 *}*
 \`\`\`
 
-#### CommandAddPartitionToTxnResponse {#commandaddpartitiontotxnresponse}
+#### CommandAddPartitionToTxnResponse <a id="commandaddpartitiontotxnresponse"></a>
 
 This is a response for [*CommandAddPartitionToTxn*](#bookmark=id.g8xm098glzk9), sent from transaction coordinator to pulsar client.
 
@@ -751,7 +751,7 @@ This is a response for [*CommandAddPartitionToTxn*](#bookmark=id.g8xm098glzk9), 
 *}*
 \`\`\`
 
-#### CommandAddSubscritpionToTxn {#commandaddsubscritpiontotxn}
+#### CommandAddSubscritpionToTxn <a id="commandaddsubscritpiontotxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator to add a subscription to the transaction.
 
@@ -771,7 +771,7 @@ This is a request sent from pulsar client to transaction coordinator to add a su
 *}*
 \`\`\`
 
-#### CommandAddSubscriptionToTxnResponse {#commandaddsubscriptiontotxnresponse}
+#### CommandAddSubscriptionToTxnResponse <a id="commandaddsubscriptiontotxnresponse"></a>
 
 This is a response for [*CommandAddSubscriptionToTxn*](#bookmark=kix.pwvej5jcgbvs), sent from transaction coordinator to pulsar client.
 
@@ -784,7 +784,7 @@ This is a response for [*CommandAddSubscriptionToTxn*](#bookmark=kix.pwvej5jcgbv
 *}*
 \`\`\`
 
-#### CommandEndTxn {#commandendtxn}
+#### CommandEndTxn <a id="commandendtxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator when ending (committing or aborting) a new transaction.
 
@@ -797,7 +797,7 @@ This is a request sent from pulsar client to transaction coordinator when ending
 *}*
 \`\`\`
 
-#### CommandEndTxnResponse {#commandendtxnresponse}
+#### CommandEndTxnResponse <a id="commandendtxnresponse"></a>
 
 This is a response for [*CommandEndTxn*](#bookmark=kix.7mfmb7y7zheu), sent from transaction coordinator to pulsar client.
 
@@ -810,7 +810,7 @@ This is a response for [*CommandEndTxn*](#bookmark=kix.7mfmb7y7zheu), sent from 
 *}*
 \`\`\`
 
-#### CommandEndTxnOnPartition {#commandendtxnonpartition}
+#### CommandEndTxnOnPartition <a id="commandendtxnonpartition"></a>
 
 This is a request sent from transaction coordinator to brokers when ending (committing or aborting) a new transaction on a given partition.
 
@@ -824,7 +824,7 @@ This is a request sent from transaction coordinator to brokers when ending (comm
 *}*
 \`\`\`
 
-#### CommandEndTxnOnPartitionResponse {#commandendtxnonpartitionresponse}
+#### CommandEndTxnOnPartitionResponse <a id="commandendtxnonpartitionresponse"></a>
 
 This is a response for [*CommandEndTxnOnPartition*](#bookmark=id.ue4e7wrfso8b), sent from brokers back to transaction coordinator.
 
@@ -837,7 +837,7 @@ This is a response for [*CommandEndTxnOnPartition*](#bookmark=id.ue4e7wrfso8b), 
 *}*
 \`\`\`
 
-#### CommandEndTxnOnSubscription {#commandendtxnonsubscription}
+#### CommandEndTxnOnSubscription <a id="commandendtxnonsubscription"></a>
 
 This is a request sent from transaction coordinator to brokers when ending (committing or aborting) a new transaction on a given subscription.
 
@@ -852,7 +852,7 @@ This is a request sent from transaction coordinator to brokers when ending (comm
 *}*
 \`\`\`
 
-#### CommandEndTxnOnSubscriptionResponse {#commandendtxnonsubscriptionresponse}
+#### CommandEndTxnOnSubscriptionResponse <a id="commandendtxnonsubscriptionresponse"></a>
 
 This is a response for [*CommandEndTxnOnSubscription*](#bookmark=kix.we4rd1tv1zpn), sent from brokers back to transaction coordinator.
 
@@ -865,9 +865,9 @@ This is a response for [*CommandEndTxnOnSubscription*](#bookmark=kix.we4rd1tv1zp
 *}*
 \`\`\`
 
-### Modified Commands {#modified-commands}
+### Modified Commands <a id="modified-commands"></a>
 
-#### CommandSend {#commandsend}
+#### CommandSend <a id="commandsend"></a>
 
 This is a request sent from pulsar clients to brokers to append messages.
 
@@ -881,7 +881,7 @@ This is a request sent from pulsar clients to brokers to append messages.
 *}*
 \`\`\`
 
-#### CommandAck {#commandack}
+#### CommandAck <a id="commandack"></a>
 
 This is a request sent from pulsar clients to brokers to acknowledge messages.
 
@@ -926,7 +926,7 @@ This is a request sent from pulsar clients to brokers to acknowledge messages.
 *}*
 \`\`\`
 
-## Transaction Coordinator {#transaction-coordinator-1}
+## Transaction Coordinator <a id="transaction-coordinator-1"></a>
 
 The transaction coordinator is a module used for handling requests from the transactional pulsar clients to keep track of their transaction status. Each transaction coordinator is identified by an id (TCID), and maintains its own transaction metadata store. TCID is used for generating transaction id, as well as for recovery from TC failures.
 
@@ -982,15 +982,15 @@ interface TransactionMetadataStore {
 }
 \`\`\`
 
-### Concepts {#concepts-1}
+### Concepts <a id="concepts-1"></a>
 
-#### TCID {#tcid}
+#### TCID <a id="tcid"></a>
 
 Transaction Coordinator ID (TCID) is used for identifying an instance of transaction coordinator. This TCID is used for locating the transaction metadata store served by this transaction coordinator.
 
 We will discuss on how to run transaction coordinators and how to assign TCID at Section [Deployment](#bookmark=id.kqdalafxhiah).
 
-#### TxnStatus {#txnstatus}
+#### TxnStatus <a id="txnstatus"></a>
 
 \`TxnStatus\` is used for indicating the status of a transaction.
 
@@ -1000,17 +1000,17 @@ We will discuss on how to run transaction coordinators and how to assign TCID at
 - ABORTING: TC is aborting the transaction.
 - ABORTED: The transaction has been aborted. The metadata of the transaction can be removed from the transaction metadata store at this moment.
 
-#### TransactionMetadataStoreProvider {#transactionmetadatastoreprovider}
+#### TransactionMetadataStoreProvider <a id="transactionmetadatastoreprovider"></a>
 
 The provider is used for locating and opening the TransactionMetadataStore for a given transaction coordinator (identified by TCID).
 
-#### TransactionMetadataStore {#transactionmetadatastore}
+#### TransactionMetadataStore <a id="transactionmetadatastore"></a>
 
 The transaction metadata store is used by a transaction coordinator for storing and managing all the transactions’ metadata.
 
 The metadata store should provide following implementations for the interfaces described above.
 
-### Implementation {#implementation}
+### Implementation <a id="implementation"></a>
 
 The transaction metadata store can be implemented by using a distributed key/value storage (like zookeeper), or using an in-memory hashmap backed by a managed ledger.
 
@@ -1023,7 +1023,7 @@ In this implementation, the transaction coordinator maintains the following info
 
 All the updates to the transaction metadata map will first be persisted to the transaction log (backed by a managed ledger). So they can be used for recovery.
 
-#### Transaction Log {#transaction-log}
+#### Transaction Log <a id="transaction-log"></a>
 
 The format of the transaction entry appended to the transaction log is described as below.
 
@@ -1055,7 +1055,7 @@ Writing COMMITTING or ABORTING transaction metadata entry can be served as the s
 
 The timestamp in the transaction metadata entry will be used for determining when the transaction has timed out. Once the difference of the current time and the *txn\_start\_time* has exceeded the *txn\_timeout\_ms* value, the transaction will be aborted.
 
-#### TC Startup {#tc-startup}
+#### TC Startup <a id="tc-startup"></a>
 
 The TC will be assigned with a TCID during startup. The TCID assignment will be determined by the deployment method used for deploying transaction coordinators. The TC will basically call \`TransactionMetadataStoreProvider\#openStore(TCID)\` to open its transaction metadata store. The execution of \`openStore\` is described as followings:
 
@@ -1080,9 +1080,9 @@ When **aborting** a transaction, the following steps will be executed by TC:
 
 One important thing to keep in mind is \- when ending (committing or aborting) a transaction, if one of the partitions involved in the transaction become unavailable, then the transaction will be unable to completed. This will ONLY delay the materialization of messages from transaction buffer to the actual data partition, but it doesn’t block consumers on consuming already materialized (READ\_COMMITTED) data.
 
-#### TC Request Processing {#tc-request-processing}
+#### TC Request Processing <a id="tc-request-processing"></a>
 
-##### CommandNewTxn {#commandnewtxn-1}
+##### CommandNewTxn <a id="commandnewtxn-1"></a>
 
 When TC receiving the CommandNewTxn request, the following steps will be executed:
 
@@ -1091,21 +1091,21 @@ When TC receiving the CommandNewTxn request, the following steps will be execute
 - An TransactionMetadataEntry with TxnID and OPEN TxnStatus is logged into the transaction log.
 - Respond with the TxnID to the client
 
-##### CommandAddPartitionToTxn {#commandaddpartitiontotxn-1}
+##### CommandAddPartitionToTxn <a id="commandaddpartitiontotxn-1"></a>
 
 When TC receiving the CommandAddPartitionToTxn request, the following steps will be executed:
 
 - If the TxnID does not exist in transaction metadata store, it responds TxnNotFound error; otherwise proceed to next step.
 - If there is already a transaction metadata entry exists in the store, check if the status is OPEN , if yes append a transaction metadata entry with the updated partition list and the updated last\_modification\_time timestamp, respond success when the entry is successfully appended to the log; otherwise reply with TxnMetaStoreError error code.
 
-##### CommandAddSubscriptionToTxn {#commandaddsubscriptiontotxn}
+##### CommandAddSubscriptionToTxn <a id="commandaddsubscriptiontotxn"></a>
 
 When TC receiving the CommandAddSubscriptionToTxn request, the following steps will be executed:
 
 - If the TxnID does not exist in transaction metadata store, it responds TxnNotFound error; otherwise proceed to next step.
 - If there is already a transaction metadata entry exists in the store, check if the status is OPEN , if yes append a transaction metadata entry with the updated subscription list and the updated last\_modification\_time timestamp, respond success when the entry is successfully appended to the log; otherwise reply with TxnMetaStoreError error code.
 
-##### CommandEndTxn {#commandendtxn-1}
+##### CommandEndTxn <a id="commandendtxn-1"></a>
 
 When TC receiving the CommandEndTxn request, the following steps will be executed:
 
@@ -1123,7 +1123,7 @@ When TC receiving the CommandEndTxn request, the following steps will be execute
 4. Append the transaction metadata entry to the transaction log, and update the in-memory map upon successfully append the entry, and respond success to the client.
 5. TC commits or aborts the transaction based on the action from the request.
 
-#### TC Transaction Expiration {#tc-transaction-expiration}
+#### TC Transaction Expiration <a id="tc-transaction-expiration"></a>
 
 When a pulsar client crashes and never comes back, TC should have a mechanism to proactively expire the transactions initiated by this client. To achieve this, TC will periodically scan the transaction metadata store:
 
@@ -1133,7 +1133,7 @@ When a pulsar client crashes and never comes back, TC should have a mechanism to
 2. If a transaction is in COMMITTING state, then complete the commiting process for this transaction. (This can happen when a TC crashes at the middle of completing the committing process)
 3. If a transaction is in ABORTING state, then complete the aborting process for this transaction. (This can happen when a TC crashes at the middle of completing the aborting process)
 
-### Deployment {#deployment}
+### Deployment <a id="deployment"></a>
 
 Transaction Coordinator (TC) is designed to be a logic component, which can be deployed into multiple instances. The main question of TC is how to assign a unique TCID when deploying TCs.
 
@@ -1143,15 +1143,15 @@ If you deploy TC as a Pulsar Function, you can obtain the instance id as the TCI
 
 If you are running TC as part of a broker, this can be done in a different way, described in the below section.
 
-#### TC in Broker {#tc-in-broker}
+#### TC in Broker <a id="tc-in-broker"></a>
 
 We can model all the transaction logs for TCs as a \`TC-Transaction-Log\` topic. The number of TCs determines the number of partitions of this transaction log topic. Each TC will be obtaining one partition to startup. Since partitions area already managed and distributed to brokers by load manager. So when a partition of the TC transaction log topic is assigned to a broker, the broker knows the partition id and can use the partition id as TCID to start up.
 
-## Broker \- Transaction Buffer {#broker---transaction-buffer}
+## Broker \- Transaction Buffer <a id="broker---transaction-buffer"></a>
 
 This proposal implements a [Sidecar Approach](#bookmark=id.x2y17hd6i2md) described above.
 
-### Message {#message}
+### Message <a id="message"></a>
 
 \`\`\`
 *enum MessageType {*
@@ -1179,31 +1179,31 @@ We introduce a new field in message metadata indicating the message type.
 - TXN\_COMMIT: this is a commit marker message for indicating that a transaction is committed.
 - TXN\_ABORT: this is an abort marker message for indicating that a transaction has been aborted.
 
-#### Message ID {#message-id}
+#### Message ID <a id="message-id"></a>
 
 The message id of the message in a transaction is comprised by the message id of the commit marker in topic partition and the index of the message in the transaction. For example, if the transaction is committed as ledger id 5, entry id 7. The message id of 2nd message in the transaction is 5,7,2.
 
-### Transaction Log {#transaction-log-1}
+### Transaction Log <a id="transaction-log-1"></a>
 
 For each topic partition where a transaction is happening, broker will automatically created a sidecar partition and use it as the transaction log. The name of the transaction log partition is the name of the topic partition with a suffix \`/\_txnlog\`. For example, if the topic partition is \`my\_tenant/my\_ns/my\_topic\`, then the transaction log partition for it is \`my\_tenant/my\_ns/my\_topic/\_txnlog\`.
 
 The transaction log partition will only be created when there are transactions. So it doesn’t introduced additional overhead if transactions are not used.
 
-### Implementation {#implementation-1}
+### Implementation <a id="implementation-1"></a>
 
-#### Transaction Manager[^6] {#transaction-manager}
+#### Transaction Manager[^6] <a id="transaction-manager"></a>
 
 The implementation of a transaction manager is based on \`Message Deduplication\` (let’s call it \`dedup\` cursor in the remaining part of this proposal). It comprised a \`dedup\` cursor, a \`retention\` cursor, a \`transaction\` cursor and a transaction log.
 
-##### Dedup Cursor {#dedup-cursor}
+##### Dedup Cursor <a id="dedup-cursor"></a>
 
 The Dedup cursor is actually the \`Message Deduplication\` on the transaction log. It ensures for a given transaction, all the messages are appended exactly-once to the transaction log.
 
-##### Transaction Cursor {#transaction-cursor}
+##### Transaction Cursor <a id="transaction-cursor"></a>
 
 The transaction cursor maintains a map between TxnID and TransactionIndex. The cursor is used for rebuilding the transaction map during recovery, like how \`dedup\` cursor rebuilds its sequence id maps.
 
-###### *Transaction Index* {#transaction-index}
+###### *Transaction Index* <a id="transaction-index"></a>
 
 A transaction index includes following fields:
 
@@ -1213,7 +1213,7 @@ A transaction index includes following fields:
 
 The \`CommitMarker\` can be used for building a reverse index from \`CommitMarker\` to \`Transaction Index\`. If we sort the reverse index by \`CommitMarker\` we can use this reverse index quickly locate the transactions can be deleted when the segments are deleted from topic partition, and delete those transactions from the transaction log.
 
-##### Retention Cursor {#retention-cursor}
+##### Retention Cursor <a id="retention-cursor"></a>
 
 The retention cursor is used for managing the retention of messages in the transaction log. It is created along with the creation of the transaction log.
 
@@ -1221,7 +1221,7 @@ When a \`transaction\` is aborted, it learns the list of messages of a transacti
 
 When a segment is deleted from topic partition due to retention, broker find the transactions whose commit markers has been deleted by searching the commit marker reverse index in \`Transaction Cursor\`, and mark the list of messages of those deleted transactions as deleted in transaction log.
 
-#### Compacting Transaction Log {#compacting-transaction-log}
+#### Compacting Transaction Log <a id="compacting-transaction-log"></a>
 
 If users set retention to infinite, it is making more sense to compact transaction log to delete the messages of aborted messages and rewrite the messages in transaction commit order.
 
@@ -1240,7 +1240,7 @@ The compacting flow is described as below:
 
 The same compacting logic can be applied when a segment is offloaded to tiered storage. We will append the transaction messages when offloading the segment.
 
-#### Partition Loading {#partition-loading}
+#### Partition Loading <a id="partition-loading"></a>
 
 When a partition is loaded, it will check if there is a transaction log. If there is no transaction log, it means that the partition doesn’t have any transaction, it will recover as normal.
 
@@ -1252,16 +1252,16 @@ If there is a transaction log, it will recover transaction manager as part of th
   - Then it will start replay the transaction log to rebuild the transaction index
   - After finishing the replay, it completes the recovery.
 
-#### Broker Request Processing {#broker-request-processing}
+#### Broker Request Processing <a id="broker-request-processing"></a>
 
-##### CommandSend {#commandsend-1}
+##### CommandSend <a id="commandsend-1"></a>
 
 When TB receiving the CommandSend request with a transaction id, the following steps will be executed:
 
 - It will use the txn id as the producer id to append the message into transaction log, dedup cursor will make sure the message is never duplicated.
 - After successfully appended the message to the transaction log, it will update the transaction index in \`Transaction Cursor\`.
 
-##### CommandEndTxnOnPartition {#commandendtxnonpartition-1}
+##### CommandEndTxnOnPartition <a id="commandendtxnonpartition-1"></a>
 
 When TB receiving the CommandEndTxnOnPartition request with COMMIT action, the following steps will be executed:
 
@@ -1276,11 +1276,11 @@ When TB receiving the CommandEndTxnOnPartition request with ABORT action, the fo
 - It will write a message with message type TXN\_ABORT with transaction id to the transaction log.
 - Then it will mark the transaction as aborted and mark the messages of this transaction as DELETED in \`Retention Cursor\`.
 
-##### Broker Dispatching {#broker-dispatching}
+##### Broker Dispatching <a id="broker-dispatching"></a>
 
 When Broker dispatcher dispatches a message \`TXN\_COMMIT\`, it will retrieve the list of messages ids of the transaction from \`Transaction Cursor\`. Then it will read individual messages from the transaction log and dispatch them.
 
-## Broker \- Acknowledgements {#broker---acknowledgements}
+## Broker \- Acknowledgements <a id="broker---acknowledgements"></a>
 
 As mentioned in Section [Motivation](#bookmark=id.g2xdepks9p63), Pulsar Functions need to both consume from input topics and produce results to output topics at the same time. When Pulsar Functions acknowledges input messages, the acknowledgements should be done as part of the transaction. In order to support this scenario, we have to improve \`Subscription\` component at Pulsar broker side to make it transaction-aware. More specifically, we need to:
 
@@ -1289,7 +1289,7 @@ As mentioned in Section [Motivation](#bookmark=id.g2xdepks9p63), Pulsar Function
    2. Introduce a new wire protocol message for client to receive acknowledgement response \`CommandAckResponse\`.
 2. Introduce a new acknowledgement state \`PENDING\_ACK\` in Subscription for achieving transactional acknowledgement.
 
-### New Acknowledgement State {#new-acknowledgement-state}
+### New Acknowledgement State <a id="new-acknowledgement-state"></a>
 
 ![](images/pip-31/image-004-ad2169.png)
 
@@ -1299,7 +1299,7 @@ The diagram above shows the state machine of acknowledgement flow at broker side
 
 Before introducing the new \`PENDING\_ACK\` state, Pulsar technically has two states for a message in the dispatcher path. One is \`PENDING\`, while the other one is \`DELETED\`. When a message is delivered to a consumer, the message will be put into \`PENDING\`; when broker receives an acknowledgement from a consumer, the message will be marked as \`DELETED\`. If a redelivery request received from consumers, broker will re-deliver the messages in \`PENDING\`.
 
-#### PENDING\_ACK State {#pending_ack-state}
+#### PENDING\_ACK State <a id="pending_ack-state"></a>
 
 In order to support transactional acknowledgement, we introduce a new state for messages. This state is called \`PENDING\_ACK\`. When the message is put in this state, it means:
 
@@ -1314,17 +1314,17 @@ After introduced this \`PENDING\_ACK\` state, the acknowledgement state machine 
 3. PENDING\_ACK \-\>  PENDING: on receiving \`[CommandEndTxnOnSubscription](#bookmark=kix.we4rd1tv1zpn)\` request with \`ABORT\` action, the broker logs a state change into cursor ledger of message state transitioning from \`PENDING\_ACK\` to  \`PENDING\`. This ensures the \`PENDING\_ACK\` state can be cleared and the message can be re-dispatched in next consume request.
 4. PENDING\_ACK \-\>  DELETED: on receiving \`[CommandEndTxnOnSubscription](#bookmark=kix.we4rd1tv1zpn)\` request with \`COMMIT\` action, the broker logs a state change into cursor ledger of message state transitioning from \`PENDING\_ACK\` to  \`DELETED\`. This ensures the message can be deleted and will not be delivered again.
 
-#### Negative Acknowledgement {#negative-acknowledgement}
+#### Negative Acknowledgement <a id="negative-acknowledgement"></a>
 
 On broker receiving a negative-ack request, since broker only negative ack messages in \`PENDING\`, broker doesn’t have to do anything.
 
-### Client-Broker Request Processing {#client-broker-request-processing}
+### Client-Broker Request Processing <a id="client-broker-request-processing"></a>
 
 The request processing flow is described as part of state machine above.
 
-# Future Worker {#future-worker}
+# Future Worker <a id="future-worker"></a>
 
-## Single Partition Transaction {#single-partition-transaction}
+## Single Partition Transaction <a id="single-partition-transaction"></a>
 
 Since all the transaction logic are managed via \`Transaction\` instance, there are many optimizations can be done at the client side. For example, we can delay the request of \`CommandNewTxn\` until the transaction is touching \>=2 partitions or \>=1 subscriptions. This allows us falling back to use idempotent producer to achieve transaction on one single partition.
 
