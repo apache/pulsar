@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
 import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -237,7 +238,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     public KeyValue<K, V> decode(String topic, byte[] keyBytes, byte[] valueBytes, byte[] schemaId) {
         K k = null;
         if (keyBytes != null) {
-            if (keySchema.supportSchemaVersioning() && schemaId != null) {
+            if (keySchema.supportSchemaVersioning() && isValidSchemaId(schemaId)) {
                 k = keySchema.decode(topic, keyBytes, getKeyValueSchemaId(schemaId, true));
             } else {
                 k = keySchema.decode(keyBytes);
@@ -246,7 +247,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
         V v = null;
         if (valueBytes != null) {
-            if (valueSchema.supportSchemaVersioning() && schemaId != null) {
+            if (valueSchema.supportSchemaVersioning() && isValidSchemaId(schemaId)) {
                 v = valueSchema.decode(topic, valueBytes, getKeyValueSchemaId(schemaId, false));
             } else {
                 v = valueSchema.decode(valueBytes);

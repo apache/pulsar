@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.schema;
 
+import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.apache.pulsar.client.api.EncodeData;
@@ -143,7 +144,7 @@ public class KeyValue<K, V> {
      * @param valueSchemaId the schema id of value schema
      */
     public static byte[] generateKVSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
-        if ((keySchemaId == null || keySchemaId.length == 0) && (valueSchemaId == null || valueSchemaId.length == 0)) {
+        if (!isValidSchemaId(keySchemaId) && !isValidSchemaId(valueSchemaId)) {
             return null;
         }
         keySchemaId = keySchemaId == null ? new byte[0] : keySchemaId;

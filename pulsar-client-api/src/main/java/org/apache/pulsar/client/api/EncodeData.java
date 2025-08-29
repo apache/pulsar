@@ -31,6 +31,10 @@ public record EncodeData(byte[] data, byte[] schemaId) {
     }
 
     public boolean hasSchemaId() {
+        return isValidSchemaId(schemaId);
+    }
+
+    public static boolean isValidSchemaId(byte[] schemaId) {
         return schemaId != null && schemaId.length > 0;
     }
 

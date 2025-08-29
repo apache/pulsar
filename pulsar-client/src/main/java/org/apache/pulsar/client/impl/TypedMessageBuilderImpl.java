@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
 import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
 import java.nio.ByteBuffer;
 import java.util.Base64;
@@ -332,7 +333,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         byte[] schemaId = KeyValue.generateKVSchemaId(
                 keyEncoded != null && keyEncoded.hasSchemaId() ? keyEncoded.schemaId() : null,
                 valueEncoded != null && valueEncoded.hasSchemaId() ? valueEncoded.schemaId() : null);
-        if (schemaId != null && schemaId.length > 0) {
+        if (isValidSchemaId(schemaId)) {
             msgMetadata.setSchemaId(schemaId);
         }
     }
