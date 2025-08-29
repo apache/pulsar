@@ -71,29 +71,36 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         this.executor = EventLoopUtil.newEventLoopGroup(1, false,
                 new ExecutorProvider.ExtendedThreadFactory("broker-service-url-check"));
         scheduledCheckTask = executor.scheduleAtFixedRate(() -> {
-            if (closed) {
-                return;
-            }
-            checkPulsarServices();
-            int firstHealthyPulsarService = firstHealthyPulsarService();
-            if (firstHealthyPulsarService == currentPulsarServiceIndex) {
-                return;
-            }
-            if (firstHealthyPulsarService < 0) {
-                int failoverTo = findFailoverTo();
-                if (failoverTo < 0) {
-                    // No healthy pulsar service to connect.
-                    log.error("Failed to choose a pulsar service to connect, no one pulsar service is healthy. Current"
-                            + " pulsar service: [{}] {}. States: {}, Counters: {}", currentPulsarServiceIndex,
-                            pulsarServiceUrlArray[currentPulsarServiceIndex], Arrays.toString(pulsarServiceStateArray),
-                            Arrays.toString(checkCounterArray));
-                } else {
-                    // Failover to low priority pulsar service.
-                    updateServiceUrl(failoverTo);
+            try {
+                if (closed) {
+                    return;
                 }
-            } else {
-                // Back to high priority pulsar service.
-                updateServiceUrl(firstHealthyPulsarService);
+                checkPulsarServices();
+                int firstHealthyPulsarService = firstHealthyPulsarService();
+                if (firstHealthyPulsarService == currentPulsarServiceIndex) {
+                    return;
+                }
+                if (firstHealthyPulsarService < 0) {
+                    int failoverTo = findFailoverTo();
+                    if (failoverTo < 0) {
+                        // No healthy pulsar service to connect.
+                        log.error(
+                                "Failed to choose a pulsar service to connect, no one pulsar service is healthy."
+                                        + " Current pulsar service: [{}] {}. States: {}, Counters: {}",
+                                currentPulsarServiceIndex,
+                                pulsarServiceUrlArray[currentPulsarServiceIndex],
+                                Arrays.toString(pulsarServiceStateArray),
+                                Arrays.toString(checkCounterArray));
+                    } else {
+                        // Failover to low priority pulsar service.
+                        updateServiceUrl(failoverTo);
+                    }
+                } else {
+                    // Back to high priority pulsar service.
+                    updateServiceUrl(firstHealthyPulsarService);
+                }
+            } catch (Exception ex) {
+                log.error("Failed to re-check cluster status", ex);
             }
         }, checkHealthyIntervalMs, checkHealthyIntervalMs, TimeUnit.MILLISECONDS);
     }
