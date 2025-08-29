@@ -35,6 +35,9 @@
   <properties>
     <integrationTestSuiteFile>pulsar.xml</integrationTestSuiteFile>
     <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
+    <inttest.asyncprofiler.opts>event=cpu,lock=1ms,alloc=2m,jfrsync=profile</inttest.asyncprofiler.opts>
+    <inttest.asyncprofiler.outputformat>jfr</inttest.asyncprofiler.outputformat>
+    <inttest.asyncprofiler.dir></inttest.asyncprofiler.dir>
   </properties>
 
   <dependencies>
@@ -304,6 +307,9 @@
               <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:MaxDirectMemorySize=1G
               -Dconfluent.version=${confluent.version} -Djacoco.version=${jacoco-maven-plugin.version}
               -Dintegrationtest.coverage.enabled=${integrationtest.coverage.enabled} -Dintegrationtest.coverage.dir=${integrationtest.coverage.dir}
+              -Dinttest.asyncprofiler.opts=${inttest.asyncprofiler.opts} -Dinttest.asyncprofiler.outputformat=${inttest.asyncprofiler.outputformat}
+              -Dinttest.asyncprofiler.dir=${inttest.asyncprofiler.dir}
+              -Dmaven.build.timestamp=${maven.build.timestamp} -Dgit.commit.id.abbrev=${git.commit.id.abbrev}
               ${test.additional.args}
               </argLine>
               <skipTests>false</skipTests>
@@ -333,6 +339,15 @@
                 </configuration>
               </execution>
             </executions>
+          </plugin>
+          <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <injectAllReactorProjects>true</injectAllReactorProjects>
+              <skipPoms>false</skipPoms>
+            </configuration>
           </plugin>
         </plugins>
       </build>
