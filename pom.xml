@@ -3108,6 +3108,16 @@ flexible messaging model and an intuitive client API.</description>
         </plugins>
       </build>
     </profile>
+    <profile>
+      <!-- This profile is used in addition to -PtestAsyncProfiler to profile created exceptions
+      This works only on Linux.
+      -->
+      <id>testAsyncProfilerExceptions</id>
+      <properties>
+        <test.asyncprofiler.opts>event=Java_java_lang_Throwable_fillInStackTrace,tree,reverse</test.asyncprofiler.opts>
+        <test.asyncprofiler.outputformat>html</test.asyncprofiler.outputformat>
+      </properties>
+    </profile>
     <!-- profile that redirects log4j logs to a file -->
     <profile>
       <id>testLoggingToFile</id>
