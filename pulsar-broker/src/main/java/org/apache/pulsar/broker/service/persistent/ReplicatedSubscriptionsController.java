@@ -204,7 +204,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
         PersistentSubscription sub = topic.getSubscription(update.getSubscriptionName());
         if (sub != null) {
-            sub.acknowledgeMessage(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
+            sub.acknowledgeMessage(Collections.singletonList(pos), AckType.Cumulative,
+                    Collections.emptyMap(), null, false);
         } else {
             // Subscription doesn't exist. We need to force the creation of the subscription in this cluster.
             log.info("[{}][{}] Creating subscription at {}:{} after receiving update from replicated subscription",
@@ -213,7 +214,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                             true /* replicateSubscriptionState */, Collections.emptyMap())
                     .thenAccept(subscriptionCreated -> {
                         subscriptionCreated.acknowledgeMessage(Collections.singletonList(pos),
-                                AckType.Cumulative, Collections.emptyMap());
+                                AckType.Cumulative, Collections.emptyMap(), null, false);
                     });
         }
     }
