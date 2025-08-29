@@ -25,12 +25,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 
@@ -108,11 +112,20 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     @Override
     public CompletableFuture<Void> clearAbortedTxnSnapshot() {
-        return this.takeSnapshotWriter.getFuture().thenCompose(writer -> {
-            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
-            snapshot.setTopicName(topic.getName());
-            return writer.deleteAsync(snapshot.getTopicName(), snapshot);
-        }).thenRun(() -> log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic));
+        NamespaceName namespaceName = TopicName.get(topic.getName()).getNamespaceObject();
+        PulsarService pulsar = topic.getBrokerService().getPulsar();
+        return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(
+                    namespaceName, EventType.TRANSACTION_BUFFER_SNAPSHOT, pulsar)
+            .thenCompose(exists -> {
+                if (exists) {
+                    return this.takeSnapshotWriter.getFuture().thenCompose(writer -> {
+                        TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+                        snapshot.setTopicName(topic.getName());
+                        return writer.deleteAsync(snapshot.getTopicName(), snapshot);
+                    }).thenRun(() -> log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic));
+                }
+                return CompletableFuture.completedFuture(null);
+            });
     }
 
     @Override

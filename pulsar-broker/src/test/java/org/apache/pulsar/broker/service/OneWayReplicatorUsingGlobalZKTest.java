@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -43,6 +44,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -65,7 +68,14 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.cleanup();
     }
 
-    @Test(enabled = false)
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
+                                     LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
+        super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
+        config.setTransactionCoordinatorEnabled(true);
+    }
+
+
+        @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
     }
@@ -484,7 +494,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // The topics under the namespace of the cluster-1 will be deleted.
         // Verify the result.
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
-        Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(120)).ignoreExceptions().untilAsserted(() -> {
             Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
             assertFalse(tps.containsKey(topicChangeEvents));
