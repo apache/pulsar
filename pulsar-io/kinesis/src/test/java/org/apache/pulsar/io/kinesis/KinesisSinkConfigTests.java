@@ -21,7 +21,6 @@ package org.apache.pulsar.io.kinesis;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import java.io.File;
-import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
