@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -242,8 +241,8 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         byte[] valueSchemaId = null;
         if (isValidSchemaId(schemaId)) {
             var kvSchemaId = getKeyValueSchemaId(schemaId);
-            keySchemaId = kvSchemaId.getLeft();
-            valueSchemaId = kvSchemaId.getRight();
+            keySchemaId = kvSchemaId.getKey();
+            valueSchemaId = kvSchemaId.getValue();
         }
 
         if (keyBytes != null) {
@@ -265,9 +264,9 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         return new KeyValue<>(k, v);
     }
 
-    private Pair<byte[], byte[]> getKeyValueSchemaId(byte[] schemaId) {
+    private KeyValue<byte[], byte[]> getKeyValueSchemaId(byte[] schemaId) {
         if (!SchemaType.EXTERNAL.equals(valueSchema.getSchemaInfo().getType())) {
-            return Pair.of(schemaId, schemaId);
+            return new KeyValue<>(schemaId, schemaId);
         }
         return KeyValue.getSchemaId(schemaId);
     }
