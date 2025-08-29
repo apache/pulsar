@@ -216,8 +216,6 @@
 
 [Single Partition Transaction](#single-partition-transaction)	[46](#single-partition-transaction)
 
-#
-
 # PIP-31: Transactional Streaming
 
 # Motivation <a id="motivation"></a>
@@ -547,26 +545,26 @@ In the rest of this design doc we will provide a detailed description of the abo
 
 We will introduce a new public API named \`Transaction\`. Transaction is for representing a txn in Pulsar.
 
-\`\`\`
+```
 *interface Transaction {*
 
     *CompletableFuture\<Void\> commit();*
     *CompletableFuture\<Void\> abort();*
 
 *}*
-\`\`\`
+```
 ---
 
 We will then add a new public API to the  PulsarClient interface, and describe how these APIs will be implemented.
 
-\`\`\`
+```
 /\* initialize a new transaction in pulsar client \*/
 *TransactionBuilder newTransaction();*
-\`\`\`
+```
 
 The *newTransaction* API is used for building a transaction.
 
-\`\`\`
+```
 
 *interface TransactionBuilder {*
 
@@ -588,7 +586,7 @@ The *newTransaction* API is used for building a transaction.
     *CompletableFuture\<Transaction\> build();*
 
 *}*
-\`\`\`
+```
 
 The following steps will be taken when is *TransactionBuilder\#build()* called.
 
@@ -600,13 +598,13 @@ The *Transaction* instance returned from *newTransaction* call will then be used
 
 We will add an overridden method \`*newMessage*\` to \`*Producer*\` to construct a message to be published as part of a transaction.
 
-\`\`\`
+```
 /\*\*
  \* Create a message builder to build a message to produce
  \* as part of a transaction
  \*/
 TypedMessageBuilder\<T\>[^4] newMessage(Transaction transaction);
-\`\`\`
+```
 
 With an ongoing transaction, the transaction instance will be responsible for maintaining a set of partitions that it has produced to. When TypedMessageBuilder\#send() is called, the following steps will be added:
 
@@ -619,13 +617,13 @@ With an ongoing transaction, the transaction instance will be responsible for ma
 
 We will add an overridden method \`*acknowledge*\` to \`*Consumer*\` to acknowledge a given message as part of a transaction.
 
-\`\`\`
+```
 /\*\*
  \* Acknowledge the consumption of a single message,
  \* identified by its {@link MessageId}, as part of a transaction
  \*/
 void acknowledge(Transaction transaction, MessageId messageId);
-\`\`\`
+```
 
 When Consumer\#acknowledge() is called, the following steps will be executed:
 
@@ -648,7 +646,7 @@ When Transaction\#abort() is called, the following steps will be executed:
 
 Below is an example on showing how to use Pulsar’s transactional API.
 
-\`\`\`
+```
 PulsarClient client \= ...;
 Transaction txn \= client.newTransaction().build().get();
 try {
@@ -679,7 +677,7 @@ try {
     txn.abort().get();
 }
 
-\`\`\`
+```
 
 ## Data Structures <a id="data-structures"></a>
 
@@ -695,126 +693,126 @@ The TxnID (transaction id) is identifying a unique transaction in pulsar. The tr
 
 This is a enum indicating the action for a [*CommandEndTxn*](#bookmark=kix.hoewy3ptkbwj) request.
 
-\`\`\`
+```
 *enum TxnAction {*
         *COMMIT \= 0;*
         *ABORT  \= 1;*
 *}*
-\`\`\`
+```
 
 #### CommandNewTxn <a id="commandnewtxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator when opening a new transaction.
 
-\`\`\`
+```
 *message CommandNewTxn {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txn\_ttl\_seconds  \= 2 \[default \= 0\];*
 *}*
-\`\`\`
+```
 
 #### CommandNewTxnResponse <a id="commandnewtxnresponse"></a>
 
 This is a response for [*CommandNewTxn*](#bookmark=id.gtfkqevwo97j), sent from transaction coordinator to pulsar client.
 
-\`\`\`
+```
 *message CommandNewTxnResponse {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
 *}*
-\`\`\`
+```
 
 #### CommandAddPartitionToTxn <a id="commandaddpartitiontotxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator to add a partition to the transaction.
 
-\`\`\`
+```
 *message CommandAddPartitionToTxn {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
         *repeated string partitions       \= 4;*
 *}*
-\`\`\`
+```
 
 #### CommandAddPartitionToTxnResponse <a id="commandaddpartitiontotxnresponse"></a>
 
 This is a response for [*CommandAddPartitionToTxn*](#bookmark=id.g8xm098glzk9), sent from transaction coordinator to pulsar client.
 
-\`\`\`
+```
 *message CommandAddPartitionToTxnResponse {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
         *optional ServerError error       \= 4;*
 *}*
-\`\`\`
+```
 
 #### CommandAddSubscritpionToTxn <a id="commandaddsubscritpiontotxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator to add a subscription to the transaction.
 
-\`\`\`
+```
 *message Subscription {*
         *required string topic \= 1;*
         *required string subscription \= 2;*
 *}*
-\`\`\`
+```
 
-\`\`\`
+```
 *message CommandAddSubscriptionToTxn {*
         *required uint64 request\_id           \= 1;*
         *optional uint64 txnid\_least\_bits     \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits      \= 3 \[default \= 0\];*
         *repeated Subscription subscription   \= 4;*
 *}*
-\`\`\`
+```
 
 #### CommandAddSubscriptionToTxnResponse <a id="commandaddsubscriptiontotxnresponse"></a>
 
 This is a response for [*CommandAddSubscriptionToTxn*](#bookmark=kix.pwvej5jcgbvs), sent from transaction coordinator to pulsar client.
 
-\`\`\`
+```
 *message CommandAddSubscriptionToTxnResponse {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
         *optional ServerError error       \= 4;*
 *}*
-\`\`\`
+```
 
 #### CommandEndTxn <a id="commandendtxn"></a>
 
 This is a request sent from pulsar client to transaction coordinator when ending (committing or aborting) a new transaction.
 
-\`\`\`
+```
 *message CommandEndTxn {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
         *optional TxnAction txn\_action    \= 4;*
 *}*
-\`\`\`
+```
 
 #### CommandEndTxnResponse <a id="commandendtxnresponse"></a>
 
 This is a response for [*CommandEndTxn*](#bookmark=kix.7mfmb7y7zheu), sent from transaction coordinator to pulsar client.
 
-\`\`\`
+```
 *message CommandEndTxnResponse {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
         *optional ServerError error       \= 4;*
 *}*
-\`\`\`
+```
 
 #### CommandEndTxnOnPartition <a id="commandendtxnonpartition"></a>
 
 This is a request sent from transaction coordinator to brokers when ending (committing or aborting) a new transaction on a given partition.
 
-\`\`\`
+```
 *message CommandEndTxnOnPartition {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
@@ -822,26 +820,26 @@ This is a request sent from transaction coordinator to brokers when ending (comm
         *optional string topic   	        \= 4;*
         *optional TxnAction txn\_action    \= 5;*
 *}*
-\`\`\`
+```
 
 #### CommandEndTxnOnPartitionResponse <a id="commandendtxnonpartitionresponse"></a>
 
 This is a response for [*CommandEndTxnOnPartition*](#bookmark=id.ue4e7wrfso8b), sent from brokers back to transaction coordinator.
 
-\`\`\`
+```
 *message CommandEndTxnOnPartitionResponse {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
         *optional ServerError error       \= 4;*
 *}*
-\`\`\`
+```
 
 #### CommandEndTxnOnSubscription <a id="commandendtxnonsubscription"></a>
 
 This is a request sent from transaction coordinator to brokers when ending (committing or aborting) a new transaction on a given subscription.
 
-\`\`\`
+```
 *message CommandEndTxnOnSubscription {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
@@ -850,20 +848,20 @@ This is a request sent from transaction coordinator to brokers when ending (comm
         *optional string subscription     \= 5;*
         *optional TxnAction txn\_action    \= 6;*
 *}*
-\`\`\`
+```
 
 #### CommandEndTxnOnSubscriptionResponse <a id="commandendtxnonsubscriptionresponse"></a>
 
 This is a response for [*CommandEndTxnOnSubscription*](#bookmark=kix.we4rd1tv1zpn), sent from brokers back to transaction coordinator.
 
-\`\`\`
+```
 *message CommandEndTxnOnSubscriptionResponse {*
         *required uint64 request\_id       \= 1;*
         *optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];*
         *optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];*
         *optional ServerError error       \= 4;*
 *}*
-\`\`\`
+```
 
 ### Modified Commands <a id="modified-commands"></a>
 
@@ -871,7 +869,7 @@ This is a response for [*CommandEndTxnOnSubscription*](#bookmark=kix.we4rd1tv1zp
 
 This is a request sent from pulsar clients to brokers to append messages.
 
-\`\`\`
+```
 *message CommandSend {*
         *required uint64 producer\_id   \= 1;*
         *required uint64 sequence\_id   \= 2;*
@@ -879,13 +877,13 @@ This is a request sent from pulsar clients to brokers to append messages.
         ***optional uint64 txnid\_least\_bits \= 4 \[default \= 0\];***
         ***optional uint64 txnid\_most\_bits  \= 5 \[default \= 0\];***
 *}*
-\`\`\`
+```
 
 #### CommandAck <a id="commandack"></a>
 
 This is a request sent from pulsar clients to brokers to acknowledge messages.
 
-\`\`\`
+```
 *message CommandAck {*
         *enum AckType {*
                 *Individual \= 0;*
@@ -915,16 +913,16 @@ This is a request sent from pulsar clients to brokers to acknowledge messages.
         ***optional uint64 txnid\_most\_bits  \= 7 \[default \= 0\];***
 *}*
 
-\`\`\`
+```
 
-\`\`\`
+```
 *message CommandAckResponse {*
         *required uint64 consumer\_id   \= 1;*
         ***optional uint64 txnid\_least\_bits \= 2 \[default \= 0\];***
         ***optional uint64 txnid\_most\_bits  \= 3 \[default \= 0\];***
         *optional ServerError error       \= 4;*
 *}*
-\`\`\`
+```
 
 ## Transaction Coordinator <a id="transaction-coordinator-1"></a>
 
@@ -932,7 +930,7 @@ The transaction coordinator is a module used for handling requests from the tran
 
 The operations of the transaction metadata store can be abstracted into a \`*TransactionMetadataStore*\` and \`*TransactionMetadataStoreProvider\`* interface.
 
-\`\`\`
+```
 enum TxnStatus {
     OPEN,
     COMMITTING,
@@ -980,7 +978,7 @@ interface TransactionMetadataStore {
         TxnStatus newStatus, TxnStatus expectedStatus);
 
 }
-\`\`\`
+```
 
 ### Concepts <a id="concepts-1"></a>
 
@@ -1027,7 +1025,7 @@ All the updates to the transaction metadata map will first be persisted to the t
 
 The format of the transaction entry appended to the transaction log is described as below.
 
-\`\`\`
+```
 *enum TransactionMetadataOp {*
     *NEW                 \= 0;*
     *ADD\_PARTITION       \= 1;*
@@ -1047,7 +1045,7 @@ The format of the transaction entry appended to the transaction log is described
     *optional uint64 txn\_start\_time      \= 9;*
     *optional uint64 txn\_last\_modification\_time \= 10;*
 *}*
-\`\`\`
+```
 
 The *TransactionMetadataOp* field indicating the operations happened in the transaction metadata store; while the *expected\_status* indicating the expected txn status for this operation and *new\_status* indicating the txn status should be updated.
 
@@ -1153,7 +1151,7 @@ This proposal implements a [Sidecar Approach](#bookmark=id.x2y17hd6i2md) describ
 
 ### Message <a id="message"></a>
 
-\`\`\`
+```
 *enum MessageType {*
 
     *DATA \= 0;*
@@ -1161,9 +1159,9 @@ This proposal implements a [Sidecar Approach](#bookmark=id.x2y17hd6i2md) describ
     *TXN\_ABORT \= 2;*
 
 *}*
-\`\`\`
+```
 
-\`\`\`
+```
 *message MessageMetadata {*
     *…*
     *optional MessageType msg\_type \= 19 \[default \= DATA\];*
@@ -1171,7 +1169,7 @@ This proposal implements a [Sidecar Approach](#bookmark=id.x2y17hd6i2md) describ
     *optional uint64 txnid\_least\_bits    \= 21 \[default \= 0\];*
     *optional uint64 txnid\_most\_bits     \= 22 \[default \= 0\];*
 *}*
-\`\`\`
+```
 
 We introduce a new field in message metadata indicating the message type.
 
