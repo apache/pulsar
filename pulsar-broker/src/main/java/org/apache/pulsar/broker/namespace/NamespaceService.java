@@ -464,13 +464,13 @@ public class NamespaceService implements AutoCloseable {
             findingBundlesNotAuthoritative = new ConcurrentHashMap<>();
 
     /**
-     * Main internal method to lookup and setup ownership of service unit to a broker.
+     * Lookup and setup ownership of service unit to a broker.
      *
      * @param bundle the namespace bundle
      * @param options the lookup options
      * @return the lookup result
      */
-    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
+    public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             NamespaceBundle bundle, LookupOptions options) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("findBrokerServiceUrl: {} - options: {}", bundle, options);
@@ -506,23 +506,7 @@ public class NamespaceService implements AutoCloseable {
                         LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
                     }
                     // find the target
-                    if (options.hasAdvertisedListenerName()) {
-                        AdvertisedListener listener =
-                                nsData.get().getAdvertisedListeners().get(options.getAdvertisedListenerName());
-                        if (listener == null) {
-                            future.completeExceptionally(
-                                    new PulsarServerException("the broker do not have "
-                                            + options.getAdvertisedListenerName() + " listener"));
-                        } else {
-                            URI url = listener.getBrokerServiceUrl();
-                            URI urlTls = listener.getBrokerServiceUrlTls();
-                            future.complete(Optional.of(new LookupResult(nsData.get(),
-                                    url == null ? null : url.toString(),
-                                    urlTls == null ? null : urlTls.toString())));
-                        }
-                    } else {
-                        future.complete(Optional.of(new LookupResult(nsData.get())));
-                    }
+                    resolveLookupResult(nsData, options, future);
                 }
             }).exceptionally(exception -> {
                 LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
@@ -598,7 +582,8 @@ public class NamespaceService implements AutoCloseable {
                     candidateBroker = pulsar.getBrokerId();
                 } else {
                     LoadManager loadManager = this.loadManager.get();
-                    boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
+                    boolean makeLoadManagerDecisionOnThisBroker =
+                            !loadManager.isCentralized() || les.isLeader();
                     if (!makeLoadManagerDecisionOnThisBroker) {
                         // If leader is not active, fallback to pick the least loaded from current broker loadmanager
                         boolean leaderBrokerActive = currentLeader.isPresent()
@@ -684,8 +669,24 @@ public class NamespaceService implements AutoCloseable {
                     }
                 }).exceptionally(exception -> {
                     LOG.warn("Failed to acquire ownership for namespace bundle {}: {}", bundle, exception);
-                    lookupFuture.completeExceptionally(new PulsarServerException(
-                            "Failed to acquire ownership for namespace bundle " + bundle, exception));
+                    if (exception.getCause() instanceof MetadataStoreException.LockBusyException) {
+                        log.warn("Trying to get bundle ownership info from metadata store again");
+                        ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
+                            if (nsData.isPresent()) {
+                                if (nsData.get().isDisabled()) {
+                                    lookupFuture.completeExceptionally(
+                                            new IllegalStateException(
+                                                    String.format("Namespace bundle %s is being unloaded", bundle)));
+                                } else {
+                                    resolveLookupResult(nsData, options, lookupFuture);
+                                }
+                            }
+                        });
+                    }
+                    if (!lookupFuture.isDone()) {
+                        lookupFuture.completeExceptionally(new PulsarServerException(
+                                "Failed to acquire ownership for namespace bundle " + bundle, exception));
+                    }
                     return null;
                 });
 
@@ -708,6 +709,27 @@ public class NamespaceService implements AutoCloseable {
         } catch (Exception e) {
             LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle, e.getMessage(), e);
             lookupFuture.completeExceptionally(e);
+        }
+    }
+
+    private void resolveLookupResult(Optional<NamespaceEphemeralData> nsData, LookupOptions options,
+                                     CompletableFuture<Optional<LookupResult>> lookupFuture) {
+        if (options.hasAdvertisedListenerName()) {
+            AdvertisedListener listener =
+                    nsData.get().getAdvertisedListeners().get(options.getAdvertisedListenerName());
+            if (listener == null) {
+                lookupFuture.completeExceptionally(
+                        new PulsarServerException("the broker do not have "
+                                + options.getAdvertisedListenerName() + " listener"));
+            } else {
+                URI url = listener.getBrokerServiceUrl();
+                URI urlTls = listener.getBrokerServiceUrlTls();
+                lookupFuture.complete(Optional.of(new LookupResult(nsData.get(),
+                        url == null ? null : url.toString(),
+                        urlTls == null ? null : urlTls.toString())));
+            }
+        } else {
+            lookupFuture.complete(Optional.of(new LookupResult(nsData.get())));
         }
     }
 
