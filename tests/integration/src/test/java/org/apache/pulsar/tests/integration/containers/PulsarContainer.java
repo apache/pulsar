@@ -340,6 +340,18 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     }
 
     protected void configureAsyncProfiler() {
+        // configure privileged container for profiling
+        // in addition to this, it is necessary to separate run
+        // docker run --rm -it --privileged --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
+        //   alpine sh -c "echo 1 > /proc/sys/kernel/perf_event_paranoid \
+        //           && echo 0 > /proc/sys/kernel/kptr_restrict \
+        //           && echo 1024 > /proc/sys/kernel/perf_event_max_stack \
+        //           && echo 2048 > /proc/sys/kernel/perf_event_mlock_kb"
+        // or to run:
+        // echo 1 | sudo tee /proc/sys/kernel/perf_event_paranoid
+        // echo 0 | sudo tee /proc/sys/kernel/kptr_restrict
+        // echo 1024 | sudo tee /proc/sys/kernel/perf_event_max_stack
+        // echo 2048 | sudo tee /proc/sys/kernel/perf_event_mlock_kb
         withCreateContainerCmdModifier(cmd -> {
             cmd.getHostConfig()
                     .withCapAdd(Capability.SYS_ADMIN)
@@ -348,8 +360,6 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                     .withSecurityOpts(List.of("seccomp=unconfined"))
                     .withPrivileged(true);
         });
-        //withFileSystemBind("/proc", "/proc", BindMode.READ_WRITE);
-        //withFileSystemBind("/sys/kernel/debug", "/sys/kernel/debug", BindMode.READ_WRITE);
 
         File asyncProfilerDir;
         if (isNotBlank(System.getProperty("inttest.asyncprofiler.dir"))) {
@@ -366,7 +376,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         StringBuilder sb = new StringBuilder();
         sb.append("-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start,");
         sb.append(System.getProperty("inttest.asyncprofiler.opts", "event=cpu,lock=1ms,alloc=2m,jfrsync=profile"));
-        sb.append(",quiet,file=/profiles/inttest_profile_").append(System.getProperty("git.commit.id.abbrev", ""));
+        sb.append(",file=/profiles/inttest_profile_").append(System.getProperty("git.commit.id.abbrev", ""));
         sb.append("_").append(System.getProperty("maven.build.timestamp", "").replace(' ', '_'));
         sb.append("_").append(getContainerName());
         sb.append("_").append("%p.").append(System.getProperty("inttest.asyncprofiler.outputformat"));
