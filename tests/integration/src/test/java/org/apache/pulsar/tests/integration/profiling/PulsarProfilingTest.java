@@ -63,6 +63,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarProfilingTest extends PulsarTestSuite {
     private static final String DEFAULT_PULSAR_MEM = "-Xms512m -Xmx1g";
+    private static final String BROKER_PULSAR_MEM = "-Xms2g -Xmx2g";
 
     // A container that runs pulsar-perf, arguments are currently hard-coded since this is an example
     static class PulsarPerfContainer extends GenericContainer<PulsarPerfContainer> {
@@ -138,7 +139,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
         specBuilder.numProxies(0);
 
         // Increase memory for brokers and configure more aggressive rollover
-        specBuilder.brokerEnvs(Map.of("PULSAR_MEM", DEFAULT_PULSAR_MEM,
+        specBuilder.brokerEnvs(Map.of("PULSAR_MEM", BROKER_PULSAR_MEM,
                 "managedLedgerMinLedgerRolloverTimeMinutes", "1",
                 "managedLedgerMaxLedgerRolloverTimeMinutes", "5",
                 "managedLedgerMaxSizePerLedgerMbytes", "512",
