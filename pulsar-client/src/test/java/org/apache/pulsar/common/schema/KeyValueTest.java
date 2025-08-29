@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.schema.KeyValue.generateKVSchemaId;
 import static org.apache.pulsar.common.schema.KeyValue.getSchemaId;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.sql.Time;
@@ -151,6 +152,10 @@ public class KeyValueTest {
     @Test(dataProvider = "keyValueSchemaBytes")
     public void testEncodeDecodeSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
         byte[] encoded = generateKVSchemaId(keySchemaId, valueSchemaId);
+        if ((keySchemaId == null || keySchemaId.length == 0) && (valueSchemaId == null || valueSchemaId.length == 0)) {
+            assertNull(encoded);
+            return;
+        }
         assertEquals(keySchemaId == null ? new byte[0] : keySchemaId, getSchemaId(encoded, true));
         assertEquals(valueSchemaId == null ? new byte[0] : valueSchemaId, getSchemaId(encoded, false));
     }
