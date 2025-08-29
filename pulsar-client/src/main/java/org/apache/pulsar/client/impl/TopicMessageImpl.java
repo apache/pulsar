@@ -170,6 +170,11 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public Optional<byte[]> getSchemaId() {
+        return msg.getSchemaId();
+    }
+
+    @Override
     public boolean isReplicated() {
         return msg.isReplicated();
     }

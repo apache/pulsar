@@ -366,6 +366,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (numMessagesInBatch == 0) {
             return true;
         }
+        if (messageMetadata.hasSchemaId() && msg.getSchemaId().isPresent()) {
+            return Arrays.equals(msg.getSchemaId().get(), messageMetadata.getSchemaId())
+                    && Arrays.equals(msg.getSchemaVersion(), messageMetadata.getSchemaVersion());
+        }
         if (!messageMetadata.hasSchemaVersion()) {
             return msg.getSchemaVersion() == null;
         }
