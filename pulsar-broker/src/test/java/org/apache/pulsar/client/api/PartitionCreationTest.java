@@ -151,7 +151,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
                 .createPartitionedTopicAsync(TopicName.get(topic),
                 new PartitionedTopicMetadata(numPartitions)).join();
         Assert.assertEquals(admin.topics().getList("public/default").stream()
-            .filter(tp -> TopicName.get(topic).getPartitionedTopicName().endsWith(topic)).toList().size(), 0);
+            .filter(tp -> TopicName.get(tp).getPartitionedTopicName().endsWith(topic)).toList().size(), 0);
         if (useRestApi) {
             admin.topics().createMissedPartitions(topic);
         } else {
