@@ -37,6 +37,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.BooleanSchema;
 import org.apache.pulsar.client.impl.schema.ByteBufSchema;
@@ -157,8 +158,9 @@ public class KeyValueTest {
             assertFalse(isValidSchemaId(encoded));
             return;
         }
-        assertEquals(keySchemaId == null ? new byte[0] : keySchemaId, getSchemaId(encoded, true));
-        assertEquals(valueSchemaId == null ? new byte[0] : valueSchemaId, getSchemaId(encoded, false));
+        Pair<byte[], byte[]> decoded = getSchemaId(encoded);
+        assertEquals(keySchemaId == null ? new byte[0] : keySchemaId, decoded.getLeft());
+        assertEquals(valueSchemaId == null ? new byte[0] : valueSchemaId, decoded.getRight());
     }
 
 }

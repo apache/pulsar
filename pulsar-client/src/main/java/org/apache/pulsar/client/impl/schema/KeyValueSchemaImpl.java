@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -237,9 +238,17 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
     public KeyValue<K, V> decode(String topic, byte[] keyBytes, byte[] valueBytes, byte[] schemaId) {
         K k = null;
+        byte[] keySchemaId = null;
+        byte[] valueSchemaId = null;
+        if (isValidSchemaId(schemaId)) {
+            var kvSchemaId = getKeyValueSchemaId(schemaId);
+            keySchemaId = kvSchemaId.getLeft();
+            valueSchemaId = kvSchemaId.getRight();
+        }
+
         if (keyBytes != null) {
-            if (keySchema.supportSchemaVersioning() && isValidSchemaId(schemaId)) {
-                k = keySchema.decode(topic, keyBytes, getKeyValueSchemaId(schemaId, true));
+            if (keySchema.supportSchemaVersioning() && isValidSchemaId(keySchemaId)) {
+                k = keySchema.decode(topic, keyBytes, keySchemaId);
             } else {
                 k = keySchema.decode(keyBytes);
             }
@@ -247,8 +256,8 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
         V v = null;
         if (valueBytes != null) {
-            if (valueSchema.supportSchemaVersioning() && isValidSchemaId(schemaId)) {
-                v = valueSchema.decode(topic, valueBytes, getKeyValueSchemaId(schemaId, false));
+            if (valueSchema.supportSchemaVersioning() && isValidSchemaId(valueSchemaId)) {
+                v = valueSchema.decode(topic, valueBytes, valueSchemaId);
             } else {
                 v = valueSchema.decode(valueBytes);
             }
@@ -256,11 +265,11 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         return new KeyValue<>(k, v);
     }
 
-    private byte[] getKeyValueSchemaId(byte[] schemaId, boolean isKey) {
+    private Pair<byte[], byte[]> getKeyValueSchemaId(byte[] schemaId) {
         if (!SchemaType.EXTERNAL.equals(valueSchema.getSchemaInfo().getType())) {
-            return schemaId;
+            return Pair.of(schemaId, schemaId);
         }
-        return KeyValue.getSchemaId(schemaId, isKey);
+        return KeyValue.getSchemaId(schemaId);
     }
 
     public SchemaInfo getSchemaInfo() {

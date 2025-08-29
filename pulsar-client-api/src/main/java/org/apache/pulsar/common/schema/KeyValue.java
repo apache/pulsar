@@ -21,6 +21,7 @@ package org.apache.pulsar.common.schema;
 import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.classification.InterfaceAudience;
@@ -159,16 +160,13 @@ public class KeyValue<K, V> {
         return buffer.array();
     }
 
-    public static byte[] getSchemaId(byte[] schemaId, boolean isKey) {
+    public static Pair<byte[], byte[]> getSchemaId(byte[] schemaId) {
         ByteBuffer buffer = ByteBuffer.wrap(schemaId);
         int keySchemaLength = buffer.getInt();
         byte[] keySchemaId = new byte[0];
         if (keySchemaLength > 0) {
             keySchemaId = new byte[keySchemaLength];
             buffer.get(keySchemaId);
-        }
-        if (isKey) {
-            return keySchemaId;
         }
 
         int valueSchemaLength = buffer.getInt();
@@ -177,7 +175,7 @@ public class KeyValue<K, V> {
             valueSchemaId = new byte[valueSchemaLength];
             buffer.get(valueSchemaId);
         }
-        return valueSchemaId;
+        return Pair.of(keySchemaId, valueSchemaId);
     }
 
     /**
