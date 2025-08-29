@@ -353,6 +353,19 @@
       </build>
     </profile>
     <profile>
+      <!--
+      This profile is used in addition to the Integration Tests Async Profiler support to profile created exceptions
+      Check the org.apache.pulsar.tests.integration.profiling.PulsarProfilingTest example for how to profile int tests.
+      Profiling of exceptions requires that perf events have been enabled on the docker host. PulsarProfilingTest
+      contains instructions.
+      -->
+      <id>inttestAsyncProfilerExceptions</id>
+      <properties>
+        <inttest.asyncprofiler.opts>event=Java_java_lang_Throwable_fillInStackTrace,tree,reverse</inttest.asyncprofiler.opts>
+        <inttest.asyncprofiler.outputformat>html</inttest.asyncprofiler.outputformat>
+      </properties>
+    </profile>
+    <profile>
       <id>apache-release</id>
       <build>
         <plugins>
