@@ -761,10 +761,14 @@ public abstract class AdminResource extends PulsarWebResource {
                     if (persistentResourceCreated) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    return getPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()), true,
-                            false).thenApply(metadata -> {
-                        return metadata.partitions > topicName.getPartitionIndex();
-                    });
+                    return pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .getPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()), false)
+                        .thenApply(optMetadata -> {
+                            if (optMetadata.isEmpty()) {
+                                return false;
+                            }
+                            return optMetadata.get().partitions > topicName.getPartitionIndex();
+                        });
                 });
     }
 
