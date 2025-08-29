@@ -345,7 +345,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-enforcer-plugin.version>3.3.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
-    <surefire.version>3.1.0</surefire.version>
+    <surefire.version>3.5.3</surefire.version>
     <maven-assembly-plugin.version>3.5.0</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.5.0</maven-dependency-plugin.version>

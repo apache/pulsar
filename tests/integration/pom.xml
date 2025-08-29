@@ -305,13 +305,17 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:MaxDirectMemorySize=1G
-              -Dconfluent.version=${confluent.version} -Djacoco.version=${jacoco-maven-plugin.version}
-              -Dintegrationtest.coverage.enabled=${integrationtest.coverage.enabled} -Dintegrationtest.coverage.dir=${integrationtest.coverage.dir}
-              -Dinttest.asyncprofiler.opts=${inttest.asyncprofiler.opts} -Dinttest.asyncprofiler.outputformat=${inttest.asyncprofiler.outputformat}
-              -Dinttest.asyncprofiler.dir=${inttest.asyncprofiler.dir}
-              -Dmaven.build.timestamp=${maven.build.timestamp} -Dgit.commit.id.abbrev=${git.commit.id.abbrev}
               ${test.additional.args}
               </argLine>
+              <systemPropertyVariables>
+                <confluent.version>${confluent.version}</confluent.version>
+                <jacoco.version>${jacoco-maven-plugin.version}</jacoco.version>
+                <integrationtest.coverage.enabled>${integrationtest.coverage.enabled}</integrationtest.coverage.enabled>
+                <integrationtest.coverage.dir>${integrationtest.coverage.dir}</integrationtest.coverage.dir>
+                <inttest.asyncprofiler.opts>${inttest.asyncprofiler.opts}</inttest.asyncprofiler.opts>
+                <inttest.asyncprofiler.outputformat>${inttest.asyncprofiler.outputformat}</inttest.asyncprofiler.outputformat>
+                <inttest.asyncprofiler.dir>${inttest.asyncprofiler.dir}</inttest.asyncprofiler.dir>
+              </systemPropertyVariables>
               <skipTests>false</skipTests>
               <suiteXmlFiles>
                 <file>src/test/resources/${integrationTestSuiteFile}</file>
