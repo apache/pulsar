@@ -143,6 +143,9 @@ public class KeyValue<K, V> {
      * @param valueSchemaId the schema id of value schema
      */
     public static byte[] generateKVSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
+        if ((keySchemaId == null || keySchemaId.length == 0) && (valueSchemaId == null || valueSchemaId.length == 0)) {
+            return null;
+        }
         keySchemaId = keySchemaId == null ? new byte[0] : keySchemaId;
         valueSchemaId = valueSchemaId == null ? new byte[0] : valueSchemaId;
         ByteBuffer buffer = ByteBuffer.allocate(
