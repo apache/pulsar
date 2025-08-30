@@ -107,7 +107,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 serviceUnitStateTableViewClassName);
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
-        brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();

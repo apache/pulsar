@@ -36,7 +36,6 @@ import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.commons.lang3.BooleanUtils;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -46,7 +45,7 @@ import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
-import org.testng.SkipException;
+import org.apache.pulsar.tests.ManualTestUtil;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -140,15 +139,7 @@ public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBroke
 
     @Override
     protected void beforeSetup() {
-        if (!BooleanUtils.toBoolean(System.getenv("ENABLE_MANUAL_TEST")) && !isRunningInIntelliJ()) {
-            throw new SkipException("This test requires setting ENABLE_MANUAL_TEST=true environment variable.");
-        }
-    }
-
-    static boolean isRunningInIntelliJ() {
-        // Check for IntelliJ-specific system properties
-        return System.getProperty("idea.test.cyclic.buffer.size") != null
-                || System.getProperty("java.class.path", "").contains("idea_rt.jar");
+        ManualTestUtil.skipManualTestIfNotEnabled();
     }
 
     @Override
