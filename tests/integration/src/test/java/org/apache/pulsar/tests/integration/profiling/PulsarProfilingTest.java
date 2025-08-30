@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
  *
  * Example usage:
  * # This has been tested on Mac with Orbstack (https://orbstack.dev/) docker
- * # compile apachepulsar/java-test-image with async profiler
+ * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
  * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true
  * # set environment variables
  * export PULSAR_TEST_IMAGE_NAME=apachepulsar/java-test-image:latest
