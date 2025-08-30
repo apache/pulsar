@@ -117,6 +117,6 @@ RUN if [ "${INSTALL_ASYNC_PROFILER}" = "true" ]; then \
     | tar -zxvf - --strip-components=1; \
     else \
     echo "async-profiler installation skipped"; \
-    fi \
+    fi
 
 CMD bash
