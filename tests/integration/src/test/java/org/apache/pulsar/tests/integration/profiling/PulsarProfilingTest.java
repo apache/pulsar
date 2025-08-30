@@ -39,14 +39,14 @@ import org.testng.annotations.Test;
  *
  * Example usage:
  * # This has been tested on Mac with Orbstack (https://orbstack.dev/) docker
+ * # compile integration test dependencies
+ * mvn -am -pl tests/integration -DskipTests install
  * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
  * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true
  * # set environment variables
  * export PULSAR_TEST_IMAGE_NAME=apachepulsar/java-test-image:latest
  * export NETTY_LEAK_DETECTION=off
  * export ENABLE_MANUAL_TEST=true
- * # compile integration test dependencies
- * mvn -am -pl tests/integration -DskipTests install
  * # enable perf events for profiling and tune it
  * docker run --rm -it --privileged --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
  *   alpine sh -c "echo 1 > /proc/sys/kernel/perf_event_paranoid \
