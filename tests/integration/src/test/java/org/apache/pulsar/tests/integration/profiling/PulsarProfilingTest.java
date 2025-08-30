@@ -62,8 +62,10 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public class PulsarProfilingTest extends PulsarTestSuite {
-    private static final String DEFAULT_PULSAR_MEM = "-Xms512m -Xmx1g";
-    private static final String BROKER_PULSAR_MEM = "-Xms2g -Xmx2g";
+    // this assumes that Transparent Huge Pages are enabled on the host machine
+    // https://shipilev.net/jvm/anatomy-quarks/2-transparent-huge-pages/
+    private static final String DEFAULT_PULSAR_MEM = "-Xms512m -Xmx1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
+    private static final String BROKER_PULSAR_MEM = "-Xms2g -Xmx2g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
 
     // A container that runs pulsar-perf, arguments are currently hard-coded since this is an example
     static class PulsarPerfContainer extends GenericContainer<PulsarPerfContainer> {
