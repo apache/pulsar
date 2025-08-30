@@ -18,6 +18,6 @@
 # under the License.
 #
 
-source bin/func-lib.sh
+source /pulsar/bin/func-lib.sh
 
 run_pulsar_component zookeeper local-zk 128M

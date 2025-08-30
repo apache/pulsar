@@ -18,6 +18,6 @@
 # under the License.
 #
 
-source bin/func-lib.sh
+source /pulsar/bin/func-lib.sh
 
 run_pulsar_component functions_worker functions_worker 150M

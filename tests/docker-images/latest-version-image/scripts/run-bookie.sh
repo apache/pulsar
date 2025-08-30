@@ -18,7 +18,7 @@
 # under the License.
 #
 
-source bin/func-lib.sh
+source /pulsar/bin/func-lib.sh
 
 # sets dbStorage_writeCacheMaxSizeMb and dbStorage_readAheadCacheMaxSizeMb if not already defined
 export dbStorage_writeCacheMaxSizeMb="${dbStorage_writeCacheMaxSizeMb:-16}"
