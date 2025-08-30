@@ -853,10 +853,10 @@ public interface Namespaces {
      * <p/>
      * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
      * <ul>
-     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the data 
+     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the data
      *     from the removed cluster.</li>
-     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the 
-     *     operating cluster's behavior. Geo-replication stops from the operating cluster to the 
+     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
+     *     operating cluster's behavior. Geo-replication stops from the operating cluster to the
      *     removed cluster, but existing data on the removed cluster is preserved.</li>
      * </ul>
      * <p/>
@@ -889,10 +889,10 @@ public interface Namespaces {
      * <p/>
      * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
      * <ul>
-     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the data 
+     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the data
      *     from the removed cluster.</li>
-     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the 
-     *     operating cluster's behavior. Geo-replication stops from the operating cluster to the 
+     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
+     *     operating cluster's behavior. Geo-replication stops from the operating cluster to the
      *     removed cluster, but existing data on the removed cluster is preserved.</li>
      * </ul>
      * <p/>
