@@ -62,7 +62,12 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public class PulsarProfilingTest extends PulsarTestSuite {
-    // this assumes that Transparent Huge Pages are enabled on the host machine
+    // this assumes that Transparent Huge Pages are available on the host machine
+    // Please notice that "madvise" mode is recommended for performance reasons.
+    // For example:
+    // echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+    // echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/defrag
+    // More info about -XX:+UseTransparentHugePages at
     // https://shipilev.net/jvm/anatomy-quarks/2-transparent-huge-pages/
     private static final String DEFAULT_PULSAR_MEM = "-Xms512m -Xmx1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
     private static final String BROKER_PULSAR_MEM = "-Xms2g -Xmx2g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
