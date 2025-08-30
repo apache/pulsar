@@ -24,6 +24,8 @@ import com.github.dockerjava.api.model.Capability;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -367,8 +369,23 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         } else {
             asyncProfilerDir = new File("target");
         }
+        if (!asyncProfilerDir.exists()) {
+            if (!asyncProfilerDir.mkdirs()) {
+                throw new IllegalArgumentException(
+                        "inttest.asyncprofiler.dir '" + asyncProfilerDir.getAbsolutePath()
+                                + "' doesn't exist and cannot be created.");
+            }
+        }
         if (!asyncProfilerDir.isDirectory()) {
-            asyncProfilerDir.mkdirs();
+            throw new IllegalArgumentException(
+                    "inttest.asyncprofiler.dir '" + asyncProfilerDir.getAbsolutePath() + "' isn't a directory.");
+        }
+        // change access to asyncProfilerDir to allow all access so the the container user can write to it
+        // This matters only on Linux
+        try {
+            Files.setPosixFilePermissions(asyncProfilerDir.toPath(), PosixFilePermissions.fromString("rwxrwxrwx"));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot change access to profiler directory", e);
         }
         withFileSystemBind(asyncProfilerDir.getAbsolutePath(), "/profiles", BindMode.READ_WRITE);
 
