@@ -53,6 +53,11 @@ import org.testng.annotations.Test;
  *   && echo 0 > /proc/sys/kernel/kptr_restrict \
  *   && echo 1024 > /proc/sys/kernel/perf_event_max_stack \
  *   && echo 2048 > /proc/sys/kernel/perf_event_mlock_kb"
+ * # translated to sysctl settings (for persistent configuration on Linux hosts)
+ * kernel.perf_event_paranoid=1
+ * kernel.kptr_restrict=0
+ * kernel.perf_event_max_stack=1024
+ * kernel.perf_event_mlock_kb=2048
  * # run the test
  * mvn -DintegrationTests -pl tests/integration -Dtest=PulsarProfilingTest -DtestRetryCount=0 \
  *   -DredirectTestOutputToFile=false test
