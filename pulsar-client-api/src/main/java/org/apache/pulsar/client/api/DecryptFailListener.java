@@ -24,6 +24,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 
 
 /**
+ * A listener that is called when message decryption fails.
  * <p>This listener is invoked when receives an encrypted message and cannot be decrypted successfully,
  * either because no {@link CryptoKeyReader} is configured or the configured {@link CryptoKeyReader}
  * cannot decrypt the message. This allows applications to handle decryption failures separately

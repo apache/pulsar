@@ -122,7 +122,7 @@ public class ReaderImpl<T> implements Reader<T> {
 
         if (readerConfiguration.getReaderDecryptFailListener() != null) {
             ReaderDecryptFailListener<T> readerDecryptFailListener = readerConfiguration.getReaderDecryptFailListener();
-            consumerConfiguration.setDecryptFailListener(new DecryptFailListener<T>() {
+            consumerConfiguration.setDecryptFailListener(new DecryptFailListener<>() {
                 private static final long serialVersionUID = 1L;
 
                 @Override

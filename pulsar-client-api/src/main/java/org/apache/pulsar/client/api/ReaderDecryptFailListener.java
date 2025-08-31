@@ -23,24 +23,33 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * A listener that will be called in order for every message received.
+ * A listener that is called when message decryption fails.
+ * <p>This listener is invoked when receives an encrypted message and cannot be decrypted successfully,
+ * either because no {@link CryptoKeyReader} is configured or the configured {@link CryptoKeyReader}
+ * cannot decrypt the message. This allows applications to handle decryption failures separately
+ * from normal message processing.
+ *
+ * <p>This listener must be used together with a {@link ReaderBuilder#readerListener(ReaderListener)} and cannot be used
+ * with {@link ReaderBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public interface ReaderDecryptFailListener<T> extends Serializable {
     /**
-     * This method is called whenever a new message is received.
+     * This method is called whenever a new encrypted message is received and cannot be decrypted successfully
+     * by {@link CryptoKeyReader}
+     * <p>Messages are guaranteed to be delivered in order and from the same thread for a single reader
      *
-     * <p>Messages are guaranteed to be delivered in order and from the same thread for a single consumer
+     * <p>This method will only be called once for each encrypted message.
      *
-     * <p>This method will only be called once for each message, unless either application or broker crashes.
+     * <p>Application is responsible for acknowledging the message by calling any of the reader
+     * acknowledgement methods if needed.
      *
-     * <p>Application is responsible of handling any exception that could be thrown while processing the message.
+     * <p>Application is responsible for handling any exception that could be thrown while
+     * processing the undecryptable message.
      *
-     * @param reader
-     *            the Reader object from where the message was received
-     * @param msg
-     *            the message object
+     * @param reader the reader that received the undecryptable message
+     * @param msg the encrypted message object that failed decryption
      */
     void received(Reader<T> reader, Message<T> msg);
 }

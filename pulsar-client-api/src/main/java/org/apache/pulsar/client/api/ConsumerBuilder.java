@@ -307,8 +307,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Sets a {@link DecryptFailListener} for the consumer.
      *
-     * <p>The application receives messages through the message listener,
+     * <p>The application receives encrypt messages and cannot decrypt successfully will through this listener.
+     * <p>Must set with {@link ConsumerBuilder#messageListener(MessageListener)}
      * and calls to {@link Consumer#receive()} are not allowed.
+     * This listener cannot be used with {@link ConsumerBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}.
      *
      * @param decryptFailListener
      *            the listener object

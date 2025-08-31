@@ -101,6 +101,16 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
             conf.setStartMessageId(MessageId.earliest);
         }
 
+        if (conf.getReaderDecryptFailListener() != null && conf.getReaderListener() == null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener must be set with readerListener"
+            ));
+        }
+        if (conf.getCryptoFailureAction() != null && conf.getReaderDecryptFailListener() != null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener cannot set with cryptoFailureAction"
+            ));
+        }
         return client.createReaderAsync(conf, schema);
     }
 
