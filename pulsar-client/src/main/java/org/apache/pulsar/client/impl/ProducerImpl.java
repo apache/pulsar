@@ -1203,6 +1203,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return State.Closing;
         });
 
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        List<CompletableFuture<Void>> closeTasks = new ArrayList<>();
+        closeTasks.add(closeFuture);
+        if (schema != null) {
+            closeTasks.add(schema.closeAsync().whenComplete((__, t) -> {
+                if (t != null) {
+                    log.warn("Exception ignored in closing schema of producer", t);
+                }
+            }));
+        }
+        CompletableFuture<Void> compositeCloseFuture = FutureUtil.waitForAll(closeTasks);
+
         if (currentState == State.Closed || currentState == State.Closing) {
             return CompletableFuture.completedFuture(null);
         }
@@ -1220,7 +1232,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseProducer(producerId, requestId);
 
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
             cnx.removeProducer(producerId);
             if (exception == null || !cnx.ctx().channel().isActive()) {
@@ -1236,7 +1247,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return null;
         });
 
-        return closeFuture;
+        return compositeCloseFuture;
     }
 
     @VisibleForTesting
