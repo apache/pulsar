@@ -30,6 +30,10 @@
   <name>Apache Pulsar :: Tests :: Docker Images :: Latest Version Testing</name>
   <packaging>pom</packaging>
 
+  <properties>
+    <docker.golang.image>golang:1.23-alpine</docker.golang.image>
+  </properties>
+
   <profiles>
     <profile>
       <id>docker</id>
@@ -169,6 +173,7 @@
                         <contextDir>${project.basedir}</contextDir>
                         <args>
                           <PULSAR_ALL_IMAGE>${docker.organization}/${docker.image}-all:${project.version}-${git.commit.id.abbrev}</PULSAR_ALL_IMAGE>
+                          <GOLANG_IMAGE>${docker.golang.image}</GOLANG_IMAGE>
                           <INSTALL_ASYNC_PROFILER>${docker.install.asyncprofiler}</INSTALL_ASYNC_PROFILER>
                         </args>
                         <noCache>true</noCache>
@@ -186,6 +191,12 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>docker-wolfi</id>
+      <properties>
+        <docker.golang.image>golang:1.23</docker.golang.image>
+      </properties>
     </profile>
   </profiles>
 </project>
