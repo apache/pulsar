@@ -669,24 +669,8 @@ public class NamespaceService implements AutoCloseable {
                     }
                 }).exceptionally(exception -> {
                     LOG.warn("Failed to acquire ownership for namespace bundle {}: {}", bundle, exception);
-                    if (exception.getCause() instanceof MetadataStoreException.LockBusyException) {
-                        log.warn("Trying to get bundle ownership info from metadata store again");
-                        ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
-                            if (nsData.isPresent()) {
-                                if (nsData.get().isDisabled()) {
-                                    lookupFuture.completeExceptionally(
-                                            new IllegalStateException(
-                                                    String.format("Namespace bundle %s is being unloaded", bundle)));
-                                } else {
-                                    resolveLookupResult(nsData, options, lookupFuture);
-                                }
-                            }
-                        });
-                    }
-                    if (!lookupFuture.isDone()) {
-                        lookupFuture.completeExceptionally(new PulsarServerException(
-                                "Failed to acquire ownership for namespace bundle " + bundle, exception));
-                    }
+                    lookupFuture.completeExceptionally(new PulsarServerException(
+                            "Failed to acquire ownership for namespace bundle " + bundle, exception));
                     return null;
                 });
 
