@@ -1538,6 +1538,20 @@ public class ReplicatorTest extends ReplicatorTestBase {
         for (int i = 0; i < numPartitions; i++) {
             expectedTopicList.add(pt.getPartition(i).toString());
         }
+        PersistentTopic partition0 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(TopicName.get(persistentPartitionedTopic).getPartition(0).toString(), false)
+                .join().get();
+        PersistentTopic partition1 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(TopicName.get(persistentPartitionedTopic).getPartition(1).toString(), false)
+                .join().get();
+        PersistentTopic partition2 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(TopicName.get(persistentPartitionedTopic).getPartition(2).toString(), false)
+                .join().get();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(partition0.getReplicators().size() >= 2);
+            assertTrue(partition1.getReplicators().size() >= 2);
+            assertTrue(partition2.getReplicators().size() >= 2);
+        });
 
         checkListContainExpectedTopic(admin1, namespace, expectedTopicList);
         checkListContainExpectedTopic(admin2, namespace, expectedTopicList);
