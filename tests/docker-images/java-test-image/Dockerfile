@@ -42,3 +42,15 @@ COPY target/java-test-functions.jar /pulsar/examples/
 
 # copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
 COPY target/buildtools.jar /pulsar/lib/
+
+ARG INSTALL_ASYNC_PROFILER=false
+# install async-profiler from https://github.com/async-profiler/async-profiler/releases/tag/v4.1 to /opt/async-profiler
+RUN if [ "${INSTALL_ASYNC_PROFILER}" = "true" ]; then \
+    mkdir -p /opt/async-profiler \
+    && cd /opt/async-profiler \
+    && curl -L \
+    "https://github.com/async-profiler/async-profiler/releases/download/v4.1/async-profiler-4.1-linux-$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "x64").tar.gz" \
+    | tar -zxvf - --strip-components=1; \
+    else \
+    echo "async-profiler installation skipped"; \
+    fi

@@ -65,14 +65,11 @@ RUN apk add --no-cache supervisor procps curl
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/
 
-COPY conf/supervisord.conf /etc/supervisord.conf
-COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
-     conf/proxy.conf conf/websocket.conf /etc/supervisord/conf.d/
+COPY conf /etc/supervisord/conf.d/
+RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 
-COPY scripts/run-global-zk.sh scripts/run-local-zk.sh \
-     scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh \
-     scripts/run-standalone.sh scripts/run-websocket.sh \
-     /pulsar/bin/
+COPY scripts /pulsar/bin/
+RUN chmod a+rx /pulsar/bin/*
 
 # copy python test examples
 RUN mkdir -p /pulsar/instances/deps
@@ -106,5 +103,17 @@ COPY --from=oracle-jdbc-builder /pulsar/connectors/pulsar-io-debezium-oracle-*.n
 # Fix permissions for filesystem offloader
 RUN mkdir -p pulsar
 RUN chmod g+rwx pulsar
+
+ARG INSTALL_ASYNC_PROFILER=false
+# install async-profiler from https://github.com/async-profiler/async-profiler/releases/tag/v4.1 to /opt/async-profiler
+RUN if [ "${INSTALL_ASYNC_PROFILER}" = "true" ]; then \
+    mkdir -p /opt/async-profiler \
+    && cd /opt/async-profiler \
+    && curl -L \
+    "https://github.com/async-profiler/async-profiler/releases/download/v4.1/async-profiler-4.1-linux-$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "x64").tar.gz" \
+    | tar -zxvf - --strip-components=1; \
+    else \
+    echo "async-profiler installation skipped"; \
+    fi
 
 CMD bash
