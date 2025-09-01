@@ -485,8 +485,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.6.0.jar
-    - io.github.oxia-db-oxia-client-0.6.0.jar
+    - io.github.oxia-db-oxia-client-api-0.6.2.jar
+    - io.github.oxia-db-oxia-client-0.6.2.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
