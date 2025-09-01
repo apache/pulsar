@@ -100,6 +100,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                     "/pulsar/bin/pulsar-perf", "consume", topicName,
                     "-u", "pulsar://" + brokerHostname + ":6650",
                     "-st", "Shared",
+                    "-aq",
                     "-m", String.valueOf(numberOfMessages), "-ml", "200M");
         }
 
