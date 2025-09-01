@@ -272,4 +272,13 @@ public class TypedMessageBuilderImplTest {
         }
     }
 
+    @Test
+    public void testGetMessageWithNullProducer() {
+        TypedMessageBuilderImpl<byte[]> builder = new TypedMessageBuilderImpl<>(null, Schema.BYTES);
+        var data = "test".getBytes();
+        builder.value(data);
+        var message = builder.getMessage();
+        assertEquals(message.getValue(), data);
+    }
+
 }

@@ -80,7 +80,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                     return null;
                 }
             }).orElseGet(() -> {
-                EncodeData encodeData = schema.encode(producer.topic, value);
+                EncodeData encodeData = schema.encode(getTopic(), value);
                 content = ByteBuffer.wrap(encodeData.data());
                 if (encodeData.hasSchemaId()) {
                     msgMetadata.setSchemaId(encodeData.schemaId());
@@ -275,7 +275,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     public Message<T> getMessage() {
         beforeSend();
-        return MessageImpl.create(msgMetadata, content, schema, producer != null ? producer.getTopic() : null);
+        return MessageImpl.create(msgMetadata, content, schema, getTopic());
     }
 
     public long getPublishTime() {
@@ -314,7 +314,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         EncodeData keyEncoded = null;
         // set key as the message key
         if (keyValue.getKey() != null) {
-            keyEncoded = keyValueSchema.getKeySchema().encode(producer.topic, keyValue.getKey());
+            keyEncoded = keyValueSchema.getKeySchema().encode(getTopic(), keyValue.getKey());
             msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(keyEncoded.data()));
             msgMetadata.setPartitionKeyB64Encoded(true);
         } else {
@@ -324,7 +324,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         EncodeData valueEncoded = null;
         // set value as the payload
         if (keyValue.getValue() != null) {
-            valueEncoded = keyValueSchema.getValueSchema().encode(producer.topic, keyValue.getValue());
+            valueEncoded = keyValueSchema.getValueSchema().encode(getTopic(), keyValue.getValue());
             content = ByteBuffer.wrap(valueEncoded.data());
         } else {
             msgMetadata.setNullValue(true);
@@ -337,4 +337,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             msgMetadata.setSchemaId(schemaId);
         }
     }
+
+    private String getTopic() {
+        return producer != null ? producer.getTopic() : null;
+    }
+
 }
