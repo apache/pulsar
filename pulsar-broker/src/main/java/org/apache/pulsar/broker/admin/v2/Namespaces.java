@@ -457,7 +457,8 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{tenant}/{namespace}/replication")
     @ApiOperation(value = "Set the replication clusters for a namespace. "
-            + "When removing a cluster: with shared configuration store, data will be deleted from the removed cluster; "
+            + "When removing a cluster: "
+            + "with shared configuration store, data will be deleted from the removed cluster; "
             + "with separate configuration store, only replication stops but data is preserved.")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Operation successful"),
