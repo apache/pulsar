@@ -166,7 +166,8 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                 "managedLedgerMaxSizePerLedgerMbytes", "512",
                 "managedLedgerDefaultEnsembleSize", "1",
                 "managedLedgerDefaultWriteQuorum", "1",
-                "managedLedgerDefaultAckQuorum", "1"
+                "managedLedgerDefaultAckQuorum", "1",
+                "maxPendingPublishRequestsPerConnection", "100000"
         ));
 
         // Increase memory for bookkeepers and make compaction run more often
