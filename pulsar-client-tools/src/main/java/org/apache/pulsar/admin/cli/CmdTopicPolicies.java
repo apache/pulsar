@@ -1999,7 +1999,10 @@ public class CmdTopicPolicies extends CmdBase {
     }
 
     @Command(description = "Set the replication clusters for a topic, global policy will be copied to the remote"
-            + " cluster if you enabled namespace level replication.")
+            + " cluster if you enabled namespace level replication. "
+            + "When removing a cluster: "
+            + "with shared configuration store, topic data will be deleted from the removed cluster; "
+            + "with separate configuration store, only replication stops but topic data is preserved.")
     private class SetReplicationClusters extends CliCommand {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
