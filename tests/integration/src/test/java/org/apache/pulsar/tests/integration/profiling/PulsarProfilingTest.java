@@ -101,7 +101,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                     "-u", "pulsar://" + brokerHostname + ":6650",
                     "-st", "Shared",
                     "-aq",
-                    "-m", String.valueOf(numberOfMessages), "-ml", "200M");
+                    "-m", String.valueOf(numberOfMessages), "-ml", "400M");
         }
 
         public CompletableFuture<Long> produce(String topicName) throws Exception {
@@ -111,7 +111,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                     "-au", "http://" + brokerHostname + ":8080",
                     "-r", String.valueOf(Integer.MAX_VALUE), // max-rate
                     "-s", "8192", // 8kB message size
-                    "-m", String.valueOf(numberOfMessages), "-ml", "200M");
+                    "-m", String.valueOf(numberOfMessages), "-ml", "400M");
         }
     }
 
