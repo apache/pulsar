@@ -750,15 +750,25 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
                 CommandGetTopicsOfNamespace.Mode.ALL)
                 .thenCompose(topics -> {
-                    boolean exists = false;
+                    boolean persistentResourceCreated = false;
                     for (String topic : topics) {
                         if (topicName.getPartitionedTopicName().equals(
                                 TopicName.get(topic).getPartitionedTopicName())) {
-                            exists = true;
+                            persistentResourceCreated = true;
                             break;
                         }
                     }
-                    return CompletableFuture.completedFuture(exists);
+                    if (persistentResourceCreated) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .getPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()), false)
+                        .thenApply(optMetadata -> {
+                            if (optMetadata.isEmpty()) {
+                                return false;
+                            }
+                            return optMetadata.get().partitions > topicName.getPartitionIndex();
+                        });
                 });
     }
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -100,6 +101,20 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         final String topic = domain.value() + "://public/default/"
                 + "testCreateConsumerForNonPartitionedTopicWhenEnableTopicAutoCreation";
         Assert.assertNotNull(pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe());
+    }
+
+    @Test
+    public void testGetPoliciesIfPartitionsNotCreated() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        int numPartitions = 3;
+        // simulate partitioned topic without partitions
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .createPartitionedTopicAsync(TopicName.get(topic),
+                        new PartitionedTopicMetadata(numPartitions)).join();
+        // Verify: the command will not get an topic not found error.
+        admin.topics().getReplicationClusters(topic, true);
+        // cleanup.
+        admin.topics().deletePartitionedTopic(topic);
     }
 
     @Test(timeOut = 60000)
