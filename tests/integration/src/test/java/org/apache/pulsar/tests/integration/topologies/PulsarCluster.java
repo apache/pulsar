@@ -34,6 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.Getter;
@@ -308,6 +309,25 @@ public class PulsarCluster {
 
     public String getPlainTextServiceUrl() {
         return proxyContainer.getPlainTextServiceUrl();
+    }
+
+    public void forEachContainer(Consumer<GenericContainer<?>> consumer) {
+        if (zkContainer != null) {
+            consumer.accept(zkContainer);
+        }
+        if (csContainer != null) {
+            consumer.accept(csContainer);
+        }
+        if (oxiaContainer != null) {
+            consumer.accept(oxiaContainer);
+        }
+        if (proxyContainer != null) {
+            consumer.accept(proxyContainer);
+        }
+        bookieContainers.values().forEach(consumer);
+        brokerContainers.values().forEach(consumer);
+        workerContainers.values().forEach(consumer);
+        externalServices.values().forEach(consumer);
     }
 
     public String getHttpServiceUrl() {

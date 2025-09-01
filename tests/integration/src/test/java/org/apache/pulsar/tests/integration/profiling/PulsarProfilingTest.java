@@ -137,6 +137,14 @@ public class PulsarProfilingTest extends PulsarTestSuite {
     }
 
     @Override
+    protected void beforeStartCluster() throws Exception {
+        super.beforeStartCluster();
+        pulsarCluster.forEachContainer(
+                // This is effective only when -Pdocker-wolfi has been passed when building java-test-image
+                c -> c.withEnv("GLIBC_TUNABLES", "glibc.malloc.hugetlb=1:glibc.malloc.mmap_threshold=2097152"));
+    }
+
+    @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
         PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
 
