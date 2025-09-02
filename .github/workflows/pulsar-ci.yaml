@@ -170,7 +170,7 @@ jobs:
           echo "java_test_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
           echo "$main_type_json" >> $GITHUB_OUTPUT
-          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" && fromJSON(steps.changes.outputs.pulsar_dockerfile_wolfi_count) > 0 ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" && ${{ fromJSON(steps.changes.outputs.pulsar_dockerfile_wolfi_count) }} -gt 0 ]]; then
               echo ',{"type": "wolfi", "save_artifact": false, "additional_build_args": "-Pdocker-wolfi"}' >> $GITHUB_OUTPUT
           fi
           echo "]" >> $GITHUB_OUTPUT
@@ -179,7 +179,7 @@ jobs:
           echo "latest_version_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
           echo "$main_type_json" >> $GITHUB_OUTPUT
-          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" && fromJSON(steps.changes.outputs.pulsar_all_dockerfile_wolfi_count) > 0 ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" && ${{ fromJSON(steps.changes.outputs.pulsar_all_dockerfile_wolfi_count) }} -gt 0 ]]; then
               echo ',{"type": "wolfi", "save_artifact": false, "additional_build_args": "-Pdocker-wolfi"}' >> $GITHUB_OUTPUT
           fi
           echo "]" >> $GITHUB_OUTPUT
