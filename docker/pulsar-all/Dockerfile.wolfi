@@ -18,7 +18,7 @@
 # under the License.
 #
 
-# Dockerfile for pulsar-all image which uses Wolfi (cgr.dev/chainguard/wolfi-base) as it's base image
+# Dockerfile for pulsar-all image which uses Wolfi (chainguard/wolfi-base) as it's base image
 # More information about Wolfi OS: https://github.com/wolfi-dev/
 
 # global arguments (only to be used in FROM clauses)

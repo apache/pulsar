@@ -18,13 +18,13 @@
 # under the License.
 #
 
-# Dockerfile for pulsar image which uses Wolfi (cgr.dev/chainguard/wolfi-base) as it's base image
+# Dockerfile for pulsar image which uses Wolfi (chainguard/wolfi-base) as it's base image
 # More information about Wolfi OS: https://github.com/wolfi-dev/
 
 ARG IMAGE_JDK_MAJOR_VERSION=21
 
 # First create a stage with just the Pulsar tarball and scripts
-FROM cgr.dev/chainguard/wolfi-base as pulsar
+FROM chainguard/wolfi-base as pulsar
 
 RUN apk add zip
 
@@ -69,7 +69,7 @@ RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.secu
 
 ## Create final stage
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
-FROM cgr.dev/chainguard/wolfi-base
+FROM chainguard/wolfi-base
 ENV LANG C.UTF-8
 
 # Install some utilities, some are required by Pulsar scripts
