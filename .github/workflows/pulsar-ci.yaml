@@ -70,6 +70,14 @@ on:
           - 'fail_on_leak'
           - 'off'
         default: 'report'
+      docker_image_type:
+        description: 'Type of docker image to build. When set to "alpine", an Alpine based docker image will be built. When set to "wolfi", a Wolfi based docker image will be built.'
+        required: true
+        type: choice
+        options:
+          - 'alpine'
+          - 'wolfi'
+        default: 'alpine'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
@@ -142,10 +150,28 @@ jobs:
       - name: Choose docker images to build
         id: docker_images_matrix
         run: |
+          # build JSON for java_test_image_base_matrix and latest_version_image_base_matrix
+          # This JSON is used as input or the build matrixes in the docker image build jobs. 
+          # For workflow_dispatch, the docker_image_type input is used to determine the base image
+          # For scheduled builds, the default base image is alpine
+          # For pull requests, the default base image is alpine. If the changed files include Dockerfile.wolfi changes
+          # the wolfi base image is built in addition to the alpine image.
+          
+          # create json for the default base image of the build
+          main_type="alpine"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            main_type="${{ github.event.inputs.docker_image_type }}"          
+          fi
+          if [[ "$main_type" == "wolfi" ]]; then
+            main_type_json='{"type": "'$main_type'", "save_artifact": true, "additional_build_args": "-Pdocker-wolfi"}'
+          else
+            main_type_json='{"type": "'$main_type'", "save_artifact": true}'
+          fi
+          
           # build JSON for java_test_image_base_matrix 
           echo "java_test_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
-          echo '{"type": "alpine", "save_artifact": true}' >> $GITHUB_OUTPUT
+          echo "$main_type_json" >> $GITHUB_OUTPUT
           if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" && fromJSON(steps.changes.outputs.pulsar_dockerfile_wolfi_count) > 0 ]]; then
               echo ',{"type": "wolfi", "save_artifact": false, "additional_build_args": "-Pdocker-wolfi"}' >> $GITHUB_OUTPUT
           fi
@@ -155,7 +181,7 @@ jobs:
           # build JSON for latest_version_image_base_matrix 
           echo "latest_version_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
-          echo '{"type": "alpine", "save_artifact": true}' >> $GITHUB_OUTPUT
+          echo "$main_type_json" >> $GITHUB_OUTPUT
           if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" && fromJSON(steps.changes.outputs.pulsar_all_dockerfile_wolfi) > 0 ]]; then
               echo ',{"type": "wolfi", "save_artifact": false, "additional_build_args": "-Pdocker-wolfi"}' >> $GITHUB_OUTPUT
           fi
