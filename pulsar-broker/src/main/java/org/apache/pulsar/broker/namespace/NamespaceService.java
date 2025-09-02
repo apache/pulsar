@@ -506,7 +506,23 @@ public class NamespaceService implements AutoCloseable {
                         LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
                     }
                     // find the target
-                    resolveLookupResult(nsData, options, future);
+                    if (options.hasAdvertisedListenerName()) {
+                        AdvertisedListener listener =
+                                nsData.get().getAdvertisedListeners().get(options.getAdvertisedListenerName());
+                        if (listener == null) {
+                            future.completeExceptionally(
+                                    new PulsarServerException("the broker do not have "
+                                            + options.getAdvertisedListenerName() + " listener"));
+                        } else {
+                            URI url = listener.getBrokerServiceUrl();
+                            URI urlTls = listener.getBrokerServiceUrlTls();
+                            future.complete(Optional.of(new LookupResult(nsData.get(),
+                                    url == null ? null : url.toString(),
+                                    urlTls == null ? null : urlTls.toString())));
+                        }
+                    } else {
+                        future.complete(Optional.of(new LookupResult(nsData.get())));
+                    }
                 }
             }).exceptionally(exception -> {
                 LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
@@ -582,8 +598,7 @@ public class NamespaceService implements AutoCloseable {
                     candidateBroker = pulsar.getBrokerId();
                 } else {
                     LoadManager loadManager = this.loadManager.get();
-                    boolean makeLoadManagerDecisionOnThisBroker =
-                            !loadManager.isCentralized() || les.isLeader();
+                    boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
                     if (!makeLoadManagerDecisionOnThisBroker) {
                         // If leader is not active, fallback to pick the least loaded from current broker loadmanager
                         boolean leaderBrokerActive = currentLeader.isPresent()
@@ -693,27 +708,6 @@ public class NamespaceService implements AutoCloseable {
         } catch (Exception e) {
             LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle, e.getMessage(), e);
             lookupFuture.completeExceptionally(e);
-        }
-    }
-
-    private void resolveLookupResult(Optional<NamespaceEphemeralData> nsData, LookupOptions options,
-                                     CompletableFuture<Optional<LookupResult>> lookupFuture) {
-        if (options.hasAdvertisedListenerName()) {
-            AdvertisedListener listener =
-                    nsData.get().getAdvertisedListeners().get(options.getAdvertisedListenerName());
-            if (listener == null) {
-                lookupFuture.completeExceptionally(
-                        new PulsarServerException("the broker do not have "
-                                + options.getAdvertisedListenerName() + " listener"));
-            } else {
-                URI url = listener.getBrokerServiceUrl();
-                URI urlTls = listener.getBrokerServiceUrlTls();
-                lookupFuture.complete(Optional.of(new LookupResult(nsData.get(),
-                        url == null ? null : url.toString(),
-                        urlTls == null ? null : urlTls.toString())));
-            }
-        } else {
-            lookupFuture.complete(Optional.of(new LookupResult(nsData.get())));
         }
     }
 
