@@ -949,7 +949,7 @@ jobs:
       - name: Clean Disk
         uses: ./.github/actions/clean-disk
         with:
-          mode: ${{ matrix.base.save_artifact && 'full' || '' }}
+          mode: full
 
       - name: Cache local Maven repository
         uses: actions/cache@v4
