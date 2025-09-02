@@ -100,7 +100,8 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                     "/pulsar/bin/pulsar-perf", "consume", topicName,
                     "-u", "pulsar://" + brokerHostname + ":6650",
                     "-st", "Shared",
-                    "-m", String.valueOf(numberOfMessages), "-ml", "200M");
+                    "-aq",
+                    "-m", String.valueOf(numberOfMessages), "-ml", "400M");
         }
 
         public CompletableFuture<Long> produce(String topicName) throws Exception {
@@ -110,7 +111,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                     "-au", "http://" + brokerHostname + ":8080",
                     "-r", String.valueOf(Integer.MAX_VALUE), // max-rate
                     "-s", "8192", // 8kB message size
-                    "-m", String.valueOf(numberOfMessages), "-ml", "200M");
+                    "-m", String.valueOf(numberOfMessages), "-ml", "400M");
         }
     }
 
@@ -137,6 +138,14 @@ public class PulsarProfilingTest extends PulsarTestSuite {
     }
 
     @Override
+    protected void beforeStartCluster() throws Exception {
+        super.beforeStartCluster();
+        pulsarCluster.forEachContainer(
+                // This is effective only when -Pdocker-wolfi has been passed when building java-test-image
+                c -> c.withEnv("GLIBC_TUNABLES", "glibc.malloc.hugetlb=1:glibc.malloc.mmap_threshold=2097152"));
+    }
+
+    @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
         PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
 
@@ -157,7 +166,8 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                 "managedLedgerMaxSizePerLedgerMbytes", "512",
                 "managedLedgerDefaultEnsembleSize", "1",
                 "managedLedgerDefaultWriteQuorum", "1",
-                "managedLedgerDefaultAckQuorum", "1"
+                "managedLedgerDefaultAckQuorum", "1",
+                "maxPendingPublishRequestsPerConnection", "100000"
         ));
 
         // Increase memory for bookkeepers and make compaction run more often

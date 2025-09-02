@@ -1,0 +1,123 @@
+# syntax=docker/dockerfile:1
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Dockerfile for pulsar image which uses Wolfi (chainguard/wolfi-base) as it's base image
+# More information about Wolfi OS: https://github.com/wolfi-dev/
+# wolfi-base CVEs: https://images.chainguard.dev/directory/image/wolfi-base/vulnerabilities
+
+ARG IMAGE_JDK_MAJOR_VERSION=21
+
+# First create a stage with just the Pulsar tarball and scripts
+FROM chainguard/wolfi-base as pulsar
+
+RUN apk add zip
+
+ARG PULSAR_TARBALL
+
+ADD ${PULSAR_TARBALL} /
+RUN mv /apache-pulsar-* /pulsar
+RUN rm -rf /pulsar/bin/*.cmd
+
+COPY build-scripts /build-scripts/
+RUN /build-scripts/remove-unnecessary-native-binaries.sh glibc
+
+COPY scripts/* /pulsar/bin/
+
+# The final image needs to give the root group sufficient permission for Pulsar components
+# to write to specific directories within /pulsar
+# The ownership is changed to uid 10000 to allow using a different root group. This is necessary when running the
+# container when gid=0 is prohibited. In that case, the container must be run with uid 10000 with
+# any group id != 0 (for example 10001).
+# The file permissions are preserved when copying files from this builder image to the target image.
+RUN for SUBDIRECTORY in conf data download logs instances/deps packages-storage; do \
+     mkdir -p /pulsar/$SUBDIRECTORY; \
+     chmod -R ug+rwx /pulsar/$SUBDIRECTORY; \
+     chown -R 10000:0 /pulsar/$SUBDIRECTORY; \
+     done
+
+RUN chmod -R g+rx /pulsar/bin
+RUN chmod -R o+rx /pulsar
+
+###  Create one stage to include JVM distribution
+FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION} AS jvm
+
+# Install binutils which is required by jlink
+RUN yum update -y && yum install -y binutils
+
+# Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
+# This still includes all JDK modules, though in the future we could compile a list of required modules
+# first try with Java 17/21 compatible jlink command and if it fails, fallback to Java 24+ compatible command
+RUN /usr/lib/jvm/java/bin/jlink --add-modules ALL-MODULE-PATH --compress=2 --no-man-pages --no-header-files --strip-debug --output /opt/jvm || /usr/lib/jvm/java/bin/jlink --module-path /usr/lib/jvm/java/jmods --add-modules ALL-MODULE-PATH --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
+RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
+RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
+
+## Create final stage
+## and add OpenJDK and Python dependencies (for Pulsar functions)
+FROM chainguard/wolfi-base
+ENV LANG C.UTF-8
+
+ARG PYTHON_VERSION=3.12
+# Install some utilities, some are required by Pulsar scripts
+RUN apk add --no-cache \
+            bash \
+            python-${PYTHON_VERSION} \
+            py${PYTHON_VERSION}-pip \
+            libgcc \
+            libstdc++ \
+            libuuid \
+            ca-certificates \
+            procps \
+            curl \
+            bind-tools \
+            openssl \
+            coreutils
+
+# Upgrade all packages to get latest versions with security fixes
+RUN apk upgrade --no-cache
+
+# Python dependencies
+# The pinned grpcio and protobuf versions should be compatible with the generated Protobuf and gRPC stubs used
+# in Pulsar Functions Python runtime. You should also update the grpcio version in src/update_python_protobuf_stubs.sh
+# and regenerate the Python stubs if you change the grpcio version here. Please see
+# pulsar-functions/instance/src/main/python/README.md for more details.
+ARG PULSAR_CLIENT_PYTHON_VERSION
+RUN pip3 install --break-system-packages --no-cache-dir \
+    --only-binary \
+    grpcio==1.73.1 \
+    protobuf==6.31.1 \
+    pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION} \
+    kazoo \
+    pyyaml
+
+COPY --from=jvm /opt/jvm /opt/jvm
+ENV JAVA_HOME=/opt/jvm
+
+# The default is /pulsat/bin and cannot be written.
+ENV PULSAR_PID_DIR=/pulsar/logs
+
+COPY --from=pulsar /pulsar /pulsar
+
+WORKDIR /pulsar
+ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
+
+# The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
+ARG DEFAULT_USERNAME=pulsar
+RUN adduser ${DEFAULT_USERNAME} -u 10000 -G root -D -H -h /pulsar/data
+USER 10000
