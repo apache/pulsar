@@ -21,21 +21,30 @@
 set -e
 set -o pipefail
 
+function set_pulsar_mem() {
+  local maxMem=$1
+  local additionalMemParam=$2
+  local pulsar_test_mem
+  # set into pulsar_test_mem while trimming whitespace
+  read -r pulsar_test_mem <<< "-Xmx${maxMem} ${additionalMemParam}"
+  # prefer PULSAR_MEM, but always append params to perform a heap dump on OOME
+  export PULSAR_MEM="${PULSAR_MEM:-"${pulsar_test_mem}"} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/pulsar -XX:+ExitOnOutOfMemoryError"
+}
+
 function run_pulsar_component() {
   local component=$1
   local supervisord_component=$2
   local maxMem=$3
   local additionalMemParam=$4
-  export PULSAR_MEM="${PULSAR_MEM:-"-Xmx${maxMem} ${additionalMemParam} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/pulsar -XX:+ExitOnOutOfMemoryError"}"
-  export PULSAR_GC="${PULSAR_GC:-"-XX:+UseZGC"}"
+
+  set_pulsar_mem "$maxMem" "$additionalMemParam"
 
   if [[ -f "conf/${component}.conf" ]]; then
     bin/apply-config-from-env.py conf/${component}.conf
   fi
-  bin/apply-config-from-env.py conf/pulsar_env.sh
+  bin/apply-config-from-env.py conf/client.conf
 
   if [[ "$component" == "functions_worker" ]]; then
-    bin/apply-config-from-env.py conf/client.conf
     bin/gen-yml-from-env.py conf/functions_worker.yml
   fi
 
@@ -46,7 +55,7 @@ function run_pulsar_component() {
   fi
 
   if [ -z "$NO_AUTOSTART" ]; then
-      sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/${supervisord_component}.conf
+    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/${supervisord_component}.conf
   fi
 
   exec /usr/bin/supervisord -c /etc/supervisord.conf
