@@ -156,7 +156,6 @@ jobs:
           # For scheduled builds, the default base image is alpine
           # For pull requests, the default base image is alpine. If the changed files include Dockerfile.wolfi changes
           # the wolfi base image is built in addition to the alpine image.
-          
           # create json for the default base image of the build
           main_type="alpine"
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
@@ -167,7 +166,6 @@ jobs:
           else
             main_type_json='{"type": "'$main_type'", "save_artifact": true}'
           fi
-          
           # build JSON for java_test_image_base_matrix 
           echo "java_test_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
@@ -177,7 +175,6 @@ jobs:
           fi
           echo "]" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
           # build JSON for latest_version_image_base_matrix 
           echo "latest_version_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
