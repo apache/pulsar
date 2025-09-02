@@ -535,7 +535,7 @@ jobs:
           action: wait
 
   pulsar-java-test-image:
-    name: Build Pulsar java-test-image ${{ matrix.base.type }} docker image
+    name: Build Pulsar java-test-image ${{ matrix.base.type }} docker image for ${{ matrix.platform }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
