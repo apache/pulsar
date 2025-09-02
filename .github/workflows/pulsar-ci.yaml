@@ -151,7 +151,7 @@ jobs:
         id: docker_images_matrix
         run: |
           # build JSON for java_test_image_base_matrix and latest_version_image_base_matrix
-          # This JSON is used as input or the build matrixes in the docker image build jobs. 
+          # This JSON is used as input or the build matrixes in the docker image build jobs.
           # For workflow_dispatch, the docker_image_type input is used to determine the base image
           # For scheduled builds, the default base image is alpine
           # For pull requests, the default base image is alpine. If the changed files include Dockerfile.wolfi changes
@@ -159,14 +159,14 @@ jobs:
           # create json for the default base image of the build
           main_type="alpine"
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            main_type="${{ github.event.inputs.docker_image_type }}"          
+            main_type="${{ github.event.inputs.docker_image_type }}"
           fi
           if [[ "$main_type" == "wolfi" ]]; then
             main_type_json='{"type": "'$main_type'", "save_artifact": true, "additional_build_args": "-Pdocker-wolfi"}'
           else
             main_type_json='{"type": "'$main_type'", "save_artifact": true}'
           fi
-          # build JSON for java_test_image_base_matrix 
+          # build JSON for java_test_image_base_matrix
           echo "java_test_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
           echo "$main_type_json" >> $GITHUB_OUTPUT
@@ -175,7 +175,7 @@ jobs:
           fi
           echo "]" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          # build JSON for latest_version_image_base_matrix 
+          # build JSON for latest_version_image_base_matrix
           echo "latest_version_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "[" >> $GITHUB_OUTPUT
           echo "$main_type_json" >> $GITHUB_OUTPUT
@@ -188,16 +188,16 @@ jobs:
       - name: Check if coverage should be collected
         id: check_coverage
         run: |
-          echo "collect_coverage=${{ 
-          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch' 
-            && (github.base_ref == 'master' || github.ref_name == 'master')) 
+          echo "collect_coverage=${{
+          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch'
+            && (github.base_ref == 'master' || github.ref_name == 'master'))
           || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
           }}"  >> $GITHUB_OUTPUT
 
       - name: Set Netty leak detection mode
         id: netty_leak_detection
         run: |
-          echo "netty_leak_detection=${{ 
+          echo "netty_leak_detection=${{
           github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
           }}" >> $GITHUB_OUTPUT
 
@@ -505,7 +505,7 @@ jobs:
       - name: Restore coverage files from build artifacts and create Jacoco reports
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_unittest_coverage_files
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
           cd $GITHUB_WORKSPACE/target
           zip -qr jacoco_test_coverage_report_unittests.zip jacoco_test_coverage_report || true
 
@@ -863,7 +863,7 @@ jobs:
       - name: Restore coverage files from build artifacts and create Jacoco reports
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_inttest_coverage_files
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report 
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
           cd $GITHUB_WORKSPACE/target
           zip -qr jacoco_test_coverage_report_inttests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
