@@ -20,6 +20,7 @@
 
 # Dockerfile for pulsar-all image which uses Wolfi (chainguard/wolfi-base) as it's base image
 # More information about Wolfi OS: https://github.com/wolfi-dev/
+# wolfi-base CVEs: https://images.chainguard.dev/directory/image/wolfi-base/vulnerabilities
 
 # global arguments (only to be used in FROM clauses)
 ARG PULSAR_IMAGE

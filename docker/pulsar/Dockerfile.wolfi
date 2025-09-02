@@ -20,6 +20,7 @@
 
 # Dockerfile for pulsar image which uses Wolfi (chainguard/wolfi-base) as it's base image
 # More information about Wolfi OS: https://github.com/wolfi-dev/
+# wolfi-base CVEs: https://images.chainguard.dev/directory/image/wolfi-base/vulnerabilities
 
 ARG IMAGE_JDK_MAJOR_VERSION=21
 
