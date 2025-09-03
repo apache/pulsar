@@ -139,6 +139,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected int lastNumberOfEntriesProcessed;
     protected boolean skipNextBackoff;
     private final Backoff retryBackoff;
+    private boolean moreEntriesRequestedWhileSendInProgress;
+
     protected enum ReadType {
         Normal, Replay
     }
@@ -341,8 +343,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 log.debug("[{}] [{}] Skipping read for the topic, Due to sending in-progress.",
                         topic.getName(), getSubscriptionName());
             }
+            moreEntriesRequestedWhileSendInProgress = true;
             return;
         }
+        moreEntriesRequestedWhileSendInProgress = false;
         if (shouldPauseDeliveryForDelayTracker()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Skipping read for the topic, Due to pause delivery for delay tracker.",
@@ -737,8 +741,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             skipNextBackoff = false;
             canReadMoreImmediately = true;
         }
-        if (triggerReadingMore) {
-            if (canReadMoreImmediately) {
+        if (triggerReadingMore || moreEntriesRequestedWhileSendInProgress) {
+            if (canReadMoreImmediately || moreEntriesRequestedWhileSendInProgress) {
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
             } else {
