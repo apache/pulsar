@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -385,8 +386,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             timeout.cancel();
             recheckPatternTimeout = null;
         }
-        CompletableFuture<Void> watcherCloseFuture =
-                watcherFuture.thenCompose(TopicListWatcher::closeAsync).exceptionally(t -> null);
+        CompletableFuture<Void> watcherCloseFuture = watcherFuture.thenCompose(
+                topicListWatcher -> Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
+                        .orElse(CompletableFuture.completedFuture(null))).exceptionally(t -> null);
         CompletableFuture<Void> runningTaskCancelFuture = updateTaskQueue.cancelAllAndWaitForTheRunningTask();
         return FutureUtil.waitForAll(Lists.newArrayList(watcherCloseFuture, runningTaskCancelFuture))
                 .exceptionally(t -> null).thenCompose(__ -> super.closeAsync());
