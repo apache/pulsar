@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
@@ -129,6 +130,8 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         }
         if (readerConfiguration.getCryptoFailureAction() != null) {
             consumerConfiguration.setCryptoFailureAction(readerConfiguration.getCryptoFailureAction());
+        } else if (readerConfiguration.getReaderDecryptFailListener() == null) {
+            consumerConfiguration.setCryptoFailureAction(ConsumerCryptoFailureAction.FAIL);
         }
         if (readerConfiguration.getCryptoKeyReader() != null) {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
