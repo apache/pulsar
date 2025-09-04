@@ -20,7 +20,8 @@ package org.apache.pulsar.utils.auth.tokens;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -290,13 +291,20 @@ public class TokensCliUtils {
                 validationKey = AuthTokenUtils.decodeSecretKey(encodedKey);
             }
 
-            // Validate the token
-            Jwt<?, Claims> jwt = Jwts.parserBuilder()
-                    .setSigningKey(validationKey)
-                    .build()
-                    .parseClaimsJws(token);
+            try {
+                // Validate the token
+                Jws<Claims> jwt = Jwts.parserBuilder()
+                        .setSigningKey(validationKey)
+                        .build()
+                        .parseClaimsJws(token);
 
-            System.out.println(jwt.getBody());
+                System.out.println(jwt.getBody());
+
+            } catch (JwtException e) {
+                System.err.println("JWT Signature verification failed: " + e.getMessage());
+                return -1;
+            }
+
             return 0;
         }
     }

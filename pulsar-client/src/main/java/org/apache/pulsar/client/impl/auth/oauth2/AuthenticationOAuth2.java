@@ -41,6 +41,7 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
 
     public static final String CONFIG_PARAM_TYPE = "type";
     public static final String TYPE_CLIENT_CREDENTIALS = "client_credentials";
+    public static final String TYPE_JWT_BEARER = "jwt_bearer";
     public static final String AUTH_METHOD_NAME = "token";
     public static final double EXPIRY_ADJUSTMENT = 0.9;
     private static final long serialVersionUID = 1L;
@@ -79,6 +80,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         switch(type) {
             case TYPE_CLIENT_CREDENTIALS:
                 this.flow = ClientCredentialsFlow.fromParameters(params);
+                break;
+            case TYPE_JWT_BEARER:
+                this.flow = JwtBearerFlow.fromParameters(params);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported authentication type: " + type);
