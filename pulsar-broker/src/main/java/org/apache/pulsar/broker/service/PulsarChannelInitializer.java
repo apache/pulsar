@@ -81,6 +81,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // disable auto read explicitly so that requests aren't served until auto read is enabled
         // ServerCnx must enable auto read in channelActive after PulsarService is ready to accept incoming requests
         ch.config().setAutoRead(false);
+        ch.config().setWriteBufferHighWaterMark(pulsar.getConfig().getPulsarChannelWriteBufferHighWaterMark());
+        ch.config().setWriteBufferLowWaterMark(pulsar.getConfig().getPulsarChannelWriteBufferLowWaterMark());
         ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024, true));
         if (this.enableTls) {
             ch.pipeline().addLast(TLS_HANDLER, new SslHandler(this.sslFactory.createServerSslEngine(ch.alloc())));
