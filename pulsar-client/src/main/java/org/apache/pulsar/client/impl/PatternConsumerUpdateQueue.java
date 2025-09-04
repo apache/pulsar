@@ -73,7 +73,7 @@ public class PatternConsumerUpdateQueue {
 
     private volatile long lastRecheckTaskStartingTimestamp = 0;
 
-    private volatile boolean closed;
+    private boolean closed;
 
     public PatternConsumerUpdateQueue(PatternMultiTopicsConsumerImpl patternConsumer) {
         this(patternConsumer, patternConsumer.topicsChangeListener);
