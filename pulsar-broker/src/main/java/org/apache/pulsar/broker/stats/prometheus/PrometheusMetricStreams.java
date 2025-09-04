@@ -37,7 +37,7 @@ public class PrometheusMetricStreams {
      * @param value value of the sample
      * @param labelsAndValuesArray varargs of label and label value
      */
-    void writeSample(String metricName, Number value, String... labelsAndValuesArray) {
+    public void writeSample(String metricName, Number value, String... labelsAndValuesArray) {
         SimpleTextOutputStream stream = initGaugeType(metricName);
         stream.write(metricName).write('{');
         for (int i = 0; i < labelsAndValuesArray.length; i += 2) {
