@@ -385,9 +385,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             timeout.cancel();
             recheckPatternTimeout = null;
         }
-        return watcherFuture.thenCompose(TopicListWatcher::closeAsync).exceptionally(t -> null)
-                .thenCompose(__ -> updateTaskQueue.cancelAllAndWaitForTheRunningTask()).exceptionally(t -> null)
-                .thenCompose(__ -> super.closeAsync());
+        CompletableFuture<Void> watcherCloseFuture =
+                watcherFuture.thenCompose(TopicListWatcher::closeAsync).exceptionally(t -> null);
+        CompletableFuture<Void> runningTaskCancelFuture = updateTaskQueue.cancelAllAndWaitForTheRunningTask();
+        return FutureUtil.waitForAll(Lists.newArrayList(watcherCloseFuture, runningTaskCancelFuture))
+                .exceptionally(t -> null).thenCompose(__ -> super.closeAsync());
     }
 
     @VisibleForTesting
