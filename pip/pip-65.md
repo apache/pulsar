@@ -2,13 +2,13 @@
 
 * **Status**: Proposal
  * **Author**: [Sanjeev Kulkarni](https://github.com/srkukarni), [Jerry Peng](https://github.com/jerrypeng)
- * **Mailing List discussion**: 
+ * **Mailing List discussion**:
  * **Target Release**: 2.6.0
 
 ## Background
 
-Currently Pulsar IO provides a very simple SDK and flexible runtimes for sources and sinks. The SDK is oriented towards supporting streaming sources and sinks(like reading from say a AWS Kinesis stream). However numerous sources of data are of non-streaming nature. Consider an example of reading from a file/object service. Files/Objects are added to this service on a regular basis that are needed to be copied to Pulsar. There may be some ways the service can notify when new data is available(for example S3 notification service for new object creation). Other times we might just want to do this on a regular cron like schedule(for example FTP service). In either case there is a (1. discover new data to be ingested and 2. ingest it) cycle initiated by some trigger. 
-This document proposes adding explicit sdk support for these batch type sources. We outline the sdk interfaces as well as some implementation directions. 
+Currently Pulsar IO provides a very simple SDK and flexible runtimes for sources and sinks. The SDK is oriented towards supporting streaming sources and sinks(like reading from say a AWS Kinesis stream). However numerous sources of data are of non-streaming nature. Consider an example of reading from a file/object service. Files/Objects are added to this service on a regular basis that are needed to be copied to Pulsar. There may be some ways the service can notify when new data is available(for example S3 notification service for new object creation). Other times we might just want to do this on a regular cron like schedule(for example FTP service). In either case there is a (1. discover new data to be ingested and 2. ingest it) cycle initiated by some trigger.
+This document proposes adding explicit sdk support for these batch type sources. We outline the sdk interfaces as well as some implementation directions.
 
 ## Nuances of Batch Sources
 
@@ -56,7 +56,7 @@ We propose adding a new interface called BatchSourceTriggerer for triggering bat
 
 ### BatchSourceConfig at submission
 
-The BatchSource sources will be submitted to pulsar function workers using the same SourceConfig api to the same rest end point as the current streaming sources. The SourceConfig will be enhanced by adding a new BatchSourceConfig parameter. The existence of this config parameter indicates to the framework that this is a BatchSource and not the usual Source. This config also ties the BatchSourceTrigger class names that will be used to trigger the discovery process. 
+The BatchSource sources will be submitted to pulsar function workers using the same SourceConfig api to the same rest end point as the current streaming sources. The SourceConfig will be enhanced by adding a new BatchSourceConfig parameter. The existence of this config parameter indicates to the framework that this is a BatchSource and not the usual Source. This config also ties the BatchSourceTrigger class names that will be used to trigger the discovery process.
 
 ### Executor based implementation
 

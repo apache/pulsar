@@ -46,6 +46,7 @@ message Schema {
         LocalDateTime = 19;
         ProtobufNative = 20;
         AutoConsume = 21;
+        External = 22;
     }
 
     required string name = 1;
@@ -173,6 +174,7 @@ message MessageMetadata {
     // the `compacted_out` field in `SingleMessageMetadata` must be checked to identify and filter out compacted
     // messages (e.g., `k1 => v1` and `k1 => null` in the example above).
     repeated int32 compacted_batch_indexes = 31;
+    optional bytes schema_id = 32;
 }
 
 message SingleMessageMetadata {

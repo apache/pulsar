@@ -47,7 +47,7 @@ All topic-level use null, which can be consistent.
 
 2. To solve problem 2. We will add `applied` interfaces at the topic level:
 `Integer getMessageTTL(String topic, boolean applied)`
-When applied = true, if the topic-level has a policy, it will return, otherwise it will return the broker-level, if not, it will return the 
+When applied = true, if the topic-level has a policy, it will return, otherwise it will return the broker-level, if not, it will return the
 
 broker-level
 

@@ -77,6 +77,17 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setCacheEvictionIntervalMs(conf.getManagedLedgerCacheEvictionIntervalMs());
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
                 conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        Long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis =
+                conf.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
+        if (continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis != null) {
+            managedLedgerFactoryConfig.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
+                    continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis);
+        } else {
+            // default to 2 * managedLedgerCacheEvictionTimeThresholdMillis if the value is unset
+            managedLedgerFactoryConfig.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
+                    2 * conf.getManagedLedgerCacheEvictionTimeThresholdMillis()
+            );
+        }
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
         long managedLedgerMaxReadsInFlightSizeBytes = conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L;
         if (managedLedgerMaxReadsInFlightSizeBytes > 0 && conf.getDispatcherMaxReadSizeBytes() > 0

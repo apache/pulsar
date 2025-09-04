@@ -3,12 +3,12 @@
 - Status: Proposed
 - Author: Yong Zhang
 - Discusstion Thread:
-- Issue: 
+- Issue:
 
 ## Motivation
 
-Currently `MaxMessageSize` is hardcoded in Pulsar and it can’t be modified in server configuration. So there is no way when user want to modify the limit to transfer larger size message. 
-Hence we add a `MaxMessageSize` config in `broker.conf` to solve this problem. Because broker server will decide how much message size will be received so client need know how much message client can be sent. 
+Currently `MaxMessageSize` is hardcoded in Pulsar and it can’t be modified in server configuration. So there is no way when user want to modify the limit to transfer larger size message.
+Hence we add a `MaxMessageSize` config in `broker.conf` to solve this problem. Because broker server will decide how much message size will be received so client need know how much message client can be sent.
 
 Hence we propose adding a new flag `max_message_size` in protocol to tell a client what is the max message size that it can use once it connected.
 
@@ -48,7 +48,7 @@ We defined three value about message size in `Commands`:
 	- MESSAGE_SIZE_FRAME_PADDING = 10 * 1024
 	- INVALID_MAX_MESSAGE_SIZE = -1
 
-> **DEFAULT_MAX_MESSAGE_SIZE** is used to set where is not specify the max message size. And **MESSAGE_SIZE_FRAME_PADDING** is the message meta info size. Sometimes the message size is not necessary in *Connected* so you can choose **INVALID_MAX_MESSAGE_SIZE** and it will not in *Connected*  command. 
+> **DEFAULT_MAX_MESSAGE_SIZE** is used to set where is not specify the max message size. And **MESSAGE_SIZE_FRAME_PADDING** is the message meta info size. Sometimes the message size is not necessary in *Connected* so you can choose **INVALID_MAX_MESSAGE_SIZE** and it will not in *Connected*  command.
 
 **Broker**
  we need send `max_message_size` to clients when broker complete connect:

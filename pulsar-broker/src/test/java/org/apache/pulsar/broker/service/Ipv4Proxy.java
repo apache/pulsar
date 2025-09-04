@@ -34,15 +34,18 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Ipv4Proxy {
     @Getter
-    private final int localPort;
+    private int localPort;
     private final String backendServerHost;
     private final int backendServerPort;
     private final EventLoopGroup serverGroup = new NioEventLoopGroup(1);
@@ -69,6 +72,12 @@ public class Ipv4Proxy {
                 }
             }).childOption(ChannelOption.AUTO_READ, false)
             .bind(localPort).sync();
+        if (localServerChannel.isSuccess()) {
+            localPort = ((InetSocketAddress) localServerChannel.channel().localAddress()).getPort();
+            log.info("Proxy started on port: {}", localPort);
+        } else {
+            throw new RuntimeException("Failed to bind to port: " + localPort, localServerChannel.cause());
+        }
     }
 
     public synchronized void stop() throws InterruptedException{

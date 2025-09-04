@@ -8,21 +8,21 @@
 
 ## Motivation
 
-In Pulsar, brokers use Zookeeper as the configuration store and broker metadata maintaining. We can also call them Global Zookeeper and Local Zookeeper. 
+In Pulsar, brokers use Zookeeper as the configuration store and broker metadata maintaining. We can also call them Global Zookeeper and Local Zookeeper.
 
 The Global Zookeeper maintains the namespace policies, cluster metadata, and partitioned topic metadata. To reduce read operations on Zookeeper, each broker has a cache for global Zookeeper. The Global Zookeeper cache updates on znode changed. Currently, when the present session timeout happens on global Zookeeper, a new session starts. Broker does not create any EPHEMERAL znodes on global Zookeeper.
 
 The Local Zookeeper maintains the local cluster metadata, such as broker load data, topic ownership data, managed ledger metadata, and Bookie rack information. All of broker load data and topic ownership data are create EPHEMERAL nodes on Local Zookeeper. Currently, when session timeout happens on Local Zookeeper, the broker shutdown itself.
 
-Shutdown broker results in ownership change of topics that the broker owned. However, we encountered lots of problems related to the current session timeout handling. Such as broker with long JVM GC pause, Local Zookeeper under high workload. Especially the latter may cause all broker shutdowns. 
+Shutdown broker results in ownership change of topics that the broker owned. However, we encountered lots of problems related to the current session timeout handling. Such as broker with long JVM GC pause, Local Zookeeper under high workload. Especially the latter may cause all broker shutdowns.
 
 So, the purpose of this proposal is to improve session timeout handling on Local Zookeeper to avoid unnecessary broker shutdown.
 
 ## Approach
 
-Same as the Global Zookeeper session timeout handling and Zookeeper session timeout handling in BookKeeper, a new session should start when the present session timeout. 
+Same as the Global Zookeeper session timeout handling and Zookeeper session timeout handling in BookKeeper, a new session should start when the present session timeout.
 
-If a new session failed to start, the broker would retry several times. The retry times depend on the configuration of the broker. After the number of retries, if still can't start session success, the broker still needs to be shut down since this may be a problem with the Zookeeper cluster. The user needs to restart the broker after the zookeeper cluster returns to normal. 
+If a new session failed to start, the broker would retry several times. The retry times depend on the configuration of the broker. After the number of retries, if still can't start session success, the broker still needs to be shut down since this may be a problem with the Zookeeper cluster. The user needs to restart the broker after the zookeeper cluster returns to normal.
 
 If a new session starts success, the issue is slightly more complicated. So, I will introduce every scene separately.
 

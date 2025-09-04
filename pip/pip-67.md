@@ -2,7 +2,7 @@
 
 - Status: Proposal
 - Author: Yong Zhang, Xiaolong Ran
-- Pull Request: 
+- Pull Request:
 - Mailing List discussion:
 
 
@@ -10,11 +10,11 @@
 
 Pulsarctl is an alternative tool of pulsar-admin, used to manage resources in Apache Pulsar. Pulsarctl is written in Go and based on Pulsar REST API. It provides Go developers with API interface and user-friendly commands, making it easier to interact with Pulsar brokers.
 
-Compared with pulsar-admin, Pulsarctl is more user-friendly. Pulsarctl requires fewer dependencies to use commands and provides more comprehensive description and usage for commands. With Pulsarctl, users can find and resolve issues faster when errors occur. 
+Compared with pulsar-admin, Pulsarctl is more user-friendly. Pulsarctl requires fewer dependencies to use commands and provides more comprehensive description and usage for commands. With Pulsarctl, users can find and resolve issues faster when errors occur.
 
 ## Features
 
-Pulsarctl not only integrates the Pulsar commands and BookKeeper commands but also provides some useful tools like output format and context management. 
+Pulsarctl not only integrates the Pulsar commands and BookKeeper commands but also provides some useful tools like output format and context management.
 
 
 ### Pulsar operations

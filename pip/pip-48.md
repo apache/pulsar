@@ -1,7 +1,7 @@
 # PIP-48: hierarchical admin api
 
 - Status: Draft
-- Author: [Florentin Dubois](https://github.com/FlorentinDUBOIS) ([@FlorentinDUBOIS](https://twitter.com/FlorentinDUBOIS)), [Steven Le Roux](https://github.com/StevenLeRoux) ([@GwinizDu](https://twitter.com/GwinizDu)) 
+- Author: [Florentin Dubois](https://github.com/FlorentinDUBOIS) ([@FlorentinDUBOIS](https://twitter.com/FlorentinDUBOIS)), [Steven Le Roux](https://github.com/StevenLeRoux) ([@GwinizDu](https://twitter.com/GwinizDu))
 - Pull request:
 - Mailing list discussion:
 - Release:
@@ -11,13 +11,13 @@
 The current pulsar admin APIs (v2,v3) inherits the historical structure, managing entities as prefix to the api's route path in a flat fashion.
 Also, Pulsar evoled to the ability to manage multiple clusters.
 
-For example to administrate a namespace, we used the following route `v2/namespaces/:tenant-id/:namespace-id`. 
+For example to administrate a namespace, we used the following route `v2/namespaces/:tenant-id/:namespace-id`.
 This could be confusing, because we intend to manipulate a namespace under a tenant scope, which still requires here to give the tenant identifier in addition of the namespace identifier.
 
-This proposal aims to 
+This proposal aims to
 - offer a more hierarchical routing approach reflecting the Pulsar semantic
 - proposes to officially name an ensemble of Pulsar cluster : a `Constellation`
-- to simplify the user experience for : 
+- to simplify the user experience for :
   - Topic management between persistent and non-persistent.
   - cluster management inside a Pulsar Constellation
 
@@ -54,7 +54,7 @@ We would like to propose new `v4` admin api which will have two level of reading
 
 The first one is the `broker-level` which means all information linked to the pulsar broker's instance. The second one is the `constellation-level` which means the administration of multiple pulsar's cluster instances.
 
-> The "constellation" word is used to differentiate a pulsar's cluster instance and the management of multiple pulsar's cluster instances. 
+> The "constellation" word is used to differentiate a pulsar's cluster instance and the management of multiple pulsar's cluster instances.
 
 ### Broker
 
@@ -92,5 +92,5 @@ The api at `constellation` level will expose management of pulsar's cluster inst
 | `v4/tenants/:tenant-id/namespaces/:namespace-id/sources`                 | manage sources of the tenant `tenant-id` and namespace `namespace-id`                         | constellation, tenant, namespace, connector     |
 
 
-(*) 
+(*)
 Currently, Pulsar would always answer with local brokers, whatever the cluster given as parameters. If unintended requests (aka cluster A got a request for the cluster B), the cluster would answered with an http forward status (aka 301) to redirect to the right cluster by look up in the configuration store the service url. This rule is implied for sub-paths. This way we ensure consistency among brokers, using the local zookeeper where they're registered.

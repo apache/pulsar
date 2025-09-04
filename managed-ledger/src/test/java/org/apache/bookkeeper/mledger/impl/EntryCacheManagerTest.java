@@ -292,6 +292,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setCacheEvictionIntervalMs(1000);
 
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
         managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(false);
 
         @Cleanup("shutdown")

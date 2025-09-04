@@ -51,7 +51,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         String existingValue = getEnvMap().get(key);
         if (existingValue == null) {
             addEnv(key, value);
-        } else {
+        } else if (!existingValue.contains(value)) {
             addEnv(key, existingValue + " " + value);
         }
     }
