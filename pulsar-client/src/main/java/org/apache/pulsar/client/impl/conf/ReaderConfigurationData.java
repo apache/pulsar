@@ -76,7 +76,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "readerDecryptFailListener",
-            value = "A listener that is called for message received and decrypt fail."
+            value = "A listener that is called for encrypted message received and decrypt fail."
     )
     private ReaderDecryptFailListener<T> readerDecryptFailListener;
 

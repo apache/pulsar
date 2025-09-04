@@ -177,43 +177,10 @@ public class ConsumerDecryptFailListenerTest extends ProducerConsumerBase {
                 .subscriptionName("my-sub")
                 .subscribe();
 
-        class EncKeyReader implements CryptoKeyReader {
-
-            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-
-            @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(certFilePath))) {
-                    try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
-                        return keyInfo;
-                    } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", certFilePath);
-                    }
-                }
-                return null;
-            }
-
-            @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(certFilePath))) {
-                    try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
-                        return keyInfo;
-                    } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", certFilePath);
-                    }
-                }
-                return null;
-            }
-        }
-
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .addEncryptionKey("client-rsa.pem")
-                .cryptoKeyReader(new EncKeyReader())
+                .cryptoKeyReader(new EncKeyReader1())
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -226,5 +193,126 @@ public class ConsumerDecryptFailListenerTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
     }
+
+    /**
+     * Test both decryptFailListener and messageListener receive messages.
+     */
+    @Test(timeOut = 30000)
+    public void testBothDecryptFailListenerAndMessageListenerReceiveMessage() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/my-ns/testBothDecryptFailListenerAndMessageListenerReceiveMessage"
+        );
+        int totalMessages = 10;
+        CountDownLatch decryptSuccessCount = new CountDownLatch(5);
+        CountDownLatch decryptFailCount = new CountDownLatch(5);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                .decryptFailListener(((c, msg) -> {
+                    decryptFailCount.countDown();
+                }))
+                .cryptoKeyReader(new EncKeyReader1())
+                .messageListener((c, msg) -> {
+                    decryptSuccessCount.countDown();
+                })
+                .subscriptionName("my-sub")
+                .subscribe();
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic)
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(new EncKeyReader1())
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic)
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(new EncKeyReader2())
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        for (int i = 0; i < totalMessages; i++) {
+            if (i % 2 == 0) {
+                producer1.send(("msg-" + i).getBytes());
+            } else {
+                producer2.send(("msg-" + i).getBytes());
+            }
+        }
+
+        decryptSuccessCount.await();
+        decryptFailCount.await();
+
+        consumer.close();
+        producer1.close();
+        producer2.close();
+    }
+
+    static class EncKeyReader1 implements CryptoKeyReader {
+
+        final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+        @Override
+        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+            String certFilePath = "./src/test/resources/certificate/public-key.client-rsa.pem";
+            if (Files.isReadable(Paths.get(certFilePath))) {
+                try {
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    log.error("Failed to read certificate from {}", certFilePath);
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+            String certFilePath = "./src/test/resources/certificate/private-key.client-rsa.pem";
+            if (Files.isReadable(Paths.get(certFilePath))) {
+                try {
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    log.error("Failed to read certificate from {}", certFilePath);
+                }
+            }
+            return null;
+        }
+    }
+
+    static class EncKeyReader2 implements CryptoKeyReader {
+
+        final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+        @Override
+        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+            String certFilePath = "./src/test/resources/certificate/public-key.client-ecdsa.pem";
+            if (Files.isReadable(Paths.get(certFilePath))) {
+                try {
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    log.error("Failed to read certificate from {}", certFilePath);
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+            String certFilePath = "./src/test/resources/certificate/private-key.client-ecdsa.pem";
+            if (Files.isReadable(Paths.get(certFilePath))) {
+                try {
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    log.error("Failed to read certificate from {}", certFilePath);
+                }
+            }
+            return null;
+        }
+    }
+
 
 }
