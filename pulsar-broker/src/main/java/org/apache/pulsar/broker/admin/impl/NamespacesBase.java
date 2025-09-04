@@ -2182,7 +2182,7 @@ public abstract class NamespacesBase extends AdminResource {
                     policies.offload_policies = new OffloadPoliciesImpl();
                 }
                 ((OffloadPoliciesImpl) policies.offload_policies).setManagedLedgerOffloadThresholdInBytes(newThreshold);
-                policies.offload_threshold = newThreshold;
+                mergeOffloadThresholdsForCompatibility(policies);
                 return policies;
             });
             log.info("[{}] Successfully updated offloadThreshold configuration: namespace={}, value={}",
@@ -2209,7 +2209,7 @@ public abstract class NamespacesBase extends AdminResource {
                             }
                             ((OffloadPoliciesImpl) policies.offload_policies)
                                     .setManagedLedgerOffloadThresholdInSeconds(newThreshold);
-                            policies.offload_threshold_in_seconds = newThreshold;
+                            mergeOffloadThresholdsForCompatibility(policies);
                             return policies;
                         })
                 )
@@ -2239,7 +2239,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
                 ((OffloadPoliciesImpl) policies.offload_policies)
                         .setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
-                policies.offload_deletion_lag_ms = newDeletionLagMs;
+                mergeOffloadThresholdsForCompatibility(policies);
                 return policies;
             });
             log.info("[{}] Successfully updated offloadDeletionLagMs configuration: namespace={}, value={}",
@@ -2352,6 +2352,50 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    /**
+     * Before https://github.com/apache/pulsar/pull/6183, users can set broker level offload policies, and handle
+     * namespace-level thresholds by the following fields:
+     *   - {@link Policies#offload_deletion_lag_ms}
+     *   - {@link Policies#offload_threshold}
+     *   - {@link Policies#offload_threshold_in_seconds}
+     *
+     * After https://github.com/apache/pulsar/pull/6183, Pulsar supports namespace-level policies, which was
+     * supported by {@link Policies#offload_policies}. And the thresholds were moved to the following fields:
+     * - {@link Policies#offload_policies} -> {@link OffloadPoliciesImpl#getManagedLedgerOffloadDeletionLagInMillis}
+     * - {@link Policies#offload_policies} -> {@link OffloadPoliciesImpl#getManagedLedgerOffloadThresholdInBytes}
+     * - {@link Policies#offload_policies} -> {@link OffloadPoliciesImpl#getManagedLedgerOffloadThresholdInSeconds}
+     *
+     * To make the offload policies compatible with the old policies, uses the old policies if the new policies
+     * are not set. Once the new fields are set, the old fields will be ignored.
+     */
+    private void mergeOffloadThresholdsForCompatibility(Policies nsPolicies) {
+        Long oldOffloadDeletionLagMs = nsPolicies.offload_deletion_lag_ms;
+        Long oldOffloadThresholdInBytes = nsPolicies.offload_threshold;
+        Long odlOffloadThresholdInSeconds = nsPolicies.offload_threshold_in_seconds;
+        // If the old values are empty, skip.
+        if (oldOffloadDeletionLagMs == null && oldOffloadThresholdInBytes == -1 && odlOffloadThresholdInSeconds == -1) {
+            return;
+        }
+        // If the new values are empty, use the old values.
+        OffloadPoliciesImpl nsOffloadPolicies = (OffloadPoliciesImpl) nsPolicies.offload_policies;
+        if (Objects.equals(nsOffloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS) && oldOffloadDeletionLagMs != null) {
+            nsOffloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(oldOffloadDeletionLagMs);
+        }
+        if (Objects.equals(nsOffloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES) && oldOffloadThresholdInBytes != -1) {
+            nsOffloadPolicies.setManagedLedgerOffloadThresholdInBytes(oldOffloadThresholdInBytes);
+        }
+        if (Objects.equals(nsOffloadPolicies.getManagedLedgerOffloadThresholdInSeconds(),
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS) && odlOffloadThresholdInSeconds != -1) {
+            nsOffloadPolicies.setManagedLedgerOffloadThresholdInSeconds(odlOffloadThresholdInSeconds);
+        }
+        // Since the thresholds are moved into "nsPolicies.offload_policies", remove the old fields.
+        nsPolicies.offload_deletion_lag_ms = null;
+        nsPolicies.offload_threshold = -1;
+        nsPolicies.offload_threshold_in_seconds = -1;
+    }
+
     protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPoliciesImpl offloadPolicies) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -2359,19 +2403,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             namespaceResources().setPoliciesAsync(namespaceName, policies -> {
-                if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
-                    offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
-                } else {
-                    policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
-                }
-                if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
-                    offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
-                } else {
-                    policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
-                }
                 policies.offload_policies = offloadPolicies;
+                mergeOffloadThresholdsForCompatibility(policies);
                 return policies;
             }).thenApply(r -> {
                 log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
@@ -2397,7 +2430,12 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
         try {
             namespaceResources().setPoliciesAsync(namespaceName, (policies) -> {
+                // Remove new offload policies.
                 policies.offload_policies = null;
+                // Remove the old offload policies thresholds.
+                policies.offload_deletion_lag_ms = null;
+                policies.offload_threshold = -1;
+                policies.offload_threshold_in_seconds = -1;
                 return policies;
             }).thenApply(r -> {
                 log.info("[{}] Successfully remove offload configuration: namespace={}", clientAppId(), namespaceName);
