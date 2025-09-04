@@ -23,6 +23,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Schema;
 
 @Data
@@ -33,6 +34,7 @@ class PulsarSourceConsumerConfig<T> {
     private Integer receiverQueueSize;
     private Map<String, String> consumerProperties;
     private CryptoKeyReader cryptoKeyReader;
+    private MessagePayloadProcessor messagePayloadProcessor;
     private ConsumerCryptoFailureAction consumerCryptoFailureAction;
     private boolean poolMessages;
 }

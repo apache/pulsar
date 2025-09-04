@@ -216,6 +216,14 @@ public class ConnectionPool implements AutoCloseable {
         return signSafeMod(random.nextInt(), maxConnectionsPerHosts);
     }
 
+    public CompletableFuture<ClientCnx> getConnection(final ServiceNameResolver serviceNameResolver) {
+        InetSocketAddress address = serviceNameResolver.resolveHost();
+        CompletableFuture<ClientCnx> clientCnxCompletableFuture = getConnection(address);
+        clientCnxCompletableFuture.whenComplete(
+                (__, throwable) -> serviceNameResolver.markHostAvailability(address, throwable == null));
+        return clientCnxCompletableFuture;
+    }
+
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {
         if (maxConnectionsPerHosts == 0) {
             return getConnection(address, address, -1);
@@ -281,7 +289,7 @@ public class ConnectionPool implements AutoCloseable {
             }
             // Try use exists connection.
             if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
-                return CompletableFuture.supplyAsync(() -> clientCnx, clientCnx.ctx().executor());
+                return CompletableFuture.completedFuture(clientCnx);
             } else {
                 // If connection already release, create a new one.
                 pool.remove(key, completableFuture);
@@ -438,15 +446,19 @@ public class ConnectionPool implements AutoCloseable {
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
+                    .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         } else {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
+                    .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         }
+    }
+
+    protected CompletableFuture<Channel> connectToPhysicalAddress(Channel channel, InetSocketAddress physicalAddress) {
+        return toCompletableFuture(channel.connect(physicalAddress));
     }
 
     public void releaseConnection(ClientCnx cnx) {

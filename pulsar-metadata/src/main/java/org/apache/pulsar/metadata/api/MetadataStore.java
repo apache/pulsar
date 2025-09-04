@@ -77,6 +77,20 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<List<String>> getChildren(String path);
 
+
+    /**
+     * Return all the nodes (lexicographically sorted) that are children to the specific path.
+     *
+     * If the path itself does not exist, it will return an empty list.
+     *
+     * This method is similar to {@link #getChildren(String)}, but it attempts to read directly from
+     *  the underlying store.
+     *
+     * @param path
+     *            the path of the key to get from the store
+     * @return a future to track the async request
+     */
+    CompletableFuture<List<String>> getChildrenFromStore(String path);
     /**
      * Read whether a specific path exists.
      *
@@ -219,9 +233,13 @@ public interface MetadataStore extends AutoCloseable {
      *            the custom serialization/deserialization object
      * @param cacheConfig
      *          the cache configuration to be used
+     * @deprecated use {@link #getMetadataCache(String, MetadataSerde, MetadataCacheConfig)}
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig);
+    @Deprecated
+    default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+        return getMetadataCache("serde", serde, cacheConfig);
+    }
 
     /**
      * Create a metadata cache that uses a particular serde object.
@@ -233,6 +251,19 @@ public interface MetadataStore extends AutoCloseable {
      */
     default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
         return getMetadataCache(serde, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Create a metadata cache that uses a particular serde object.
+     *
+     * @param <T>
+     * @param serde
+     *            the custom serialization/deserialization object
+     * @return the metadata cache object
+     */
+    default <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
+                                                  MetadataCacheConfig cacheConfig) {
+        return getMetadataCache(serde, cacheConfig);
     }
 
     /**

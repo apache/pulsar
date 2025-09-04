@@ -55,7 +55,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
         doReturn(CompletableFuture.completedFuture(new LedgerMetadata() {
@@ -174,7 +173,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .receiverQueueSize(100)
             .isAckReceiptEnabled(ackReceiptEnabled)
             .subscriptionType(SubscriptionType.Shared)
-            .enableBatchIndexAcknowledgment(true)
             .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
             .subscribe();
 
@@ -254,7 +252,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .subscriptionName("sub")
             .receiverQueueSize(100)
             .isAckReceiptEnabled(ackReceiptEnabled)
-            .enableBatchIndexAcknowledgment(true)
             .subscribe();
 
         @Cleanup
@@ -324,7 +321,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .acknowledgmentGroupTime(1, TimeUnit.MILLISECONDS)
                 .topic(topic)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionName("test")
                 .subscribe();
 

@@ -51,6 +51,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -423,7 +424,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long delayedDeliveryMaxDelayInMillis = 0;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
-    private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
+    private boolean acknowledgmentAtBatchIndexLevelEnabled = true;
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -640,7 +641,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead."
+        doc = "@deprecated - Use backlogQuotaDefaultLimitBytes instead."
     )
     private double backlogQuotaDefaultLimitGB = -1;
 
@@ -694,9 +695,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
-            + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
+            + "Note 1: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
             + "it may appear that a partitioned topic has just been deleted but is automatically created as a "
-                    + "non-partitioned topic."
+            + "non-partitioned topic.\n"
+            + "Note 2: Activating bidirectional geo-replication under global ZooKeeper configuration may lead to schema"
+            + " remnants and abnormal topic-level policies.\n"
+            + "Note 3: Activating bidirectional geo-replication under global configuration ZooKeeper may lead"
+            + " to a consumption issue."
     )
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
@@ -929,14 +934,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean isAllowAutoUpdateSchemaEnabled = true;
 
     @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Whether to enable the automatic shrink of pendingAcks map, "
-                    + "the default is false, which means it is not enabled. "
-                    + "When there are a large number of share or key share consumers in the cluster, "
-                    + "it can be enabled to reduce the memory consumption caused by pendingAcks.")
-    private boolean autoShrinkForConsumerPendingAcksMap = false;
-
-    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -1037,11 +1034,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
     private int topicPublisherThrottlingTickTimeMillis = 10;
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Enable precise rate limit for topic publish"
-    )
-    private boolean preciseTopicPublishRateLimiterEnable = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1475,13 +1467,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
 
-    @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish "
-                + "buffer size"
-    )
-    private int messagePublishBufferCheckIntervalInMillis = 100;
-
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"
             + "The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark "
@@ -1584,6 +1569,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "# 2. Allowed alphanumeric (a-zA-Z_0-9) and these special chars -=:. for topic name.\n"
                     + "# NOTE: This flag will be removed in some major releases in the future.\n")
     private boolean strictTopicNameEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The regular expression implementation to use for topic pattern matching. \n"
+                    + "RE2J_WITH_JDK_FALLBACK is the default. It uses the RE2J implementation and falls back to "
+                    + "the JDK implementation for backwards compatibility reasons when the pattern compilation fails "
+                    + "with the RE2/j library.\n"
+                    + "RE2J is more performant but does not support all regex features (e.g. negative lookaheads). \n"
+                    + "JDK uses the standard Java regex implementation which supports all features but can be slower.\n"
+                    + "Bad or malicious regex patterns requiring extensive backtracing could cause high resource usage "
+                    + "with RE2J_WITH_JDK_FALLBACK or JDK implementations."
+    )
+    private TopicsPattern.RegexImplementation topicsPatternRegexImplementation =
+            TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK;
 
     @FieldContext(
             category = CATEGORY_SCHEMA,
@@ -2149,13 +2148,54 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Configure the cache eviction interval in milliseconds for the managed ledger cache, default is 10ms")
     private long managedLedgerCacheEvictionIntervalMs = 10;
 
-    @FieldContext(category = CATEGORY_STORAGE_ML,
-            dynamic = true,
-            doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true, doc =
+            "Controls time-to-live (TTL) for entries in the managed ledger (broker) cache.\n"
+                    + "The TTL can be extended in two ways:\n"
+                    + "1. When cacheEvictionByExpectedReadCount is enabled: TTL is extended for entries with "
+                    + "remaining\n"
+                    + "expected reads. The maximum number of extensions is controlled by\n"
+                    + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes.\n"
+                    + "2. When cacheEvictionExtendTTLOfRecentlyAccessed is enabled: TTL is extended for entries\n"
+                    + "accessed since the last expiration check.\n"
+                    + "Default value is 1000ms.")
     private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true, doc = "Maximum number of times the cache can extend\n"
+            + "the TTL of an entry that has remaining expected reads.\n"
+            + "Only takes effect when cacheEvictionByExpectedReadCount is enabled.\n"
+            + "This helps optimize cache efficiency for scenarios like:\n"
+            + "- Key_Shared subscription replays\n"
+            + "- Catch-up reads for lagging consumers\n"
+            + "- Consumers temporarily falling behind the tail\n"
+            + "Entries with remaining expected reads will have their TTL extended up to this many times\n"
+            + "before being eligible for eviction. The TTL will be extended by\n"
+            + "managedLedgerCacheEvictionTimeThresholdMillis each time.\n"
+            + "Default is 5.")
+    private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+            doc = "Controls whether recently accessed entries in the managed ledger cache should have their "
+                    + "lifetime extended before cache eviction.\n"
+                    + "When enabled:\n"
+                    + " - During eviction check, if an entry has been accessed since the last check, its expiration"
+                    + " time will be extended by managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + " - Makes the cache behave like a Least Recently Used (LRU) cache by keeping frequently "
+                    + "accessed entries longer\n"
+                    + " - Helps optimize performance for frequently accessed entries while still allowing old unused "
+                    + "entries to be evicted\n"
+                    + " - Minimum eviction time is 2x managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + "When disabled:\n"
+                    + " - Cache behaves more like a FIFO queue with time-based and size-based eviction\n"
+                    + " - Minimum eviction time is managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + "Default is true, to behave like a LRU cache."
+    )
+    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
-                    + " and thus should be set as inactive.")
+                    + " and thus should be set as inactive.\n"
+                    + "Set to -1 to disable this behavior.\n"
+                    + "This setting has no effect when cacheEvictionByExpectedReadCount is enabled.")
     private long managedLedgerCursorBackloggedThreshold = 1000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -2179,6 +2219,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "the topic cannot be automatically created."
     )
     private boolean allowAutoTopicCreationWithLegacyNamingScheme = true;
+    @FieldContext(category = CATEGORY_SERVER, dynamic = true,
+            doc = "If 'strictSubscriptionNameVerification' is true, the new subscription name can only contain"
+                + " (a-zA-Z_0-9) and these special chars -=:."
+    )
+    private boolean strictlyVerifySubscriptionName = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -2286,10 +2331,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
-    @FieldContext(
-            category = CATEGORY_STORAGE_ML,
-            doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate")
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Maximum number of partially acknowledged batch messages per subscription that will have their batch "
+                + "deleted indexes persisted. Batch deleted index state is handled when "
+                + "acknowledgmentAtBatchIndexLevelEnabled=true.\n\n"
+                + "When this limit is exceeded, remaining batch message containing the batch deleted indexes will "
+                + "only be tracked in memory. In case of broker restarts or load balancing events, the batch "
+                + "deleted indexes will be cleared while redelivering the messages to consumers.")
+    private int managedLedgerMaxBatchDeletedIndexToPersist = 10000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "When storing acknowledgement state, choose a more compact serialization format that stores"
+                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.\n\n"
+                    + "NOTE: This setting requires managedLedgerUnackedRangesOpenCacheSetEnabled=true to be effective.")
     private boolean managedLedgerPersistIndividualAckAsLongArray = true;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
@@ -2312,8 +2369,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
-        )
+            doc = "When set to true, a BitSet will be used to track acknowledged messages that come after the \"mark "
+                    + "delete position\" for each subscription.\n\nRoaringBitmap is used as a memory efficient BitSet "
+                    + "implementation for the acknowledged messages tracking. Unacknowledged ranges are the message "
+                    + "ranges excluding the acknowledged messages.")
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
         dynamic = true,
@@ -2411,20 +2470,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
             doc = "Minimum cursors that must be in backlog state to cache and reuse the read entries."
-                    + "(Default =0 to disable backlog reach cache)"
+                    + "(Default =0 to disable backlog reach cache)\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMinimumBacklogCursorsForCaching = 0;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "Minimum backlog entries for any cursor before start caching reads"
+            doc = "Minimum backlog entries for any cursor before start caching reads\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMinimumBacklogEntriesForCaching = 1000;
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused"
+            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMaxBacklogBetweenCursorsForCaching = 1000;
 
@@ -2976,6 +3038,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerSheddingBundlesWithPoliciesEnabled = false;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The namespaces to be excluded from load shedding"
+    )
+    private Set<String> loadBalancerSheddingExcludedNamespaces = new HashSet<>();
+
+    @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             doc = "Time to wait before fixing any stuck in-flight service unit states. "
                     + "The leader monitor fixes any in-flight service unit(bundle) states "
@@ -3022,6 +3091,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "enable it. It accepts `None` to disable it."
     )
     private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = ServiceUnitTableViewSyncerType.None;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Specify the maximum number of concurrent orphan bundle ownership overrides. "
+                    + "The leader broker triggers these overrides upon detecting orphaned bundles. "
+                    + "It identifies orphan bundle ownerships by periodically scanning ownership data "
+                    + "and monitoring for broker shutdowns or inactive states."
+    )
+    private int loadBalancerServiceUnitStateMaxConcurrentOverrides = 64;
 
     /**** --- Replication. --- ****/
     @FieldContext(
@@ -3189,7 +3268,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
             "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.ExternalSchemaCompatibilityCheck"
     );
 
     @FieldContext(
@@ -3422,11 +3502,37 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
 
     @FieldContext(
+            dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
-                    + "The default is to evict through readPosition."
+            doc = "Time to evict inactive offloaded ledger for inactive topic. "
+                    + "Disable eviction with value 0 (Default value 600)"
+    )
+    private int managedLedgerInactiveOffloadedLedgerEvictionTimeSeconds = 600;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by the slowest markDeletedPosition (true) or slowest read position (false)."
+                    + "This setting is ignored when cacheEvictionByExpectedReadCount is true."
     )
     private boolean cacheEvictionByMarkDeletedPosition = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by expected read count. Expected read count is calculated by the number of "
+                    + "active cursors with a read position that is behind the position of the cached entry. "
+                    + "This setting will override the cacheEvictionByMarkDeletedPosition setting."
+    )
+    private boolean cacheEvictionByExpectedReadCount = true;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "This setting configures the duration of continuing to cache added entries while there are no "
+                    + "active cursors, when the last active cursor has left or immediately after initialization when "
+                    + "the persistent topic and the managed ledger gets loaded. "
+                    + "This setting is ignored unless cacheEvictionByExpectedReadCount is enabled."
+                    + "The default value is 2 * managedLedgerCacheEvictionTimeThresholdMillis."
+    )
+    private Long managedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
 
     /**** --- Transaction config variables. --- ****/
     @FieldContext(

@@ -51,8 +51,8 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
         conf.setInternalListenerName("internal");
         conf.setBindAddresses("external:pulsar://localhost:" + publicPulsarPort);
         conf.setAdvertisedListeners(
-                "external:pulsar://localhost:" + publicPulsarPort +
-                        ",internal:pulsar://localhost:" + privatePulsarPort);
+                "external:pulsar://localhost:" + publicPulsarPort
+                        + ",internal:pulsar://localhost:" + privatePulsarPort);
         conf.setWebServicePortTls(Optional.empty());
         conf.setBrokerServicePortTls(Optional.empty());
         conf.setBrokerServicePort(Optional.of(privatePulsarPort));

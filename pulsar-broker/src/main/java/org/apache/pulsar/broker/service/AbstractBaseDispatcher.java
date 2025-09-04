@@ -53,7 +53,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.compaction.Compactor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
@@ -70,6 +70,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private final LongAdder filterAcceptedMsgs = new LongAdder();
     private final LongAdder filterRejectedMsgs = new LongAdder();
     private final LongAdder filterRescheduledMsgs = new LongAdder();
+
+    private final LongAdder dispatchThrottledMsgEventsBySubscriptionLimit = new LongAdder();
+    private final LongAdder dispatchThrottledMsgEventsByTopicLimit = new LongAdder();
+    private final LongAdder dispatchThrottledMsgEventsByBrokerLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsBySubscriptionLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsByTopicLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsByBrokerLimit = new LongAdder();
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
@@ -405,6 +412,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private boolean applyDispatchRateLimitsToReadLimits(DispatchRateLimiter rateLimiter,
                                                         MutablePair<Integer, Long> readLimits,
                                                         DispatchRateLimiter.Type limiterType) {
+        int originalMessagesToRead = readLimits.getLeft();
+        long originalBytesToRead = readLimits.getRight();
         // update messagesToRead according to available dispatch rate limit.
         int availablePermitsOnMsg = (int) rateLimiter.getAvailableDispatchRateLimitOnMsg();
         if (availablePermitsOnMsg >= 0) {
@@ -413,6 +422,22 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
         if (availablePermitsOnByte >= 0) {
             readLimits.setRight(Math.min(readLimits.getRight(), availablePermitsOnByte));
+        }
+        if (readLimits.getLeft() < originalMessagesToRead) {
+            switch (limiterType) {
+                case BROKER -> dispatchThrottledMsgEventsByBrokerLimit.increment();
+                case TOPIC -> dispatchThrottledMsgEventsByTopicLimit.increment();
+                case SUBSCRIPTION -> dispatchThrottledMsgEventsBySubscriptionLimit.increment();
+                default -> {}
+            }
+        }
+        if (readLimits.getRight() < originalBytesToRead) {
+            switch (limiterType) {
+                case BROKER -> dispatchThrottledBytesEventsByBrokerLimit.increment();
+                case TOPIC -> dispatchThrottledBytesEventsByTopicLimit.increment();
+                case SUBSCRIPTION -> dispatchThrottledBytesEventsBySubscriptionLimit.increment();
+                default -> {}
+            }
         }
         if (readLimits.getLeft() == 0 || readLimits.getRight() == 0) {
             if (log.isDebugEnabled()) {
@@ -468,6 +493,36 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     @Override
     public long getFilterRescheduledMsgCount() {
         return this.filterRescheduledMsgs.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledMsgEventsBySubscriptionLimit() {
+        return dispatchThrottledMsgEventsBySubscriptionLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledBytesBySubscriptionLimit() {
+        return dispatchThrottledBytesEventsBySubscriptionLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledMsgEventsByTopicLimit() {
+        return dispatchThrottledMsgEventsByTopicLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledBytesEventsByTopicLimit() {
+        return dispatchThrottledBytesEventsByTopicLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledMsgEventsByBrokerLimit() {
+        return dispatchThrottledMsgEventsByBrokerLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledBytesEventsByBrokerLimit() {
+        return dispatchThrottledBytesEventsByBrokerLimit.longValue();
     }
 
     protected final void updatePendingBytesToDispatch(long size) {

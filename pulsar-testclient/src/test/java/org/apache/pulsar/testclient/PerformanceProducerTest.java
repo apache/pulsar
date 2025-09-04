@@ -74,7 +74,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         int exitCode = lastExitCode.get();
         if (exitCode != 0) {
-            fail("Unexpected JVM exit code "+exitCode);
+            fail("Unexpected JVM exit code " + exitCode);
         }
     }
 
@@ -201,13 +201,15 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNotExistIMessageFormatter() {
-        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
+        IMessageFormatter msgFormatter =
+                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
         Assert.assertNull(msgFormatter);
     }
 
     @Test
     public void testDefaultIMessageFormatter() {
-        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
+        IMessageFormatter msgFormatter =
+                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
         Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
     }
 
@@ -217,20 +219,20 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String topic = testTopic + UUID.randomUUID().toString();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        new Thread(() -> {
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Thread thread = new Thread(() -> {
             try {
                 PerformanceProducer producer = new PerformanceProducer();
                 producer.run(args.split(" "));
             } catch (Exception e) {
                 log.error("Failed to start perf producer");
             }
-        }).start();
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
-                    assertNotNull(message);
-                });
+        });
+        thread.start();
+        Message<byte[]> message = consumer.receive(15, TimeUnit.SECONDS);
+        assertNotNull(message);
+        thread.interrupt();
+        thread.join();
         consumer.close();
     }
 

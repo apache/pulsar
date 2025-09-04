@@ -25,9 +25,8 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Iterables;
-
+import io.netty.buffer.ByteBuf;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -37,8 +36,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
-import io.netty.buffer.ByteBuf;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -486,9 +483,9 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         final ManagedCursor c1 = ledger.openCursor("c1");
         final AtomicReference<Position> lastPosition = new AtomicReference<Position>();
 
-        final int N = 100;
-        final CountDownLatch latch = new CountDownLatch(N);
-        for (int i = 0; i < N; i++) {
+        final int num = 100;
+        final CountDownLatch latch = new CountDownLatch(num);
+        for (int i = 0; i < num; i++) {
             ledger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
                 @Override
                 public void addFailed(ManagedLedgerException exception, Object ctx) {
@@ -669,31 +666,31 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         ManagedCursor cursor1 = ledger.openCursor(c1);
         cursor1.seek(p3);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         ManagedCursor nonCursor1 = ledger.newNonDurableCursor(p2, nc1);
         // The slowest reader should still be the durable cursor since non-durable readers are not taken into account
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         Position earliestPos = PositionFactory.create(-1, -2);
 
         ManagedCursor nonCursorEarliest = ledger.newNonDurableCursor(earliestPos, ncEarliest);
 
         // The slowest reader should still be the durable cursor since non-durable readers are not taken into account
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         // move non-durable cursor should NOT update the slowest reader position
         nonCursorEarliest.markDelete(p1);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         nonCursorEarliest.markDelete(p2);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         nonCursorEarliest.markDelete(p3);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         nonCursor1.markDelete(p3);
-        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+        assertEquals(p3, ledger.getCursors().getSlowestCursorPosition());
 
         ledger.close();
     }

@@ -21,12 +21,13 @@ package org.apache.pulsar.broker.service;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.function.ToIntFunction;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.jspecify.annotations.Nullable;
 
 public class EntryAndMetadata implements Entry {
     private static final int STICKY_KEY_HASH_NOT_INITIALIZED = -1;
@@ -135,5 +136,10 @@ public class EntryAndMetadata implements Entry {
     @VisibleForTesting
     public Entry unwrap() {
         return entry;
+    }
+
+    @Override
+    public EntryReadCountHandler getReadCountHandler() {
+        return entry.getReadCountHandler();
     }
 }

@@ -79,9 +79,11 @@ public class PulsarClientBasedHandler implements ProtocolHandler {
 
     @Override
     public void start(BrokerService service) {
+        @Cleanup
+        PulsarAdmin admin = null;
         try {
             final var port = service.getPulsar().getListenPortHTTP().orElseThrow();
-            @Cleanup final var admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + port).build();
+            admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + port).build();
             try {
                 admin.clusters().createCluster(cluster, ClusterData.builder()
                         .serviceUrl(service.getPulsar().getWebServiceAddress())
@@ -103,6 +105,7 @@ public class PulsarClientBasedHandler implements ProtocolHandler {
             throw new RuntimeException(e);
         }
         try {
+            admin.topics().createPartitionedTopic(topic, partitions);
             final var port = service.getListenPort().orElseThrow();
             client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + port).build();
             readers = new ArrayList<>();
@@ -122,7 +125,7 @@ public class PulsarClientBasedHandler implements ProtocolHandler {
                     });
                 }
             });
-        } catch (PulsarClientException e) {
+        } catch (PulsarClientException | PulsarAdminException e) {
             throw new RuntimeException(e);
         }
     }

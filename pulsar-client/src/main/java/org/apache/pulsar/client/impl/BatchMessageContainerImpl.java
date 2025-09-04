@@ -162,13 +162,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
                 // next iteration doesn't send corrupt message to broker.
-                for (int j = 0; j <= i; j++) {
-                    MessageImpl<?> previousMsg = messages.get(j);
-                    previousMsg.getDataBuffer().resetReaderIndex();
-                }
                 batchedMessageMetadataAndPayload.writerIndex(batchWriteIndex);
                 batchedMessageMetadataAndPayload.readerIndex(batchReadIndex);
                 throw new RuntimeException(th);
+            } finally {
+                msg.getDataBuffer().resetReaderIndex();
             }
         }
 
@@ -343,6 +341,14 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         return op;
     }
 
+    @Override
+    public void resetPayloadAfterFailedPublishing() {
+        if (batchedMessageMetadataAndPayload != null) {
+            batchedMessageMetadataAndPayload.readerIndex(0);
+            batchedMessageMetadataAndPayload.writerIndex(0);
+        }
+    }
+
     protected void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {
         int delta = updatedSizeBytes - batchAllocatedSizeBytes;
         batchAllocatedSizeBytes = updatedSizeBytes;
@@ -359,6 +365,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     public boolean hasSameSchema(MessageImpl<?> msg) {
         if (numMessagesInBatch == 0) {
             return true;
+        }
+        if (messageMetadata.hasSchemaId() && msg.getSchemaId().isPresent()) {
+            return Arrays.equals(msg.getSchemaId().get(), messageMetadata.getSchemaId())
+                    && Arrays.equals(msg.getSchemaVersion(), messageMetadata.getSchemaVersion());
         }
         if (!messageMetadata.hasSchemaVersion()) {
             return msg.getSchemaVersion() == null;

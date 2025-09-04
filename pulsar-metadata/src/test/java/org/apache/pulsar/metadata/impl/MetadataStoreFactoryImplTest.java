@@ -75,7 +75,8 @@ public class MetadataStoreFactoryImplTest {
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("rocksdb:/data/dir"), "/data/dir");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("etcd:host:port"), "host:port");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("memory:name"), "name");
-        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("http://unknown/url/scheme"), "http://unknown/url/scheme");
+        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("http://unknown/url/scheme"),
+                "http://unknown/url/scheme");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("custom:suffix"), "suffix");
     }
 
@@ -99,7 +100,7 @@ public class MetadataStoreFactoryImplTest {
         }
 
         @Override
-        protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        public CompletableFuture<List<String>> getChildrenFromStore(String path) {
             return null;
         }
 

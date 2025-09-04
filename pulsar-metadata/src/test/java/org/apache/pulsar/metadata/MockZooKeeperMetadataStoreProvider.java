@@ -43,6 +43,7 @@ public class MockZooKeeperMetadataStoreProvider implements MetadataStoreProvider
         MockZooKeeper mockZooKeeper = mockZooKeepers.computeIfAbsent(metadataURL,
                 k -> MockZooKeeper.newInstance().registerCloseable(() -> mockZooKeepers.remove(k)));
         MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper, true);
+        mockZooKeeperSession.setSessionTimeout(metadataStoreConfig.getSessionTimeoutMillis());
         ZKMetadataStore zkMetadataStore = new ZKMetadataStore(mockZooKeeperSession, metadataStoreConfig, true);
         return zkMetadataStore;
     }

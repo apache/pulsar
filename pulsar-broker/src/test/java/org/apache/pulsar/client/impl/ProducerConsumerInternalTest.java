@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertEquals;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -134,7 +132,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
         ClientCnx clientCnx = consumer.getClientCnx();
         ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService()
-                .getTopic(topicName,false).join().get().getSubscription(subscriptionName)
+                .getTopic(topicName, false).join().get().getSubscription(subscriptionName)
                 .getDispatcher().getConsumers().get(0).cnx();
 
         // Make a disconnect to trigger broker remove the consumer which related this connection.
@@ -237,7 +235,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerCompressionMinMsgBodySize() throws PulsarClientException {
-        byte[] msg1022 = new byte[1022];
+        byte[] msg1024 = new byte[1024];
         byte[] msg1025 = new byte[1025];
         final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         @Cleanup
@@ -245,6 +243,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
                 .topic(topicName)
                 .producerName("producer")
                 .compressionType(CompressionType.LZ4)
+                .compressionMinMsgBodySize(1024)
                 .create();
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -252,11 +251,9 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
                 .subscriptionName("sub")
                 .subscribe();
 
-        producer.conf.setCompressMinMsgBodySize(1024);
-        producer.conf.setCompressionType(CompressionType.LZ4);
         // disable batch
         producer.conf.setBatchingEnabled(false);
-        producer.newMessage().value(msg1022).send();
+        producer.newMessage().value(msg1024).send();
         MessageImpl<byte[]> message = (MessageImpl<byte[]>) consumer.receive();
         CompressionType compressionType = message.getCompressionType();
         assertEquals(compressionType, CompressionType.NONE);
@@ -267,7 +264,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
         // enable batch
         producer.conf.setBatchingEnabled(true);
-        producer.newMessage().value(msg1022).send();
+        producer.newMessage().value(msg1024).send();
         message = (MessageImpl<byte[]>) consumer.receive();
         compressionType = message.getCompressionType();
         assertEquals(compressionType, CompressionType.NONE);
@@ -275,5 +272,20 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         message = (MessageImpl<byte[]>) consumer.receive();
         compressionType = message.getCompressionType();
         assertEquals(compressionType, CompressionType.LZ4);
+
+        // Verify data integrity
+        String data = "compression test message";
+        producer.conf.setBatchingEnabled(true);
+        producer.getConfiguration().setCompressMinMsgBodySize(1);
+        producer.newMessage().value(data.getBytes()).send();
+        message = (MessageImpl<byte[]>) consumer.receive();
+        assertEquals(new String(message.getData()), data);
+
+        producer.conf.setBatchingEnabled(false);
+        producer.getConfiguration().setCompressMinMsgBodySize(1);
+        producer.newMessage().value(data.getBytes()).send();
+        message = (MessageImpl<byte[]>) consumer.receive();
+        assertEquals(new String(message.getData()), data);
+
     }
 }

@@ -21,34 +21,46 @@ package org.apache.pulsar.compaction;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker-impl")
 public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
@@ -308,6 +320,73 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         admin.topics().delete(topicName, false);
     }
 
+    @DataProvider
+    public Object[][] isInjectedCursorDeleteError() {
+        return new Object[][] {
+                {false},
+                {true}
+        };
+    }
+
+    @Test(dataProvider = "isInjectedCursorDeleteError")
+    public void testReadMsgsAfterDisableCompaction(boolean isInjectedCursorDeleteError) throws Exception {
+        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topicPolicies().setCompactionThreshold(topicName, 1);
+        admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+        producer.newMessage().key("k0").value("v0").send();
+        producer.newMessage().key("k1").value("v1").send();
+        producer.newMessage().key("k2").value("v2").send();
+        triggerCompactionAndWait(topicName);
+        admin.topics().deleteSubscription(topicName, "s1");
+
+        // Disable compaction.
+        // Inject a failure that the first time to delete cursor will fail.
+        if (isInjectedCursorDeleteError) {
+            AtomicInteger times = new AtomicInteger();
+            String cursorPath = String.format("/managed-ledgers/%s/__compaction",
+                    TopicName.get(topicName).getPersistenceNamingEncoding());
+            admin.topicPolicies().removeCompactionThreshold(topicName);
+            mockZooKeeper.failConditional(KeeperException.Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
+            });
+            mockZooKeeperGlobal.failConditional(KeeperException.Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
+            });
+            try {
+                admin.topics().deleteSubscription(topicName, "__compaction");
+                fail("Should fail");
+            } catch (Exception ex) {
+                assertTrue(ex instanceof PulsarAdminException.ServerSideErrorException);
+            }
+        }
+
+        // Create a reader with start at earliest.
+        // Verify: the reader will receive 3 messages.
+        admin.topics().unload(topicName);
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).readCompacted(true)
+                .startMessageId(MessageId.earliest).create();
+        producer.newMessage().key("k3").value("v3").send();
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m0 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m0.getValue(), "v0");
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m1 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m1.getValue(), "v1");
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m2 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m2.getValue(), "v2");
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m3 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m3.getValue(), "v3");
+
+        // cleanup.
+        producer.close();
+        reader.close();
+        admin.topics().delete(topicName, false);
+    }
+
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompactionEndWithNullMsg(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
@@ -440,5 +519,42 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
             Message<String> message = reader.readNext(5, TimeUnit.SECONDS);
             assertNotEquals(message, null);
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetLastMessageIdForEncryptedMessage() throws Exception {
+        final var topic = BrokerTestUtil.newUniqueName("tp");
+        final var ecdsaPublickeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                .batchingMaxBytes(Integer.MAX_VALUE)
+                .batchingMaxMessages(Integer.MAX_VALUE)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader(ecdsaPublickeyFile)
+                .create();
+        producer.newMessage().key("k0").value("v0").sendAsync();
+        producer.newMessage().key("k0").value("v1").sendAsync();
+        producer.newMessage().key("k1").value("v0").sendAsync();
+        producer.newMessage().key("k1").value(null).sendAsync();
+        producer.flush();
+        triggerCompactionAndWait(topic);
+
+        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub")
+                .readCompacted(true).defaultCryptoKeyReader(ecdsaPrivateKeyFile).subscribe();
+        final var msgId = (MessageIdAdv) consumer.getLastMessageIds().get(0);
+        // Compaction does not work for encrypted messages
+        assertEquals(msgId.getBatchIndex(), 3);
+
+        @Cleanup final var reader = pulsarClient.newReader(Schema.STRING).topic(topic)
+                .startMessageId(MessageId.earliest).topic(topic).readCompacted(true)
+                .defaultCryptoKeyReader(ecdsaPrivateKeyFile).create();
+        MessageIdAdv readMsgId = (MessageIdAdv) MessageId.earliest;
+        while (reader.hasMessageAvailable()) {
+            final var msg = reader.readNext();
+            log.info("Read key: {}, value: {}", msg.getKey(), Optional.ofNullable(msg.getValue()).orElse("(null)"));
+            readMsgId = (MessageIdAdv) msg.getMessageId();
+        }
+        assertEquals(readMsgId, msgId);
     }
 }

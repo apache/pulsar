@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -53,6 +52,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,8 +83,22 @@ public class CompactedTopicImpl implements CompactedTopic {
             compactionHorizon = p;
 
             // delete the ledger from the old context once the new one is open
-            return compactedTopicContext.thenCompose(
-                    __ -> previousContext != null ? previousContext : CompletableFuture.completedFuture(null));
+            return compactedTopicContext.thenCompose(ctx -> {
+                if (previousContext != null) {
+                    previousContext.thenAccept(previousCtx -> {
+                        // Print an error log here, which is not expected.
+                        if (previousCtx != null && previousCtx.getLedger() != null
+                                && previousCtx.getLedger().getId() == compactedLedgerId) {
+                            log.error("[__compaction] Using the same compacted ledger to override the old one, which is"
+                                + " not expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
+                                ctx.getLedger().getId());
+                        }
+                    });
+                    return previousContext;
+                } else {
+                    return CompletableFuture.completedFuture(null);
+                }
+            });
         }
     }
 
@@ -331,18 +345,23 @@ public class CompactedTopicImpl implements CompactedTopic {
         var compactedTopicContextFuture = this.getCompactedTopicContextFuture();
 
         if (compactedTopicContextFuture == null) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(new IllegalStateException(
+                    "CompactedTopicContext is not initialized"));
         }
         return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
             LedgerHandle lh = compactedTopicContext.getLedger();
             CompletableFuture<Long> promise = new CompletableFuture<>();
             findFirstMatchIndexLoop(predicate, 0L, lh.getLastAddConfirmed(), promise, null, lh);
-            return promise.thenCompose(index -> {
-                if (index == null) {
-                    return CompletableFuture.completedFuture(null);
+            return promise.thenCompose(index -> readEntries(lh, index, index).thenApply(entries -> {
+                if (entries.size() != 1) {
+                    for (final var entry : entries) {
+                        entry.release();
+                    }
+                    throw new IllegalStateException("Read " + entries.size() + " entries from the compacted ledger "
+                            + lh + " entry " + index);
                 }
-                return readEntries(lh, index, index).thenApply(entries -> entries.get(0));
-            });
+                return entries.get(0);
+            }));
         });
     }
     private static void findFirstMatchIndexLoop(final Predicate<Entry> predicate,

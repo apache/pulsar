@@ -137,6 +137,7 @@ public class MockZooKeeper extends ZooKeeper {
     private ThreadLocal<Boolean> inExecutorThreadLocal;
     private int referenceCount;
     private List<AutoCloseable> closeables;
+    private int sessionTimeout;
 
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
@@ -188,6 +189,7 @@ public class MockZooKeeper extends ZooKeeper {
         zk.readOpDelayMs = readOpDelayMs;
         zk.sequentialIdGenerator = new AtomicLong();
         zk.closeables = new ArrayList<>();
+        zk.sessionTimeout = 30_000;
         return zk;
     }
 
@@ -204,7 +206,11 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public int getSessionTimeout() {
-        return 30_000;
+        return sessionTimeout;
+    }
+
+    public void setSessionTimeout(int sessionTimeout) {
+        this.sessionTimeout = sessionTimeout;
     }
 
     private MockZooKeeper(String quorum) throws Exception {

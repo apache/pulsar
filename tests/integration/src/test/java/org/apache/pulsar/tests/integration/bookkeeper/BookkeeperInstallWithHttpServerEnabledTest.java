@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.bookkeeper;
 
+import static java.util.stream.Collectors.joining;
+import static org.testng.Assert.assertEquals;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -26,11 +29,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
-import static org.testng.Assert.assertEquals;
 
 /**
  * Test bookkeeper setup with http server enabled.
@@ -80,5 +78,15 @@ public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTes
                 "http://localhost:8000/heartbeat");
         assertEquals(result.getExitCode(), 0);
         assertEquals(result.getStdout(), "OK\n");
+    }
+
+    @Test
+    public void testGetBookieMetrics() throws Exception {
+        ContainerExecResult result = pulsarCluster.getAnyBookie().execCmd(
+                PulsarCluster.CURL,
+                "-X",
+                "GET",
+                "http://localhost:8000/metrics");
+        assertEquals(result.getExitCode(), 0);
     }
 }

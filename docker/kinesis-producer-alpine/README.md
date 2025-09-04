@@ -31,7 +31,11 @@ This image only needs to be re-created when we want to upgrade to a newer versio
 1. Change the version in the Dockerfile for this directory.
 2. Rebuild the image and push it to Docker Hub:
 ```
-docker buildx build --platform=linux/amd64,linux/arm64 -t apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:0.15.12 . --push
+IMAGE=apachepulsar/pulsar-io-kinesis-sink-kinesis_producer
+KINESIS_PRODUCER_VERSION=1.0.4
+docker buildx build --platform=linux/amd64,linux/arm64 \
+ -t "$IMAGE:$KINESIS_PRODUCER_VERSION" -t "$IMAGE:${KINESIS_PRODUCER_VERSION}-$(date -I)" \
+ . --push
 ```
 
 The image tag is then used in `docker/pulsar-all/Dockerfile`. The `kinesis_producer` binary is copied from the image to the `pulsar-all` image that is used by Pulsar Functions to run the Pulsar IO Kinesis Sink connector. The environment variable `PULSAR_IO_KINESIS_KPL_PATH` is set to `/opt/amazon-kinesis-producer/bin/kinesis_producer` and this is how the Kinesis Sink connector knows where to find the `kinesis_producer` binary.

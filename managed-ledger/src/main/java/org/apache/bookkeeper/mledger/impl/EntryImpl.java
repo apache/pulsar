@@ -25,14 +25,17 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
-import org.apache.bookkeeper.mledger.util.RangeCache;
 
-public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>,
-        RangeCache.ValueWithKeyValidation<Position> {
+public final class EntryImpl extends AbstractCASReferenceCounted
+        implements ReferenceCountedEntry, Comparable<EntryImpl> {
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -42,64 +45,133 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     };
 
     private final Handle<EntryImpl> recyclerHandle;
-    private long timestamp;
     private long ledgerId;
     private long entryId;
     private Position position;
     ByteBuf data;
+    private EntryReadCountHandler readCountHandler;
+    private boolean decreaseReadCountOnRelease = true;
 
     private Runnable onDeallocate;
 
-    public static EntryImpl create(LedgerEntry ledgerEntry) {
+    public static EntryImpl create(LedgerEntry ledgerEntry, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
         entry.data = ledgerEntry.getEntryBuffer();
         entry.data.retain();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         entry.setRefCnt(1);
         return entry;
     }
 
+    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor,
+                                   int expectedReadCount) {
+        ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
+        if (interceptor != null) {
+            ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
+            processorHandle = interceptor
+                    .processPayloadBeforeEntryCache(duplicateBuffer);
+            if (processorHandle != null) {
+                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(),
+                        ledgerEntry.getLength(), processorHandle.getProcessedPayload());
+            } else {
+                duplicateBuffer.release();
+            }
+        }
+        EntryImpl returnEntry = create(ledgerEntry, expectedReadCount);
+        if (processorHandle != null) {
+            processorHandle.release();
+            ledgerEntry.close();
+        }
+        return returnEntry;
+    }
+
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
+        return create(ledgerId, entryId, data, 0);
+    }
+
+    @VisibleForTesting
+    public static EntryImpl create(long ledgerId, long entryId, byte[] data, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         entry.setRefCnt(1);
         return entry;
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
+        return create(ledgerId, entryId, data, 0);
+    }
+
+    public static EntryImpl create(long ledgerId, long entryId, ByteBuf data, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = data;
         entry.data.retain();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         entry.setRefCnt(1);
         return entry;
     }
 
-    public static EntryImpl create(Position position, ByteBuf data) {
+    public static EntryImpl create(Position position, ByteBuf data, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
+        entry.position = PositionFactory.create(position);
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data;
         entry.data.retain();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data, int expectedReadCount) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = PositionFactory.create(position);
+        entry.ledgerId = position.getLedgerId();
+        entry.entryId = position.getEntryId();
+        entry.data = data.retainedDuplicate();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data,
+                                                        EntryReadCountHandler entryReadCountHandler) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = PositionFactory.create(position);
+        entry.ledgerId = position.getLedgerId();
+        entry.entryId = position.getEntryId();
+        entry.data = data.retainedDuplicate();
+        entry.readCountHandler = entryReadCountHandler;
         entry.setRefCnt(1);
         return entry;
     }
 
     public static EntryImpl create(EntryImpl other) {
         EntryImpl entry = RECYCLER.get();
-        entry.timestamp = System.nanoTime();
+        // handle case where other.position is null due to lazy initialization
+        entry.position = other.position != null ? PositionFactory.create(other.position) : null;
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
+        entry.readCountHandler = other.readCountHandler;
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    public static EntryImpl create(Entry other) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = PositionFactory.create(other.getPosition());
+        entry.ledgerId = other.getLedgerId();
+        entry.entryId = other.getEntryId();
+        entry.data = other.getDataBuffer().retainedDuplicate();
+        entry.readCountHandler = other.getReadCountHandler();
         entry.setRefCnt(1);
         return entry;
     }
@@ -122,10 +194,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
                 }
             };
         }
-    }
-
-    public long getTimestamp() {
-        return timestamp;
     }
 
     @Override
@@ -191,6 +259,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     protected void deallocate() {
+        if (decreaseReadCountOnRelease && readCountHandler != null) {
+            readCountHandler.markRead();
+        }
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         if (onDeallocate != null) {
             try {
@@ -201,15 +272,31 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         }
         data.release();
         data = null;
-        timestamp = -1;
         ledgerId = -1;
         entryId = -1;
         position = null;
+        readCountHandler = null;
+        decreaseReadCountOnRelease = true;
         recyclerHandle.recycle(this);
     }
 
     @Override
-    public boolean matchesKey(Position key) {
-        return key.compareTo(ledgerId, entryId) == 0;
+    public boolean matchesPosition(Position key) {
+        return key != null && key.compareTo(ledgerId, entryId) == 0;
+    }
+
+    @Override
+    public EntryReadCountHandler getReadCountHandler() {
+        return readCountHandler;
+    }
+
+    public void setDecreaseReadCountOnRelease(boolean enabled) {
+        decreaseReadCountOnRelease = enabled;
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getName() + "@" + System.identityHashCode(this)
+                + "{ledgerId=" + ledgerId + ", entryId=" + entryId + '}';
     }
 }

@@ -185,11 +185,11 @@ public class PulsarClientImplTest {
         ConnectionPool pool = Mockito.spy(new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop, null));
         conf.setServiceUrl("pulsar://localhost:6650");
 
+        @Cleanup("stop")
         HashedWheelTimer timer = new HashedWheelTimer();
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool, timer);
 
         client.shutdown();
-        client.timer().stop();
     }
 
     @Test
@@ -244,8 +244,8 @@ public class PulsarClientImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Both externalExecutorProvider and internalExecutorProvider must be " +
-                    "specified or unspecified.")
+            expectedExceptionsMessageRegExp =
+                    "Both externalExecutorProvider and internalExecutorProvider must be specified or unspecified.")
     public void testBothExecutorProvidersMustBeSpecified() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
