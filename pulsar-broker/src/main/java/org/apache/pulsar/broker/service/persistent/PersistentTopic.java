@@ -2166,7 +2166,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private void checkMessageExpiryWithSharedPosition(ManagedLedgerImpl ml, int messageTtlInSeconds) {
         // Find the target position at one time, then expire all subscriptions and replicators.
-        ManagedCursor cursor = ml.getCursors().getCursorWithOldestPosition().getCursor();
+        final var cursorWithOldestPosition = ml.getCursors().getCursorWithOldestPosition();
+        if (cursorWithOldestPosition == null) {
+            return;
+        }
+        ManagedCursor cursor = cursorWithOldestPosition.getCursor();
         PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
                 .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
         // Find the target position.
