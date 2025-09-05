@@ -26,7 +26,7 @@ USER root
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
-RUN apk add --no-cache supervisor
+RUN apk add --no-cache supervisor jq
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \

@@ -18,7 +18,8 @@
 # under the License.
 #
 
-export PULSAR_MEM="${PULSAR_MEM:-"-Xmx512M -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/pulsar -XX:+ExitOnOutOfMemoryError"}"
-export PULSAR_GC="${PULSAR_GC:-"-XX:+UseZGC"}"
+source /pulsar/bin/func-lib.sh
+
+set_pulsar_mem 512M
 
 bin/pulsar standalone
