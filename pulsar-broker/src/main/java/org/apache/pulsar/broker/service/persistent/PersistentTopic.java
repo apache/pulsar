@@ -2168,6 +2168,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Find the target position at one time, then expire all subscriptions and replicators.
         final var cursorWithOldestPosition = ml.getCursors().getCursorWithOldestPosition();
         if (cursorWithOldestPosition == null) {
+            // Skip checking message expiry for topics without subscription
             return;
         }
         ManagedCursor cursor = cursorWithOldestPosition.getCursor();
