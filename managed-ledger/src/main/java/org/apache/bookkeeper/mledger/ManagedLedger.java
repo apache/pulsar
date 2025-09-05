@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
@@ -579,8 +580,9 @@ public interface ManagedLedger {
     /**
      * Get the slowest consumer.
      *
-     * @return the slowest consumer
+     * @return the slowest consumer or null if there is no consumer
      */
+    @Nullable
     ManagedCursor getSlowestConsumer();
 
     /**

@@ -23,12 +23,17 @@ import lombok.experimental.UtilityClass;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Contains cursors for a ManagedLedger.
  * <p>
  * The goal is to be able to find out the slowest cursor and hence decide which is the oldest ledger we need to keep.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Evolving
 public interface ManagedCursorContainer extends Iterable<ManagedCursor> {
     /**
      * Adds a cursor to the container with the specified position.
@@ -45,6 +50,7 @@ public interface ManagedCursorContainer extends Iterable<ManagedCursor> {
      * @param name the name of the cursor
      * @return the ManagedCursor if found, otherwise null
      */
+    @Nullable
     ManagedCursor get(String name);
 
     /**
@@ -63,29 +69,32 @@ public interface ManagedCursorContainer extends Iterable<ManagedCursor> {
      * @param cursor the cursor to update the position for
      * @param newPosition the updated position for the cursor
      * @return a pair of positions, representing the previous slowest cursor and the new slowest cursor (after the
-     *         update).
+     *         update) or null if the cursor does not exist.
      */
     Pair<Position, Position> cursorUpdated(ManagedCursor cursor, Position newPosition);
 
     /**
      * Gets the position of the slowest cursor.
      *
-     * @return the position of the slowest cursor
+     * @return the position of the slowest cursor or null if there is no cursor
      */
+    @Nullable
     Position getSlowestCursorPosition();
 
     /**
      * Gets the slowest cursor.
      *
-     * @return the slowest ManagedCursor
+     * @return the slowest ManagedCursor or null if there is no cursor
      */
+    @Nullable
     ManagedCursor getSlowestCursor();
 
     /**
      * Gets the cursor's {@link CursorInfo} with the oldest position.
      *
-     * @return the CursorInfo containing the cursor and its position
+     * @return the CursorInfo containing the cursor and its position or null if there is no cursor
      */
+    @Nullable
     CursorInfo getCursorWithOldestPosition();
 
     /**
