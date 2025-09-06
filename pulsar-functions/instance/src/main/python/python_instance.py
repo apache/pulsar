@@ -404,7 +404,7 @@ class PythonInstance(object):
         batching_type=batch_type,
         batching_max_messages=1000 if not batch_spec.batchingMaxMessages else batch_spec.batchingMaxMessages,
         batching_max_publish_delay_ms=10 if not batch_spec.batchingMaxPublishDelayMs else batch_spec.batchingMaxPublishDelayMs,
-        batching_max_allowed_size_in_bytes=128*1024 if not batch_spec.batchingMaxBytes else batch_spec.batchingMaxBytes
+        batching_max_allowed_size_in_bytes=128*1024 if not batch_spec.batchingMaxBytes else batch_spec.batchingMaxBytes,
         compression_type=compression_type,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
