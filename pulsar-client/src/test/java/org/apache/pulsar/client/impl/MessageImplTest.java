@@ -28,7 +28,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -480,7 +479,7 @@ public class MessageImplTest {
             entryTimestamp = Commands.getEntryTimestamp(compositeByteBuf);
             assertFalse(MessageImpl.isEntryExpired(24 * 3600, entryTimestamp));
             assertEquals(entryTimestamp, brokerEntryTimestamp);
-        } catch (IOException e) {
+        } catch (Exception e) {
             fail();
         }
     }
