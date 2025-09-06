@@ -18,14 +18,14 @@
 # under the License.
 #
 
-# Dockerfile for pulsar image which uses Wolfi (chainguard/wolfi-base) as it's base image
+# Dockerfile for pulsar image which uses Wolfi (cgr.dev/chainguard/wolfi-base) as it's base image
 # More information about Wolfi OS: https://github.com/wolfi-dev/
 # wolfi-base CVEs: https://images.chainguard.dev/directory/image/wolfi-base/vulnerabilities
 
 ARG IMAGE_JDK_MAJOR_VERSION=21
 
 # First create a stage with just the Pulsar tarball and scripts
-FROM chainguard/wolfi-base as pulsar
+FROM cgr.dev/chainguard/wolfi-base as pulsar
 
 RUN apk add zip
 
@@ -70,7 +70,7 @@ RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.secu
 
 ## Create final stage
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
-FROM chainguard/wolfi-base
+FROM cgr.dev/chainguard/wolfi-base
 ENV LANG C.UTF-8
 
 ARG PYTHON_VERSION=3.12
@@ -88,9 +88,6 @@ RUN apk add --no-cache \
             bind-tools \
             openssl \
             coreutils
-
-# Upgrade all packages to get latest versions with security fixes
-RUN apk upgrade --no-cache
 
 # Python dependencies
 # The pinned grpcio and protobuf versions should be compatible with the generated Protobuf and gRPC stubs used
