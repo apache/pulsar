@@ -369,10 +369,10 @@ class PythonInstance(object):
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
 
+      batch_spec = self.instance_config.function_details.sink.producerSpec.batchingSpec
       batch_type = pulsar.BatchingType.Default
-      if self.instance_config.function_details.sink.producerSpec.batchBuilder != None and \
-            len(self.instance_config.function_details.sink.producerSpec.batchBuilder) > 0:
-        batch_builder = self.instance_config.function_details.sink.producerSpec.batchBuilder
+      if len(batch_spec.batchBuilder) > 0:
+        batch_builder = batch_spec.batchBuilder
         if batch_builder == "KEY_BASED":
           batch_type = pulsar.BatchingType.KeyBased
 
@@ -400,9 +400,11 @@ class PythonInstance(object):
         schema=self.output_schema,
         producer_name=producer_name,
         block_if_queue_full=True,
-        batching_enabled=True,
+        batching_enabled=batch_spec.enabled,
         batching_type=batch_type,
-        batching_max_publish_delay_ms=10,
+        batching_max_messages=1000 if not batch_spec.batchingMaxMessages else batch_spec.batchingMaxMessages,
+        batching_max_publish_delay_ms=10 if not batch_spec.batchingMaxPublishDelayMs else batch_spec.batchingMaxPublishDelayMs,
+        batching_max_allowed_size_in_bytes=128*1024 if not batch_spec.batchingMaxBytes else batch_spec.batchingMaxBytes
         compression_type=compression_type,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
