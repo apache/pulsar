@@ -464,13 +464,13 @@ public class NamespaceService implements AutoCloseable {
             findingBundlesNotAuthoritative = new ConcurrentHashMap<>();
 
     /**
-     * Main internal method to lookup and setup ownership of service unit to a broker.
+     * Lookup and setup ownership of service unit to a broker.
      *
      * @param bundle the namespace bundle
      * @param options the lookup options
      * @return the lookup result
      */
-    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
+    public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             NamespaceBundle bundle, LookupOptions options) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("findBrokerServiceUrl: {} - options: {}", bundle, options);
