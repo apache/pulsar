@@ -91,7 +91,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
                 + "-" + functionRuntimeType + "-" + randomName(8);
 
         // This is the binlog count that contained in mysql container.
-        final int numMessages = 47;
+        final int numMessages = 52;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -214,7 +214,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
-        final String consumeTopicName = "debezium/mssql/mssql.dbo.customers";
+        final String consumeTopicName = "debezium/mssql/mssql.TestDB.dbo.customers";
         final String sourceName = "test-source-debezium-mssql-" + functionRuntimeType + "-" + randomName(8);
 
         final int numMessages = 1;

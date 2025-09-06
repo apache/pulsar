@@ -34,7 +34,7 @@
 
   <properties>
     <integrationTestSuiteFile>pulsar.xml</integrationTestSuiteFile>
-    <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
+    <mongo-reactivestreams.version>5.2.0</mongo-reactivestreams.version>
     <inttest.asyncprofiler.opts>event=cpu,lock=1ms,alloc=2m,jfrsync=profile</inttest.asyncprofiler.opts>
     <inttest.asyncprofiler.outputformat>jfr</inttest.asyncprofiler.outputformat>
     <inttest.asyncprofiler.dir></inttest.asyncprofiler.dir>

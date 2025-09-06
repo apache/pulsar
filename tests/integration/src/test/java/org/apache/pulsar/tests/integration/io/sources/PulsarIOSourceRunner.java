@@ -272,6 +272,21 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
             result.getStdout()
         );
         result.assertNoStderr();
+
+        final String[] packageCommands = {
+            PulsarCluster.ADMIN_SCRIPT,
+            "packages",
+            "delete",
+            "source://" + tenant + "/" + namespace + "/" + sourceName + "@0"
+        };
+
+        try {
+            ContainerExecResult packageResult = pulsarCluster.getAnyWorker().execCmd(packageCommands);
+            log.info("Package metadata deletion result: {}", packageResult.getStdout());
+        } catch (Exception e) {
+            log.warn("Failed to delete package metadata for source://{}/{}/{}@0: {}",
+                     tenant, namespace, sourceName, e.getMessage());
+        }
     }
 
     protected void getSourceInfoNotFound(String tenant, String namespace, String sourceName) throws Exception {

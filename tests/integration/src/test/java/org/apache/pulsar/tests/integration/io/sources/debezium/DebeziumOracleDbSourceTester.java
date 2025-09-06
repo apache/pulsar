@@ -58,13 +58,15 @@ public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbC
         sourceConfig.put("database.port", "1521");
         sourceConfig.put("database.user", "dbzuser");
         sourceConfig.put("database.password", "dbz");
-        sourceConfig.put("database.server.name", "XE");
+        sourceConfig.put("topic.prefix", "XE");
         sourceConfig.put("database.dbname", "XE");
         sourceConfig.put("snapshot.mode", "schema_only");
 
         sourceConfig.put("schema.include.list", "inv");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/oracle");
+
+        sourceConfig.put("connector.class", "io.debezium.connector.oracle.OracleConnector");
     }
 
     @Override

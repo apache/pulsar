@@ -240,19 +240,17 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
-    <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.5.5</postgresql-jdbc.version>
+    <mysql-jdbc.version>9.1.0</mysql-jdbc.version>
+    <postgresql-jdbc.version>42.7.7</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
-    <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
+    <mariadb-jdbc.version>3.5.3</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
-    <debezium.version>1.9.7.Final</debezium.version>
-    <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.33</debezium.mysql.version>
-    <!-- Override version that brings CVE-2022-3143 with debezium -->
-    <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
+    <debezium.version>3.2.2.Final</debezium.version>
+    <debezium.postgresql.version>42.7.7</debezium.postgresql.version>
+    <debezium.mysql.version>9.1.0</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop3.version>3.4.0</hadoop3.version>

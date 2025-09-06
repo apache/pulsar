@@ -33,7 +33,7 @@
   <name>Pulsar IO :: MongoDB</name>
 
   <properties>
-    <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
+    <mongo-reactivestreams.version>5.2.0</mongo-reactivestreams.version>
   </properties>
 
   <dependencies>

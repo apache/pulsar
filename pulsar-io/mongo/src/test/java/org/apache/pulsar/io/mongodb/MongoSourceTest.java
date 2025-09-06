@@ -110,17 +110,21 @@ public class MongoSourceTest {
 
         source.open(map, mockSourceContext);
 
-        subscriber.onNext(new ChangeStreamDocument<>(
-                OperationType.INSERT,
+        subscriber.onNext(new ChangeStreamDocument<Document>(
+                OperationType.INSERT.getValue(),
                 BsonDocument.parse("{token: true}"),
                 BsonDocument.parse("{db: \"hello\", coll: \"pulsar\"}"),
                 BsonDocument.parse("{db: \"hello2\", coll: \"pulsar2\"}"),
                 new Document("hello", "pulsar"),
+                new Document("hello", "pulsar"), // documentKey
                 BsonDocument.parse("{_id: 1}"),
                 new BsonTimestamp(1234, 2),
-                null,
+                null, // UpdateDescription
                 new BsonInt64(1),
-                BsonDocument.parse("{id: 1, uid: 1}")));
+                BsonDocument.parse("{id: 1, uid: 1}"),
+                null, // BsonDateTime
+                null, // SplitEvent
+                BsonDocument.parse("{extra: 1}")));
 
         Record<byte[]> record = source.read();
 
