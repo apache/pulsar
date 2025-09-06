@@ -284,7 +284,7 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
             ContainerExecResult packageResult = pulsarCluster.getAnyWorker().execCmd(packageCommands);
             log.info("Package metadata deletion result: {}", packageResult.getStdout());
         } catch (Exception e) {
-            log.warn("Failed to delete package metadata for source://{}/{}/{}@0: {}", 
+            log.warn("Failed to delete package metadata for source://{}/{}/{}@0: {}",
                      tenant, namespace, sourceName, e.getMessage());
         }
     }

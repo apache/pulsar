@@ -42,10 +42,11 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
-        sourceConfig.put("mongodb.connection.string", "mongodb://debezium:dbz@" + DebeziumMongoDbContainer.NAME + ":27017/admin?replicaSet=rs0");
+        sourceConfig.put("mongodb.connection.string",
+                "mongodb://debezium:dbz@" + DebeziumMongoDbContainer.NAME + ":27017/admin?replicaSet=rs0");
         sourceConfig.put("mongodb.user", "debezium");
         sourceConfig.put("mongodb.password", "dbz");
-        sourceConfig.put("mongodb.task.id","1");
+        sourceConfig.put("mongodb.task.id", "1");
         sourceConfig.put("topic.prefix", "dbserver1");
         sourceConfig.put("database.include.list", "inventory");
         sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
@@ -70,38 +71,38 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     @Override
     public void prepareInsertEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
-                        "--eval 'db.products.find()'");
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory "
+                        + "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
-                        "--eval 'db.products.insert({ " +
-                        "_id : NumberLong(\"110\")," +
-                        "name : \"test-debezium\"," +
-                        "description: \"24 inch spare tire\"," +
-                        "weight : 22.2," +
-                        "quantity : NumberInt(\"5\")})'");
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory "
+                        + "--eval 'db.products.insert({ "
+                        + "_id : NumberLong(\"110\"),"
+                        + "name : \"test-debezium\","
+                        + "description: \"24 inch spare tire\","
+                        + "weight : 22.2,"
+                        + "quantity : NumberInt(\"5\")})'");
     }
 
     @Override
     public void prepareDeleteEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
-                        "--eval 'db.products.find()'");
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory "
+                        + "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
-                        "--eval 'db.products.deleteOne({name : \"test-debezium-update\"})'");
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory "
+                        + "--eval 'db.products.deleteOne({name : \"test-debezium-update\"})'");
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
-                        "--eval 'db.products.find()'");
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory "
+                        + "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
-                        "--eval 'db.products.update({" +
-                        "_id : 110}," +
-                        "{$set:{name:\"test-debezium-update\", description: \"this is update description\"}})'");
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory "
+                        + "--eval 'db.products.update({"
+                        + "_id : 110},"
+                        + "{$set:{name:\"test-debezium-update\", description: \"this is update description\"}})'");
     }
 
     @Override
