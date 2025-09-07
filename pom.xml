@@ -249,7 +249,7 @@ flexible messaging model and an intuitive client API.</description>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
     <debezium.version>3.2.2.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
-    <debezium.mysql.version>9.1.0</debezium.mysql.version>
+    <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop3.version>3.4.0</hadoop3.version>
