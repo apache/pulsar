@@ -243,7 +243,7 @@ flexible messaging model and an intuitive client API.</description>
     <mysql-jdbc.version>9.1.0</mysql-jdbc.version>
     <postgresql-jdbc.version>42.7.7</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
-    <mariadb-jdbc.version>3.5.3</mariadb-jdbc.version>
+    <mariadb-jdbc.version>3.5.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
