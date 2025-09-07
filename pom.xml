@@ -240,7 +240,6 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
-    <mysql-jdbc.version>9.1.0</mysql-jdbc.version>
     <postgresql-jdbc.version>42.7.7</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>3.5.5</mariadb-jdbc.version>
