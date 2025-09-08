@@ -58,6 +58,8 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
         add("source");
         add("op");
         add("ts_ms");
+        add("ts_us");
+        add("ts_ns");
         add("transaction");
     }};
 
