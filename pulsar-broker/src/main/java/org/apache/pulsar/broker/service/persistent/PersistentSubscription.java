@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopi
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
+import it.unimi.dsi.fastutil.ints.IntIntPair;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -39,9 +40,12 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.BatchMsgAckResType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.CursorDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.PositionAckState;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -52,7 +56,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -93,6 +99,8 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -432,7 +440,8 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties,
+                                   @Nullable Consumer ackFrom, boolean triggeredByTxnCommit) {
         cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
@@ -454,7 +463,12 @@ public class PersistentSubscription extends AbstractSubscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
-            cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
+            if (triggeredByTxnCommit) {
+                cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
+            } else {
+                cursor.asyncDelete(positions, deleteCallbackWithHandlingAckState,
+                        ImmutablePair.of(ackFrom, previousMarkDeletePosition));
+            }
             if (config.isTransactionCoordinatorEnabled()) {
                 positions.forEach(position -> {
                     if ((cursor.isMessageDeleted(position))) {
@@ -554,6 +568,150 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
     };
+
+    private final DeleteCallback deleteCallbackWithHandlingAckState = new CursorDeleteCallback() {
+        @Override
+        public void deleteComplete(Object context, List<PositionAckState> positionAckStates) {
+            ImmutablePair<Consumer, Position> ctx = (ImmutablePair<Consumer, Position>) context;
+            Consumer ackFrom = ctx.getLeft();
+            Position previousMarkDeletePosition = ctx.getRight();
+            if (log.isDebugEnabled()) {
+                // The value of the param "context" is a position.
+                log.debug("[{}][{}] Deleted message at {}", topicName, subName, previousMarkDeletePosition);
+            }
+            // Update pendingAcks, un-ack-messages, consumer.metrics.
+            if (Subscription.isIndividualAckMode(getType())) {
+                PersistentSubscription.this.updatePendingAckMessagesAfterAcknowledged(ackFrom, positionAckStates);
+            }
+            // Signal the dispatcher.
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, context);
+            }
+            notifyTheMarkDeletePositionMoveForwardIfNeeded(previousMarkDeletePosition);
+        }
+
+        @Override
+        public void deleteComplete(Object context) {
+            deleteCallback.deleteComplete(context);
+        }
+
+        @Override
+        public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+            deleteCallback.deleteFailed(exception, ctx);
+        }
+    };
+
+    private void updatePendingAckMessagesAfterAcknowledged(Consumer ackFrom, List<PositionAckState> ackedPositions) {
+        Dispatcher dispatcher0 = getDispatcher();
+        if (dispatcher0 != null) {
+            /*
+             * There is a race condition which leads us to add this "synchronized" block.
+             * - consumer-1 received msg-A
+             *   - consumption task is in-progress
+             * - topic was unloaded
+             *   - reset messages to consumer-2
+             * At this moment, race-condition occurs:
+             * - consumer-1 is acknowledging msg-A
+             * - dispatcher is delivering msg-A to consumer-2
+             * Issue: broker received the acknowledging of msg-A, but no consumer has pending acknowledge that relate
+             *  to msg-A so broker can not know how many single messages in the batched message.
+             * Solve: to get a precise messages number, this "synchronized" block is needed.
+             */
+            synchronized (dispatcher0) {
+                updatePendingAckMessagesAfterAcknowledged0(ackFrom, ackedPositions);
+            }
+        } else {
+            updatePendingAckMessagesAfterAcknowledged0(ackFrom, ackedPositions);
+        }
+    }
+
+    private void updatePendingAckMessagesAfterAcknowledged0(Consumer ackFrom, List<PositionAckState> ackedPositions) {
+        int totalMsgAcked = 0;
+        for (PositionAckState ackState : ackedPositions) {
+            Position  position = ackState.getPosition();
+            final long ledgerId = position.getLedgerId();
+            final long entryId = position.getEntryId();
+            final boolean positionRemovedFromCursor =
+                    ackState.getBatchMsgAckResType() == BatchMsgAckResType.AckAllAtOnce
+                    || ackState.getBatchMsgAckResType() == BatchMsgAckResType.LatestPartialAck;
+            // Find the messages' owner and update un-acknowledged messages.
+            Consumer owner = null;
+            IntIntPair batchSizeAndHashPair = ackFrom == null ? null
+                    : (positionRemovedFromCursor
+                    ? ackFrom.getPendingAcks().removeAndReturn(ledgerId, entryId)
+                    : ackFrom.getPendingAcks().get(ledgerId, entryId));
+            if (batchSizeAndHashPair != null) {
+                owner = ackFrom;
+            } else {
+                for (Consumer consumer : getConsumers()) {
+                    if (consumer == ackFrom) {
+                        continue;
+                    }
+                    batchSizeAndHashPair = positionRemovedFromCursor
+                            ? consumer.getPendingAcks().removeAndReturn(ledgerId, entryId)
+                            : consumer.getPendingAcks().get(ledgerId, entryId);
+                    if (batchSizeAndHashPair != null) {
+                        // Continue find the owner
+                        owner = consumer;
+                        break;
+                    }
+                }
+            }
+            if (owner == null) {
+                // Since we can not get how many msgs that were attempted to ack, just plus 1 into the
+                // "attemptAckMsgs".
+                totalMsgAcked++;
+                log.info("[{}][{}]{}-{}-{} skipped to reduce un-ack-msgs for {}:{}, because could not find the"
+                                + " message's owner. consumer size: {}. It may caused by a concurrency acknowledging"
+                                + " and reconnection",
+                        topicName, subName,
+                        ackFrom == null ? "null" : ackFrom.cnx(),
+                        ackFrom == null ? "null" : ackFrom.consumerId(),
+                        ackFrom == null ? "null" : ackFrom.consumerName(),
+                        ledgerId, entryId, getConsumers().size());
+                continue;
+            }
+            // Calculate messages actually acked in batch.
+            int actualAcked = 0;
+            if (ackState.getBatchMsgAckResType() == BatchMsgAckResType.AckAllAtOnce) {
+                // All messages in batch were acked at once.
+                actualAcked = Math.max(batchSizeAndHashPair.firstInt(), 1);
+            } else if (ackState.getBatchMsgAckResType() == BatchMsgAckResType.FirstPartialAck) {
+                // First part of batch message acked.
+                // Regarding this case, only consumer knows how many messages in batch were acked, because
+                // the cursor do not know how many messages in the batch, but "consumer.pendingAcks" knows.
+                long[] ackSetWords = AckSetStateUtil.getAckSetArrayOrNull(position);
+                if (ackSetWords != null) {
+                    BitSetRecyclable ackSet = BitSetRecyclable.create().resetWords(ackSetWords);
+                    actualAcked = Math.max(batchSizeAndHashPair.firstInt() - ackSet.cardinality(), 0);
+                    ackSet.recycle();
+                }
+            } else {
+                // Following part of batch message acked.
+                // Regarding this case, only cursor know how many messages in batch were acked, because
+                // "consumer.pendingAcks" does not know how many messages were acked count before, only "cursor"
+                // knows.
+                actualAcked = ackState.getBatchMessageAckCount();
+            }
+            totalMsgAcked += actualAcked;
+            // Reduce un-acknowledged messages.
+            owner.addAndGetUnAckedMsgs(owner, -actualAcked);
+            owner.updateBlockedConsumerOnUnackedMsgs(owner);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] {}-{}-{} {}-{}-{} acknowledged {} messages, un-ack-msg: {}, position: {}:{}"
+                                + " ack state: {}",
+                        topicName, subName, owner.cnx(), owner.consumerId(), owner.consumerName(),
+                        ackFrom == null ? "null" : ackFrom.cnx(),
+                        ackFrom == null ? "null" : ackFrom.consumerId(),
+                        ackFrom == null ? "null" : ackFrom.consumerName(),
+                        actualAcked, owner.getUnackedMessages(), ledgerId, entryId, ackState);
+            }
+        }
+        // Consumer metrics.
+        if (ackFrom != null) {
+            ackFrom.ackMetricRecord(totalMsgAcked);
+        }
+    }
 
     private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
         Position oldMD = oldPosition;

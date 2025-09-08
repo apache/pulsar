@@ -86,7 +86,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
                 spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "test", cursor, false);
         Position position = managedLedger.addEntry("test".getBytes());
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
-                AckType.Individual, Collections.emptyMap());
+                AckType.Individual, Collections.emptyMap(), null, false);
         verify(managedLedger, times(0)).asyncReadEntry(any(), any(), any());
     }
 

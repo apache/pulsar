@@ -197,7 +197,8 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties) {
+    public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties,
+                                   Consumer ackFrom, boolean triggerByTxnCommit) {
         // No-op
     }
 

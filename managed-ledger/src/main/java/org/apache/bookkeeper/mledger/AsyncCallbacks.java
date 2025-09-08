@@ -22,6 +22,8 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
@@ -116,6 +118,25 @@ public interface AsyncCallbacks {
         void deleteComplete(Object ctx);
 
         void deleteFailed(ManagedLedgerException exception, Object ctx);
+    }
+
+    interface CursorDeleteCallback extends DeleteCallback {
+        void deleteComplete(Object ctx, List<PositionAckState> positionAckStates);
+    }
+
+    @AllArgsConstructor
+    @Data
+    class PositionAckState {
+        Position position;
+        BatchMsgAckResType batchMsgAckResType;
+        int batchMessageAckCount;
+    }
+
+    enum BatchMsgAckResType {
+        AckAllAtOnce,
+        FirstPartialAck,
+        PartialAck,
+        LatestPartialAck;
     }
 
     interface TerminateCallback {

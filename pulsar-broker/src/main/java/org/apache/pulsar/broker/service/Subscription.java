@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.jspecify.annotations.Nullable;
 
 public interface Subscription extends MessageExpirer {
 
@@ -48,7 +49,13 @@ public interface Subscription extends MessageExpirer {
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
-    void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties);
+    /**
+     * @param ackFrom It can be null, and it will always be null if {@param ackType} is {@link AckType#Cumulative}.
+     *               The performance will be improved, if this param is the owner consumer that received the messages
+     *               who are being acked when {@param ackType} is {@link AckType#Individual}.
+     */
+    void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties,
+                            @Nullable Consumer ackFrom, boolean triggeredByTxnCommit);
 
     String getTopicName();
 
