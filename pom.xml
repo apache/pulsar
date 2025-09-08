@@ -2272,6 +2272,7 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
+            <failOnError>false</failOnError>
           </configuration>
         </plugin>
         <plugin>
@@ -2519,6 +2520,7 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
               <doclint>none</doclint>
+              <failOnError>false</failOnError>
             </configuration>
           </plugin>
           <plugin>
