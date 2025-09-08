@@ -490,9 +490,9 @@ The Apache Software License, Version 2.0
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
-    - io.jsonwebtoken-jjwt-api-0.11.1.jar
-    - io.jsonwebtoken-jjwt-impl-0.11.1.jar
-    - io.jsonwebtoken-jjwt-jackson-0.11.1.jar
+    - io.jsonwebtoken-jjwt-api-0.11.5.jar
+    - io.jsonwebtoken-jjwt-impl-0.11.5.jar
+    - io.jsonwebtoken-jjwt-jackson-0.11.5.jar
   * JCTools - Java Concurrency Tools for the JVM
     - org.jctools-jctools-core-4.0.5.jar
   * Vertx

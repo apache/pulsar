@@ -89,10 +89,29 @@ public class TokenClient implements ClientCredentialsExchanger {
         if (!StringUtils.isBlank(req.getScope())) {
             bodyMap.put("scope", req.getScope());
         }
+        return encodeUrlParams(bodyMap);
+    }
+
+    String buildClientCredentialsBody(JwtBearerExchangeRequest req) {
+        Map<String, String> bodyMap = new TreeMap<>();
+        // https://datatracker.ietf.org/doc/html/rfc7523#section-2.2
+        bodyMap.put("grant_type", "client_credentials");
+        bodyMap.put("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+        bodyMap.put("client_assertion", req.getAssertion());
+        return encodeUrlParams(bodyMap);
+    }
+
+    private static String encodeUrlParams(Map<String, String> bodyMap) {
         return bodyMap.entrySet().stream()
                 .map(e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8) + '='
                         + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
                 .collect(Collectors.joining("&"));
+    }
+
+    public TokenResult exchangeClientCredentials(JwtBearerExchangeRequest req)
+            throws TokenExchangeException, IOException {
+        String body = buildClientCredentialsBody(req);
+        return exchangeClientCredentials(body);
     }
 
     /**
@@ -104,9 +123,12 @@ public class TokenClient implements ClientCredentialsExchanger {
     public TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException {
         String body = buildClientCredentialsBody(req);
+        return exchangeClientCredentials(body);
+    }
 
+    private TokenResult exchangeClientCredentials(String body)
+            throws TokenExchangeException, IOException {
         try {
-
             Response res = httpClient.preparePost(tokenUrl.toString())
                     .setHeader("Accept", "application/json")
                     .setHeader("Content-Type", "application/x-www-form-urlencoded")
@@ -115,25 +137,24 @@ public class TokenClient implements ClientCredentialsExchanger {
                     .get();
 
             switch (res.getStatusCode()) {
-            case 200:
-                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                        TokenResult.class);
-
-            case 400: // Bad request
-            case 401: // Unauthorized
-                throw new TokenExchangeException(
-                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                                TokenError.class));
-
-            default:
-                throw new IOException(
-                        "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
+                case 200:
+                    return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                            TokenResult.class);
+                case 400: // Bad request
+                case 401: // Unauthorized
+                    throw new TokenExchangeException(
+                            ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                                    TokenError.class));
+                default:
+                    throw new IOException(
+                            "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
             }
-
-
-
-        } catch (InterruptedException | ExecutionException e1) {
-            throw new IOException(e1);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException(ie);
+        } catch (ExecutionException ee) {
+            throw new IOException(ee);
         }
     }
+
 }

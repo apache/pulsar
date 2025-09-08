@@ -413,6 +413,8 @@ The Apache Software License, Version 2.0
     - websocket-api-9.4.57.v20241219.jar
     - websocket-client-9.4.57.v20241219.jar
     - websocket-common-9.4.57.v20241219.jar
+ * Java JSON WebTokens
+    - jjwt-api-0.11.5.jar
  * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.38.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
