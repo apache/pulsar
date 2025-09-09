@@ -24,6 +24,8 @@ import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
 import io.netty.util.concurrent.FastThreadLocal;
+import io.netty.util.concurrent.FastThreadLocalThread;
+import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -163,11 +165,40 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         return s != null ? s.getQuantile(quantile) : Double.NaN;
     }
 
-    private static class LocalData {
+    @VisibleForTesting
+    static class LocalData {
         private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
         private final DoublesSketch failSketch = new DoublesSketchBuilder().build();
         private final StampedLock lock = new StampedLock();
+        // Keep a weak reference to the owner thread so that we can remove the LocalData when the thread
+        // is not alive anymore or has been garbage collected.
+        // This reference isn't needed when the owner thread is a FastThreadLocalThread and will be null in that case.
+        // The removal is handled by FastThreadLocal#onRemoval when the owner thread is a FastThreadLocalThread.
+        private final WeakReference<Thread> ownerThreadReference;
 
+        private LocalData(Thread ownerThread) {
+            if (ownerThread instanceof FastThreadLocalThread) {
+                ownerThreadReference = null;
+            } else {
+                ownerThreadReference = new WeakReference<>(ownerThread);
+            }
+        }
+
+        boolean shouldRemove() {
+            if (ownerThreadReference == null) {
+                // the owner is a FastThreadLocalThread which handles the removal using FastThreadLocal#onRemoval
+                return false;
+            } else {
+                Thread ownerThread = ownerThreadReference.get();
+                if (ownerThread == null) {
+                    // the thread has already been garbage collected, LocalData should be removed
+                    return true;
+                } else {
+                    // the thread isn't alive anymore, LocalData should be removed
+                    return !ownerThread.isAlive();
+                }
+            }
+        }
 
         private void record(DoublesUnion aggregateSuccess, DoublesUnion aggregateFail) {
             long stamp = lock.writeLock();
@@ -189,7 +220,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
 
             @Override
             protected LocalData initialValue() {
-                LocalData localData = new LocalData();
+                LocalData localData = new LocalData(Thread.currentThread());
                 map.put(localData, Boolean.TRUE);
                 return localData;
             }
@@ -201,7 +232,12 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         };
 
         void record(DoublesUnion aggregateSuccess, DoublesUnion aggregateFail) {
-            map.keySet().forEach(key -> key.record(aggregateSuccess, aggregateFail));
+            map.keySet().forEach(key -> {
+                key.record(aggregateSuccess, aggregateFail);
+                if (key.shouldRemove()) {
+                    map.remove(key);
+                }
+            });
         }
     }
 }
