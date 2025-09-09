@@ -3014,6 +3014,8 @@ public class PersistentTopicsBase extends AdminResource {
         MessageMetadata metadata = entry.getMessageMetadata();
         if (metadata == null) {
             metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        } else {
+            Commands.skipMessageMetadata(metadataAndPayload);
         }
 
         ResponseBuilder responseBuilder = Response.ok();
