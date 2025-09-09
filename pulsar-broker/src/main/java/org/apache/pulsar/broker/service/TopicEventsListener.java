@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -101,8 +103,9 @@ public interface TopicEventsListener {
         String brokerVersion;
         String proxyVersion;
 
+        // ISO-8601 format
         @Builder.Default
-        long timestamp = System.currentTimeMillis();
+        String timestamp = OffsetDateTime.now(ZoneId.systemDefault()).toString();
     }
 
     /**
