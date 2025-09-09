@@ -31,8 +31,8 @@ public class ThreadLocalAccessorTest {
     @DataProvider
     public static Object[][] provider() {
         return new Object[][] {
-                // 1st element: whether the thread is a astThreadLocalThread
-                // 2nd element: the 2nd argument passed to the `record` object
+                // 1st element: whether the thread is a FastThreadLocalThread
+                // 2nd element: the 2nd argument passed to the `ThreadLocalAccessor#record` method
                 { true, DoublesUnion.builder().build() },
                 { true, null },
                 { false, DoublesUnion.builder().build() },
