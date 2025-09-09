@@ -6,7 +6,7 @@
    - [#1103](https://github.com/apache/incubator-pulsar/pull/1103)
    - [#1165](https://github.com/apache/incubator-pulsar/pull/1165)
    - [#1175](https://github.com/apache/incubator-pulsar/pull/1175)
- * **Mailing List discussion**: 
+ * **Mailing List discussion**:
 
 
 ## Motivation
@@ -26,11 +26,11 @@ The goals the should be achieved are these below, we could achieve it one by one
 ## Design
 
 ### support subscription to multiple topics
-This will need a new implementation of `ConsumerBase` which wrapper over multiple single-topic-consumers, let’s name it as `TopicsConsumerImpl`. 
+This will need a new implementation of `ConsumerBase` which wrapper over multiple single-topic-consumers, let’s name it as `TopicsConsumerImpl`.
 When user call new method
 `Consumer subscribe(Collection<String> topics, String subscription);`
 It will iteratively new a `ConsumerImpl` for each topic, and return a `TopicsConsumerImpl`. The main work is:
- 
+
 1. This `TopicsConsumerImpl` class should provide implementation of abstract methods in `ConsumerBase`, Should also provide some specific methods such as:
 ```java
 // maintain a map for all the <Topic, Consumer>, after we subscribe all the topics.

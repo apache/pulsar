@@ -44,7 +44,7 @@ This class will require an update to the several endpoints so that they can retu
 This class has a `checkAuth` method. The creation of a subscription is currently synchronous. I'm not sure how to implement asynchronous responses in websocket handlers. It looks like it should be possible from the following doc: https://webtide.com/jetty-9-updated-websocket-api/. I will need to do a little research to complete this implementation.
 
 #### AuthenticationFilter
-This class is an implementation of the `javax.servlet.Filter` interface. We will need to follow the servlet's paradigm for ensuring that asynchronous results are properly handled when determining whether to call `chain.doFilter` after the asynchronous authentication is complete. I will need to do a little research to complete this implementation. 
+This class is an implementation of the `javax.servlet.Filter` interface. We will need to follow the servlet's paradigm for ensuring that asynchronous results are properly handled when determining whether to call `chain.doFilter` after the asynchronous authentication is complete. I will need to do a little research to complete this implementation.
 
 #### ServerConnection
 The `ServerConnection` class is part of the `DiscoveryService`. Instead of updating the implementation, I think it makes more sense to remove the module altogether. I started a thread about this on the mailing list here: https://lists.apache.org/x/thread.html/rc8b796dda2bc1b022e855c7368d832b570967cb1ef29e9cd18e04e97@%3Cdev.pulsar.apache.org%3E. If we do not remove the module, this class will need to be updated as well.

@@ -2,12 +2,12 @@
 
 * Current State: Under Discussion
 * Author: Shunli Gao, Penghui Li, Sijie Guo, Jia Zhai
-* Pull request: 
-* Mailing List discussion: 
+* Pull request:
+* Mailing List discussion:
 * Release: 2.6.0
 
 ### Motivation
-Currently, the broker supports only one advertised address which is configured in the broker configuration file(broker.conf). But when deployed in a production Pulsar cluster, it may require to expose multiple advertised addresses for the broker. 
+Currently, the broker supports only one advertised address which is configured in the broker configuration file(broker.conf). But when deployed in a production Pulsar cluster, it may require to expose multiple advertised addresses for the broker.
 
 If you are deploying a Pulsar cluster that can be accessed through both the public network and private network, it is best that clients in the LAN can connect to the Pulsar cluster through the private network. And if clients are not in the same LAN with the Pulsar cluster, they should connect to the Pulsar cluster by the public network. This is good for both service quality and cost.
 
@@ -29,7 +29,7 @@ After setting up the `advertisedListeners`, clients can choose one of the listen
 
 **1. Only return the corresponding service URL**
 
-In the approach, when the client sends a lookup request to the broker, the broker only returns one service URL that with the same listener name with the client uses. The purpose of this approach is keeping client-side simple and not expose extra listeners to the client, this is better for security. 
+In the approach, when the client sends a lookup request to the broker, the broker only returns one service URL that with the same listener name with the client uses. The purpose of this approach is keeping client-side simple and not expose extra listeners to the client, this is better for security.
 
 **2. Return all advertised listeners(rejected)**
 
@@ -39,14 +39,14 @@ The `internalListenerName` is used by the broker internal. The broker uses the l
 
 Pulsar also supports HTTP protocol lookup service, so if the user uses HTTP protocol lookup service, currently we do not concern it.
 
-Users can specify the `internalListenerName` by choosing one of the `advertisedListeners`. The broker uses the listener name of the first advertised listener as the `internalListenerName` if the `internalListenerName` is absent. 
+Users can specify the `internalListenerName` by choosing one of the `advertisedListeners`. The broker uses the listener name of the first advertised listener as the `internalListenerName` if the `internalListenerName` is absent.
 
 ### Changes
 
 1. Add two configurations in the broker.conf
 
 ```
-# Used to specify multiple advertised listeners for the broker. 
+# Used to specify multiple advertised listeners for the broker.
 # The value must format as <listener_name>:pulsar://<host>:<port>,
 # multiple listeners should separate with commas.
 # Do not use this configuration with advertisedAddress and brokerServicePort.
@@ -54,7 +54,7 @@ Users can specify the `internalListenerName` by choosing one of the `advertisedL
 advertisedListeners=
 
 # Used to specify the internal listener name for the broker.
-# The listener name must contain in the advertisedListeners. 
+# The listener name must contain in the advertisedListeners.
 # The Default value is absent, the broker uses the first listener as the internal listener.
 internalListenerName=
 ```
@@ -65,7 +65,7 @@ internalListenerName=
 
 The pulsar broker returns the right listener for a given topic according to the advertised listener name which the client uses. So we need to add a new field to the CommandLookupTopic:
 
-```   
+```
 message CommandLookupTopic {
      optional string advertised_listener_name = 7;
 }

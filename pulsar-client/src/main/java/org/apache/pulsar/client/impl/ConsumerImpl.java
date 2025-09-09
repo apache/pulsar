@@ -1170,6 +1170,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }));
         }
+        if (schema != null) {
+            closeFutures.add(schema.closeAsync().whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    log.warn("Exception ignored in closing schema of consumer", ex);
+                }
+            }));
+        }
         CompletableFuture<Void> compositeCloseFuture = FutureUtil.waitForAll(closeFutures);
 
 

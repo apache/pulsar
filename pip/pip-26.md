@@ -6,7 +6,7 @@
 * Release: N/A
 
 ## Motivation
-Scheduled and delayed message delivery is a very common feature to support in a message system. Basically individual message can have a header which will be set by publisher and based on the header value the broker should hold on delivering messages until the configured delay or the scheduled time is met. 
+Scheduled and delayed message delivery is a very common feature to support in a message system. Basically individual message can have a header which will be set by publisher and based on the header value the broker should hold on delivering messages until the configured delay or the scheduled time is met.
 
 ## Usage
 The delayed message delivery feature is enabled per message at producer side.
@@ -28,19 +28,19 @@ pulsar-admin namespaces
 
 enable-delayed-message 	     Enable delayed message for all topics of the namespace
   Usage: enable-delayed-message [options] tenant/namespace
-  
+
   	Options:
   	  -p --time-partition-granularity
-  	  	Granularities of time will be partitioned, every time partition will be 
-  	  	stored into legders and current time partition will be load in memory 
+  	  	Granularities of time will be partitioned, every time partition will be
+  	  	stored into legders and current time partition will be load in memory
   	  	and organized in a TimeWheel.(eg: 30s, 5m, 1h, 3d, 2w)
   	  	Default: 5m
   	  -t --tick-duration
   	  	The duration between tick in TimeWheel. Calculate ticks per wheel
-  	  	using time-partition-granularity / tick-duration before load time 
+  	  	using time-partition-granularity / tick-duration before load time
   	  	partition into a TimeWheel.(eg: 500ms, 1s, 5m)
   	    Default: 1s
-  	    
+
 disable-delayed-message 	 Disable delayed message for all topics of the namespace
   Usage: disable-delayed-message tenant/namespace
 ```
@@ -67,7 +67,7 @@ We will maintain a `cursor` for ensure the messages will be indexed correctly in
 
 ### Recovery
 
-Since we are organizing the delayed message index using ledgers, and have a cursor to ensure messages are correctly indexed. So when a broker fails due to any reason, and the topic is recovered, we can figure out the latest time partition and load the index from the ledgers. 
+Since we are organizing the delayed message index using ledgers, and have a cursor to ensure messages are correctly indexed. So when a broker fails due to any reason, and the topic is recovered, we can figure out the latest time partition and load the index from the ledgers.
 
 ## Changes
 
@@ -88,7 +88,7 @@ message MessageMetadata {
 
 The publish path will not be changed. All the messages will still be first appended to the managed ledger as normal. As the delivery related message attributes will be ignored for `failover` and `exclusive` subscriptions to ensure FIFO ordering.
 
-The change happens at `MultipleConsumers` dispatcher. At the dispatching time, the dispatcher will check the delivery attributes at the message header. If a message is qualified for delivery (exceeding the configured delayed/scheduled time), the message will be dispatched as normal; otherwise it will be added back to the “delayed message index”. Those delayed messages will be delayed at dispatching from the “delayed message index”. 
+The change happens at `MultipleConsumers` dispatcher. At the dispatching time, the dispatcher will check the delivery attributes at the message header. If a message is qualified for delivery (exceeding the configured delayed/scheduled time), the message will be dispatched as normal; otherwise it will be added back to the “delayed message index”. Those delayed messages will be delayed at dispatching from the “delayed message index”.
 
 ### Client Changes
 
@@ -96,13 +96,13 @@ The change happens at `MultipleConsumers` dispatcher. At the dispatching time, t
 
 ```java
 public interface TypedMessageBuilder<T> {
-    
+
     /**
      * Build a message to be delivered at the configured delay interval : <tt>delayTime</tt>.
      * @return typed message builder.
      */
 	  TypedMessageBuilder<T> delayedAt(long delayTime, TimeUnit timeUnit);
-    
+
     /**
      * Build a message to be delivered at the configure time.
      *

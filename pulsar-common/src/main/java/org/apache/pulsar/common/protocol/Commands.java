@@ -849,6 +849,9 @@ public class Commands {
             return Schema.Type.AutoConsume;
         } else if (type.getValue() < 0) {
             return Schema.Type.None;
+        } else if (type == SchemaType.EXTERNAL) {
+            // This is a special case, SchemaType.EXTERNAL number is not match the Schema.Type.EXTERNAL.
+            return Schema.Type.External;
         } else {
             return Schema.Type.valueOf(type.getValue());
         }
@@ -860,6 +863,9 @@ public class Commands {
         } else if (type.getValue() < 0) {
             // this is unexpected
             return SchemaType.NONE;
+        } else if (type == Schema.Type.External) {
+            // This is a special case, SchemaType.EXTERNAL number is not match the Schema.Type.EXTERNAL.
+            return SchemaType.EXTERNAL;
         } else {
             return SchemaType.valueOf(type.getValue());
         }
@@ -1953,6 +1959,9 @@ public class Commands {
         }
         if (builder.hasSchemaVersion()) {
             messageMetadata.setSchemaVersion(builder.getSchemaVersion());
+        }
+        if (builder.hasSchemaId()) {
+            messageMetadata.setSchemaId(builder.getSchemaId());
         }
 
         return builder.getSequenceId();

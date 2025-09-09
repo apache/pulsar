@@ -152,7 +152,7 @@ func main(){
 
 Different from python and java, Go is a “static-linking” language. Although it recently supports dynamic linking via `plugins` (see `Alternatives`). Most of the go developers expect to compile a pulsar library with the function he/she develope together, to produce a single executable binary.
 
-So in the implementation of Pulsar go function, we choose a different approach than Java and Python. We offered a `instance` API for go function developer. 
+So in the implementation of Pulsar go function, we choose a different approach than Java and Python. We offered a `instance` API for go function developer.
 
 The `instance` API provides the ability to start a go function. See section `instance api`.
 

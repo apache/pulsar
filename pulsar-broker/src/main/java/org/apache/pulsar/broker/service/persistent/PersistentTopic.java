@@ -409,6 +409,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName)
+                && !SystemTopicNames.isTransactionInternalName(topicName)
+                && !SystemTopicNames.isTransactionBufferOrPendingAckSystemTopicName(topicName)
                 && !NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())
                 && !ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
             this.transactionBuffer = brokerService.getPulsar()
@@ -1933,13 +1935,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        return checkAllowedCluster(localCluster).thenCompose(success -> {
-            if (!success) {
-                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                // because pulsar doesn't serve global topic without local repl-cluster configured.
-                return deleteForcefully().thenCompose(ignore -> {
-                    return deleteSchemaAndPoliciesIfClusterRemoved();
-                });
+        return removeTopicIfLocalClusterNotAllowed().thenCompose(topicRemoved -> {
+            if (topicRemoved) {
+                return CompletableFuture.completedFuture(null);
             }
 
             int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
@@ -2065,7 +2063,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
     }
 
-    private CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
+    /**
+     * Remove the topic if local cluster is not allowed to serve the topic.
+     * @return whether the topic was removed.
+     */
+    protected CompletableFuture<Boolean> removeTopicIfLocalClusterNotAllowed() {
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        return checkAllowedCluster(localCluster).thenCompose(isAllowed -> {
+            if (!isAllowed) {
+                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+                // because pulsar doesn't serve global topic without local repl-cluster configured.
+                return deleteForcefully().thenCompose(ignore -> {
+                    return deleteSchemaAndPoliciesIfClusterRemoved().thenApply(__ -> true);
+                });
+            }
+            return CompletableFuture.completedFuture(false);
+        });
+    }
+
+    protected CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
         List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
@@ -2149,7 +2165,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private void checkMessageExpiryWithSharedPosition(ManagedLedgerImpl ml, int messageTtlInSeconds) {
         // Find the target position at one time, then expire all subscriptions and replicators.
-        ManagedCursor cursor = ml.getCursors().getCursorWithOldestPosition().getCursor();
+        final var cursorWithOldestPosition = ml.getCursors().getCursorWithOldestPosition();
+        if (cursorWithOldestPosition == null) {
+            // Skip checking message expiry for topics without subscription
+            return;
+        }
+        ManagedCursor cursor = cursorWithOldestPosition.getCursor();
         PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
                 .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
         // Find the target position.

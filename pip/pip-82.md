@@ -62,7 +62,7 @@ is defined as the grouping of different rate limit quotas and it can
 be associated with different resources, for example a Pulsar tenant or
 a Pulsar namespace to start with. The usage quota on the ResourceGroup
 is shared among all the entities (tenants, namespaces) that are attached
-to the resource group. 
+to the resource group.
 
 
 In addition to rate limiting (in bytes/s and msg/s), for producers and
@@ -178,7 +178,7 @@ the residual 10 units).
  * broker-1 : 11.11
  * broker-2: 55.56
  * broker-3: 33.33
- 
+
 The opposite would happen (each broker would reduce its usage by the
 corresponding fractional amount) if the recent-usage was over the
 quota assigned on the resource-group.
@@ -267,7 +267,7 @@ namespace level].
 In this scenario, let’s consider:
  * 100000 namespaces
  * 100 brokers.
- 
+
 Each namespace is spread across 5 brokers. So, each broker is managing 5000 namespaces.
 
 #### Memory
@@ -304,7 +304,7 @@ Few optimizations that can reduce the overall bandwidth:
 
  * Brokers publish usage only if the usage is significantly different
    from the previous update.
- * Use compression (trade-off is higher CPU). 
+ * Use compression (trade-off is higher CPU).
  * Publish to more than one system topic (so the network load gets
    distributed across brokers).
  * Since metadata changes [ namespace/tenant addition/removal ] are
@@ -431,7 +431,7 @@ Responses
 
 
 ##### Attach ResourceGroup to namespace
-Question: Since v2 api of namespace create takes the policies in the body 
+Question: Since v2 api of namespace create takes the policies in the body
 should we just add the resource group as one more parameter in the namespace PUT itself?
 
 ```

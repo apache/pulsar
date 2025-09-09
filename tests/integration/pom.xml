@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>integration</artifactId>
@@ -34,7 +34,10 @@
 
   <properties>
     <integrationTestSuiteFile>pulsar.xml</integrationTestSuiteFile>
-    <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
+    <mongo-reactivestreams.version>5.2.0</mongo-reactivestreams.version>
+    <inttest.asyncprofiler.opts>event=cpu,lock=1ms,alloc=2m,jfrsync=profile</inttest.asyncprofiler.opts>
+    <inttest.asyncprofiler.outputformat>jfr</inttest.asyncprofiler.outputformat>
+    <inttest.asyncprofiler.dir></inttest.asyncprofiler.dir>
   </properties>
 
   <dependencies>
@@ -302,10 +305,17 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:MaxDirectMemorySize=1G
-              -Dconfluent.version=${confluent.version} -Djacoco.version=${jacoco-maven-plugin.version}
-              -Dintegrationtest.coverage.enabled=${integrationtest.coverage.enabled} -Dintegrationtest.coverage.dir=${integrationtest.coverage.dir}
               ${test.additional.args}
               </argLine>
+              <systemPropertyVariables>
+                <confluent.version>${confluent.version}</confluent.version>
+                <jacoco.version>${jacoco-maven-plugin.version}</jacoco.version>
+                <integrationtest.coverage.enabled>${integrationtest.coverage.enabled}</integrationtest.coverage.enabled>
+                <integrationtest.coverage.dir>${integrationtest.coverage.dir}</integrationtest.coverage.dir>
+                <inttest.asyncprofiler.opts>${inttest.asyncprofiler.opts}</inttest.asyncprofiler.opts>
+                <inttest.asyncprofiler.outputformat>${inttest.asyncprofiler.outputformat}</inttest.asyncprofiler.outputformat>
+                <inttest.asyncprofiler.dir>${inttest.asyncprofiler.dir}</inttest.asyncprofiler.dir>
+              </systemPropertyVariables>
               <skipTests>false</skipTests>
               <suiteXmlFiles>
                 <file>src/test/resources/${integrationTestSuiteFile}</file>
@@ -334,8 +344,30 @@
               </execution>
             </executions>
           </plugin>
+          <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <injectAllReactorProjects>true</injectAllReactorProjects>
+              <skipPoms>false</skipPoms>
+            </configuration>
+          </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <!--
+      This profile is used in addition to the Integration Tests Async Profiler support to profile created exceptions
+      Check the org.apache.pulsar.tests.integration.profiling.PulsarProfilingTest example for how to profile int tests.
+      Profiling of exceptions requires that perf events have been enabled on the docker host. PulsarProfilingTest
+      contains instructions.
+      -->
+      <id>inttestAsyncProfilerExceptions</id>
+      <properties>
+        <inttest.asyncprofiler.opts>event=Java_java_lang_Throwable_fillInStackTrace,tree,reverse</inttest.asyncprofiler.opts>
+        <inttest.asyncprofiler.outputformat>html</inttest.asyncprofiler.outputformat>
+      </properties>
     </profile>
     <profile>
       <id>apache-release</id>

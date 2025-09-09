@@ -8,7 +8,7 @@
 
 # Motivation
 
-Pulsar supports offload data into the tiered storage and usually, the offloaded data will be deleted from the BookKeeper, this will effectively reduce the cost of data storage. But in some cases, users still want to maintain the offloaded data in the BookKeeper cluster for a period of time. 
+Pulsar supports offload data into the tiered storage and usually, the offloaded data will be deleted from the BookKeeper, this will effectively reduce the cost of data storage. But in some cases, users still want to maintain the offloaded data in the BookKeeper cluster for a period of time.
 
 Currently, if the data offloaded to the tiered storage, the broker will always read data from the tiered storage. This also means the data in the BookKeeper cluster will be used for message reading. So this proposal aims to support configure the data source priority when reading data from the storage layer.
 
@@ -25,7 +25,7 @@ The options should be enough for now:
 
 # Changes
 
-The tiered read priority can be modified at the `broker.conf` and the namespace, topic policy. 
+The tiered read priority can be modified at the `broker.conf` and the namespace, topic policy.
 
 Broker level configuration:
 
@@ -36,7 +36,7 @@ managedLedgerDataReadPriority=tiered-first
 Namespace level policy:
 
 ```java
-pulsar-admin namespaces --set-data-read-priority tiered-first  tenant/namespace 
+pulsar-admin namespaces --set-data-read-priority tiered-first  tenant/namespace
 ```
 
 Topic level policy:
@@ -58,6 +58,6 @@ If using the `bookkeeper-first` as the data read priority policy but the BookKee
 
 How to verify the data is read from the BookKeeper or Tiered Storage?
 
-Compatibility test: 
+Compatibility test:
 Existing tests should not be changed. By default brokers behavior should be exactly the same as before(read from second layer storage as soon as the ledger offloaded), which is covered by existing unit tests.
 For the newly created option `bookkeeper-first`, we should ensure brokers read from bookkeeper as long as ledgers were not deleted from bookkeeper, if the ledgers were deleted from bookkeeper, brokers should read from second layer storage directly without trigger non-exists exceptions from bookkeeper.

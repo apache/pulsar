@@ -26,13 +26,22 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.mongodb.MongoBulkWriteException;
+import com.mongodb.ServerAddress;
 import com.mongodb.bulk.BulkWriteError;
+import com.mongodb.bulk.BulkWriteInsert;
+import com.mongodb.bulk.BulkWriteResult;
+import com.mongodb.bulk.BulkWriteUpsert;
+import com.mongodb.bulk.WriteConcernError;
+import com.mongodb.internal.bulk.WriteRequest;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bson.BsonDocument;
@@ -97,7 +106,15 @@ public class MongoSinkTest {
             if (throwBulkError) {
                 List<BulkWriteError> writeErrors = Arrays.asList(
                         new BulkWriteError(0, "error", new BsonDocument(), 1));
-                exc = new MongoBulkWriteException(null, writeErrors, null, null);
+                BulkWriteResult result = BulkWriteResult.acknowledged(
+                        WriteRequest.Type.INSERT, 1, 0,
+                        Collections.<BulkWriteUpsert>emptyList(),
+                        Collections.<BulkWriteInsert>emptyList());
+                WriteConcernError writeConcernError = null;
+                ServerAddress serverAddress = new ServerAddress("localhost", 27017);
+                Set<String> errorLabels = new HashSet<>();
+                exc = new MongoBulkWriteException(result, writeErrors, writeConcernError,
+                        serverAddress, errorLabels);
             }
             subscriber.onError(exc);
             return null;

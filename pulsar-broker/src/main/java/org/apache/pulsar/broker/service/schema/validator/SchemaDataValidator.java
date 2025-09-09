@@ -69,7 +69,8 @@ public interface SchemaDataValidator {
                 break;
             case NONE:
             case BYTES:
-                // `NONE` and `BYTES` schema is not stored
+            case EXTERNAL:
+                // `NONE`, `BYTES` and `EXTERNAL` schema is not stored
                 break;
             case AUTO:
             case AUTO_CONSUME:

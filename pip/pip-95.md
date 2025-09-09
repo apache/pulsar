@@ -1,9 +1,9 @@
 # PIP-95: Smart Listener Selection with Multiple Bind Addresses
 
 * * **Author**: Eron Wright
-* **Pull Request**: 
+* **Pull Request**:
 * **Mailing List discussion**: ([discussion](https://mail-archives.apache.org/mod_mbox/pulsar-dev/202109.mbox/%3CCAGkx0%3DRxNB6p4szhwELZ5EMt1O9_6KjBjYfsnzd-4E0%2BVcH%2BEQ%40mail.gmail.com%3E)) ([vote](https://mail-archives.apache.org/mod_mbox/pulsar-dev/202109.mbox/%3cCAGkx0=TLCiWjLsgJh=NhCEEh68cKS=WtBbd_K3a_q1-N3b2dkQ@mail.gmail.com%3e))
-* **Release**: 
+* **Release**:
 
 ### Motivation
 
@@ -11,7 +11,7 @@ The Pulsar broker has the concept of advertised listeners representing broker en
 
 Each broker stores its listener data into ZooKeeper to support topic lookup requests.  A lookup request may contain a listener name parameter to obtain a specific endpoint.  For example, a lookup request for the listener named `external` may return an endpoint of `pulsar+ssl://broker-1.cluster.example.dev:6651` (an external address). If a listener name is not specified, the response contains the endpoint for the internal listener.
 
-This PIP seeks to improve the experience when a listener name is not specified, to select an appropriate endpoint automatically without requiring explicit configuration on the client.  The proposed approach is to use information that the client naturally has, that is the Pulsar service endpoint.  The broker shall select a listener based on which service endpoint was used to make the lookup request.  For example, a client that makes a lookup request via an ingress gateway would use that same gateway for the subsequent broker connection. 
+This PIP seeks to improve the experience when a listener name is not specified, to select an appropriate endpoint automatically without requiring explicit configuration on the client.  The proposed approach is to use information that the client naturally has, that is the Pulsar service endpoint.  The broker shall select a listener based on which service endpoint was used to make the lookup request.  For example, a client that makes a lookup request via an ingress gateway would use that same gateway for the subsequent broker connection.
 
 A secondary goal is to improve the interoperability of KOP by implementing smart endpoint selection for ordinary Kafka clients.  This shall be based on the semantics of [KIP-103](https://cwiki.apache.org/confluence/display/KAFKA/KIP-103%3A+Separation+of+Internal+and+External+traffic) and is consistent with this proposal.  Similarly for other protocol handlers.
 
@@ -32,7 +32,7 @@ Where `host` has a local interface address to bind to, such as `0.0.0.0` to bind
 
 Where `port` is a unique server port number, such as `6652`.
 
-See the compatibility section for further information. 
+See the compatibility section for further information.
 
 #### Admin API: Lookup Request: Listener Name Header
 It is proposed that a new header-based parameter be added to the Topic Lookup operation on the Admin API (`/v2/topic/{topic-domain}/{tenant}/{namespace}/{topic}`).  The header name shall be `X-Pulsar-ListenerName` and the value shall correspond to the name of a configured listener.

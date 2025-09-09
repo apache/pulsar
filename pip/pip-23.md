@@ -3,12 +3,12 @@
 - **Status**: Done
 - **Author**: [Penghui Li](https://github.com/codelipenghui), [Jia Zhai](https://github.com/zhaijack)
 - **Pull Request**: [#2471](https://github.com/apache/incubator-pulsar/pull/2471)
-- **Mailing List discussion**: 
+- **Mailing List discussion**:
 - **Release**: 2.2.0
 
 ## Requirement & Overview
 
-This is related to issue #2280. 
+This is related to issue #2280.
 And for Pulsar itself, That will be useful also to track performance issues and understand more of the latency breakdowns. Tracing is the easiest way to do: "show me a request with high-latency and show where the latency (for this particular request) was coming from.
 
 ## GOALS
@@ -32,14 +32,14 @@ The ProducerInterceptor intercept messages before sending them and on receiving 
 package org.apache.pulsar.client.api;
 
 /**
- * A plugin interface that allows you to intercept (and possibly mutate) the 
- * messages received by the producer before they are published to the Pulsar   
+ * A plugin interface that allows you to intercept (and possibly mutate) the
+ * messages received by the producer before they are published to the Pulsar
  * brokers.
  * <p>
- * Exceptions thrown by ProducerInterceptor methods will be caught, logged, but  
+ * Exceptions thrown by ProducerInterceptor methods will be caught, logged, but
  * not propagated further.
  * <p>
- * ProducerInterceptor callbacks may be called from multiple threads. Interceptor  
+ * ProducerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
 public interface ProducerInterceptor<T> extends AutoCloseable {
@@ -50,31 +50,31 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
     void close();
 
     /**
-     * This is called from {@link Producer#send(Object)} and {@link  
+     * This is called from {@link Producer#send(Object)} and {@link
      * Producer#sendAsync(Object)} methods, before
-     * send the message to the brokers. This method is allowed to modify the 
+     * send the message to the brokers. This method is allowed to modify the
      * record, in which case, the new record
      * will be returned.
      * <p>
-     * Any exception thrown by this method will be caught by the caller and 
+     * Any exception thrown by this method will be caught by the caller and
      * logged, but not propagated further.
      * <p>
-     * Since the producer may run multiple interceptors, a particular 
-     * interceptor's {@link #beforeSend(Message)} callback will be called in the   
-     * order specified by 
+     * Since the producer may run multiple interceptors, a particular
+     * interceptor's {@link #beforeSend(Message)} callback will be called in the
+     * order specified by
      * {@link ProducerBuilder#intercept(ProducerInterceptor[])}.
      * <p>
-     * The first interceptor in the list gets the message passed from the client, 
-     * the following interceptor will be passed the message returned by the   
+     * The first interceptor in the list gets the message passed from the client,
+     * the following interceptor will be passed the message returned by the
      * previous interceptor, and so on. Since interceptors are allowed to modify
-     * messages, interceptors may potentially get the message already modified by   
-     * other interceptors. However, building a pipeline of mutable interceptors   
-     * that depend on the output of the previous interceptor is discouraged, 
-     * because of potential side-effects caused by interceptors potentially   
-     * failing to modify the message and throwing an exception. If one of the 
-     * interceptors in the list throws an exception from   
-     * {@link#beforeSend(Message)}, the exception is caught, logged, and the next 
-     * interceptor is called with the message returned by the last successful   
+     * messages, interceptors may potentially get the message already modified by
+     * other interceptors. However, building a pipeline of mutable interceptors
+     * that depend on the output of the previous interceptor is discouraged,
+     * because of potential side-effects caused by interceptors potentially
+     * failing to modify the message and throwing an exception. If one of the
+     * interceptors in the list throws an exception from
+     * {@link#beforeSend(Message)}, the exception is caught, logged, and the next
+     * interceptor is called with the message returned by the last successful
      * interceptor in the list, or otherwise the client.
      *
      * @param message message to send
@@ -83,15 +83,15 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
     Message<T> beforeSend(Message<T> message);
 
     /**
-     * This method is called when the message sent to the broker has been 
-     * acknowledged, or when sending the message fails. 
-     * This method is generally called just before the user callback is 
+     * This method is called when the message sent to the broker has been
+     * acknowledged, or when sending the message fails.
+     * This method is generally called just before the user callback is
      * called, and in additional cases when an exception on the producer side.
      * <p>
      * Any exception thrown by this method will be ignored by the caller.
      * <p>
-     * This method will generally execute in the background I/O thread, so the   
-     * implementation should be reasonably fast. Otherwise, sending of messages    
+     * This method will generally execute in the background I/O thread, so the
+     * implementation should be reasonably fast. Otherwise, sending of messages
      * from other threads could be delayed.
      *
      * @param message the message that application sends
@@ -129,7 +129,7 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
 
     /**
      * This is called just before the message is returned by
-     * {@link Consumer#receive()}, {@link MessageListener#received(Consumer, 
+     * {@link Consumer#receive()}, {@link MessageListener#received(Consumer,
      * Message)} or the {@link java.util.concurrent.CompletableFuture} returned by
      * {@link Consumer#receiveAsync()} completes.
      * <p>
@@ -139,23 +139,23 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * Any exception thrown by this method will be caught by the caller, logged,
      * but not propagated to client.
      * <p>
-     * Since the consumer may run multiple interceptors, a particular 
+     * Since the consumer may run multiple interceptors, a particular
      * interceptor's
      * <tt>beforeConsume</tt> callback will be called in the order specified by
-     * {@link ConsumerBuilder#intercept(ConsumerInterceptor[])}. The first 
-     * interceptor in the list gets the consumed message, the following 
+     * {@link ConsumerBuilder#intercept(ConsumerInterceptor[])}. The first
+     * interceptor in the list gets the consumed message, the following
      * interceptor will be passed
-     * the message returned by the previous interceptor, and so on. Since 
-     * interceptors are allowed to modify message, interceptors may potentially 
-     * get the messages already modified by other interceptors. However building a   
+     * the message returned by the previous interceptor, and so on. Since
+     * interceptors are allowed to modify message, interceptors may potentially
+     * get the messages already modified by other interceptors. However building a
      * pipeline of mutable
-     * interceptors that depend on the output of the previous interceptor is   
-     * discouraged, because of potential side-effects caused by interceptors 
-     * potentially failing to modify the message and throwing an exception. 
-     * if one of interceptors in the list throws an exception from 
+     * interceptors that depend on the output of the previous interceptor is
+     * discouraged, because of potential side-effects caused by interceptors
+     * potentially failing to modify the message and throwing an exception.
+     * if one of interceptors in the list throws an exception from
      * <tt>beforeConsume</tt>, the exception is caught, logged,
-     * and the next interceptor is called with the message returned by the last 
-     * successful interceptor in the list, or otherwise the original consumed 
+     * and the next interceptor is called with the message returned by the last
+     * successful interceptor in the list, or otherwise the original consumed
      * message.
      *
      * @param message the message to be consumed by the client.
@@ -213,7 +213,7 @@ ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors);
 
 ### Tracing Interceptor
 
-Applications can choose its preferred tracing framework for integration. The tracing framework can be either OpenTracing or OpenCensus. Pulsar doesn’t enforce any tracing framework. 
+Applications can choose its preferred tracing framework for integration. The tracing framework can be either OpenTracing or OpenCensus. Pulsar doesn’t enforce any tracing framework.
 
 Following shows an example how end-to-end tracing using OpenTracing works using Interceptors in Pulsar.
 

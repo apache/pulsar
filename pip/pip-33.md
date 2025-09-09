@@ -203,7 +203,7 @@ The snapshot content will be like:
     "snapshot_id" : "444D3632-F96C-48D7-83DB-041C32164EC1",
     "local_message_id" : {
         "ledger_id" : 192,
-        "endtry_id" : 123123    
+        "endtry_id" : 123123
     },
     "clusters" : [
         {

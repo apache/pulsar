@@ -2,13 +2,13 @@
 
 * **Status**: Adopted, Release 2.5.0
 * **Author**: Bo Cong, Penghui Li
-* **Pull Request**: 
+* **Pull Request**:
 * **Mailing List discussion**:
-* **Release**: 
+* **Release**:
 
 ## Motivation
 
-Pulsar schema use one schema compatibility checker for producers and consumers, this caused problems when using pulsar schema. For example, [issue-4737](https://github.com/apache/pulsar/issues/4737) illustrates that producers can’t publish messages with the correct schema and this is a very typical use case while using multi-version schema. So, this proposal will discuss some issues we found when using multi-version schema and how to handle them properly in pulsar. 
+Pulsar schema use one schema compatibility checker for producers and consumers, this caused problems when using pulsar schema. For example, [issue-4737](https://github.com/apache/pulsar/issues/4737) illustrates that producers can’t publish messages with the correct schema and this is a very typical use case while using multi-version schema. So, this proposal will discuss some issues we found when using multi-version schema and how to handle them properly in pulsar.
 
 ## Issues
 
@@ -29,11 +29,11 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3)
 
 **BACKWARD**
 
-Current implementation works well for consumers. But for producers, if a producer with schema V2 attempt to connect to broker, the schema compatibility checker checks the client schema V2 can read the last schema (V3), this will lead to incompatible schema exception. 
+Current implementation works well for consumers. But for producers, if a producer with schema V2 attempt to connect to broker, the schema compatibility checker checks the client schema V2 can read the last schema (V3), this will lead to incompatible schema exception.
 
 **BACKWARD_TRANSITIVE**
 
-Same as  BACKWARD, Current implementation works well for consumers. But for producers, if a producer with schema V2 attempts to connect to broker, the schema compatibility checker checks  whether the client schema V2 can read all existing schemas (V1, V2, V3), this will potentially lead to incompatible schema exception. 
+Same as  BACKWARD, Current implementation works well for consumers. But for producers, if a producer with schema V2 attempts to connect to broker, the schema compatibility checker checks  whether the client schema V2 can read all existing schemas (V1, V2, V3), this will potentially lead to incompatible schema exception.
 
 **FORWARD**
 
@@ -60,7 +60,7 @@ For a producer which tries to connect to a topic (omitting the schema auto creat
 
 1. Check if the schema carried by the producer exists in the schema registry or not.
 2. If the schema is already registered, allow producers connects and produce messages with that schema.
-3. If the schema is not registered yet, verify if the producer schema is allowed to be registered according to the configured compatibility check strategy. 
+3. If the schema is not registered yet, verify if the producer schema is allowed to be registered according to the configured compatibility check strategy.
 
 **Schema verification for consumers**
 
