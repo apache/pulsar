@@ -58,7 +58,6 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -419,8 +418,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             } else {
                 // replace the input entry with EntryAndMetadata instance. In addition to the entry and metadata,
                 // it will also carry the calculated sticky key hash
-                entry = EntryAndMetadata.create(inputEntry,
-                        Commands.peekAndCopyMessageMetadata(inputEntry.getDataBuffer(), getSubscriptionName(), -1));
+                entry = EntryAndMetadata.create(inputEntry);
             }
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = null;
@@ -610,7 +608,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector::makeStickyKeyHash);
         }
-        return selector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+        return selector.makeStickyKeyHash(peekStickyKey(entry));
     }
 
     @Override

@@ -31,7 +31,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -3801,7 +3800,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
-                                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                                long entryTimestamp = entry.getEntryTimestamp();
                                 updateResultIfNewer(
                                         new OldestPositionInfo(
                                                 oldestMarkDeleteCursorInfo.getPosition(),
@@ -3979,7 +3978,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                long entryTimestamp = entry.getEntryTimestamp();
                 isOldestMessageExpired = MessageImpl.isEntryExpired(
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
@@ -4009,10 +4008,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             public void readEntryComplete(Entry entry, Object ctx) {
                 long entryTimestamp = 0;
                 try {
-                    entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                    entryTimestamp = entry.getEntryTimestamp();
                     res.complete(MessageImpl.isEntryExpired(
                             (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp));
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
                     res.complete(false);
                 }
@@ -4110,7 +4109,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(lastDispatchablePosition);
         }
         return ledger.getLastDispatchablePosition(entry -> {
-            MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
+            MessageMetadata md = entry.getMessageMetadata();
+            if (md == null) {
+                md = Commands.parseMessageMetadata(entry.getDataBuffer());
+            }
             // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
             if (Markers.isServerOnlyMarker(md)) {
                 return false;
@@ -4179,7 +4181,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
-                    MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    MessageMetadata metadata = entry.getMessageMetadata();
+                    if (metadata == null) {
+                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    }
                     if (metadata.hasNumMessagesInBatch()) {
                         completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
                                 partitionIndex, metadata.getNumMessagesInBatch() - 1));
@@ -4797,7 +4802,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 public void readEntryComplete(Entry entry, Object ctx) {
                     try {
                         ByteBuf metadataAndPayload = entry.getDataBuffer();
-                        MessageMetadata msgMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                        MessageMetadata msgMetadata = entry.getMessageMetadata();
+                        if (msgMetadata == null) {
+                            msgMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                        }
                         long publishTime = msgMetadata.getPublishTime();
                         future.complete(publishTime);
                     } catch (Exception e) {

@@ -635,7 +635,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     private CompletableFuture<MessageId> findMessageIdByPublishTime(long timestamp, ManagedLedger managedLedger) {
         return managedLedger.asyncFindPosition(entry -> {
             try {
-                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                long entryTimestamp = entry.getEntryTimestamp();
                 return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
             } catch (Exception e) {
                 log.error("Error deserializing message for message position find", e);
