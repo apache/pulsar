@@ -397,6 +397,12 @@ public class DrainingHashesTracker {
             lock.writeLock().lock();
             try {
                 drainingHashes.remove(stickyKeyHash, entry);
+                // update the consumer specific stats
+                ConsumerDrainingHashesStats drainingHashesStats =
+                        consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
+                if (drainingHashesStats != null) {
+                    drainingHashesStats.clearHash(stickyKeyHash);
+                }
             } finally {
                 lock.writeLock().unlock();
             }
