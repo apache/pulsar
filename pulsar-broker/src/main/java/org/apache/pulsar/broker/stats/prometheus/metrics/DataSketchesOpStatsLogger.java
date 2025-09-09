@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.yahoo.sketches.quantiles.DoublesSketch;
 import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
@@ -143,17 +144,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
 
         final DoublesUnion aggregateSuccesss = new DoublesUnionBuilder().build();
         final DoublesUnion aggregateFail = new DoublesUnionBuilder().build();
-        local.map.forEach((localData, b) -> {
-            long stamp = localData.lock.writeLock();
-            try {
-                aggregateSuccesss.update(localData.successSketch);
-                localData.successSketch.reset();
-                aggregateFail.update(localData.failSketch);
-                localData.failSketch.reset();
-            } finally {
-                localData.lock.unlockWrite(stamp);
-            }
-        });
+        local.record(aggregateSuccesss, aggregateFail);
 
         successResult = aggregateSuccesss.getResultAndReset();
         failResult = aggregateFail.getResultAndReset();
@@ -176,23 +167,41 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
         private final DoublesSketch failSketch = new DoublesSketchBuilder().build();
         private final StampedLock lock = new StampedLock();
+
+
+        private void record(DoublesUnion aggregateSuccess, DoublesUnion aggregateFail) {
+            long stamp = lock.writeLock();
+            try {
+                aggregateSuccess.update(successSketch);
+                successSketch.reset();
+                aggregateFail.update(failSketch);
+                failSketch.reset();
+            } finally {
+                lock.unlockWrite(stamp);
+            }
+        }
     }
 
-    private static class ThreadLocalAccessor {
-        private final Map<LocalData, Boolean> map = new ConcurrentHashMap<>();
-        private final FastThreadLocal<LocalData> localData = new FastThreadLocal<LocalData>() {
+    @VisibleForTesting
+    static class ThreadLocalAccessor {
+        final Map<LocalData, Boolean> map = new ConcurrentHashMap<>();
+        final FastThreadLocal<LocalData> localData = new FastThreadLocal<>() {
 
             @Override
-            protected LocalData initialValue() throws Exception {
+            protected LocalData initialValue() {
                 LocalData localData = new LocalData();
                 map.put(localData, Boolean.TRUE);
                 return localData;
             }
 
             @Override
-            protected void onRemoval(LocalData value) throws Exception {
+            protected void onRemoval(LocalData value) {
                 map.remove(value);
             }
         };
+
+        void record(DoublesUnion aggregateSuccess, DoublesUnion aggregateFail) {
+            map.keySet().forEach(key -> key.record(aggregateSuccess, aggregateFail));
+        }
     }
 }
