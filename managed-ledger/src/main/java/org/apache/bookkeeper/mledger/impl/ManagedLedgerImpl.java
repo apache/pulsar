@@ -1888,13 +1888,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     + " repeated.", name, lh.getId(), currentLedger.getLastAddConfirmed(), lh.getLastAddConfirmed());
                 ledgerClosed(currentLedger, lh.getLastAddConfirmed());
             } else {
-                log.error("[{}] Failed opened ledger {} to check the last add confirmed position when the ledger"
-                        + " was concurrent modified(it is an unexpected behaviour, which happens when the load-balancer"
-                        + " does not work as expected). The add confirmed position in memory is {}, and the error"
-                        + " code {}. When you get this log, the entries count in the ledger of the topic metadata may"
-                        + " be less than expected.",
+                log.error("[{}] Going to fence the topic because failed opened ledger {} to check the last add"
+                        + " confirmed position when the ledger was concurrent modified(it is an unexpected behaviour,"
+                        + " which happens when the load-balancer does not work as expected). The add confirmed position"
+                        + " in memory is {}, and the error code {}. Fecing the topic to avoid messages lost.",
                         name, lh.getId(), currentLedger.getLastAddConfirmed(), rc);
-                // Stop switching ledger and write topic matadata, to avoid messages lost.
+                // Stop switching ledger and write topic metadata, to avoid messages lost. The doc of
+                // LedgerHandle also mentioned this: https://github.com/apache/bookkeeper/blob/release-4.17.2/
+                // bookkeeper-server/src/main/java/org/apache/bookkeeper/client/LedgerHandle.java#L2047-L2048
                 handleBadVersion(new BadVersionException("Failed opened ledger {} to check the last add confirmed"
                         + " position when the ledger was concurrent modified, error code: " + rc));
             }
