@@ -50,7 +50,7 @@ public class ThreadLocalAccessorTest {
         Phaser phaser = new Phaser(2);
         Thread thread = getThread(fastThreadLocalThread, () -> {
             // Create a new LocalData instance for the current thread.
-            threadLocalAccessor.localData.get();
+            threadLocalAccessor.getLocalData();
             // sync point #1, wait and advance at the same time
             phaser.arriveAndAwaitAdvance();
             // sync point #2, wait and advance at the same time
@@ -77,7 +77,7 @@ public class ThreadLocalAccessorTest {
     @Test(dataProvider = "provider")
     public void testThreadGc(boolean fastThreadLocalThread, @Nullable DoublesUnion aggregateFail) throws Exception {
         final var accessor = new ThreadLocalAccessor();
-        getThread(fastThreadLocalThread, accessor.localData::get).join();
+        getThread(fastThreadLocalThread, accessor::getLocalData).join();
         System.gc();
         // FastThreadLocalThread removes the LocalData from the map when the thread finishes
         assertEquals(accessor.getLocalDataCount(), fastThreadLocalThread ? 0 : 1);

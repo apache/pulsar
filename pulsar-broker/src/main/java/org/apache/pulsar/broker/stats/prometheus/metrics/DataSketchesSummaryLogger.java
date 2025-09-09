@@ -50,14 +50,7 @@ public class DataSketchesSummaryLogger {
         countAdder.increment();
         sumAdder.add((long) valueMillis);
 
-        var localData = current.localData.get();
-
-        long stamp = localData.lock.readLock();
-        try {
-            localData.successSketch.update(valueMillis);
-        } finally {
-            localData.lock.unlockRead(stamp);
-        }
+        current.getLocalData().updateSuccess(valueMillis);
     }
 
     public void rotateLatencyCollection() {

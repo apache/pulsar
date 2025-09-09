@@ -60,15 +60,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
 
         failCountAdder.increment();
         failSumAdder.add((long) valueMillis);
-
-        var localData = current.localData.get();
-
-        long stamp = localData.lock.readLock();
-        try {
-            localData.failSketch.update(valueMillis);
-        } finally {
-            localData.lock.unlockRead(stamp);
-        }
+        current.getLocalData().updateFail(valueMillis);
     }
 
     @Override
@@ -77,45 +69,21 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
 
         successCountAdder.increment();
         successSumAdder.add((long) valueMillis);
-
-        var localData = current.localData.get();
-
-        long stamp = localData.lock.readLock();
-        try {
-            localData.successSketch.update(valueMillis);
-        } finally {
-            localData.lock.unlockRead(stamp);
-        }
+        current.getLocalData().updateSuccess(valueMillis);
     }
 
     @Override
     public void registerSuccessfulValue(long value) {
         successCountAdder.increment();
         successSumAdder.add(value);
-
-        var localData = current.localData.get();
-
-        long stamp = localData.lock.readLock();
-        try {
-            localData.successSketch.update(value);
-        } finally {
-            localData.lock.unlockRead(stamp);
-        }
+        current.getLocalData().updateSuccess(value);
     }
 
     @Override
     public void registerFailedValue(long value) {
         failCountAdder.increment();
         failSumAdder.add(value);
-
-        var localData = current.localData.get();
-
-        long stamp = localData.lock.readLock();
-        try {
-            localData.failSketch.update(value);
-        } finally {
-            localData.lock.unlockRead(stamp);
-        }
+        current.getLocalData().updateFail(value);
     }
 
     @Override

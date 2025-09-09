@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
 class ThreadLocalAccessor {
 
     private final ConcurrentHashMap<LocalData, Boolean> map = new ConcurrentHashMap<>();
-    final FastThreadLocal<LocalData> localData = new FastThreadLocal<>() {
+    private final FastThreadLocal<LocalData> localData = new FastThreadLocal<>() {
 
         @Override
         protected LocalData initialValue() {
@@ -56,6 +56,10 @@ class ThreadLocalAccessor {
         });
     }
 
+    LocalData getLocalData() {
+        return localData.get();
+    }
+
     @VisibleForTesting
     int getLocalDataCount() {
         return map.keySet().size();
@@ -63,14 +67,14 @@ class ThreadLocalAccessor {
 
     static class LocalData {
 
-        final DoublesSketch successSketch = new DoublesSketchBuilder().build();
-        final DoublesSketch failSketch = new DoublesSketchBuilder().build();
-        final StampedLock lock = new StampedLock();
+        private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
+        private final DoublesSketch failSketch = new DoublesSketchBuilder().build();
+        private final StampedLock lock = new StampedLock();
         // Keep a weak reference to the owner thread so that we can remove the LocalData when the thread
         // is not alive anymore or has been garbage collected.
         // This reference isn't needed when the owner thread is a FastThreadLocalThread and will be null in that case.
         // The removal is handled by FastThreadLocal#onRemoval when the owner thread is a FastThreadLocalThread.
-        final WeakReference<Thread> ownerThreadReference;
+        private final WeakReference<Thread> ownerThreadReference;
 
         LocalData(Thread ownerThread) {
             if (ownerThread instanceof FastThreadLocalThread) {
@@ -107,6 +111,24 @@ class ThreadLocalAccessor {
                 }
             } finally {
                 lock.unlockWrite(stamp);
+            }
+        }
+
+        void updateSuccess(double value) {
+            long stamp = lock.readLock();
+            try {
+                successSketch.update(value);
+            } finally {
+                lock.unlockRead(stamp);
+            }
+        }
+
+        void updateFail(double value) {
+            long stamp = lock.readLock();
+            try {
+                failSketch.update(value);
+            } finally {
+                lock.unlockRead(stamp);
             }
         }
     }
