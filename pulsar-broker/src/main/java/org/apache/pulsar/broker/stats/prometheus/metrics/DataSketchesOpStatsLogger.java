@@ -165,8 +165,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         return s != null ? s.getQuantile(quantile) : Double.NaN;
     }
 
-    @VisibleForTesting
-    static class LocalData {
+    private static class LocalData {
         private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
         private final DoublesSketch failSketch = new DoublesSketchBuilder().build();
         private final StampedLock lock = new StampedLock();
@@ -184,7 +183,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
             }
         }
 
-        boolean shouldRemove() {
+        private boolean shouldRemove() {
             if (ownerThreadReference == null) {
                 // the owner is a FastThreadLocalThread which handles the removal using FastThreadLocal#onRemoval
                 return false;
