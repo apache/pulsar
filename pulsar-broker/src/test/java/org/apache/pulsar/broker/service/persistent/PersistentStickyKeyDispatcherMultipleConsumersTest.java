@@ -30,6 +30,7 @@ import static org.mockito.Mockito.anySet;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,6 +47,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -294,6 +296,68 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         Map.Entry<Consumer, PositionImpl> entry6 = itr.next();
         assertEquals(entry6.getValue(), PositionImpl.get(6, 1));
         assertEquals(entry6.getKey(), consumer6);
+
+        // cleanup.
+        persistentDispatcher.close();
+    }
+
+    @Test
+    public void testSkipSortRecentlyJoinedConsumersIfNotNeeded() throws Exception {
+        // Inject a sorting counter.
+        LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers = new LinkedHashMap<>();
+        LinkedHashMap<Consumer, PositionImpl> spyRecentlyJoinedConsumers = spy(recentlyJoinedConsumers);
+        AtomicInteger sortTimes = new AtomicInteger(0);
+        doAnswer(invocationOnMock -> {
+            sortTimes.incrementAndGet();
+            return invocationOnMock.callRealMethod();
+        }).when(spyRecentlyJoinedConsumers).clear();
+
+        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher =
+                new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT), spyRecentlyJoinedConsumers);
+
+        Consumer consumer0 = createMockConsumer();
+        when(consumer0.consumerName()).thenReturn("0");
+        Consumer consumer1 = createMockConsumer();
+        when(consumer0.consumerName()).thenReturn("MzGG2");
+        Consumer consumer2 = createMockConsumer();
+        when(consumer1.consumerName()).thenReturn("rMOYG");
+        Consumer consumer3 = createMockConsumer();
+        when(consumer2.consumerName()).thenReturn("QIleA");
+
+        when(cursorMock.getNumberOfEntriesSinceFirstNotAckedMessage()).thenReturn(100L);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(PositionImpl.get(-1, -1));
+        persistentDispatcher.addConsumer(consumer0).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(1, 1));
+        persistentDispatcher.addConsumer(consumer1).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(1, 1));
+        persistentDispatcher.addConsumer(consumer2).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(1, 2));
+        persistentDispatcher.addConsumer(consumer3).join();
+
+        assertEquals(persistentDispatcher.getRecentlyJoinedConsumers().size(), 3);
+
+        Iterator<Map.Entry<Consumer, PositionImpl>> itr =
+                persistentDispatcher.getRecentlyJoinedConsumers().entrySet().iterator();
+
+        Map.Entry<Consumer, PositionImpl> entry1 = itr.next();
+        assertEquals(entry1.getValue(), PositionImpl.get(1, 1));
+        assertEquals(entry1.getKey(), consumer1);
+
+        Map.Entry<Consumer, PositionImpl> entry2 = itr.next();
+        assertEquals(entry2.getValue(), PositionImpl.get(1, 1));
+        assertEquals(entry2.getKey(), consumer2);
+
+        Map.Entry<Consumer, PositionImpl> entry3 = itr.next();
+        assertEquals(entry3.getValue(), PositionImpl.get(1, 2));
+        assertEquals(entry3.getKey(), consumer3);
+
+        // Verify: no sorting was executed
+        assertEquals(sortTimes.get(), 0);
 
         // cleanup.
         persistentDispatcher.close();
