@@ -4802,7 +4802,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 public void readEntryComplete(Entry entry, Object ctx) {
                     try {
                         ByteBuf metadataAndPayload = entry.getDataBuffer();
-                        MessageMetadata msgMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                        MessageMetadata msgMetadata = entry.getMessageMetadata();
+                        if (msgMetadata == null) {
+                            msgMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                        }
                         long publishTime = msgMetadata.getPublishTime();
                         future.complete(publishTime);
                     } catch (Exception e) {
