@@ -231,7 +231,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         }
 
         if (rc != BKException.Code.OK || timeoutTriggered.get()) {
-            handleAddFailure(lh);
+            handleAddFailure(lh, rc);
         } else {
             // Trigger addComplete callback in a thread hashed on the managed ledger name
             ml.getExecutor().execute(this);
@@ -351,7 +351,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
      *
      * @param lh
      */
-    void handleAddFailure(final LedgerHandle lh) {
+    void handleAddFailure(final LedgerHandle lh, Integer rc) {
         // If we get a write error, we will try to create a new ledger and re-submit the pending writes. If the
         // ledger creation fails (persistent bk failure, another instance owning the ML, ...), then the writes will
         // be marked as failed.
@@ -361,7 +361,15 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         finalMl.getExecutor().execute(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
-            finalMl.ledgerClosed(lh);
+            // If we received a "MetadataVersionException" or a "LedgerFencedException", we should tell the ML that
+            // the ledger has been closed by others, and the entries count in the ledger may is not correct. The ML
+            // will handle it.
+            if (rc != null && (rc.intValue() == BKException.Code.MetadataVersionException
+                    || rc.intValue() == BKException.Code.LedgerFencedException)) {
+                finalMl.ledgerFailedWriteBecauseClosedByOthers(lh);
+            } else {
+                finalMl.ledgerClosed(lh);
+            }
         });
     }
 

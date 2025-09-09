@@ -24,6 +24,9 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.Closeable;
 import java.lang.reflect.Field;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -36,6 +39,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -48,10 +52,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -520,6 +527,62 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
 
         admin.topics().delete(topic);
         assertEquals(pulsar.getBrokerService().getTopicIfExists(topic).join(), Optional.empty());
+    }
+
+    @Test
+    public void testConcurrentlyCloseCurrentLedger() throws Exception {
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
+                new DefaultThreadFactory("pulsar-io-test-1"));
+        BookKeeper bkClient2 = pulsar.getBkClientFactory().create(pulsar.getConfiguration(),
+                pulsar.getLocalMetadataStore(),
+                eventLoopGroup,
+                Optional.empty(),
+                null).get();
+
+        String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        admin.namespaces().createNamespace(namespace);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, "s1", MessageId.earliest);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        MessageIdAdv msgId = (MessageIdAdv) producer.send("1");
+        long currentLedgerId = msgId.getLedgerId();
+
+        // Make an injection to let the next publishing delay.
+        Closeable cancellation = injectBKServerDelayForCurrentLedger(topic, 10, TimeUnit.SECONDS, 0);
+
+        // Publish new 2 messages.
+        // Since we injected a delay, the 2nd message will complete after the ledger is closed.
+        // After the ledger is closed, the 3rd messages will be written to a new ledger.
+        // Verify: the entries in topic and stored are consistent.
+        CompletableFuture<MessageId> send2Future = producer.sendAsync("2");
+        LedgerHandle readOnlyLedger = bkClient2.openLedger(currentLedgerId,
+                BookKeeper.DigestType.fromApiDigestType(ml.getConfig().getDigestType()),
+                ml.getConfig().getPassword());
+        cancellation.close();
+        producer.send("3");
+        NavigableMap<Long, LedgerInfo> ledgerInfoMap2 = ml.getLedgersInfo();
+        long entriesInTopic = ledgerInfoMap2.get(currentLedgerId).getEntries();
+        long entriesStored = readOnlyLedger.getLedgerMetadata().getLastEntryId() + 1;
+        assertEquals(entriesInTopic, entriesStored);
+        // The second publishing will be finished.
+        send2Future.get();
+
+        // cleanup.
+        producer.close();
+        admin.topics().unload(topic);
+        admin.topics().delete(topic);
+        bkClient2.close();
     }
 
 }

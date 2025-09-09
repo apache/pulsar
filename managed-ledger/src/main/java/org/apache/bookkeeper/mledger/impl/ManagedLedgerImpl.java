@@ -1878,10 +1878,37 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    void ledgerFailedWriteBecauseClosedByOthers(final LedgerHandle currentLedger) {
+        bookKeeper.asyncOpenLedger(currentLedger.getId(), digestType, config.getPassword(), (rc, lh, ctx) -> {
+            if (rc == Code.OK) {
+                log.warn("[{}] Successfully opened ledger {} to check the last add confirmed position when the ledger"
+                    + " was concurrent modified(it is an unexpected behaviour, which happens when the load-balancer"
+                    + " does not work as expected). The add confirmed position in memory is {}, and the value"
+                    + " stored in metadata store is {}. When you get this log, the latest several entries may be"
+                    + " repeated.", name, lh.getId(), currentLedger.getLastAddConfirmed(), lh.getLastAddConfirmed());
+                ledgerClosed(currentLedger, lh.getLastAddConfirmed());
+            } else {
+                log.error("[{}] Failed opened ledger {} to check the last add confirmed position when the ledger"
+                        + " was concurrent modified(it is an unexpected behaviour, which happens when the load-balancer"
+                        + " does not work as expected). The add confirmed position in memory is {}, and the error"
+                        + " code {}. When you get this log, the entries count in the ledger of the topic metadata may"
+                        + " be less than expected.",
+                        name, lh.getId(), currentLedger.getLastAddConfirmed(), rc);
+                // Stop switching ledger and write topic matadata, to avoid messages lost.
+                handleBadVersion(new BadVersionException("Failed opened ledger {} to check the last add confirmed"
+                        + " position when the ledger was concurrent modified, error code: " + rc));
+            }
+        }, null);
+    }
+
+    synchronized void ledgerClosed(final LedgerHandle lh) {
+        ledgerClosed(lh, null);
+    }
+
     // //////////////////////////////////////////////////////////////////////
     // Private helpers
 
-    synchronized void ledgerClosed(final LedgerHandle lh) {
+    synchronized void ledgerClosed(final LedgerHandle lh, @Nullable Long forcedLastAddConfirmed) {
         final State state = STATE_UPDATER.get(this);
         LedgerHandle currentLedger = this.currentLedger;
         if (currentLedger == lh && (state == State.ClosingLedger || state == State.LedgerOpened)) {
@@ -1896,7 +1923,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        long entriesInLedger = lh.getLastAddConfirmed() + 1;
+        long entriesInLedger = forcedLastAddConfirmed != null ? forcedLastAddConfirmed.longValue() + 1
+                : lh.getLastAddConfirmed() + 1;
         if (log.isDebugEnabled()) {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
@@ -4501,7 +4529,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1,
                         opAddEntry.entryId, timeoutSec);
                 currentLedgerTimeoutTriggered.set(true);
-                opAddEntry.handleAddFailure(opAddEntry.ledger);
+                opAddEntry.handleAddFailure(opAddEntry.ledger, null);
             }
         }
     }
