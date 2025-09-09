@@ -18,19 +18,11 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.yahoo.sketches.quantiles.DoublesSketch;
-import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
-import io.netty.util.concurrent.FastThreadLocal;
-import io.netty.util.concurrent.FastThreadLocalThread;
-import java.lang.ref.WeakReference;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.concurrent.locks.StampedLock;
 import org.apache.bookkeeper.stats.OpStatsData;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 
@@ -69,7 +61,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         failCountAdder.increment();
         failSumAdder.add((long) valueMillis);
 
-        LocalData localData = current.localData.get();
+        var localData = current.localData.get();
 
         long stamp = localData.lock.readLock();
         try {
@@ -86,7 +78,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         successCountAdder.increment();
         successSumAdder.add((long) valueMillis);
 
-        LocalData localData = current.localData.get();
+        var localData = current.localData.get();
 
         long stamp = localData.lock.readLock();
         try {
@@ -101,7 +93,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         successCountAdder.increment();
         successSumAdder.add(value);
 
-        LocalData localData = current.localData.get();
+        var localData = current.localData.get();
 
         long stamp = localData.lock.readLock();
         try {
@@ -116,7 +108,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         failCountAdder.increment();
         failSumAdder.add(value);
 
-        LocalData localData = current.localData.get();
+        var localData = current.localData.get();
 
         long stamp = localData.lock.readLock();
         try {
@@ -144,11 +136,11 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
         current = replacement;
         replacement = local;
 
-        final DoublesUnion aggregateSuccesss = new DoublesUnionBuilder().build();
+        final DoublesUnion aggregateSuccess = new DoublesUnionBuilder().build();
         final DoublesUnion aggregateFail = new DoublesUnionBuilder().build();
-        local.record(aggregateSuccesss, aggregateFail);
+        local.record(aggregateSuccess, aggregateFail);
 
-        successResult = aggregateSuccesss.getResultAndReset();
+        successResult = aggregateSuccess.getResultAndReset();
         failResult = aggregateFail.getResultAndReset();
     }
 
@@ -163,80 +155,5 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     public double getQuantileValue(boolean success, double quantile) {
         DoublesSketch s = success ? successResult : failResult;
         return s != null ? s.getQuantile(quantile) : Double.NaN;
-    }
-
-    private static class LocalData {
-        private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
-        private final DoublesSketch failSketch = new DoublesSketchBuilder().build();
-        private final StampedLock lock = new StampedLock();
-        // Keep a weak reference to the owner thread so that we can remove the LocalData when the thread
-        // is not alive anymore or has been garbage collected.
-        // This reference isn't needed when the owner thread is a FastThreadLocalThread and will be null in that case.
-        // The removal is handled by FastThreadLocal#onRemoval when the owner thread is a FastThreadLocalThread.
-        private final WeakReference<Thread> ownerThreadReference;
-
-        private LocalData(Thread ownerThread) {
-            if (ownerThread instanceof FastThreadLocalThread) {
-                ownerThreadReference = null;
-            } else {
-                ownerThreadReference = new WeakReference<>(ownerThread);
-            }
-        }
-
-        private boolean shouldRemove() {
-            if (ownerThreadReference == null) {
-                // the owner is a FastThreadLocalThread which handles the removal using FastThreadLocal#onRemoval
-                return false;
-            } else {
-                Thread ownerThread = ownerThreadReference.get();
-                if (ownerThread == null) {
-                    // the thread has already been garbage collected, LocalData should be removed
-                    return true;
-                } else {
-                    // the thread isn't alive anymore, LocalData should be removed
-                    return !ownerThread.isAlive();
-                }
-            }
-        }
-
-        private void record(DoublesUnion aggregateSuccess, DoublesUnion aggregateFail) {
-            long stamp = lock.writeLock();
-            try {
-                aggregateSuccess.update(successSketch);
-                successSketch.reset();
-                aggregateFail.update(failSketch);
-                failSketch.reset();
-            } finally {
-                lock.unlockWrite(stamp);
-            }
-        }
-    }
-
-    @VisibleForTesting
-    static class ThreadLocalAccessor {
-        final Map<LocalData, Boolean> map = new ConcurrentHashMap<>();
-        final FastThreadLocal<LocalData> localData = new FastThreadLocal<>() {
-
-            @Override
-            protected LocalData initialValue() {
-                LocalData localData = new LocalData(Thread.currentThread());
-                map.put(localData, Boolean.TRUE);
-                return localData;
-            }
-
-            @Override
-            protected void onRemoval(LocalData value) {
-                map.remove(value);
-            }
-        };
-
-        void record(DoublesUnion aggregateSuccess, DoublesUnion aggregateFail) {
-            map.keySet().forEach(key -> {
-                key.record(aggregateSuccess, aggregateFail);
-                if (key.shouldRemove()) {
-                    map.remove(key);
-                }
-            });
-        }
     }
 }
