@@ -323,6 +323,12 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
+            try {
+                pulsar.getBrokerInterceptor().addCustomizedMetrics(metricStreams, pulsar);
+            } catch (Exception e){
+                log.error("Exception occur when intercept customize metrics.", e);
+            }
+
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
