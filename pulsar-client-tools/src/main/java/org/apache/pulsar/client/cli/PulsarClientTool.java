@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticat
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.internal.CommandHook;
 import org.apache.pulsar.internal.CommanderFactory;
+import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -163,6 +164,7 @@ public class PulsarClientTool implements CommandHook {
         commander.addSubcommand("consume", consumeCommand);
         commander.addSubcommand("read", readCommand);
         commander.addSubcommand("generate_documentation", generateDocumentation);
+        commander.addSubcommand(GenerateCompletion.class);
     }
 
     protected void addCommand(String name, Object cmd) {
