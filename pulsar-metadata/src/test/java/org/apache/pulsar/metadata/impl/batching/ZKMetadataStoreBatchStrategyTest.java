@@ -19,7 +19,6 @@
 package org.apache.pulsar.metadata.impl.batching;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.util.List;
@@ -60,18 +59,15 @@ public class ZKMetadataStoreBatchStrategyTest {
         mockZooKeeper = Mockito.mock(ZooKeeper.class);
         mockClientConfig = Mockito.mock(ZKClientConfig.class);
         operationQueue = new MpscUnboundedArrayQueue<>(1000);
-
         // Setup default mock behavior
         Mockito.when(mockZooKeeper.getClientConfig()).thenReturn(mockClientConfig);
         Mockito.when(mockClientConfig.getInt(Mockito.anyString(), Mockito.anyInt()))
                 .thenReturn(DEFAULT_MAX_SIZE);
-        
         // Setup default node size stats
         Mockito.when(mockNodeSizeStats.getMaxSizeOfSameResourceType(Mockito.anyString()))
                 .thenReturn(100);
         Mockito.when(mockNodeSizeStats.getMaxChildrenCountOfSameResourceType(Mockito.anyString()))
                 .thenReturn(10);
-
         strategy = new ZKMetadataStoreBatchStrategy(mockNodeSizeStats, DEFAULT_MAX_OPERATIONS, 
                                                    DEFAULT_MAX_SIZE, mockZooKeeper);
     }
@@ -81,10 +77,8 @@ public class ZKMetadataStoreBatchStrategyTest {
         // Test constructor uses default max size when ZK config returns 0 or negative
         Mockito.when(mockClientConfig.getInt(Mockito.anyString(), Mockito.anyInt()))
                 .thenReturn(0);
-        
         ZKMetadataStoreBatchStrategy strategyWithDefault = new ZKMetadataStoreBatchStrategy(
                 mockNodeSizeStats, DEFAULT_MAX_OPERATIONS, DEFAULT_MAX_SIZE, mockZooKeeper);
-        
         assertEquals(strategyWithDefault.maxSize(), DEFAULT_MAX_SIZE);
     }
 
@@ -93,10 +87,8 @@ public class ZKMetadataStoreBatchStrategyTest {
         int configuredSize = 2 * 1024 * 1024; // 2MB
         Mockito.when(mockClientConfig.getInt(Mockito.anyString(), Mockito.anyInt()))
                 .thenReturn(configuredSize);
-        
         ZKMetadataStoreBatchStrategy strategyWithConfig = new ZKMetadataStoreBatchStrategy(
                 mockNodeSizeStats, DEFAULT_MAX_OPERATIONS, DEFAULT_MAX_SIZE, mockZooKeeper);
-        
         assertEquals(strategyWithConfig.maxSize(), configuredSize);
     }
 
@@ -115,9 +107,7 @@ public class ZKMetadataStoreBatchStrategyTest {
     public void testSingleGetOperation() {
         MetadataOp getOp = createMockGetOperation(TEST_PATH);
         operationQueue.offer(getOp);
-        
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-        
         assertEquals(batch.size(), 1);
         assertEquals(batch.get(0), getOp);
         assertTrue(operationQueue.isEmpty());
@@ -127,9 +117,7 @@ public class ZKMetadataStoreBatchStrategyTest {
     public void testSingleGetChildrenOperation() {
         MetadataOp getChildrenOp = createMockGetChildrenOperation(TEST_PATH);
         operationQueue.offer(getChildrenOp);
-        
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-        
         assertEquals(batch.size(), 1);
         assertEquals(batch.get(0), getChildrenOp);
         assertTrue(operationQueue.isEmpty());
@@ -139,9 +127,7 @@ public class ZKMetadataStoreBatchStrategyTest {
     public void testSinglePutOperation() {
         MetadataOp putOp = createMockPutOperation(TEST_PATH, 100);
         operationQueue.offer(putOp);
-        
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-        
         assertEquals(batch.size(), 1);
         assertEquals(batch.get(0), putOp);
         assertTrue(operationQueue.isEmpty());
@@ -151,9 +137,7 @@ public class ZKMetadataStoreBatchStrategyTest {
     public void testSingleDeleteOperation() {
         MetadataOp deleteOp = createMockDeleteOperation(TEST_PATH);
         operationQueue.offer(deleteOp);
-        
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-        
         assertEquals(batch.size(), 1);
         assertEquals(batch.get(0), deleteOp);
         assertTrue(operationQueue.isEmpty());
@@ -165,9 +149,7 @@ public class ZKMetadataStoreBatchStrategyTest {
         for (int i = 0; i < DEFAULT_MAX_OPERATIONS + 10; i++) {
             operationQueue.offer(createMockGetOperation("/test/path/" + i));
         }
-        
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-        
         assertEquals(batch.size(), DEFAULT_MAX_OPERATIONS);
         assertEquals(operationQueue.size(), 10); // Remaining operations
     }
@@ -176,13 +158,10 @@ public class ZKMetadataStoreBatchStrategyTest {
     public void testRequestSizeLimit() {
         // Create large PUT operations that exceed the request size limit
         int largeSize = DEFAULT_MAX_SIZE / 2 + 1000; // Larger than half max size
-        
         operationQueue.offer(createMockPutOperation("/test/path1", largeSize));
         operationQueue.offer(createMockPutOperation("/test/path2", largeSize));
         operationQueue.offer(createMockPutOperation("/test/path3", 100)); // Small operation
-        
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-        
         // Should only include the first operation due to size limit
         assertEquals(batch.size(), 1);
         assertEquals(operationQueue.size(), 2); // Two operations remaining
@@ -230,14 +209,11 @@ public class ZKMetadataStoreBatchStrategyTest {
         // Setup large response size for node stats
         Mockito.when(mockNodeSizeStats.getMaxSizeOfSameResourceType(Mockito.anyString()))
                 .thenReturn(DEFAULT_MAX_SIZE / 5); // Large response size
-
         // Add multiple GET operations
         for (int i = 0; i < 10; i++) {
             operationQueue.offer(createMockGetOperation("/test/path/" + i));
         }
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         // Should limit based on estimated response size (half of max size)
         assertEquals(batch.size(), 2);
     }
@@ -249,14 +225,11 @@ public class ZKMetadataStoreBatchStrategyTest {
                 .thenReturn(1000); // Many children
         Mockito.when(mockNodeSizeStats.getMaxSizeOfSameResourceType(Mockito.anyString()))
                 .thenReturn(100); // Size per child
-
         // Add multiple GET_CHILDREN operations
         for (int i = 0; i < 10; i++) {
             operationQueue.offer(createMockGetChildrenOperation("/test/path/" + i));
         }
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         // Should limit based on estimated response size.
         // DEFAULT_MAX_SIZE is 1024 * 1024, the half value is 1024 * 512.
         // Per children response is 1000 * 100.
@@ -270,9 +243,7 @@ public class ZKMetadataStoreBatchStrategyTest {
         operationQueue.offer(createMockPutOperation("/test/put", 100));
         operationQueue.offer(createMockDeleteOperation("/test/delete"));
         operationQueue.offer(createMockGetChildrenOperation("/test/children"));
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         assertEquals(batch.size(), 4);
         assertTrue(operationQueue.isEmpty());
     }
@@ -281,15 +252,12 @@ public class ZKMetadataStoreBatchStrategyTest {
     public void testNullOperationInQueue() {
         // Test the case where peek() returns null (queue becomes empty during processing)
         MetadataOp mockOp = createMockGetOperation("/test/path1");
-
         @SuppressWarnings("unchecked")
         MpscUnboundedArrayQueue<MetadataOp> mockQueue = Mockito.mock(MpscUnboundedArrayQueue.class);
         Mockito.when(mockQueue.isEmpty()).thenReturn(false, false, true);
         Mockito.when(mockQueue.peek()).thenReturn(mockOp, (MetadataOp) null);
         Mockito.when(mockQueue.poll()).thenReturn(mockOp);
-
         List<MetadataOp> batch = strategy.nextBatch(mockQueue);
-
         assertEquals(batch.size(), 1);
     }
 
@@ -297,10 +265,8 @@ public class ZKMetadataStoreBatchStrategyTest {
     public void testZKResponseHeaderCalculation() {
         // Test that ZK_RESPONSE_HEADER_LEN is correctly used in calculations
         assertEquals(ZKMetadataStoreBatchStrategy.ZK_RESPONSE_HEADER_LEN, 88);
-
         // Add a GET operation and verify header is included in size calculation
         operationQueue.offer(createMockGetOperation(TEST_PATH));
-
         // The actual size calculation is internal, but we can verify the operation is processed
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
         assertEquals(batch.size(), 1);
@@ -312,12 +278,9 @@ public class ZKMetadataStoreBatchStrategyTest {
         // defaultSize = Math.max(maxPutSize >>> 4, 1024) = Math.max(1MB >>> 4, 1024) = Math.max(65536, 1024) = 65536
         Mockito.when(mockNodeSizeStats.getMaxSizeOfSameResourceType(Mockito.anyString()))
                 .thenReturn(-1); // Negative value should trigger defaultSize fallback
-
         operationQueue.offer(createMockGetOperation("/test/path1"));
         operationQueue.offer(createMockGetOperation("/test/path2"));
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         // Should process operations using defaultSize for size estimation
         assertEquals(batch.size(), 2);
         assertTrue(operationQueue.isEmpty());
@@ -328,12 +291,9 @@ public class ZKMetadataStoreBatchStrategyTest {
         // Test defaultSize fallback for GET_CHILDREN when childrenCount < 0
         Mockito.when(mockNodeSizeStats.getMaxChildrenCountOfSameResourceType(Mockito.anyString()))
                 .thenReturn(-1); // Negative value should trigger defaultSize fallback
-
         operationQueue.offer(createMockGetChildrenOperation("/test/path1"));
         operationQueue.offer(createMockGetChildrenOperation("/test/path2"));
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         // Should process operations using defaultSize for size estimation
         assertEquals(batch.size(), 2);
         assertTrue(operationQueue.isEmpty());
@@ -346,11 +306,8 @@ public class ZKMetadataStoreBatchStrategyTest {
                 .thenReturn(5); // Valid children count
         Mockito.when(mockNodeSizeStats.getMaxSizeOfSameResourceType(Mockito.anyString()))
                 .thenReturn(-1); // Invalid size should trigger defaultSize fallback
-
         operationQueue.offer(createMockGetChildrenOperation("/test/path"));
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         assertEquals(batch.size(), 1);
         assertTrue(operationQueue.isEmpty());
     }
@@ -361,9 +318,7 @@ public class ZKMetadataStoreBatchStrategyTest {
         // that would use the default case in the switch statement
         MetadataOp putOp = createMockPutOperation(TEST_PATH, 50);
         operationQueue.offer(putOp);
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         assertEquals(batch.size(), 1);
         assertEquals(batch.get(0), putOp);
     }
@@ -371,15 +326,12 @@ public class ZKMetadataStoreBatchStrategyTest {
     @Test
     public void testLargePathNames() {
         // Test with very long path names
-        String longPath = "/very/long/path/name/that/exceeds/normal/length/" +
-                         "and/continues/for/a/very/long/time/to/test/path/handling/" +
-                         "in/the/batch/strategy/implementation";
-
+        String longPath = "/very/long/path/name/that/exceeds/normal/length/"
+                + "and/continues/for/a/very/long/time/to/test/path/handling/"
+                + "in/the/batch/strategy/implementation";
         operationQueue.offer(createMockPutOperation(longPath, 100));
         operationQueue.offer(createMockDeleteOperation(longPath));
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         assertEquals(batch.size(), 2);
         assertTrue(operationQueue.isEmpty());
     }
@@ -389,9 +341,7 @@ public class ZKMetadataStoreBatchStrategyTest {
         // Test operations with zero size
         operationQueue.offer(createMockPutOperation(TEST_PATH, 0));
         operationQueue.offer(createMockGetOperation(TEST_PATH));
-
         List<MetadataOp> batch = strategy.nextBatch(operationQueue);
-
         assertEquals(batch.size(), 2);
         assertTrue(operationQueue.isEmpty());
     }
