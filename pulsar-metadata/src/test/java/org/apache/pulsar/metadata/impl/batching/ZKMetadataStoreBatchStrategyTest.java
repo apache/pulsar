@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.impl.batching;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.metadata.api.MetadataNodeSizeStats;
@@ -33,7 +32,6 @@ import org.testng.annotations.Test;
 
 /**
  * Comprehensive test suite for ZKMetadataStoreBatchStrategy class.
- * 
  * This test covers:
  * - Constructor and configuration handling
  * - Batch size calculations for different operation types
@@ -68,8 +66,8 @@ public class ZKMetadataStoreBatchStrategyTest {
                 .thenReturn(100);
         Mockito.when(mockNodeSizeStats.getMaxChildrenCountOfSameResourceType(Mockito.anyString()))
                 .thenReturn(10);
-        strategy = new ZKMetadataStoreBatchStrategy(mockNodeSizeStats, DEFAULT_MAX_OPERATIONS, 
-                                                   DEFAULT_MAX_SIZE, mockZooKeeper);
+        strategy = new ZKMetadataStoreBatchStrategy(mockNodeSizeStats, DEFAULT_MAX_OPERATIONS,
+                DEFAULT_MAX_SIZE, mockZooKeeper);
     }
 
     @Test
