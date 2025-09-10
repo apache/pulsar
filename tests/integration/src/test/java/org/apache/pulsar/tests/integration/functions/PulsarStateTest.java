@@ -61,11 +61,11 @@ import org.testng.annotations.Test;
 @Slf4j
 public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
 
-    protected String StateStoreProvider;
+    protected String stateStoreProvider;
 
     protected PulsarStateTest(String stateStoreProvider) {
         super();
-        this.StateStoreProvider = stateStoreProvider;
+        this.stateStoreProvider = stateStoreProvider;
     }
 
     public static final String WORDCOUNT_PYTHON_CLASS =
@@ -151,7 +151,7 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     @Test(groups = {"python_state", "state", "function", "python_function"})
     public void testPythonWordCountFunction() throws Exception {
-        if (PulsarMetadataStateStoreProviderImpl.class.getName().equals(StateStoreProvider)) {
+        if (PulsarMetadataStateStoreProviderImpl.class.getName().equals(stateStoreProvider)) {
             // python function doesn't support metadata state store yet
             return;
         }
