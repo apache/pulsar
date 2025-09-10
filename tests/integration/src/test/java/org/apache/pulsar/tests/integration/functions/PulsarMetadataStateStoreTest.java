@@ -28,8 +28,8 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.Network;
 
 @Slf4j
-public class PulsarMetadataStoreStateTest extends PulsarStateTest {
-    protected PulsarMetadataStoreStateTest() {
+public class PulsarMetadataStateStoreTest extends PulsarStateTest {
+    protected PulsarMetadataStateStoreTest() {
         super(PulsarMetadataStateStoreProviderImpl.class.getName());
     }
 
