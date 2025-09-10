@@ -26,13 +26,12 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +81,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * broker.
      */
     private final ConcurrentSkipListSet<MessageIdAdv> pendingIndividualAcks;
-    private final ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
+    private final ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
 
     private final ScheduledFuture<?> scheduledTask;
     private final boolean batchIndexAckEnabled;
@@ -92,7 +91,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                     EventLoopGroup eventLoopGroup) {
         this.consumer = consumer;
         this.pendingIndividualAcks = new ConcurrentSkipListSet<>();
-        this.pendingIndividualBatchIndexAcks = new ConcurrentHashMap<>();
+        this.pendingIndividualBatchIndexAcks = new ConcurrentSkipListMap<>();
         this.acknowledgementGroupTimeMicros = conf.getAcknowledgementsGroupTimeMicros();
         this.maxAckGroupSize = conf.getMaxAcknowledgmentGroupSize();
         this.batchIndexAckEnabled = conf.isBatchIndexAckEnabled();
@@ -484,16 +483,15 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
         }
 
-        if (!pendingIndividualBatchIndexAcks.isEmpty()) {
-            Iterator<Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable>> iterator =
-                    pendingIndividualBatchIndexAcks.entrySet().iterator();
-
-            while (iterator.hasNext()) {
-                Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable> entry = iterator.next();
-                entriesToAck.add(Triple.of(
-                        entry.getKey().getLedgerId(), entry.getKey().getEntryId(), entry.getValue()));
-                iterator.remove();
+        while (!pendingIndividualBatchIndexAcks.isEmpty()) {
+            Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable> entry =
+                    pendingIndividualBatchIndexAcks.pollFirstEntry();
+            if (entry == null) {
+                // The entry has been removed in a different thread
+                break;
             }
+            entriesToAck.add(Triple.of(
+                    entry.getKey().getLedgerId(), entry.getKey().getEntryId(), entry.getValue()));
         }
 
         if (entriesToAck.size() > 0) {
