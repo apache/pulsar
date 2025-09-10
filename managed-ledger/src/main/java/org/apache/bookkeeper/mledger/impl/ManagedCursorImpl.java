@@ -3038,8 +3038,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                         + "these entries [{}:{}) will be auto acknowledge in subscription",
                 ledger.getName(), name, ledgerId, startEntryId, endEntryId);
         try {
+            long skippedEntries = 0;
             for (long i = startEntryId; i < endEntryId; i++) {
                 if (!individualDeletedMessages.contains(ledgerId, i)) {
+                    skippedEntries++;
                     asyncDelete(PositionFactory.create(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
                         @Override
                         public void deleteComplete(Object ctx) {
@@ -3054,6 +3056,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                         }
                     }, null);
                 }
+            }
+            if (skippedEntries > 0 && ledger.getConfig().getNonRecoverableDataMetricsCallback() != null) {
+                ledger.getConfig().getNonRecoverableDataMetricsCallback().onSkipNonRecoverableEntries(skippedEntries);
             }
         } finally {
             lock.writeLock().unlock();
