@@ -483,7 +483,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
         }
 
-        while (!pendingIndividualBatchIndexAcks.isEmpty()) {
+        while (true) {
             Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable> entry =
                     pendingIndividualBatchIndexAcks.pollFirstEntry();
             if (entry == null) {
