@@ -366,7 +366,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             // will handle it.
             if (rc != null && (rc.intValue() == BKException.Code.MetadataVersionException
                     || rc.intValue() == BKException.Code.LedgerFencedException)) {
-                finalMl.ledgerFailedWriteBecauseClosedByOthers(lh);
+                finalMl.ledgerAddFailedDueToConcurrentlyModified(lh);
             } else {
                 finalMl.ledgerClosed(lh);
             }

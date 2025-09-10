@@ -1878,7 +1878,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void ledgerFailedWriteBecauseClosedByOthers(final LedgerHandle currentLedger) {
+    void ledgerAddFailedDueToConcurrentlyModified(final LedgerHandle currentLedger) {
         bookKeeper.asyncOpenLedger(currentLedger.getId(), digestType, config.getPassword(), (rc, lh, ctx) -> {
             if (rc == Code.OK) {
                 log.warn("[{}] Successfully opened ledger {} to check the last add confirmed position when the ledger"
@@ -1909,7 +1909,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // //////////////////////////////////////////////////////////////////////
     // Private helpers
 
-    synchronized void ledgerClosed(final LedgerHandle lh, @Nullable Long forcedLastAddConfirmed) {
+    synchronized void ledgerClosed(final LedgerHandle lh, @Nullable Long lastAddConfirmed) {
         final State state = STATE_UPDATER.get(this);
         LedgerHandle currentLedger = this.currentLedger;
         if (currentLedger == lh && (state == State.ClosingLedger || state == State.LedgerOpened)) {
@@ -1924,7 +1924,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        long entriesInLedger = forcedLastAddConfirmed != null ? forcedLastAddConfirmed.longValue() + 1
+        long entriesInLedger = lastAddConfirmed != null ? lastAddConfirmed.longValue() + 1
                 : lh.getLastAddConfirmed() + 1;
         if (log.isDebugEnabled()) {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
