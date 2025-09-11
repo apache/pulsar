@@ -1003,7 +1003,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             return;
         }
 
-        var compactor = spy(pulsar1.getStrategicCompactor());
+        var compactor = spy(pulsar1.getStrategicCompactor().orElseThrow());
         Field strategicCompactorField = FieldUtils.getDeclaredField(PulsarService.class, "strategicCompactor", true);
         FieldUtils.writeField(strategicCompactorField, pulsar1, compactor, true);
         FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
