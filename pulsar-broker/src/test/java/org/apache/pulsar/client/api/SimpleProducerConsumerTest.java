@@ -96,7 +96,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -4815,7 +4814,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(stats.getPublishers().size(), 1);
         assertEquals(stats.getPublishers().get(0).getClientVersion(), defaultClientVersion);
 
-        PulsarClient client = ((ClientBuilderImpl) PulsarClient.builder())
+        PulsarClient client = PulsarClient.builder()
                 .description("my-java-client")
                 .serviceUrl(lookupUrl.toString())
                 .build();
