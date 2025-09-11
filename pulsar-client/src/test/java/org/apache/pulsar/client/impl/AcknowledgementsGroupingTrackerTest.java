@@ -31,23 +31,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.pulsar.client.api.MessageId;
+import lombok.var;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -388,24 +384,18 @@ public class AcknowledgementsGroupingTrackerTest {
     }
 
     @Test
-    public void testDoIndividualBatchAckAsync() throws Exception{
+    public void testDoIndividualBatchAckAsync() {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
-        AcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        MessageId messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
+        var tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        var messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
         BitSet bitSet = new BitSet(20);
-        for(int i = 0; i < 20; i ++) {
+        for (int i = 0; i < 20; i++) {
             bitSet.set(i, true);
         }
-        MessageId messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, bitSet);
-        Method doIndividualBatchAckAsync = PersistentAcknowledgmentsGroupingTracker.class
-                .getDeclaredMethod("doIndividualBatchAckAsync", MessageIdAdv.class);
-        doIndividualBatchAckAsync.setAccessible(true);
-        doIndividualBatchAckAsync.invoke(tracker, messageId1);
-        doIndividualBatchAckAsync.invoke(tracker, messageId2);
-        Field pendingIndividualBatchIndexAcks = PersistentAcknowledgmentsGroupingTracker.class.getDeclaredField("pendingIndividualBatchIndexAcks");
-        pendingIndividualBatchIndexAcks.setAccessible(true);
-        ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable> batchIndexAcks =
-                (ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable>) pendingIndividualBatchIndexAcks.get(tracker);
+        var messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, bitSet);
+        tracker.doIndividualBatchAckAsync(messageId1);
+        tracker.doIndividualBatchAckAsync(messageId2);
+        var batchIndexAcks = tracker.pendingIndividualBatchIndexAcks;
         MessageIdImpl position1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl position2 = new MessageIdImpl(3, 2, 0);
         assertTrue(batchIndexAcks.containsKey(position1));
