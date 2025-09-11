@@ -92,4 +92,9 @@ public class MetadataStoreConfig {
      * separate clusters.
      */
     private MetadataEventSynchronizer synchronizer;
+
+    /**
+     * The estimator to estimate the payload length of metadata node, which used to limit the batch size requested.
+     */
+    private MetadataNodeSizeStats nodeSizeStats;
 }

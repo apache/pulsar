@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata.impl.batching;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -28,6 +27,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -50,13 +50,14 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
 
     private final boolean enabled;
     private final int maxDelayMillis;
-    private final int maxOperations;
-    private final int maxSize;
+    protected final int maxOperations;
+    protected int maxSize;
     private MetadataEventSynchronizer synchronizer;
     private final BatchMetadataStoreStats batchMetadataStoreStats;
+    protected MetadataStoreBatchStrategy metadataStoreBatchStrategy;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
-        super(conf.getMetadataStoreName());
+        super(conf.getMetadataStoreName(), conf.getNodeSizeStats());
 
         this.enabled = conf.isBatchingEnabled();
         this.maxDelayMillis = conf.getBatchingMaxDelayMillis();
@@ -78,6 +79,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         updateMetadataEventSynchronizer(conf.getSynchronizer());
         this.batchMetadataStoreStats =
                 new BatchMetadataStoreStats(metadataStoreName, executor);
+        this.metadataStoreBatchStrategy = new DefaultMetadataStoreBatchStrategy(maxOperations, maxSize);
     }
 
     @Override
@@ -96,33 +98,17 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     private void flush() {
-        while (!readOps.isEmpty()) {
-            List<MetadataOp> ops = new ArrayList<>();
-            readOps.drain(ops::add, maxOperations);
-            internalBatchOperation(ops);
-        }
-
-        while (!writeOps.isEmpty()) {
-            int batchSize = 0;
-
-            List<MetadataOp> ops = new ArrayList<>();
-            for (int i = 0; i < maxOperations; i++) {
-                MetadataOp op = writeOps.peek();
-                if (op == null) {
-                    break;
-                }
-
-                if (i > 0 && (batchSize + op.size()) > maxSize) {
-                    // We have already reached the max size, so flush the current batch
-                    break;
-                }
-
-                batchSize += op.size();
-                ops.add(writeOps.poll());
+        List<MetadataOp> currentBatch;
+        if (!readOps.isEmpty()) {
+            while (CollectionUtils.isNotEmpty(currentBatch = metadataStoreBatchStrategy.nextBatch(readOps))) {
+                internalBatchOperation(currentBatch);
             }
-            internalBatchOperation(ops);
         }
-
+        if (!writeOps.isEmpty()) {
+            while (CollectionUtils.isNotEmpty(currentBatch = metadataStoreBatchStrategy.nextBatch(writeOps))) {
+                internalBatchOperation(currentBatch);
+            }
+        }
         flushInProgress.set(false);
     }
 
