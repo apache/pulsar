@@ -53,6 +53,7 @@ import org.apache.zookeeper.AsyncCallback.StringCallback;
 import org.apache.zookeeper.AsyncCallback.VoidCallback;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
+import org.apache.zookeeper.client.ZKClientConfig;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.proto.DeleteRequest;
@@ -138,6 +139,7 @@ public class MockZooKeeper extends ZooKeeper {
     private int referenceCount;
     private List<AutoCloseable> closeables;
     private int sessionTimeout;
+    private ZKClientConfig zKClientConfig = new ZKClientConfig();
 
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
@@ -190,6 +192,7 @@ public class MockZooKeeper extends ZooKeeper {
         zk.sequentialIdGenerator = new AtomicLong();
         zk.closeables = new ArrayList<>();
         zk.sessionTimeout = 30_000;
+        zk.zKClientConfig = new ZKClientConfig();
         return zk;
     }
 
@@ -234,6 +237,11 @@ public class MockZooKeeper extends ZooKeeper {
     public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode)
             throws KeeperException, InterruptedException {
         return runInExecutorReturningValue(() -> internalCreate(path, data, createMode));
+    }
+
+    @Override
+    public ZKClientConfig getClientConfig() {
+        return zKClientConfig;
     }
 
     private <T> T runInExecutorReturningValue(Callable<T> task)
