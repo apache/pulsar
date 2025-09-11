@@ -20,7 +20,6 @@ package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
