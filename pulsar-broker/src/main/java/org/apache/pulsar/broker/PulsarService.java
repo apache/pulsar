@@ -478,8 +478,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     /**
      * Close the current pulsar service. All resources are released.
+     * <p>
+     * This method is equivalent with {@code closeAsync(true)}.
+     *
+     * @see PulsarService#closeAsync(boolean)
      */
     public CompletableFuture<Void> closeAsync() {
+        return closeAsync(true);
+    }
+
+    /**
+     * Close the current pulsar service.
+     *
+     * @param waitForStop if true, waits for the web service to stop before returning from this method.
+     * @return a future which will be completed when the service is fully closed.
+     */
+    public CompletableFuture<Void> closeAsync(boolean waitForStop) {
         mutex.lock();
         try {
             // Close protocol handler before unloading namespace bundles because protocol handlers might maintain
@@ -526,7 +540,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             if (this.webService != null) {
                 try {
-                    this.webService.close();
+                    this.webService.close(waitForStop);
                     this.webService = null;
                 } catch (Exception e) {
                     LOG.error("Web service closing failed", e);
