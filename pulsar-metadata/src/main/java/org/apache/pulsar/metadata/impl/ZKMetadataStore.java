@@ -220,14 +220,20 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                         Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
                                 .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name())
                                 .collect(Collectors.joining(", "));
+                        boolean shouldLimitLogLen = ops.size() > 16;
                         List<Triple<String, String, Integer>> opsForLog = ops.stream()
-                                .filter(item -> switch (item.getType()) {
-                                    case PUT -> item.asPut().getData().length > logThresholdPut;
-                                    case GET -> nodeSizeStats
-                                            .getMaxSizeOfSameResourceType(item.getPath()) > logThresholdGet;
-                                    case GET_CHILDREN -> nodeSizeStats
-                                            .getMaxChildrenCountOfSameResourceType(item.getPath()) > 512;
-                                    default -> false;
+                                .filter(item -> {
+                                    if (!shouldLimitLogLen) {
+                                        return true;
+                                    }
+                                    return switch (item.getType()) {
+                                        case PUT -> item.asPut().getData().length > logThresholdPut;
+                                        case GET -> nodeSizeStats
+                                                .getMaxSizeOfSameResourceType(item.getPath()) > logThresholdGet;
+                                        case GET_CHILDREN -> nodeSizeStats
+                                                .getMaxChildrenCountOfSameResourceType(item.getPath()) > 512;
+                                        default -> false;
+                                    };
                                 })
                                 .map(op -> Triple.of(op.getPath(), op.getType().toString(), op.size()))
                                 .collect(Collectors.toList());
@@ -235,8 +241,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         log.warn("Connection loss while executing batch operation of {} "
                                 + "of total requested data size of {}. "
                                 + "Retrying individual operations one-by-one."
-                                + " ops whose req size > {} or resp size > {} or children count > 512: {}",
-                                countsByType, totalSize, logThresholdPut, logThresholdGet, opsForLog);
+                                + " ops that maybe large: {}",
+                                countsByType, totalSize, opsForLog);
 
                         // Retry with the individual operations
                         executor.schedule(() -> {
