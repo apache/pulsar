@@ -63,8 +63,15 @@ public class ObservableUpDownCounter implements AutoCloseable {
         counter.close();
     }
 
-    private record AttributeWrappedMeasurement(ObservableLongMeasurement delegate,
-                                               Attributes attributes) implements ObservableLongMeasurement {
+    private class AttributeWrappedMeasurement implements ObservableLongMeasurement {
+
+        private final ObservableLongMeasurement delegate;
+        private final Attributes attributes;
+
+        public AttributeWrappedMeasurement(ObservableLongMeasurement delegate, Attributes attributes) {
+            this.delegate = delegate;
+            this.attributes = attributes;
+        }
 
         @Override
         public void record(long value) {
