@@ -50,7 +50,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
         selector.addConsumer(consumer1).get();
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
         Consumer selectedConsumer;
         for (int i = 0; i < 3; i++) {
             selectedConsumer = selector.select(i);
@@ -66,7 +66,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         when(consumer2.getKeySharedMeta()).thenReturn(keySharedMeta2);
         Assert.assertEquals(consumer2.getKeySharedMeta(), keySharedMeta2);
         selector.addConsumer(consumer2).get();
-        Assert.assertEquals(selector.getRangeConsumer().size(), 4);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
 
         for (int i = 3; i < 10; i++) {
             selectedConsumer = selector.select(i);
@@ -79,7 +79,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         }
 
         selector.removeConsumer(consumer1);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
         selectedConsumer = selector.select(1);
         Assert.assertNull(selectedConsumer);
 
@@ -87,6 +87,38 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         Assert.assertEquals(selector.getRangeConsumer().size(), 0);
         selectedConsumer = selector.select(5);
         Assert.assertNull(selectedConsumer);
+    }
+
+
+    @Test
+    public void testConsumerSelectWithMultipRanges() throws ExecutionException, InterruptedException {
+
+        HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(20);
+        Consumer consumer1 = mock(Consumer.class);
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta1.addHashRange().setStart(2).setEnd(6);
+        keySharedMeta1.addHashRange().setStart(10).setEnd(15);
+        when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
+        Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
+        selector.addConsumer(consumer1).get();
+        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
+        Consumer selectedConsumer;
+        for (int i = 2; i <= 6; i++) {
+            selectedConsumer = selector.select(i);
+            Assert.assertEquals(selectedConsumer, consumer1);
+        }
+        for (int i = 10; i <= 15; i++) {
+            selectedConsumer = selector.select(i);
+            Assert.assertEquals(selectedConsumer, consumer1);
+        }
+        selectedConsumer = selector.select(1);
+        Assert.assertNull(selectedConsumer);
+        selectedConsumer = selector.select(9);
+        Assert.assertNull(selectedConsumer);
+        selectedConsumer = selector.select(18);
+        Assert.assertNull(selectedConsumer);
+
     }
 
     @Test
@@ -190,6 +222,32 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     }
 
     @Test
+    public void testOneConsumerRangeConflict() throws ExecutionException, InterruptedException {
+        HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
+
+        final List<IntRange> testRanges = new ArrayList<>();
+        testRanges.add(new IntRange().setStart(1).setEnd(3));
+        testRanges.add(new IntRange().setStart(2).setEnd(2));
+        testRanges.add(new IntRange().setStart(5).setEnd(5));
+        testRanges.add(new IntRange().setStart(4).setEnd(6));
+        KeySharedMeta keySharedMeta = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta.addAllHashRanges(testRanges);
+        Consumer consumer = mock(Consumer.class);
+        when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
+        Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
+
+        try {
+            selector.addConsumer(consumer).get();
+            Assert.fail("should be failed");
+        } catch (ExecutionException | InterruptedException e) {
+            // ignore
+        }
+
+        Assert.assertEquals(selector.getRangeConsumer().size(), 0);
+    }
+
+    @Test
     public void testSingleRangeConflict() throws ExecutionException, InterruptedException {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
@@ -202,7 +260,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
         selector.addConsumer(consumer1).get();
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
 
         final List<IntRange> testRanges = new ArrayList<>();
         testRanges.add(new IntRange().setStart(4).setEnd(6));
@@ -228,7 +286,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
             } catch (ExecutionException | InterruptedException e) {
                 // ignore
             }
-            Assert.assertEquals(selector.getRangeConsumer().size(), 2);
+            Assert.assertEquals(selector.getRangeConsumer().size(), 1);
         }
     }
 
@@ -245,7 +303,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
         selector.addConsumer(consumer1).get();
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
 
         final List<List<IntRange>> testRanges = new ArrayList<>();
         testRanges.add(List.of(
@@ -271,7 +329,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
             } catch (ExecutionException | InterruptedException e) {
                 // ignore
             }
-            Assert.assertEquals(selector.getRangeConsumer().size(), 2);
+            Assert.assertEquals(selector.getRangeConsumer().size(), 1);
         }
     }
 }
