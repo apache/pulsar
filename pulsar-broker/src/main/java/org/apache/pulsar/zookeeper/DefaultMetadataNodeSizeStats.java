@@ -118,12 +118,12 @@ public class DefaultMetadataNodeSizeStats implements MetadataNodeSizeStats {
         return switch (splitPathRes.parts[1]) {
             case "clusters" -> PathType.CLUSTER;
             case "policies" -> switch (splitPathRes.partCount) {
-                case 2 -> PathType.TENANT;
-                case 3 -> PathType.NAMESPACE_POLICIES;
+                case 3 -> PathType.TENANT;
+                case 4 -> PathType.NAMESPACE_POLICIES;
                 default -> PathType.UNKNOWN;
             };
             case "local-policies" -> switch (splitPathRes.partCount) {
-                case 3 -> PathType.NAMESPACE_POLICIES;
+                case 4 -> PathType.NAMESPACE_POLICIES;
                 default -> PathType.UNKNOWN;
             };
             case "partitioned-topics" -> switch (splitPathRes.partCount) {

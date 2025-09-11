@@ -315,7 +315,7 @@ public class DefaultMetadataNodeSizeStatsTest {
         String invalidSchemaPath = "/schemas/tenant/namespace";
         byte[] invalidSchemaData = "invalid-schema-data".getBytes(StandardCharsets.UTF_8);
         stats.recordPut(invalidSchemaPath, invalidSchemaData);
-        assertEquals(stats.getMaxSizeOfSameResourceType(invalidSchemaPath), invalidSchemaData.length);
+        assertEquals(stats.getMaxSizeOfSameResourceType(invalidSchemaPath), -1);
 
         // Verify they use different path types
         assertNotEquals(stats.getMaxSizeOfSameResourceType(schemaPath),
