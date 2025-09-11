@@ -21,13 +21,17 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -57,6 +61,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.zookeeper.ZooKeeper;
@@ -529,8 +534,8 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         assertEquals(pulsar.getBrokerService().getTopicIfExists(topic).join(), Optional.empty());
     }
 
-    @Test
-    public void testConcurrentlyCloseCurrentLedger() throws Exception {
+    @Test(timeOut = 60_000)
+    public void testConcurrentlyModifyCurrentLedger() throws Exception {
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io-test-1"));
         BookKeeper bkClient2 = pulsar.getBkClientFactory().create(pulsar.getConfiguration(),
@@ -539,11 +544,12 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 Optional.empty(),
                 null).get();
 
-        String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        final String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        final String subscription = "s1";
         admin.namespaces().createNamespace(namespace);
-        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
         admin.topics().createNonPartitionedTopic(topic);
-        admin.topics().createSubscription(topic, "s1", MessageId.earliest);
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
 
@@ -553,6 +559,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Producer<String> producer = client.newProducer(Schema.STRING)
+                .enableBatching(false)
                 .topic(topic)
                 .create();
         MessageIdAdv msgId = (MessageIdAdv) producer.send("1");
@@ -561,22 +568,65 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         // Make an injection to let the next publishing delay.
         Closeable cancellation = injectBKServerDelayForCurrentLedger(topic, 10, TimeUnit.SECONDS, 0);
 
-        // Publish new 2 messages.
+        // Publish new 3 messages.
         // Since we injected a delay, the 2nd message will complete after the ledger is closed.
-        // After the ledger is closed, the 3rd messages will be written to a new ledger.
+        // After the ledger is closed, the 5th messages will be written to a new ledger.
         // Verify: the entries in topic and stored are consistent.
-        CompletableFuture<MessageId> send2Future = producer.sendAsync("2");
+        CompletableFuture<MessageId> send2 = producer.sendAsync("2");
+        CompletableFuture<MessageId> send3 = producer.sendAsync("3");
+        CompletableFuture<MessageId> send4 = producer.sendAsync("4");
+        // Wait 1s to make sure the messages are written to the Bookie server.
+        Thread.sleep(1000);
         LedgerHandle readOnlyLedger = bkClient2.openLedger(currentLedgerId,
                 BookKeeper.DigestType.fromApiDigestType(ml.getConfig().getDigestType()),
                 ml.getConfig().getPassword());
         cancellation.close();
-        producer.send("3");
-        NavigableMap<Long, LedgerInfo> ledgerInfoMap2 = ml.getLedgersInfo();
-        long entriesInTopic = ledgerInfoMap2.get(currentLedgerId).getEntries();
+        admin.topics().unload(topic);
+        producer.send("5");
+
+        // Verify: the entries in topic and stored are consistent.
+        List<ManagedLedgerInternalStats.LedgerInfo> ledgers = admin.topics().getInternalStats(topic).getLedgers();
+        ManagedLedgerInternalStats.LedgerInfo ledgerInfo = null;
+        for (ManagedLedgerInternalStats.LedgerInfo li : ledgers) {
+            if (li.ledgerId == currentLedgerId) {
+                ledgerInfo = li;
+                break;
+            }
+        }
+        assertNotNull(ledgerInfo);
         long entriesStored = readOnlyLedger.getLedgerMetadata().getLastEntryId() + 1;
-        assertEquals(entriesInTopic, entriesStored);
-        // The second publishing will be finished.
-        send2Future.get();
+        assertEquals(ledgerInfo.entries, entriesStored);
+
+        // Verify: the messages that got a successful response are persisted into the topic.
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscribe();
+        Awaitility.await().until(() -> send4.isDone());
+        List<String> messagesReceived = new ArrayList<>();
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg != null) {
+                messagesReceived.add(msg.getValue());
+                consumer.acknowledge(msg);
+            } else {
+                break;
+            }
+        }
+        assertTrue(messagesReceived.contains("1"));
+        if (send2.isDone() && !send2.isCompletedExceptionally()) {
+            assertTrue(ledgerInfo.entries >= 1);
+            assertTrue(messagesReceived.contains("2"));
+        }
+        if (send3.isDone() && !send3.isCompletedExceptionally()) {
+            assertTrue(ledgerInfo.entries >= 2);
+            assertTrue(messagesReceived.contains("3"));
+        }
+        if (send4.isDone() && !send4.isCompletedExceptionally()) {
+            assertTrue(ledgerInfo.entries >= 2);
+            assertTrue(messagesReceived.contains("4"));
+        }
+        assertTrue(messagesReceived.contains("5"));
 
         // cleanup.
         producer.close();

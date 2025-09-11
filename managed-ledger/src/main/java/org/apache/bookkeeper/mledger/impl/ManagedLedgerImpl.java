@@ -1878,38 +1878,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void ledgerAddFailedDueToConcurrentlyModified(final LedgerHandle currentLedger) {
-        bookKeeper.asyncOpenLedger(currentLedger.getId(), digestType, config.getPassword(), (rc, lh, ctx) -> {
-            if (rc == Code.OK) {
-                log.warn("[{}] Successfully opened ledger {} to check the last add confirmed position when the ledger"
-                    + " was concurrent modified(it is an unexpected behaviour, which happens when the load-balancer"
-                    + " does not work as expected). The add confirmed position in memory is {}, and the value"
-                    + " stored in metadata store is {}. When you get this log, the latest several entries may be"
-                    + " repeated.", name, lh.getId(), currentLedger.getLastAddConfirmed(), lh.getLastAddConfirmed());
-                ledgerClosed(currentLedger, lh.getLastAddConfirmed());
-            } else {
-                log.error("[{}] Going to fence the topic because failed opened ledger {} to check the last add"
-                        + " confirmed position when the ledger was concurrent modified(it is an unexpected behaviour,"
-                        + " which happens when the load-balancer does not work as expected). The add confirmed position"
-                        + " in memory is {}, and the error code {}. Fecing the topic to avoid messages lost.",
-                        name, lh.getId(), currentLedger.getLastAddConfirmed(), rc);
-                // Stop switching ledger and write topic metadata, to avoid messages lost. The doc of
-                // LedgerHandle also mentioned this: https://github.com/apache/bookkeeper/blob/release-4.17.2/
-                // bookkeeper-server/src/main/java/org/apache/bookkeeper/client/LedgerHandle.java#L2047-L2048
-                handleBadVersion(new BadVersionException("Failed opened ledger {} to check the last add confirmed"
-                        + " position when the ledger was concurrent modified, error code: " + rc));
-            }
-        }, null);
-    }
-
-    synchronized void ledgerClosed(final LedgerHandle lh) {
-        ledgerClosed(lh, null);
+    void addEntryFailedDueToConcurrentlyModified(final LedgerHandle currentLedger, int rc) {
+        log.error("[{}] Fencing the topic because the current ledger was concurrent modified but a other"
+                + " bookie client, which is not expcted. Current ledger: {}, lastAddConfirmed: {}, error coder: {}.",
+                name, currentLedger.getId(), currentLedger.getLastAddConfirmed(), rc);
+        // Stop switching ledger and write topic metadata, to avoid messages lost. The doc of
+        // LedgerHandle also mentioned this: https://github.com/apache/bookkeeper/blob/release-4.17.2/
+        // bookkeeper-server/src/main/java/org/apache/bookkeeper/client/LedgerHandle.java#L2047-L2048.
+        handleBadVersion(new BadVersionException("Failed opened ledger {} to check the last add confirmed"
+                + " position when the ledger was concurrent modified."));
     }
 
     // //////////////////////////////////////////////////////////////////////
     // Private helpers
 
-    synchronized void ledgerClosed(final LedgerHandle lh, @Nullable Long lastAddConfirmed) {
+    synchronized void ledgerClosed(final LedgerHandle lh) {
         final State state = STATE_UPDATER.get(this);
         LedgerHandle currentLedger = this.currentLedger;
         if (currentLedger == lh && (state == State.ClosingLedger || state == State.LedgerOpened)) {
@@ -1924,8 +1907,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        long entriesInLedger = lastAddConfirmed != null ? lastAddConfirmed.longValue() + 1
-                : lh.getLastAddConfirmed() + 1;
+        long entriesInLedger = lh.getLastAddConfirmed() + 1;
         if (log.isDebugEnabled()) {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
