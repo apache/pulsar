@@ -156,36 +156,19 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     private synchronized Consumer findConflictingConsumer(List<IntRange> newConsumerRanges) {
         for (IntRange newRange : newConsumerRanges) {
             // 1. Check for potential conflicts with existing ranges that start before newRange's start.
-            //    Example: newRange = [50, 100], existingRange = [0, 70]
-            //    floorEntry finds an entry whose key is less than or equal to newRange.getStart().
             Map.Entry<Integer, Pair<Range, Consumer>> conflictBeforeStart = rangeMap.floorEntry(newRange.getStart());
             if (conflictBeforeStart != null) {
                 Range existingRange = conflictBeforeStart.getValue().getLeft();
                 if (checkRangesOverlap(newRange, existingRange)) {
-                    // Conflict found, return the consumer associated with the conflicting range
                     return conflictBeforeStart.getValue().getRight();
                 }
             }
-
-            // 2. Iterate through existing ranges that start at or after newRange's start.
-            //    ConcurrentSkipListMap.tailMap(fromKey, inclusive) returns a sub-map
-            //    containing entries whose keys are greater than or equal to fromKey.
-            //    This allows efficient iteration over all existing ranges that start at or after newRange.getStart().
-            for (Map.Entry<Integer, Pair<Range, Consumer>> entry :
-                    rangeMap.tailMap(newRange.getStart(), true).entrySet()) {
-                Range existingRange = entry.getValue().getLeft();
-                Consumer existingConsumer = entry.getValue().getRight();
-
-                // If the start of the current existingRange is already beyond the end of newRange,
-                // no further existing ranges (which are ordered by start key) can overlap, so we can break.
-                if (existingRange.getStart() > newRange.getEnd()) {
-                    break;
-                }
-
-                // Check if the current existingRange overlaps with newRange
+            // 2. Check for potential conflicts with existing ranges that start after newRange's start.
+            Map.Entry<Integer, Pair<Range, Consumer>> conflictAfterStart = rangeMap.ceilingEntry(newRange.getStart());
+            if (conflictAfterStart != null) {
+                Range existingRange = conflictAfterStart.getValue().getLeft();
                 if (checkRangesOverlap(newRange, existingRange)) {
-                    // Conflict found, return the consumer associated with the conflicting range
-                    return existingConsumer;
+                    return conflictAfterStart.getValue().getRight();
                 }
             }
         }
