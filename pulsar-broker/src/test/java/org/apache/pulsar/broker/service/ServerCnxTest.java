@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -231,8 +230,7 @@ public class ServerCnxTest {
                 .getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkBundleOwnership(any(), any());
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
-        doReturn(true).when(namespaceService).isServiceUnitActive(any());
-        doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).isServiceUnitActiveAsync(any());
+        doReturn(CompletableFuture.completedFuture(null)).when(brokerService).checkTopicNsOwnership(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopics(
@@ -1601,8 +1599,8 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Force the case where the broker doesn't own any topic
-        doReturn(CompletableFuture.completedFuture(false)).when(namespaceService)
-                .isServiceUnitActiveAsync(any(TopicName.class));
+        doReturn(CompletableFuture.failedFuture(new ServiceUnitNotReadyException("topic not owned")))
+                .when(brokerService).checkTopicNsOwnership(any());
 
         // test PRODUCER failure case
         ByteBuf clientCommand = Commands.newProducer(nonOwnedTopicName, 1 /* producer id */, 1 /* request id */,
@@ -3127,7 +3125,7 @@ public class ServerCnxTest {
 
         // Force the checkTopicNsOwnership method to throw ServiceUnitNotReadyException
         doReturn(FutureUtil.failedFuture(new ServiceUnitNotReadyException("Service unit is not ready")))
-                .when(brokerService).checkTopicNsOwnership(anyString());
+                .when(brokerService).checkTopicNsOwnership(any());
 
         // 2nd subscribe command when the service unit is not ready
         ByteBuf clientCommand2 = Commands.newSubscribe(successTopicName, successSubName, 2 /* consumer id */,
