@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -103,6 +104,13 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase {
         testOpenAndReadTask(config);
     }
 
+    private OffsetStorageWriter wrapOffsetWriterWithSpy(KafkaConnectSource source) throws IllegalAccessException {
+        OffsetStorageWriter original = source.getOffsetWriter();
+        OffsetStorageWriter spy = org.mockito.Mockito.spy(original);
+        FieldUtils.writeField(source, "offsetWriter", spy, true);
+        return spy;
+    }
+
 
     @Test(timeOut = 30000)
     public void testFlushWhenAllMessagesFilteredWithoutBlocking() throws Exception {
@@ -121,11 +129,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);
 
-        OffsetStorageWriter original = kafkaConnectSource.getOffsetWriter();
-        OffsetStorageWriter spyWriter = org.mockito.Mockito.spy(original);
-        java.lang.reflect.Field f = AbstractKafkaConnectSource.class.getDeclaredField("offsetWriter");
-        f.setAccessible(true);
-        f.set(kafkaConnectSource, spyWriter);
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
 
         try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
             os.write("first\n".getBytes());
@@ -137,8 +141,9 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase {
         Thread t = new Thread(() -> {
             try {
                 kafkaConnectSource.read();
-            } catch (Exception ignored) {
+            } catch (Exception e) {
                 // Ignore, it just needs the loop running through a batch where every message is filtered out
+                log.error("Exception in read thread", e);
             }
         });
         t.setDaemon(true);
@@ -176,11 +181,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);
 
-        OffsetStorageWriter original = kafkaConnectSource.getOffsetWriter();
-        OffsetStorageWriter spyWriter = org.mockito.Mockito.spy(original);
-        java.lang.reflect.Field f = AbstractKafkaConnectSource.class.getDeclaredField("offsetWriter");
-        f.setAccessible(true);
-        f.set(kafkaConnectSource, spyWriter);
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
 
         try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
             os.write("one\n".getBytes());
@@ -212,11 +213,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);
 
-        OffsetStorageWriter original = kafkaConnectSource.getOffsetWriter();
-        OffsetStorageWriter spyWriter = org.mockito.Mockito.spy(original);
-        java.lang.reflect.Field f = AbstractKafkaConnectSource.class.getDeclaredField("offsetWriter");
-        f.setAccessible(true);
-        f.set(kafkaConnectSource, spyWriter);
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
 
         try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
             os.write("first\n".getBytes());
@@ -251,11 +248,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);
 
-        OffsetStorageWriter original = kafkaConnectSource.getOffsetWriter();
-        OffsetStorageWriter spyWriter = org.mockito.Mockito.spy(original);
-        java.lang.reflect.Field f = AbstractKafkaConnectSource.class.getDeclaredField("offsetWriter");
-        f.setAccessible(true);
-        f.set(kafkaConnectSource, spyWriter);
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
 
         try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
             os.write("first\n".getBytes());
