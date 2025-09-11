@@ -179,6 +179,7 @@ import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
+import org.apache.pulsar.zookeeper.DefaultMetadataNodeSizeStats;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -381,6 +382,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                         .synchronizer(synchronizer)
+                        .nodeSizeStats(new DefaultMetadataNodeSizeStats())
                         .build());
     }
 
@@ -1175,6 +1177,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .synchronizer(synchronizer)
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .nodeSizeStats(new DefaultMetadataNodeSizeStats())
                         .build());
     }
 

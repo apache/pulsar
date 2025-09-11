@@ -94,7 +94,7 @@ public class MetadataStoreFactoryImplTest {
 
     public static class MyMetadataStore extends AbstractMetadataStore {
         protected MyMetadataStore() {
-            super("custom");
+            super("custom", null);
         }
 
         @Override

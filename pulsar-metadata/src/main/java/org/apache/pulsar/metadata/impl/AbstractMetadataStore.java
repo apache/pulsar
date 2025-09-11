@@ -48,11 +48,13 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.DummyMetadataNodeSizeStats;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
+import org.apache.pulsar.metadata.api.MetadataNodeSizeStats;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -84,11 +86,16 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
+    protected MetadataNodeSizeStats nodeSizeStats;
+
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
-    protected AbstractMetadataStore(String metadataStoreName) {
+    protected AbstractMetadataStore(String metadataStoreName,
+                MetadataNodeSizeStats nodeSizeStats) {
+        this.nodeSizeStats = nodeSizeStats == null ? new DummyMetadataNodeSizeStats()
+                : nodeSizeStats;
         this.executor = new ScheduledThreadPoolExecutor(1,
                 new DefaultThreadFactory(
                         StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
@@ -268,6 +275,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storeGet(path)
                 .whenComplete((v, t) -> {
                     if (t != null) {
+                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
                         metadataStoreStats.recordGetOpsSucceeded(System.currentTimeMillis() - start);
@@ -290,7 +298,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        return childrenCache.get(path);
+        CompletableFuture<List<String>> listFuture = childrenCache.get(path);
+        listFuture.thenAccept((list) -> {
+            nodeSizeStats.recordGetChildrenRes(path, list);
+        });
+        return listFuture;
     }
 
     @Override
@@ -476,6 +488,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     NotificationType type = stat.isFirstVersion() ? NotificationType.Created
                             : NotificationType.Modified;
                     if (type == NotificationType.Created) {
+                        nodeSizeStats.recordPut(path, data);
                         existsCache.synchronous().invalidate(path);
                         String parent = parent(path);
                         if (parent != null) {
