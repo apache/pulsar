@@ -536,8 +536,8 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
 
     @Test(timeOut = 60_000)
     public void testConcurrentlyModifyCurrentLedger() throws Exception {
-        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
-                new DefaultThreadFactory("pulsar-io-test-1"));
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(),
+                config.isEnableBusyWait(), new DefaultThreadFactory("pulsar-io-test-1"));
         BookKeeper bkClient2 = pulsar.getBkClientFactory().create(pulsar.getConfiguration(),
                 pulsar.getLocalMetadataStore(),
                 eventLoopGroup,
@@ -550,7 +550,8 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         admin.namespaces().createNamespace(namespace);
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, subscription, MessageId.earliest);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
 
         @Cleanup

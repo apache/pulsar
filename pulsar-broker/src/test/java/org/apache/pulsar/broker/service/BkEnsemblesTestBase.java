@@ -162,7 +162,8 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
         ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         BookieClientImpl bookieClient =
                 (BookieClientImpl) mlFactory.getBookKeeper().get().getClientCtx().getBookieClient();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         LedgerHandle ledgerHandle = ml.getCurrentLedger();
         BookieId bookieId1 = ledgerHandle.getLedgerMetadata().getEnsembleAt(bkIndexOfEnsemble).get(0);
