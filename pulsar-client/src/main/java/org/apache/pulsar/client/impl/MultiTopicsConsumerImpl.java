@@ -372,7 +372,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected Message<T> internalReceive() throws PulsarClientException {
-        Message<T> message;
+        Message<T> message = null;
         try {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
@@ -383,6 +383,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return beforeConsume(message);
+        } catch (IllegalArgumentException e) {
+            log.error("Validation failed: Expected instance of TopicMessageImpl but received {}. Message ID: {}",
+                    message != null ? message.getClass().getName() : "null",
+                    message != null ? message.getMessageId() : "N/A",
+                    e);
+            throw new PulsarClientException("Invalid message type received", e);
         } catch (Exception e) {
             ExceptionHandler.handleInterruptedException(e);
             throw PulsarClientException.unwrap(e);
@@ -391,7 +397,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
-        Message<T> message;
+        Message<T> message = null;
         try {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
@@ -405,6 +411,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
+        } catch (IllegalArgumentException e) {
+            log.error("Validation failed: Expected instance of TopicMessageImpl but received {}. Message ID: {}",
+                    message != null ? message.getClass().getName() : "null",
+                    message != null ? message.getMessageId() : "N/A",
+                    e);
+            throw new PulsarClientException("Invalid message type received", e);
         } catch (Exception e) {
             ExceptionHandler.handleInterruptedException(e);
             throw PulsarClientException.unwrap(e);
