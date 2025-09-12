@@ -169,16 +169,25 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private synchronized void registerDrainingHashes(Consumer skipConsumer,
                                                      ImpactedConsumersResult impactedConsumers) {
-        impactedConsumers.processRemovedHashRanges((c, removedHashRanges) -> {
+        impactedConsumers.processUpdatedHashRanges((c, updatedHashRanges, opType) -> {
             if (c != skipConsumer) {
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
                         log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
                         return;
                     }
-                    if (removedHashRanges.containsStickyKey(stickyKeyHash)) {
-                        // add the pending ack to the draining hashes tracker if the hash is in the range
-                        drainingHashesTracker.addEntry(c, stickyKeyHash);
+                    if (updatedHashRanges.containsStickyKey(stickyKeyHash)) {
+                        switch (opType) {
+                            //reduce ref count in case the stickyKeyHash was re-assigned to the original consumer
+                            case ADD -> {
+                                var entry = drainingHashesTracker.getEntry(stickyKeyHash);
+                                if (entry != null && entry.getConsumer() == c) {
+                                    drainingHashesTracker.reduceRefCount(c, stickyKeyHash, false);
+                                }
+                            }
+                            // add the pending ack to the draining hashes tracker if the hash is in the range
+                            case REMOVE -> drainingHashesTracker.addEntry(c, stickyKeyHash);
+                        }
                     }
                 });
             }
