@@ -425,9 +425,9 @@ public class WebService implements AutoCloseable {
         close(true);
     }
 
-    public void close(boolean waitUtilServerStop) throws PulsarServerException {
+    public void close(boolean waitUtilServerStopped) throws PulsarServerException {
         try {
-            if (waitUtilServerStop) {
+            if (waitUtilServerStopped) {
                 doClose();
             } else {
                 Thread webServiceTerminator = new Thread(() -> {
