@@ -91,7 +91,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
 
 
     @Test
-    public void testConsumerSelectWithMultipRanges() throws ExecutionException, InterruptedException {
+    public void testConsumerSelectWithMultipleRanges() throws ExecutionException, InterruptedException {
 
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(20);
         Consumer consumer1 = mock(Consumer.class);
@@ -222,7 +222,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     }
 
     @Test
-    public void testOneConsumerRangeConflict() throws ExecutionException, InterruptedException {
+    public void testShouldConflictConsumerWithSelfOverlappingRanges() throws ExecutionException, InterruptedException {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
 
         final List<IntRange> testRanges = new ArrayList<>();
@@ -245,6 +245,40 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         }
 
         Assert.assertEquals(selector.getRangeConsumer().size(), 0);
+    }
+
+    @Test
+    public void testShouldConflictConsumerWithBoundaryRanges() throws ExecutionException, InterruptedException {
+        HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
+        TransportCnx transportCnx = mock(TransportCnx.class);
+
+        // 1. add consumer 1 with range [2, 5]
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta1.addAllHashRanges(List.of(new IntRange().setStart(2).setEnd(5)));
+        Consumer consumer1 = mock(Consumer.class);
+        when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
+        when(consumer1.cnx()).thenReturn(transportCnx);
+        when(transportCnx.checkConnectionLiveness()).thenReturn(CompletableFuture.completedFuture(null));
+        Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
+        selector.addConsumer(consumer1).get();
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
+
+        // 2. add consumer 2 with range [5, 10], should be conflict with consumer 1
+        KeySharedMeta keySharedMeta2 = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta2.addAllHashRanges(List.of(new IntRange().setStart(5).setEnd(10)));
+        Consumer consumer2 = mock(Consumer.class);
+        when(consumer2.cnx()).thenReturn(transportCnx);
+        when(transportCnx.checkConnectionLiveness()).thenReturn(CompletableFuture.completedFuture(null));
+        when(consumer2.getKeySharedMeta()).thenReturn(keySharedMeta2);
+        try {
+            selector.addConsumer(consumer2).get();
+            Assert.fail("should be failed");
+        } catch (ExecutionException | InterruptedException e) {
+            // ignore
+        }
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
     }
 
     @Test

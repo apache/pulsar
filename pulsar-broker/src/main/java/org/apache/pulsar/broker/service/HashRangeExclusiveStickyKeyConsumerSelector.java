@@ -176,11 +176,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
 
-    private boolean checkRangesOverlap(IntRange range1, Range range2) {
+    private static boolean checkRangesOverlap(IntRange range1, Range range2) {
         return Math.max(range1.getStart(), range2.getStart()) <= Math.min(range1.getEnd(), range2.getEnd());
     }
 
-    private boolean checkRangesOverlap(IntRange range1, IntRange range2) {
+    private static boolean checkRangesOverlap(IntRange range1, IntRange range2) {
         return Math.max(range1.getStart(), range2.getStart()) <= Math.min(range1.getEnd(), range2.getEnd());
     }
 
