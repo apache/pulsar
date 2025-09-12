@@ -400,6 +400,14 @@ public class DrainingHashesTracker {
             } finally {
                 lock.writeLock().unlock();
             }
+
+            // update the consumer specific stats
+            ConsumerDrainingHashesStats drainingHashesStats =
+                    consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
+            if (drainingHashesStats != null) {
+                drainingHashesStats.clearHash(stickyKeyHash);
+            }
+
             return false;
         }
         // increment the blocked count which is used to determine if the hash is blocking
