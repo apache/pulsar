@@ -29,10 +29,10 @@ import org.apache.pulsar.client.api.Range;
  */
 @EqualsAndHashCode
 @ToString
-public class UpdatedHashRanges {
+public class RemovedHashRanges {
     private final Range[] sortedRanges;
 
-    private UpdatedHashRanges(List<Range> ranges) {
+    private RemovedHashRanges(List<Range> ranges) {
         // Converts the set of ranges to an array to avoid iterator allocation
         // when the ranges are iterator multiple times in the pending acknowledgments loop.
         this.sortedRanges = ranges.toArray(new Range[0]);
@@ -52,8 +52,8 @@ public class UpdatedHashRanges {
         }
     }
 
-    public static UpdatedHashRanges of(List<Range> ranges) {
-        return new UpdatedHashRanges(ranges);
+    public static RemovedHashRanges of(List<Range> ranges) {
+        return new RemovedHashRanges(ranges);
     }
 
     /**

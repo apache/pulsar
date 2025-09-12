@@ -36,6 +36,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
 import org.assertj.core.data.Offset;
 import org.mockito.Mockito;
@@ -46,7 +47,7 @@ import org.testng.annotations.Test;
 public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
     @Test
-    public void testConsumerSelect() {
+    public void testConsumerSelect() throws ConsumerAssignException {
 
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(200);
         String key1 = "anyKey";
@@ -150,7 +151,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
 
     @Test
-    public void testGetConsumerKeyHashRanges() {
+    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(3);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3");
         List<Consumer> consumers = new ArrayList<>();
@@ -200,7 +201,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     }
 
     @Test
-    public void testConsumersGetSufficientlyAccuratelyEvenlyMapped() {
+    public void testConsumersGetSufficientlyAccuratelyEvenlyMapped()
+            throws BrokerServiceException.ConsumerAssignException {
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(200);
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
@@ -528,24 +530,11 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.removeConsumer(consumer);
 
             ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
-            ImpactedConsumersResult impactedConsumersAfterRemoval = assignmentsBefore
-                    .resolveImpactedConsumers(assignmentsAfter);
-            assertThat(impactedConsumersAfterRemoval.getRemovedHashRanges())
+            assertThat(assignmentsBefore.resolveImpactedConsumers(assignmentsAfter).getRemovedHashRanges())
                     .describedAs(
                             "when a consumer is removed, the removed hash ranges should only be from "
                                     + "the removed consumer")
                     .containsOnlyKeys(consumer);
-            List<Range> allAddedRangesAfterRemoval = ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(
-                    impactedConsumersAfterRemoval.getAddedHashRanges().values().stream()
-                            .map(UpdatedHashRanges::asRanges).flatMap(List::stream)
-                            .collect(Collectors.toCollection(TreeSet::new))
-            );
-            assertThat(allAddedRangesAfterRemoval)
-                    .describedAs(
-                            "when a consumer is removed, all its hash ranges should appear "
-                                    + "in added hash ranges"
-                    )
-                    .containsExactlyElementsOf(assignmentsBefore.getRangesByConsumer().get(consumer));
             assignmentsBefore = assignmentsAfter;
 
             // add consumer back
@@ -554,9 +543,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
             List<Range> addedConsumerRanges = assignmentsAfter.getRangesByConsumer().get(consumer);
 
-            ImpactedConsumersResult impactedConsumersAfterAdding = assignmentsBefore
-                    .resolveImpactedConsumers(assignmentsAfter);
-            Map<Consumer, UpdatedHashRanges> removedHashRanges = impactedConsumersAfterAdding.getRemovedHashRanges();
+            Map<Consumer, RemovedHashRanges> removedHashRanges =
+                    assignmentsBefore.resolveImpactedConsumers(assignmentsAfter).getRemovedHashRanges();
             ConsumerHashAssignmentsSnapshot finalAssignmentsBefore = assignmentsBefore;
             assertThat(removedHashRanges).allSatisfy((c, removedHashRange) -> {
                 assertThat(removedHashRange
@@ -570,19 +558,12 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
             List<Range> allRemovedRanges =
                     ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(
-                            removedHashRanges.values().stream()
-                                    .map(UpdatedHashRanges::asRanges)
+                            removedHashRanges.entrySet().stream().map(Map.Entry::getValue)
+                                    .map(RemovedHashRanges::asRanges)
                                     .flatMap(List::stream).collect(Collectors.toCollection(TreeSet::new)));
             assertThat(allRemovedRanges)
                     .describedAs("all removed ranges should be the same as the ranges of the added consumer")
                     .containsExactlyElementsOf(addedConsumerRanges);
-            List<Range> allAddedRangesAfterAdding = ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(
-                    impactedConsumersAfterAdding.getAddedHashRanges().values().stream()
-                            .map(UpdatedHashRanges::asRanges)
-                            .flatMap(List::stream).collect(Collectors.toCollection(TreeSet::new)));
-            assertThat(addedConsumerRanges)
-                    .describedAs("all added ranges should be the same as the ranges of the added consumer")
-                    .containsExactlyElementsOf(allAddedRangesAfterAdding);
 
             assignmentsBefore = assignmentsAfter;
         }
