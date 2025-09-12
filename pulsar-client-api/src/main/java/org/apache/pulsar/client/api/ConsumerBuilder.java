@@ -305,6 +305,20 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
 
     /**
+     * Sets a {@link DecryptFailListener} for the consumer.
+     *
+     * <p>The application receives encrypt messages and cannot decrypt successfully will through this listener.
+     * <p>Must set with {@link ConsumerBuilder#messageListener(MessageListener)}
+     * and calls to {@link Consumer#receive()} are not allowed.
+     * This listener cannot be used with {@link ConsumerBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}.
+     *
+     * @param decryptFailListener
+     *            the listener object
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> decryptFailListener(DecryptFailListener<T> decryptFailListener);
+
+    /**
      * Set the {@link MessageListenerExecutor} to be used for message listeners of <b>current consumer</b>.
      * <i>(default: use executor from PulsarClient,
      * {@link org.apache.pulsar.client.impl.PulsarClientImpl#externalExecutorProvider})</i>.
