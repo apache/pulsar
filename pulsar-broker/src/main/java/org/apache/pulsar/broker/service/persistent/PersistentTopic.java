@@ -3568,6 +3568,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * marked as inactive.
      */
     private boolean shouldTopicBeRetained() {
+        // If the topic has no data, it can always be deleted regardless of retention policy
+        if (getNumberOfEntries() == 0) {
+            return false;
+        }
+        // If the InactiveTopicDelete mode is delete_when_subscriptions_caught_up, check retention policy is required
         RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies().get();
         long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
         // Negative retention time means the topic should be retained indefinitely,
