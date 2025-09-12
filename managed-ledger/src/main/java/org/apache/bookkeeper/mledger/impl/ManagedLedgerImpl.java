@@ -1878,6 +1878,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    void addEntryFailedDueToConcurrentlyModified(final LedgerHandle currentLedger, int rc) {
+        log.error("[{}] Fencing the topic to ensure durability and consistency(the current ledger was concurrent"
+                + " modified by a other bookie client, which is not expected)."
+                + " Current ledger: {}, lastAddConfirmed: {} (the value stored may be larger), error coder: {}.",
+                name, currentLedger.getId(), currentLedger.getLastAddConfirmed(), rc);
+        // Stop switching ledger and write topic metadata, to avoid messages lost. The doc of
+        // LedgerHandle also mentioned this: https://github.com/apache/bookkeeper/blob/release-4.17.2/
+        // bookkeeper-server/src/main/java/org/apache/bookkeeper/client/LedgerHandle.java#L2047-L2048.
+        handleBadVersion(new BadVersionException("the current ledger " + currentLedger.getId() + " was concurrent"
+            + " modified by a other bookie client. The error code is: " + rc));
+    }
+
     // //////////////////////////////////////////////////////////////////////
     // Private helpers
 
@@ -4501,7 +4513,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1,
                         opAddEntry.entryId, timeoutSec);
                 currentLedgerTimeoutTriggered.set(true);
-                opAddEntry.handleAddFailure(opAddEntry.ledger);
+                opAddEntry.handleAddFailure(opAddEntry.ledger, null);
             }
         }
     }
