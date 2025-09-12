@@ -423,26 +423,46 @@ public class WebService implements AutoCloseable {
 
     @Override
     public void close() throws PulsarServerException {
+        close(true);
+    }
+
+    public void close(boolean waitUtilServerStopped) throws PulsarServerException {
         try {
-            server.stop();
-            // unregister statistics from Prometheus client's default CollectorRegistry singleton
-            // to prevent memory leaks in tests
-            if (jettyStatisticsCollector != null) {
-                try {
-                    CollectorRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
-                } catch (Exception e) {
-                    // ignore any exception happening in unregister
-                    // exception will be thrown for 2. instance of WebService in tests since
-                    // the register supports a single JettyStatisticsCollector
-                }
-                jettyStatisticsCollector = null;
+            if (waitUtilServerStopped) {
+                doClose();
+            } else {
+                Thread webServiceTerminator = new Thread(() -> {
+                    try {
+                        doClose();
+                    } catch (Exception e) {
+                        log.error("Error while closing web service", e);
+                    }
+                });
+                webServiceTerminator.setName("pulsar-web-service-terminator");
+                webServiceTerminator.start();
             }
-            webServiceExecutor.join();
-            this.executorStats.close();
-            log.info("Web service closed");
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }
+    }
+
+    private void doClose() throws Exception {
+        server.stop();
+        // unregister statistics from Prometheus client's default CollectorRegistry singleton
+        // to prevent memory leaks in tests
+        if (jettyStatisticsCollector != null) {
+            try {
+                CollectorRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
+            } catch (Exception e) {
+                // ignore any exception happening in unregister
+                // exception will be thrown for 2. instance of WebService in tests since
+                // the register supports a single JettyStatisticsCollector
+            }
+            jettyStatisticsCollector = null;
+        }
+        webServiceExecutor.join();
+        this.executorStats.close();
+        log.info("Web service closed");
     }
 
     public Optional<Integer> getListenPortHTTP() {
