@@ -364,7 +364,6 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             // If we received a "MetadataVersionException" or a "LedgerFencedException", we should tell the ML that
             // the ledger has been closed by others, and the entries count in the ledger may is not correct. The ML
             // will handle it.
-            finalMl.ledgerClosed(lh);
             if (rc != null && (rc.intValue() == BKException.Code.MetadataVersionException
                     || rc.intValue() == BKException.Code.LedgerFencedException)) {
                 finalMl.addEntryFailedDueToConcurrentlyModified(lh, rc);
