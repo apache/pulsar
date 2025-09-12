@@ -163,7 +163,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
         confBuilder.setConnectTimeout(connectTimeoutMs);
         confBuilder.setReadTimeout(readTimeoutMs);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
+                PulsarVersion.getVersion(),
+                (conf.getDescription() == null ? "" : ("-" + conf.getDescription()))
+        ));
         confBuilder.setRequestTimeout(requestTimeoutMs);
         confBuilder.setIoThreadsCount(conf.getNumIoThreads());
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {

@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 /**
  * Unit tests for {@link PulsarAdminImpl}.
@@ -44,6 +46,12 @@ public class PulsarAdminImplTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setAuthentication(auth);
         assertThat(createAdminAndGetAuth(conf)).isSameAs(auth);
+    }
+
+    @Test
+    public void testClientDescription() throws PulsarClientException {
+        @Cleanup PulsarAdmin ignored =
+                PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").description("forked").build();
     }
 
     @SneakyThrows
