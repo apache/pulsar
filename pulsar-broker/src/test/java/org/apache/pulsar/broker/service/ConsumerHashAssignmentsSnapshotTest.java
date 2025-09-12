@@ -129,16 +129,14 @@ public class ConsumerHashAssignmentsSnapshotTest {
         List<HashRangeAssignment> mappingBefore = new ArrayList<>();
         List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
-        Range notModifiedRange = Range.of(1, 5);
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingBefore.add(new HashRangeAssignment(notModifiedRange, consumer1));
-        mappingAfter.add(new HashRangeAssignment(notModifiedRange, consumer1));
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         ImpactedConsumersResult impactedConsumers =
-                ConsumerHashAssignmentsSnapshot.resolveConsumerUpdatedHashRanges(mappingBefore, mappingAfter);
+                ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).isEmpty();
-        assertThat(impactedConsumers.getAddedHashRanges()).isEmpty();
     }
 
     @Test
@@ -146,59 +144,49 @@ public class ConsumerHashAssignmentsSnapshotTest {
         List<HashRangeAssignment> mappingBefore = new ArrayList<>();
         List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
-        Range reAssignedRange = Range.of(1, 5);
         Consumer consumer1 = createMockConsumer("consumer1");
         Consumer consumer2 = createMockConsumer("consumer2");
-        mappingBefore.add(new HashRangeAssignment(reAssignedRange, consumer1));
-        mappingAfter.add(new HashRangeAssignment(reAssignedRange, consumer2));
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer2));
 
         ImpactedConsumersResult impactedConsumers =
-                ConsumerHashAssignmentsSnapshot.resolveConsumerUpdatedHashRanges(mappingBefore, mappingAfter);
+                ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, UpdatedHashRanges.of(List.of(reAssignedRange))));
-        assertThat(impactedConsumers.getAddedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer2, UpdatedHashRanges.of(List.of(reAssignedRange)))
-        );
+                Map.of(consumer1, RemovedHashRanges.of(List.of(Range.of(1, 5)))));
     }
 
     @Test
-    public void testResolveConsumerUpdatedHashRanges_RangeAdded() {
+    public void testResolveConsumerRemovedHashRanges_RangeAdded() {
         List<HashRangeAssignment> mappingBefore = new ArrayList<>();
         List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
-        Range addedRange = Range.of(1, 5);
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingAfter.add(new HashRangeAssignment(addedRange, consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         ImpactedConsumersResult impactedConsumers =
-                ConsumerHashAssignmentsSnapshot.resolveConsumerUpdatedHashRanges(mappingBefore, mappingAfter);
+                ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).isEmpty();
-        assertThat(impactedConsumers.getAddedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, UpdatedHashRanges.of(List.of(addedRange)))
-        );
     }
 
     @Test
-    public void testResolveConsumerRemovedHashRanges_RangeUpdated() {
+    public void testResolveConsumerRemovedHashRanges_RangeRemoved() {
         List<HashRangeAssignment> mappingBefore = new ArrayList<>();
         List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
-        Range removedRange = Range.of(1, 5);
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingBefore.add(new HashRangeAssignment(removedRange, consumer1));
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         ImpactedConsumersResult impactedConsumers =
-                ConsumerHashAssignmentsSnapshot.resolveConsumerUpdatedHashRanges(mappingBefore, mappingAfter);
+                ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, UpdatedHashRanges.of(List.of(removedRange))));
-        assertThat(impactedConsumers.getAddedHashRanges()).isEmpty();
+                Map.of(consumer1, RemovedHashRanges.of(List.of(Range.of(1, 5)))));
     }
 
     @Test
-    public void testResolveConsumerUpdatedHashRanges_OverlappingRanges() {
+    public void testResolveConsumerRemovedHashRanges_OverlappingRanges() {
         List<HashRangeAssignment> mappingBefore = new ArrayList<>();
         List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
@@ -208,12 +196,9 @@ public class ConsumerHashAssignmentsSnapshotTest {
         mappingAfter.add(new HashRangeAssignment(Range.of(3, 7), consumer2));
 
         ImpactedConsumersResult impactedConsumers =
-                ConsumerHashAssignmentsSnapshot.resolveConsumerUpdatedHashRanges(mappingBefore, mappingAfter);
+                ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, UpdatedHashRanges.of(List.of(Range.of(3, 5)))));
-        assertThat(impactedConsumers.getAddedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer2, UpdatedHashRanges.of(List.of(Range.of(3, 7))))
-        );
+                Map.of(consumer1, RemovedHashRanges.of(List.of(Range.of(3, 5)))));
     }
 }
