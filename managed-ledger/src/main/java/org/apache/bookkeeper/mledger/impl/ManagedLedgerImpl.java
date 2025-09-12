@@ -1922,6 +1922,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         for (ManagedCursor managedCursor : cursors) {
             managedCursor.skipNonRecoverableLedger(ledgerId);
         }
+        if (config.getNonRecoverableDataMetricsCallback() != null) {
+            config.getNonRecoverableDataMetricsCallback().onSkipNonRecoverableLedger(ledgerId);
+        }
     }
 
     synchronized void createLedgerAfterClosed() {
