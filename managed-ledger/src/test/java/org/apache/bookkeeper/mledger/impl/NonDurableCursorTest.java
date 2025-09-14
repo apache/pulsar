@@ -109,7 +109,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test(timeOut = 0)
+    @Test
     void testOpenNonDurableCursorWhileLedgerIsAddingFirstEntryAfterTrimmed() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
                 .setRetentionTime(0, TimeUnit.MILLISECONDS);
@@ -128,11 +128,11 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledgerSpy.trimConsumedLedgersInBackground(trimFuture);
         trimFuture.join();
 
-        // After ledger was trimmed, startCursorPosition is bigger than lastConfirmedEntry 
+        // After ledger was trimmed, startCursorPosition is bigger than lastConfirmedEntry
         Position startCursorPosition = ledgerSpy.getFirstPosition();
         assertEquals(startCursorPosition.getEntryId(), -1);
         assertTrue(startCursorPosition.compareTo(ledgerSpy.lastConfirmedEntry) > 0);
-        
+
         CountDownLatch getLastPositionLatch = new CountDownLatch(1);
         CountDownLatch newNonDurableCursorLatch = new CountDownLatch(1);
         Mockito.when(ledgerSpy.getLastPositionAndCounter()).then((Answer<Pair<Position, Long>>) invocation -> {
@@ -150,13 +150,13 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         // Wait until NonDurableCursorImpl constructor invokes ManagedLedgerImpl.getLastPositionAndCounter
         newNonDurableCursorLatch.await();
-        // Add first entry after ledger was trimmed 
+        // Add first entry after ledger was trimmed
         ledgerSpy.addEntry("message2".getBytes());
         assertTrue(oldLastConfirmedEntry.compareTo(ledgerSpy.lastConfirmedEntry) < 0);
 
         // Unblock NonDurableCursorImpl constructor
         getLastPositionLatch.countDown();
-        
+
         // cursor should read from lastConfirmedEntry
         ManagedCursor cursor = cursorFuture.join();
         assertEquals(cursor.getReadPosition(), ledgerSpy.lastConfirmedEntry);
