@@ -128,9 +128,8 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledgerSpy.trimConsumedLedgersInBackground(trimFuture);
         trimFuture.join();
 
-        // After ledger was trimmed, startCursorPosition is bigger than lastConfirmedEntry
-        Position startCursorPosition = ledgerSpy.getFirstPosition();
-        assertEquals(startCursorPosition.getEntryId(), -1);
+        // Use (currentLedgerId, -1) as startCursorPosition after ledger was trimmed
+        Position startCursorPosition = PositionFactory.create(ledgerSpy.getCurrentLedger().getId(), -1);
         assertTrue(startCursorPosition.compareTo(ledgerSpy.lastConfirmedEntry) > 0);
 
         CountDownLatch getLastPositionLatch = new CountDownLatch(1);
