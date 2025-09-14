@@ -67,6 +67,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -534,8 +535,16 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         assertEquals(pulsar.getBrokerService().getTopicIfExists(topic).join(), Optional.empty());
     }
 
-    @Test(timeOut = 60_000)
-    public void testConcurrentlyModifyCurrentLedger() throws Exception {
+    @DataProvider
+    public Object[][] doReloadTopicAfterLedgerFenced() {
+        return new Object[][] {
+                {true},
+                {false}
+        };
+    }
+
+    @Test(timeOut = 60_000, dataProvider = "doReloadTopicAfterLedgerFenced")
+    public void testConcurrentlyModifyCurrentLedger(boolean doReloadTopicAfterLedgerFenced) throws Exception {
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(),
                 config.isEnableBusyWait(), new DefaultThreadFactory("pulsar-io-test-1"));
         BookKeeper bkClient2 = pulsar.getBkClientFactory().create(pulsar.getConfiguration(),
@@ -582,7 +591,9 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 BookKeeper.DigestType.fromApiDigestType(ml.getConfig().getDigestType()),
                 ml.getConfig().getPassword());
         cancellation.close();
-        admin.topics().unload(topic);
+        if (doReloadTopicAfterLedgerFenced) {
+            admin.topics().unload(topic);
+        }
         producer.send("5");
 
         // Verify: the entries in topic and stored are consistent.

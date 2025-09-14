@@ -136,6 +136,7 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
@@ -261,6 +262,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
     private static final String MIGRATION_STATE_PROPERTY = "migrated";
+    // If "currentLedger" was closed by the component "auto-replication", Managed ledger will determine the LAC from
+    // ledger metadata stored. This variable used to record the result of the latest once re-checking.
+    private Pair<Long, CompletableFuture<Integer>> ledgerRecheckInProgress = new ImmutablePair<>(-1L,
+            CompletableFuture.completedFuture(Code.OK));
 
     public enum State {
         None, // Uninitialized
@@ -1878,22 +1883,43 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void addEntryFailedDueToConcurrentlyModified(final LedgerHandle currentLedger, int rc) {
-        log.error("[{}] Fencing the topic to ensure durability and consistency(the current ledger was concurrent"
-                + " modified by a other bookie client, which is not expected)."
-                + " Current ledger: {}, lastAddConfirmed: {} (the value stored may be larger), error coder: {}.",
-                name, currentLedger.getId(), currentLedger.getLastAddConfirmed(), rc);
-        // Stop switching ledger and write topic metadata, to avoid messages lost. The doc of
-        // LedgerHandle also mentioned this: https://github.com/apache/bookkeeper/blob/release-4.17.2/
-        // bookkeeper-server/src/main/java/org/apache/bookkeeper/client/LedgerHandle.java#L2047-L2048.
-        handleBadVersion(new BadVersionException("the current ledger " + currentLedger.getId() + " was concurrent"
-            + " modified by a other bookie client. The error code is: " + rc));
+    synchronized void addEntryFailedDueToConcurrentlyModified(final LedgerHandle currentLedger, int errorCode) {
+        // The method "addEntryFailedDueToConcurrentlyModified" will be triggered for a certain ledger at most once.
+        if (ledgerRecheckInProgress.getLeft() == currentLedger.getId()) {
+            return;
+        }
+        ledgerRecheckInProgress = new ImmutablePair<>(currentLedger.getId(), new CompletableFuture<>());
+        bookKeeper.asyncOpenLedger(currentLedger.getId(), digestType, config.getPassword(), (rc, lh, ctx) -> {
+            ledgerRecheckInProgress.getRight().complete(rc);
+            if (rc == Code.OK) {
+                log.info("[{}] Successfully opened ledger {} to check the last add confirmed position when the ledger"
+                        + " was concurrently modified(the ledger may be closed by auto-replication)."
+                        + " The last add confirmed position in memory is {}, and the value"
+                        + " stored in metadata store is {}.", name, lh.getId(), currentLedger.getLastAddConfirmed(),
+                        lh.getLastAddConfirmed());
+                ledgerClosed(currentLedger, lh.getLastAddConfirmed());
+            } else {
+                log.error("[{}] Fencing the topic to ensure durability and consistency(the current ledger was"
+                    + " concurrent modified by a other bookie client, which is not expected)."
+                    + " Current ledger: {}, lastAddConfirmed: {} (the value stored may be larger), error coder: {}.",
+                    name, currentLedger.getId(), currentLedger.getLastAddConfirmed(), rc);
+                // Stop switching ledger and write topic metadata, to avoid messages lost. The doc of
+                // LedgerHandle also mentioned this: https://github.com/apache/bookkeeper/blob/release-4.17.2/
+                // bookkeeper-server/src/main/java/org/apache/bookkeeper/client/LedgerHandle.java#L2047-L2048.
+                handleBadVersion(new BadVersionException("the current ledger " + currentLedger.getId()
+                    + " was concurrent modified by a other bookie client. The error code is: " + errorCode));
+            }
+        }, null);
+    }
+
+    synchronized void ledgerClosed(final LedgerHandle lh) {
+        ledgerClosed(lh, null);
     }
 
     // //////////////////////////////////////////////////////////////////////
     // Private helpers
 
-    synchronized void ledgerClosed(final LedgerHandle lh) {
+    synchronized void ledgerClosed(final LedgerHandle lh, Long lastAddConfirmed) {
         final State state = STATE_UPDATER.get(this);
         LedgerHandle currentLedger = this.currentLedger;
         if (currentLedger == lh && (state == State.ClosingLedger || state == State.LedgerOpened)) {
@@ -1908,7 +1934,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        long entriesInLedger = lh.getLastAddConfirmed() + 1;
+        long entriesInLedger = lastAddConfirmed != null ? lastAddConfirmed + 1 : lh.getLastAddConfirmed() + 1;
         if (log.isDebugEnabled()) {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
