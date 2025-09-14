@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -50,6 +51,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.awaitility.Awaitility;
+import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -101,6 +107,59 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         c1.close();
         ledger.close();
+    }
+
+    @Test(timeOut = 0)
+    void testOpenNonDurableCursorWhileLedgerIsAddingFirstEntryAfterTrimmed() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(0, TimeUnit.MILLISECONDS);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledgerSpy =
+                Mockito.spy((ManagedLedgerImpl) factory.open("non_durable_cursor_while_ledger_trimmed", config));
+
+        ledgerSpy.addEntry("message1".getBytes());
+
+        ledgerSpy.rollCurrentLedgerIfFull();
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS).until(() ->
+                ledgerSpy.getLedgersInfoAsList().size() > 1
+        );
+        CompletableFuture<Void> trimFuture = new CompletableFuture<>();
+        ledgerSpy.trimConsumedLedgersInBackground(trimFuture);
+        trimFuture.join();
+
+        // After ledger was trimmed, startCursorPosition is bigger than lastConfirmedEntry 
+        Position startCursorPosition = ledgerSpy.getFirstPosition();
+        assertEquals(startCursorPosition.getEntryId(), -1);
+        assertTrue(startCursorPosition.compareTo(ledgerSpy.lastConfirmedEntry) > 0);
+        
+        CountDownLatch getLastPositionLatch = new CountDownLatch(1);
+        CountDownLatch newNonDurableCursorLatch = new CountDownLatch(1);
+        Mockito.when(ledgerSpy.getLastPositionAndCounter()).then((Answer<Pair<Position, Long>>) invocation -> {
+            newNonDurableCursorLatch.countDown();
+            getLastPositionLatch.await();
+            return Pair.of(ledgerSpy.lastConfirmedEntry, ENTRIES_ADDED_COUNTER_UPDATER.get(ledgerSpy));
+        });
+
+        CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<ManagedCursor>()
+                .completeAsync(() ->
+                        new NonDurableCursorImpl(bkc, ledgerSpy, "my_test_cursor",
+                                startCursorPosition, CommandSubscribe.InitialPosition.Latest, false)
+                );
+        Position oldLastConfirmedEntry = ledgerSpy.lastConfirmedEntry;
+
+        // Wait until NonDurableCursorImpl constructor invokes ManagedLedgerImpl.getLastPositionAndCounter
+        newNonDurableCursorLatch.await();
+        // Add first entry after ledger was trimmed 
+        ledgerSpy.addEntry("message2".getBytes());
+        assertTrue(oldLastConfirmedEntry.compareTo(ledgerSpy.lastConfirmedEntry) < 0);
+
+        // Unblock NonDurableCursorImpl constructor
+        getLastPositionLatch.countDown();
+        
+        // cursor should read from lastConfirmedEntry
+        ManagedCursor cursor = cursorFuture.join();
+        assertEquals(cursor.getReadPosition(), ledgerSpy.lastConfirmedEntry);
     }
 
     @Test(timeOut = 20000)
