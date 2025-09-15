@@ -157,6 +157,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
         }
 
+        if (!havePendingRead) {
+            log.warn("[{}-{}] There is no pending read when entries {} are called", name, readConsumer,
+                    entries.stream().map(Entry::getPosition).toList());
+        }
+
         havePendingRead = false;
         isFirstRead = false;
 
@@ -451,6 +456,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @VisibleForTesting
     public synchronized Void readEntriesFailed(Throwable throwable, Consumer consumer) {
+        if (!havePendingRead) {
+            log.warn("[{}-{}] There is no pending read when entries failed to read", name, consumer);
+        }
         havePendingRead = false;
         final var exception = FutureUtil.unwrapCompletionException(throwable);
 
