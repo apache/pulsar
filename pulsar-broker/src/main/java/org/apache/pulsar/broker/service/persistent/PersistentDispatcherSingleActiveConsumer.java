@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -370,21 +371,27 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
                 }
                 havePendingRead = true;
-                final var epoch = consumer.getConsumerEpoch();
+                // TODO: should we pass the consumer epoch for compacted read path? See
+                //   https://github.com/apache/pulsar/issues/13690
+                final var epoch = consumer.readCompacted() ? DEFAULT_CONSUMER_EPOCH : consumer.getConsumerEpoch();
+                final CompletableFuture<List<Entry>> entriesFuture;
                 if (consumer.readCompacted()) {
                     boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())
                             && (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
                             || hasValidMarkDeletePosition(cursor));
-                    CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(), cursor,
-                            messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true)
-                            // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
-                            .thenAcceptAsync(entries -> readEntriesComplete(entries, consumer, DEFAULT_CONSUMER_EPOCH))
-                            .exceptionallyAsync(e -> readEntriesFailed(e, consumer), executor);
+                    entriesFuture = CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(),
+                            cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true);
                 } else {
-                    readEntriesWithSkipOrWait(cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), null)
-                            .thenAcceptAsync(entries -> readEntriesComplete(entries, consumer, epoch), executor)
-                            .exceptionallyAsync(e -> readEntriesFailed(e, consumer), executor);
+                    entriesFuture = readEntriesWithSkipOrWait(cursor, messagesToRead, bytesToRead,
+                            topic.getMaxReadPosition(), null);
                 }
+                entriesFuture.whenCompleteAsync((entries, e) -> {
+                    if (e == null) {
+                        readEntriesComplete(entries, consumer, epoch);
+                    } else {
+                        readEntriesFailed(e, consumer);
+                    }
+                }, executor);
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -455,7 +462,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @VisibleForTesting
-    public synchronized Void readEntriesFailed(Throwable throwable, Consumer consumer) {
+    public synchronized void readEntriesFailed(Throwable throwable, Consumer consumer) {
         if (!havePendingRead) {
             log.warn("[{}-{}] There is no pending read when entries failed to read", name, consumer);
         }
@@ -467,13 +474,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cursor was already closed, skipping read more entries", cursor.getName());
             }
-            return null;
+            return;
         }
 
         if (exception instanceof ConcurrentWaitCallbackException) {
             // At most one pending read request is allowed when there are no more entries, we should not trigger more
             // read operations in this case and just wait the existing read operation completes.
-            return null;
+            return;
         }
 
         long waitTimeMillis = readFailureBackoff.next();
@@ -505,7 +512,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
         scheduleReadEntriesWithDelay(consumer, waitTimeMillis);
-        return null;
     }
 
     @VisibleForTesting
