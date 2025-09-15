@@ -374,7 +374,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                             messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true)
                             // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
                             .thenAcceptAsync(entries -> readEntriesComplete(entries, consumer, DEFAULT_CONSUMER_EPOCH))
-                            .exceptionallyAsync(e -> readEntriesFailed(e, consumer));
+                            .exceptionallyAsync(e -> readEntriesFailed(e, consumer), executor);
                 } else {
                     readEntriesWithSkipOrWait(cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), null)
                             .thenAcceptAsync(entries -> readEntriesComplete(entries, consumer, epoch), executor)
