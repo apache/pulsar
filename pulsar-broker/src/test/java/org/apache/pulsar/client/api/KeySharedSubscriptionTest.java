@@ -1910,4 +1910,70 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producer.close();
         admin.topics().delete(topic, false);
     }
+
+    @Test
+    public void testCustomStickyRange() throws Exception {
+        int messageCount = 100;
+        final String topicName = "persistent://public/default/test-sticky-range-" + System.nanoTime();
+        final String subscriptionName = "sub-sticky-range";
+
+        // 0. Init topic and subscription
+        admin.topics().createPartitionedTopic(topicName, 4);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // 1. Create a producer and send messages
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create()) {
+            for (int i = 0; i < messageCount; i++) {
+                String key = String.valueOf(i);
+                producer.newMessage()
+                        .value(String.valueOf(i).getBytes())
+                        .key(key)
+                        .send();
+            }
+        }
+
+        // 3. One by one create consumers consume message with different sticky hash range
+        KeySharedPolicy.KeySharedPolicySticky policy1 = KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(0, 9999), Range.of(20000, 29999), Range.of(40000, 49999));
+        KeySharedPolicy.KeySharedPolicySticky policy2 = KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(10000, 19999), Range.of(30000, 39999), Range.of(50000, 65535));
+
+        List<KeySharedPolicy.KeySharedPolicySticky> policies = Arrays.asList(policy1, policy2);
+        int[] receivedCounts = new int[2];
+        for (int i = 0; i < policies.size(); i++) {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .keySharedPolicy(policies.get(i))
+                    .subscribe();
+            while (true) {
+                try {
+                    Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        break;
+                    }
+                    receivedCounts[i]++;
+                    log.debug("Consumer #{} received message with key:{} total:{}",
+                            i + 1, msg.getKey(), receivedCounts[i]);
+                } catch (Exception e) {
+                    break;
+                }
+            }
+            // make sure consume closed before start next consumer
+            consumer.close();
+        }
+
+        int consumer1Received = receivedCounts[0];
+        int consumer2Received = receivedCounts[1];
+
+        log.info("Consumer1 total received: {}", consumer1Received);
+        log.info("Consumer2 total received: {}", consumer2Received);
+        Assert.assertEquals(consumer1Received + consumer2Received, messageCount,
+                "Total messages received by both consumers should be " + messageCount);
+    }
 }

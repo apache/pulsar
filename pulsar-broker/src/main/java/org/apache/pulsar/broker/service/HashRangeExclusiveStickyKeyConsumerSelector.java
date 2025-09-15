@@ -20,14 +20,15 @@ package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
-import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -38,7 +39,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
 
     private final int rangeSize;
-    private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
+    private final ConcurrentSkipListMap<Integer, Pair<Range, Consumer>> rangeMap;
 
     public HashRangeExclusiveStickyKeyConsumerSelector() {
         this(DEFAULT_RANGE_SIZE);
@@ -72,47 +73,41 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
                     + conflictingConsumer);
         }
         for (IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
-            rangeMap.put(intRange.getStart(), consumer);
-            rangeMap.put(intRange.getEnd(), consumer);
+            rangeMap.put(intRange.getStart(), Pair.of(Range.of(intRange.getStart(), intRange.getEnd()), consumer));
         }
     }
 
     @Override
     public void removeConsumer(Consumer consumer) {
-        rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
+        rangeMap.entrySet().removeIf(entry -> entry.getValue().getRight().equals(consumer));
     }
 
     @Override
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         Map<Consumer, List<Range>> result = new HashMap<>();
-        Map.Entry<Integer, Consumer> prev = null;
-        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
-            if (prev == null) {
-                prev = entry;
-            } else {
-                if (prev.getValue().equals(entry.getValue())) {
-                    result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
-                            .add(Range.of(prev.getKey(), entry.getKey()));
-                }
-                prev = null;
-            }
+        for (Map.Entry<Integer, Pair<Range, Consumer>> entry : rangeMap.entrySet()) {
+            Range assignedRange = entry.getValue().getLeft();
+            Consumer assignedConsumer = entry.getValue().getRight();
+            result.computeIfAbsent(assignedConsumer, key -> new ArrayList<>())
+                    .add(assignedRange);
         }
         return result;
     }
 
     @Override
     public Consumer select(int hash) {
-        if (rangeMap.size() > 0) {
-            int slot = hash % rangeSize;
-            Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);
-            Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(slot);
-            Consumer ceilingConsumer = ceilingEntry != null ? ceilingEntry.getValue() : null;
-            Consumer floorConsumer = floorEntry != null ? floorEntry.getValue() : null;
-            if (floorConsumer != null && floorConsumer.equals(ceilingConsumer)) {
-                return ceilingConsumer;
-            } else {
-                return null;
-            }
+        if (rangeMap.isEmpty()) {
+            return null;
+        }
+
+        int slot = hash % rangeSize;
+        Map.Entry<Integer, Pair<Range, Consumer>> floorEntry = rangeMap.floorEntry(slot);
+        if (floorEntry == null) {
+            return null;
+        }
+        Pair<Range, Consumer> pair = floorEntry.getValue();
+        if (pair.getLeft().contains(slot)) {
+            return pair.getRight();
         } else {
             return null;
         }
@@ -128,10 +123,25 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             return FutureUtil.failedFuture(new BrokerServiceException.ConsumerAssignException(
                     "Ranges for KeyShared policy must not be empty."));
         }
-        for (IntRange intRange : ranges) {
-            if (intRange.getStart() > intRange.getEnd()) {
+        List<IntRange> sortedRanges = new ArrayList<>(ranges);
+        sortedRanges.sort(Comparator.comparingInt(IntRange::getStart));
+        for (int i = 0; i < sortedRanges.size(); i++) {
+            IntRange currentRange = sortedRanges.get(i);
+            // 1. Validate: check if start > end for the current range
+            if (currentRange.getStart() > currentRange.getEnd()) {
                 return FutureUtil.failedFuture(
-                        new BrokerServiceException.ConsumerAssignException("Fixed hash range start > end"));
+                        new BrokerServiceException.ConsumerAssignException("Fixed hash range start > end for range: "
+                                + "[" + currentRange.getStart() + "," + currentRange.getEnd() + "]"));
+            }
+            // 2. Validate: check for overlaps with the next range in the sorted list
+            if (i < sortedRanges.size() - 1) {
+                IntRange nextRange = sortedRanges.get(i + 1);
+                if (areRangesOverlapping(currentRange, nextRange)) {
+                    return FutureUtil.failedFuture(
+                            new BrokerServiceException.ConsumerAssignException("Consumer's own ranges conflict: "
+                                    + "[" + currentRange.getStart() + "," + currentRange.getEnd() + "] "
+                                    + "overlaps with [" + nextRange.getStart() + "," + nextRange.getEnd() + "]"));
+                }
             }
         }
         Consumer conflictingConsumer = findConflictingConsumer(ranges);
@@ -142,34 +152,38 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         }
     }
 
-    private synchronized Consumer findConflictingConsumer(List<IntRange> ranges) {
-        for (IntRange intRange : ranges) {
-            Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(intRange.getStart());
-            Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(intRange.getEnd());
-
-            if (floorEntry != null && floorEntry.getKey() >= intRange.getStart()) {
-                return floorEntry.getValue();
+    private synchronized Consumer findConflictingConsumer(List<IntRange> newConsumerRanges) {
+        for (IntRange newRange : newConsumerRanges) {
+            // 1. Check for potential conflicts with existing ranges that start before newRange's start.
+            Map.Entry<Integer, Pair<Range, Consumer>> conflictBeforeStart = rangeMap.floorEntry(newRange.getStart());
+            if (conflictBeforeStart != null) {
+                Range existingRange = conflictBeforeStart.getValue().getLeft();
+                if (areRangesOverlapping(newRange, existingRange)) {
+                    return conflictBeforeStart.getValue().getRight();
+                }
             }
-
-            if (ceilingEntry != null && ceilingEntry.getKey() <= intRange.getEnd()) {
-                return ceilingEntry.getValue();
-            }
-
-            if (ceilingEntry != null && floorEntry != null && ceilingEntry.getValue().equals(floorEntry.getValue())) {
-                KeySharedMeta keySharedMeta = ceilingEntry.getValue().getKeySharedMeta();
-                for (IntRange range : keySharedMeta.getHashRangesList()) {
-                    int start = Math.max(intRange.getStart(), range.getStart());
-                    int end = Math.min(intRange.getEnd(), range.getEnd());
-                    if (end >= start) {
-                        return ceilingEntry.getValue();
-                    }
+            // 2. Check for potential conflicts with existing ranges that start after newRange's start.
+            Map.Entry<Integer, Pair<Range, Consumer>> conflictAfterStart = rangeMap.ceilingEntry(newRange.getStart());
+            if (conflictAfterStart != null) {
+                Range existingRange = conflictAfterStart.getValue().getLeft();
+                if (areRangesOverlapping(newRange, existingRange)) {
+                    return conflictAfterStart.getValue().getRight();
                 }
             }
         }
         return null;
     }
 
-    Map<Integer, Consumer> getRangeConsumer() {
+
+    private static boolean areRangesOverlapping(IntRange range1, Range range2) {
+        return Math.max(range1.getStart(), range2.getStart()) <= Math.min(range1.getEnd(), range2.getEnd());
+    }
+
+    private static boolean areRangesOverlapping(IntRange range1, IntRange range2) {
+        return Math.max(range1.getStart(), range2.getStart()) <= Math.min(range1.getEnd(), range2.getEnd());
+    }
+
+    Map<Integer, Pair<Range, Consumer>> getRangeConsumer() {
         return Collections.unmodifiableMap(rangeMap);
     }
 

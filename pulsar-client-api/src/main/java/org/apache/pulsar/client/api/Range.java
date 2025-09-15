@@ -95,4 +95,13 @@ public class Range implements Comparable<Range>, Serializable {
         }
         return result;
     }
+
+    /**
+     * Check if the value is in the range.
+     * @param value
+     * @return true if the value is in the range.
+     */
+    public boolean contains(int value) {
+        return value >= start && value <= end;
+    }
 }
