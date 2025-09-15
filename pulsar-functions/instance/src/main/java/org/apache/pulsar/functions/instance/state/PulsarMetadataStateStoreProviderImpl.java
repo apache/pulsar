@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.instance.state;
 
 import java.util.Map;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -46,6 +47,9 @@ public class PulsarMetadataStateStoreProviderImpl implements StateStoreProvider 
             shouldCloseStore = false;
         } else {
             String metadataUrl = (String) config.get(METADATA_URL);
+            if (StringUtils.isEmpty(metadataUrl)) {
+                metadataUrl = (String) config.get(StateStoreProvider.STATE_STORAGE_SERVICE_URL);
+            }
             store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder()
                     .metadataStoreName(MetadataStoreConfig.STATE_METADATA_STORE).build());
             shouldCloseStore = true;

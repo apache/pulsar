@@ -62,7 +62,7 @@ FROM $PULSAR_ALL_IMAGE
 # However, any processes exec'ing into the containers will run as root, by default.
 USER root
 
-RUN apk add --no-cache supervisor procps curl
+RUN apk add --no-cache supervisor procps curl jq
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/
 

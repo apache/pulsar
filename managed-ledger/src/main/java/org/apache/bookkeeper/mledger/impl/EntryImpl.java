@@ -24,6 +24,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
@@ -33,7 +36,10 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 
+@Slf4j
 public final class EntryImpl extends AbstractCASReferenceCounted
         implements ReferenceCountedEntry, Comparable<EntryImpl> {
 
@@ -51,6 +57,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     ByteBuf data;
     private EntryReadCountHandler readCountHandler;
     private boolean decreaseReadCountOnRelease = true;
+    @Getter @Setter
+    private MessageMetadata messageMetadata;
 
     private Runnable onDeallocate;
 
@@ -161,6 +169,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
         entry.readCountHandler = other.readCountHandler;
+        entry.messageMetadata = other.messageMetadata;
         entry.setRefCnt(1);
         return entry;
     }
@@ -172,6 +181,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.entryId = other.getEntryId();
         entry.data = other.getDataBuffer().retainedDuplicate();
         entry.readCountHandler = other.getReadCountHandler();
+        entry.messageMetadata = other.getMessageMetadata();
         entry.setRefCnt(1);
         return entry;
     }
@@ -277,6 +287,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         position = null;
         readCountHandler = null;
         decreaseReadCountOnRelease = true;
+        messageMetadata = null;
         recyclerHandle.recycle(this);
     }
 
@@ -292,6 +303,19 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public void setDecreaseReadCountOnRelease(boolean enabled) {
         decreaseReadCountOnRelease = enabled;
+    }
+
+    public void initializeMessageMetadataIfNeeded(String managedLedgerName) {
+        if (messageMetadata == null) {
+            try {
+                MessageMetadata msgMetadata = new MessageMetadata();
+                Commands.peekMessageMetadata(data, msgMetadata);
+                this.messageMetadata = msgMetadata;
+            } catch (Throwable t) {
+                log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,
+                        t);
+            }
+        }
     }
 
     @Override

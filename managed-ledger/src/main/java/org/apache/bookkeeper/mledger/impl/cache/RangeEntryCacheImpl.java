@@ -139,12 +139,6 @@ public class RangeEntryCacheImpl implements EntryCache {
                     entryLength);
         }
 
-        Position position = entry.getPosition();
-        if (entries.exists(position)) {
-            // If the entry is already in the cache, don't insert it again
-            return false;
-        }
-
         ByteBuf cachedData;
         if (copyEntries) {
             cachedData = copyEntry(entry);
@@ -156,6 +150,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             cachedData = entry.getDataBuffer().retain();
         }
 
+        Position position = entry.getPosition();
         ReferenceCountedEntry cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler());
         cachedData.release();
@@ -537,6 +532,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
                                 for (LedgerEntry e : ledgerEntries) {
                                     EntryImpl entry = EntryImpl.create(e, interceptor, expectedReadCountVal);
+                                    entry.initializeMessageMetadataIfNeeded(ml.getName());
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                     if (expectedReadCountVal > 0) {

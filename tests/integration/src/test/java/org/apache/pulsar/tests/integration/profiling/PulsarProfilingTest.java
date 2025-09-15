@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.profiling;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +36,7 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
 
@@ -40,9 +46,9 @@ import org.testng.annotations.Test;
  * Example usage:
  * # This has been tested on Mac with Orbstack (https://orbstack.dev/) docker
  * # compile integration test dependencies
- * mvn -am -pl tests/integration -DskipTests install
+ * mvn -am -pl tests/integration -Dcheckstyle.skip=true -Dlicense.skip=true -Dspotbugs.skip=true -DskipTests install
  * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
- * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true
+ * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true -Pdocker-wolfi
  * # set environment variables
  * export PULSAR_TEST_IMAGE_NAME=apachepulsar/java-test-image:latest
  * export NETTY_LEAK_DETECTION=off
@@ -92,31 +98,98 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                 createContainerCmd.withName(clusterName + "-" + hostname);
             });
             withEnv("PULSAR_MEM", DEFAULT_PULSAR_MEM);
+            withEnv("PULSAR_GC", "-XX:+UseZGC -XX:+ZGenerational");
             setCommand("sleep 1000000");
+            File testOutputDir = new File("target");
+            if (!testOutputDir.exists()) {
+                if (!testOutputDir.mkdirs()) {
+                    throw new IllegalArgumentException("Test output directory + '" + testOutputDir.getAbsolutePath()
+                                    + "' doesn't exist and cannot be created.");
+                }
+            }
+            if (!testOutputDir.isDirectory()) {
+                throw new IllegalArgumentException(
+                        "Test output directory '" + testOutputDir.getAbsolutePath() + "' isn't a directory.");
+            }
+            // change access to testOutputDir to allow all access so the the container user can write to it
+            // This matters only on Linux
+            try {
+                Files.setPosixFilePermissions(testOutputDir.toPath(), PosixFilePermissions.fromString("rwxrwxrwx"));
+            } catch (IOException e) {
+                throw new UncheckedIOException("Cannot change access to test output directory", e);
+            }
+            withFileSystemBind(testOutputDir.getAbsolutePath(), "/testoutput", BindMode.READ_WRITE);
         }
 
         public CompletableFuture<Long> consume(String topicName) throws Exception {
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
-                    "/pulsar/bin/pulsar-perf", "consume", topicName,
-                    "-u", "pulsar://" + brokerHostname + ":6650",
-                    "-st", "Shared",
-                    "-aq",
-                    "-m", String.valueOf(numberOfMessages), "-ml", "400M");
+                    "bash", "-c", "echo $$ > /tmp/command.pid; "
+                            + "/pulsar/bin/pulsar-perf consume " + topicName + " "
+                            + "-u pulsar://" + brokerHostname + ":6650 "
+                            + "-st Shared "
+                            + "-q 50000 "
+                            + "-m " + numberOfMessages + " -ml 400M "
+                            + "--histogram-file=/testoutput/consume.histogram.$(date +%s).hdr "
+                            + "2>&1 | tee /testoutput/consume.$(date +%s).txt");
         }
 
         public CompletableFuture<Long> produce(String topicName) throws Exception {
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
-                    "/pulsar/bin/pulsar-perf", "produce", topicName,
-                    "-u", "pulsar://" + brokerHostname + ":6650",
-                    "-au", "http://" + brokerHostname + ":8080",
-                    "-r", String.valueOf(Integer.MAX_VALUE), // max-rate
-                    "-s", "8192", // 8kB message size
-                    "-m", String.valueOf(numberOfMessages), "-ml", "400M");
+                    "bash", "-c", "echo $$ > /tmp/command.pid; "
+                            + "/pulsar/bin/pulsar-perf produce " + topicName + " "
+                            + "-u pulsar://" + brokerHostname + ":6650 "
+                            + "-au http://" + brokerHostname + ":8080 "
+                            + "-r " + Integer.MAX_VALUE + " "
+                            + "-s 128 -db "
+                            + "-o 20000 "
+                            + "-m " + numberOfMessages + " -ml 400M "
+                            + "--histogram-file=/testoutput/produce.histogram.$(date +%s).hdr "
+                            + "2>&1 | tee /testoutput/produce.$(date +%s).txt");
+        }
+
+        public CompletableFuture<Long> stats(String topicName) throws Exception {
+            String basePath = "http://" + brokerHostname + ":8080/admin/v2/" + topicName.replace("://", "/");
+            // print out stats and internal stats every 10 seconds
+            return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
+                    "bash", "-c",
+                    String.format("echo $$ > /tmp/command.pid; "
+                            + "while [[ 1 ]]; do "
+                            + "curl -s %s/stats | jq | tee /testoutput/stats.$(date +%%s).txt; "
+                            + "sleep 1; "
+                            + "curl -s %s/internalStats | jq | tee /testoutput/internal_stats.$(date +%%s).txt; "
+                            + "curl -s http://%s:8080/metrics/ > /testoutput/metrics.$(date +%%s).txt; "
+                            + " sleep 10; "
+                            + "done",
+                            basePath, basePath, brokerHostname));
+        }
+
+        public void triggerShutdown() {
+            if (isRunning()) {
+                // attempt to stop containers gracefully
+                DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
+                                "bash", "-c", "pkill java; while pgrep -c java; do "
+                                        + "echo Waiting for java processes to stop.; sleep 1; done; "
+                                        + "kill $(cat /tmp/command.pid)")
+                        .orTimeout(10, TimeUnit.SECONDS)
+                        .exceptionally(t -> null)
+                        .join();
+            }
+        }
+
+        public void stop() {
+            if (isRunning()) {
+                // attempt to stop containers gracefully
+                dockerClient.stopContainerCmd(getContainerId())
+                        .withTimeout(15)
+                        .exec();
+            }
+            super.stop();
         }
     }
 
     private PulsarPerfContainer perfConsume;
     private PulsarPerfContainer perfProduce;
+    private PulsarPerfContainer printStats;
 
     @Override
     public void setupCluster() throws Exception {
@@ -126,13 +199,26 @@ public class PulsarProfilingTest extends PulsarTestSuite {
 
     @Override
     public void tearDownCluster() throws Exception {
+        if (printStats != null) {
+            printStats.triggerShutdown();
+        }
+        if (perfProduce != null) {
+            perfProduce.triggerShutdown();
+        }
         if (perfConsume != null) {
-            perfConsume.stop();
-            perfConsume = null;
+            perfConsume.triggerShutdown();
+        }
+        if (printStats != null) {
+            printStats.stop();
+            printStats = null;
         }
         if (perfProduce != null) {
             perfProduce.stop();
             perfProduce = null;
+        }
+        if (perfConsume != null) {
+            perfConsume.stop();
+            perfConsume = null;
         }
         super.tearDownCluster();
     }
@@ -142,7 +228,10 @@ public class PulsarProfilingTest extends PulsarTestSuite {
         super.beforeStartCluster();
         pulsarCluster.forEachContainer(
                 // This is effective only when -Pdocker-wolfi has been passed when building java-test-image
-                c -> c.withEnv("GLIBC_TUNABLES", "glibc.malloc.hugetlb=1:glibc.malloc.mmap_threshold=2097152"));
+                // setting mmap_threshold explicitly will avoid it's dynamic increase
+                // https://sourceware.org/glibc/manual/latest/html_node/Memory-Allocation-Tunables.html
+                c -> c.withEnv("GLIBC_TUNABLES",
+                        "glibc.malloc.hugetlb=1:glibc.malloc.mmap_threshold=131072:glibc.malloc.arena_max=4"));
     }
 
     @Override
@@ -160,15 +249,25 @@ public class PulsarProfilingTest extends PulsarTestSuite {
         specBuilder.numProxies(0);
 
         // Increase memory for brokers and configure more aggressive rollover
-        specBuilder.brokerEnvs(Map.of("PULSAR_MEM", BROKER_PULSAR_MEM,
-                "managedLedgerMinLedgerRolloverTimeMinutes", "1",
-                "managedLedgerMaxLedgerRolloverTimeMinutes", "5",
-                "managedLedgerMaxSizePerLedgerMbytes", "512",
-                "managedLedgerDefaultEnsembleSize", "1",
-                "managedLedgerDefaultWriteQuorum", "1",
-                "managedLedgerDefaultAckQuorum", "1",
-                "maxPendingPublishRequestsPerConnection", "100000"
-        ));
+        Map<String, String> brokerEnvs = new HashMap<>();
+        brokerEnvs.put("PULSAR_MEM", BROKER_PULSAR_MEM);
+        brokerEnvs.put("managedLedgerMinLedgerRolloverTimeMinutes", "1");
+        brokerEnvs.put("managedLedgerMaxLedgerRolloverTimeMinutes", "5");
+        brokerEnvs.put("managedLedgerMaxSizePerLedgerMbytes", "512");
+        brokerEnvs.put("managedLedgerDefaultEnsembleSize", "1");
+        brokerEnvs.put("managedLedgerDefaultWriteQuorum", "1");
+        brokerEnvs.put("managedLedgerDefaultAckQuorum", "1");
+        //brokerEnvs.put("maxPendingPublishRequestsPerConnection", "1000");
+        brokerEnvs.put("dispatcherRetryBackoffInitialTimeInMs", "0");
+        brokerEnvs.put("dispatcherRetryBackoffMaxTimeInMs", "0");
+        brokerEnvs.put("preciseDispatcherFlowControl", "true");
+        //brokerEnvs.put("PULSAR_PREFIX_subscriptionKeySharedUseClassicPersistentImplementation", "true");
+        //brokerEnvs.put("PULSAR_PREFIX_subscriptionSharedUseClassicPersistentImplementation", "true");
+        brokerEnvs.put("dispatcherMaxReadBatchSize", "1000");
+        //brokerEnvs.put("dispatcherMaxReadSizeBytes", "10000000");
+        //brokerEnvs.put("dispatcherDispatchMessagesInSubscriptionThread", "false");
+        //brokerEnvs.put("dispatcherMaxRoundRobinBatchSize", "1000");
+        specBuilder.brokerEnvs(brokerEnvs);
 
         // Increase memory for bookkeepers and make compaction run more often
         Map<String, String> bkEnv = new HashMap<>();
@@ -190,9 +289,11 @@ public class PulsarProfilingTest extends PulsarTestSuite {
         String brokerHostname = clusterName + "-pulsar-broker-0";
         perfProduce = new PulsarPerfContainer(clusterName, brokerHostname, "perf-produce");
         perfConsume = new PulsarPerfContainer(clusterName, brokerHostname, "perf-consume");
+        printStats = new PulsarPerfContainer(clusterName, brokerHostname, "print-stats");
         specBuilder.externalServices(Map.of(
                 "pulsar-produce", perfProduce,
-                "pulsar-consume", perfConsume
+                "pulsar-consume", perfConsume,
+                "print-stats", printStats
         ));
 
         return specBuilder;
@@ -204,6 +305,8 @@ public class PulsarProfilingTest extends PulsarTestSuite {
         CompletableFuture<Long> consumeFuture = perfConsume.consume(topicName);
         Thread.sleep(1000);
         CompletableFuture<Long> produceFuture = perfProduce.produce(topicName);
+        Thread.sleep(4000);
+        printStats.stats(topicName);
         FutureUtil.waitForAll(List.of(consumeFuture, produceFuture))
                 .orTimeout(3, TimeUnit.MINUTES)
                 .exceptionally(t -> {

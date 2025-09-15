@@ -26,12 +26,12 @@ import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.document.DocumentReader;
-import io.debezium.relational.history.AbstractDatabaseHistory;
-import io.debezium.relational.history.DatabaseHistory;
-import io.debezium.relational.history.DatabaseHistoryException;
-import io.debezium.relational.history.DatabaseHistoryListener;
+import io.debezium.relational.history.AbstractSchemaHistory;
 import io.debezium.relational.history.HistoryRecord;
 import io.debezium.relational.history.HistoryRecordComparator;
+import io.debezium.relational.history.SchemaHistory;
+import io.debezium.relational.history.SchemaHistoryException;
+import io.debezium.relational.history.SchemaHistoryListener;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,15 +52,15 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 
 /**
- * A {@link DatabaseHistory} implementation that records schema changes as normal pulsar messages on the specified
+ * A {@link SchemaHistory} implementation that records schema changes as normal pulsar messages on the specified
  * topic, and that recovers the history by establishing a Kafka Consumer re-processing all messages on that topic.
  */
 @Slf4j
 @ThreadSafe
-public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
+public final class PulsarSchemaHistory extends AbstractSchemaHistory {
 
     public static final Field TOPIC = Field.create(CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.topic")
-        .withDisplayName("Database history topic name")
+        .withDisplayName("Schema history topic name")
         .withType(Type.STRING)
         .withWidth(Width.LONG)
         .withImportance(Importance.HIGH)
@@ -97,7 +97,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         TOPIC,
         SERVICE_URL,
         CLIENT_BUILDER,
-        DatabaseHistory.NAME,
+        SchemaHistory.NAME,
         READER_CONFIG);
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -113,7 +113,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     public void configure(
             Configuration config,
             HistoryRecordComparator comparator,
-            DatabaseHistoryListener listener,
+            SchemaHistoryListener listener,
             boolean useCatalogBeforeSchema) {
         super.configure(config, comparator, listener, useCatalogBeforeSchema);
         if (!config.validateAndRecord(ALL_FIELDS, logger::error)) {
@@ -148,9 +148,9 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         }
 
         // Copy the relevant portions of the configuration and add useful defaults ...
-        this.dbHistoryName = config.getString(DatabaseHistory.NAME, UUID.randomUUID().toString());
+        this.dbHistoryName = config.getString(SchemaHistory.NAME, UUID.randomUUID().toString());
 
-        log.info("Configure to store the debezium database history {} to pulsar topic {}",
+        log.info("Configure to store the debezium schema history {} to pulsar topic {}",
             dbHistoryName, topicName);
     }
 
@@ -163,7 +163,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
             p.send("");
         } catch (PulsarClientException pce) {
             log.error("Failed to initialize storage", pce);
-            throw new RuntimeException("Failed to initialize storage", pce);
+            throw new SchemaHistoryException("Failed to initialize storage", pce);
         }
     }
 
@@ -172,7 +172,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
             try {
                 pulsarClient = clientBuilder.build();
             } catch (PulsarClientException e) {
-                throw new RuntimeException("Failed to create pulsar client to pulsar cluster", e);
+                throw new SchemaHistoryException("Failed to create pulsar client to pulsar cluster", e);
             }
         }
     }
@@ -201,18 +201,18 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     }
 
     @Override
-    protected void storeRecord(HistoryRecord record) throws DatabaseHistoryException {
+    protected void storeRecord(HistoryRecord record) throws SchemaHistoryException {
         if (this.producer == null) {
             throw new IllegalStateException("No producer is available. Ensure that 'start()'"
-                    + " is called before storing database history records.");
+                    + " is called before storing schema history records.");
         }
         if (log.isTraceEnabled()) {
-            log.trace("Storing record into database history: {}", record);
+            log.trace("Storing record into schema history: {}", record);
         }
         try {
             producer.send(record.toString());
         } catch (PulsarClientException e) {
-            throw new DatabaseHistoryException(e);
+            throw new SchemaHistoryException(e);
         }
     }
 
@@ -242,7 +242,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     protected void recoverRecords(Consumer<HistoryRecord> records) {
         setupClientIfNeeded();
         try (Reader<String> historyReader = createHistoryReader()) {
-            log.info("Scanning the database history topic '{}'", topicName);
+            log.info("Scanning the schema history topic '{}'", topicName);
 
             // Read all messages in the topic ...
             MessageId lastProcessedMessageId = null;
@@ -255,15 +255,15 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
                         if (!isBlank(msg.getValue())) {
                             HistoryRecord recordObj = new HistoryRecord(reader.read(msg.getValue()));
                             if (log.isTraceEnabled()) {
-                                log.trace("Recovering database history: {}", recordObj);
+                                log.trace("Recovering schema history: {}", recordObj);
                             }
                             if (!recordObj.isValid()) {
-                                log.warn("Skipping invalid database history record '{}'. This is often not an issue,"
+                                log.warn("Skipping invalid schema history record '{}'. This is often not an issue,"
                                                 + " but if it happens repeatedly please check the '{}' topic.",
                                     recordObj, topicName);
                             } else {
                                 records.accept(recordObj);
-                                log.trace("Recovered database history: {}", recordObj);
+                                log.trace("Recovered schema history: {}", recordObj);
                             }
                         }
                         lastProcessedMessageId = msg.getMessageId();
@@ -274,7 +274,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
                     throw e;
                 }
             }
-            log.info("Successfully completed scanning the database history topic '{}'", topicName);
+            log.info("Successfully completed scanning the schema history topic '{}'", topicName);
         } catch (IOException ioe) {
             log.error("Encountered issues on recovering history records", ioe);
             throw new RuntimeException("Encountered issues on recovering history records", ioe);
@@ -287,8 +287,8 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         try (Reader<String> historyReader = createHistoryReader()) {
             return historyReader.hasMessageAvailable();
         } catch (IOException e) {
-            log.error("Encountered issues on checking existence of database history", e);
-            throw new RuntimeException("Encountered issues on checking existence of database history", e);
+            log.error("Encountered issues on checking existence of schema history", e);
+            throw new RuntimeException("Encountered issues on checking existence of schema history", e);
         }
     }
 

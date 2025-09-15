@@ -191,6 +191,21 @@ public interface Producer<T> extends Closeable {
      * @since 2.7.0
      */
     TypedMessageBuilder<T> newMessage(Transaction txn);
+
+    /**
+     * Create a new message builder with transaction and schema, not required same parameterized type with the
+     * producer.
+     *
+     * <p>After the transaction commit, it will be made visible to consumer.
+     *
+     * <p>After the transaction abort, it will never be visible to consumer.
+     *
+     * @return a typed message builder that can be used to construct the message to be sent through this producer
+     * @see #newMessage()
+     */
+    <V> TypedMessageBuilder<V> newMessage(Schema<V> schema,
+                                          Transaction txn);
+
     /**
      * Get the last sequence id that was published by this producer.
      *

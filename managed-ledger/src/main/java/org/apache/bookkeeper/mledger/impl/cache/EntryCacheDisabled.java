@@ -78,6 +78,7 @@ public class EntryCacheDisabled implements EntryCache {
                         for (LedgerEntry e : ledgerEntries) {
                             // Insert the entries at the end of the list (they will be unsorted for now)
                             EntryImpl entry = EntryImpl.create(e, interceptor, 0);
+                            entry.initializeMessageMetadataIfNeeded(ml.getName());
                             entries.add(entry);
                             totalSize += entry.getLength();
                         }
@@ -111,7 +112,7 @@ public class EntryCacheDisabled implements EntryCache {
                         if (iterator.hasNext()) {
                             LedgerEntry ledgerEntry = iterator.next();
                             EntryImpl returnEntry = EntryImpl.create(ledgerEntry, interceptor, 0);
-
+                            returnEntry.initializeMessageMetadataIfNeeded(ml.getName());
                             ml.getMbean().recordReadEntriesOpsCacheMisses(1, returnEntry.getLength());
                             ml.getFactory().getMbean().recordCacheMiss(1, returnEntry.getLength());
                             ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
