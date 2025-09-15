@@ -137,7 +137,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             // 2. Validate: check for overlaps with the next range in the sorted list
             if (i < sortedRanges.size() - 1) {
                 IntRange nextRange = sortedRanges.get(i + 1);
-                if (checkRangesOverlap(currentRange, nextRange)) {
+                if (areRangesOverlapping(currentRange, nextRange)) {
                     return FutureUtil.failedFuture(
                             new BrokerServiceException.ConsumerAssignException("Consumer's own ranges conflict: "
                                     + "[" + currentRange.getStart() + "," + currentRange.getEnd() + "] "
@@ -159,7 +159,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             Map.Entry<Integer, Pair<Range, Consumer>> conflictBeforeStart = rangeMap.floorEntry(newRange.getStart());
             if (conflictBeforeStart != null) {
                 Range existingRange = conflictBeforeStart.getValue().getLeft();
-                if (checkRangesOverlap(newRange, existingRange)) {
+                if (areRangesOverlapping(newRange, existingRange)) {
                     return conflictBeforeStart.getValue().getRight();
                 }
             }
@@ -167,7 +167,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             Map.Entry<Integer, Pair<Range, Consumer>> conflictAfterStart = rangeMap.ceilingEntry(newRange.getStart());
             if (conflictAfterStart != null) {
                 Range existingRange = conflictAfterStart.getValue().getLeft();
-                if (checkRangesOverlap(newRange, existingRange)) {
+                if (areRangesOverlapping(newRange, existingRange)) {
                     return conflictAfterStart.getValue().getRight();
                 }
             }
@@ -176,11 +176,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
 
-    private static boolean checkRangesOverlap(IntRange range1, Range range2) {
+    private static boolean areRangesOverlapping(IntRange range1, Range range2) {
         return Math.max(range1.getStart(), range2.getStart()) <= Math.min(range1.getEnd(), range2.getEnd());
     }
 
-    private static boolean checkRangesOverlap(IntRange range1, IntRange range2) {
+    private static boolean areRangesOverlapping(IntRange range1, IntRange range2) {
         return Math.max(range1.getStart(), range2.getStart()) <= Math.min(range1.getEnd(), range2.getEnd());
     }
 
