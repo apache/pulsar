@@ -41,6 +41,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -50,6 +51,9 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import okhttp3.OkHttpClient;
@@ -104,6 +108,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private JwksCache jwksCache;
 
     private volatile AsyncHttpClient httpClient;
+
+    private ExecutorService cacheExecutor;
 
     // A list of supported algorithms. This is the "alg" field on the JWT.
     // Source for strings: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
@@ -188,10 +194,13 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .setReadTimeout(readTimeout)
                 .setSslContext(sslContext)
                 .build();
+        cacheExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),
+                new DefaultThreadFactory("authentication-cache-loader"));
         httpClient = new DefaultAsyncHttpClient(clientConfig);
         k8sApiClient = fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
-        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(this, config, httpClient, k8sApiClient);
-        this.jwksCache = new JwksCache(this, config, httpClient, k8sApiClient);
+        this.openIDProviderMetadataCache =
+                new OpenIDProviderMetadataCache(this, config, httpClient, k8sApiClient, cacheExecutor);
+        this.jwksCache = new JwksCache(this, config, httpClient, k8sApiClient, cacheExecutor);
     }
 
     @Override
@@ -379,6 +388,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     public void close() throws IOException {
         if (httpClient != null) {
             httpClient.close();
+        }
+        if (cacheExecutor != null) {
+            cacheExecutor.shutdown();
         }
         if (k8sApiClient != null) {
             OkHttpClient okHttpClient = k8sApiClient.getHttpClient();

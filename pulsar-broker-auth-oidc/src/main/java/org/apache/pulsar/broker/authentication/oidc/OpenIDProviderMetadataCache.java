@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -62,7 +64,7 @@ class OpenIDProviderMetadataCache {
     private static final String SLASH_WELL_KNOWN_OPENID_CONFIG = "/" + WELL_KNOWN_OPENID_CONFIG;
 
     OpenIDProviderMetadataCache(AuthenticationProvider authenticationProvider, ServiceConfiguration config,
-                                AsyncHttpClient httpClient, ApiClient apiClient) {
+                                AsyncHttpClient httpClient, ApiClient apiClient, ExecutorService cacheExecutor) {
         this.authenticationProvider = authenticationProvider;
         int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
         int refreshAfterWriteSeconds = getConfigValueAsInt(config, CACHE_REFRESH_AFTER_WRITE_SECONDS,
@@ -79,7 +81,7 @@ class OpenIDProviderMetadataCache {
             }
         };
         this.cache = Caffeine.newBuilder()
-                .executor(MoreExecutors.directExecutor())
+                .executor(cacheExecutor)
                 .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
