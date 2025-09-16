@@ -54,7 +54,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.ReadEntriesContext;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
@@ -116,12 +115,13 @@ public class PendingReadsManagerTest  {
                 long startEntry = invocationOnMock.getArgument(1);
                 long endEntry = invocationOnMock.getArgument(2);
                 IntSupplier expectedReadCount = invocationOnMock.getArgument(3);
-                ReadEntriesContext context = invocationOnMock.getArgument(4);
-                pendingReadsManager.readEntries(lh, startEntry, endEntry, expectedReadCount, context);
+                AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(4);
+                Object ctx = invocationOnMock.getArgument(5);
+                pendingReadsManager.readEntries(lh, startEntry, endEntry, expectedReadCount, callback, ctx);
                 return null;
             }
         }).when(rangeEntryCache).asyncReadEntry0(any(), anyLong(), anyLong(),
-                any(), any(), anyBoolean());
+                any(), any(), any(), anyBoolean());
 
         lh = mock(ReadHandle.class);
         ml = mock(ManagedLedgerImpl.class);
