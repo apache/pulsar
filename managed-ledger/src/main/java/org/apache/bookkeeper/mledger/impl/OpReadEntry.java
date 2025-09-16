@@ -56,7 +56,6 @@ class OpReadEntry {
 
     Predicate<Position> skipCondition;
     boolean skipOpenLedgerFullyAcked = false;
-    boolean completed = false;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, Position readPositionRef, int count,
                                      ReadEntriesCallback callback, Object ctx, Position maxPosition,
@@ -77,7 +76,6 @@ class OpReadEntry {
         op.skipOpenLedgerFullyAcked = skipOpenLedgerFullyAcked;
         op.ctx = ctx;
         op.nextReadPosition = PositionFactory.create(op.readPosition);
-        op.completed = false;
         return op;
     }
 
@@ -114,13 +112,6 @@ class OpReadEntry {
 
     public void readEntriesComplete(List<Entry> returnedEntries) {
         try {
-            synchronized (this) {
-                if (completed) {
-                    returnedEntries.forEach(Entry::release);
-                    return;
-                }
-                completed = true;
-            }
             internalReadEntriesComplete(returnedEntries);
         } catch (Throwable throwable) {
             log.error("[{}] Fallback to readEntriesFailed for exception in readEntriesComplete", this, throwable);
@@ -130,12 +121,6 @@ class OpReadEntry {
 
     public void readEntriesFailed(ManagedLedgerException exception) {
         try {
-            synchronized (this) {
-                if (completed) {
-                    return;
-                }
-                completed = true;
-            }
             internalReadEntriesFailed(exception);
         } catch (Throwable throwable) {
             // At least we should complete the callback
@@ -209,10 +194,7 @@ class OpReadEntry {
             // We still have more entries to read from the next ledger, schedule a new async operation
             cursor.ledger.getExecutor().execute(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
-                synchronized (this) {
-                    completed = false;
-                    cursor.ledger.asyncReadEntries(OpReadEntry.this);
-                }
+                cursor.ledger.asyncReadEntries(OpReadEntry.this);
             });
         } else {
             // The reading was already completed, release resources and trigger callback
@@ -273,7 +255,6 @@ class OpReadEntry {
         maxPosition = null;
         skipCondition = null;
         skipOpenLedgerFullyAcked = false;
-        completed = false;
         recyclerHandle.recycle(this);
     }
 
