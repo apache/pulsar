@@ -234,7 +234,7 @@ class OpReadEntry {
         }
     };
 
-    public void recycle() {
+    private void recycle() {
         if (recyclerHandle == null) {
             // This is the no-op instance, do not recycle
             return;

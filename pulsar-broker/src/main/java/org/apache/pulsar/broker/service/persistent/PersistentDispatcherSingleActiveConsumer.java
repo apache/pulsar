@@ -35,7 +35,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
@@ -469,17 +468,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         Consumer c = readEntriesCtx.getConsumer();
         readEntriesCtx.recycle();
 
-        // Do not keep reading messages from a closed cursor.
-        if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+        if (ManagedLedgerException.shouldNotRead(exception)) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Cursor was already closed, skipping read more entries", cursor.getName());
+                log.debug("[{}] skipping read more entries due to {}", cursor.getName(), exception.getMessage());
             }
-            return;
-        }
-
-        if (exception instanceof ConcurrentWaitCallbackException) {
-            // At most one pending read request is allowed when there are no more entries, we should not trigger more
-            // read operations in this case and just wait the existing read operation completes.
             return;
         }
 

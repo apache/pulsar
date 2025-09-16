@@ -1076,8 +1076,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     ctx, maxPosition, skipCondition, true);
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
-                op.recycle();
-                callback.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException(), ctx);
+                op.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException());
                 return;
             }
 
@@ -1188,7 +1187,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             return null;
         });
         if (op != null) {
-            op.recycle();
+            final var msg = op.toString();
+            op.readEntriesFailed(new ManagedLedgerException.CancelledException(msg + " is cancelled"));
         }
         return op != null && op != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR;
     }
