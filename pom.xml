@@ -1390,6 +1390,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.apache.bookkeeper</groupId>
             <artifactId>bookkeeper-server</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
