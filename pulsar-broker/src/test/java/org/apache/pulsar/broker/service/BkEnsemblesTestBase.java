@@ -19,17 +19,36 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.Closeable;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.proto.BookieClientImpl;
+import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks;
+import org.apache.bookkeeper.proto.PerChannelBookieClient;
+import org.apache.bookkeeper.proto.PerChannelBookieClientPool;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -129,6 +148,61 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             bkEnsemble.stop();
             bkEnsemble = null;
         }
+    }
+
+    /***
+     * Inject a delay for the following requests to the specified bookie in the ensemble of the current ledger of
+     * the topic.
+     * @param bkIndexOfEnsemble the bk index of the ensemble.
+     * @return a cancellation of the injection.
+     */
+    protected Closeable injectBKServerDelayForCurrentLedger(String topic, long delayTime, TimeUnit unit,
+                                                            int bkIndexOfEnsemble) throws Exception {
+        // Make an injection to let the next publishing delay.
+        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
+        BookieClientImpl bookieClient =
+                (BookieClientImpl) mlFactory.getBookKeeper().get().getClientCtx().getBookieClient();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        LedgerHandle ledgerHandle = ml.getCurrentLedger();
+        BookieId bookieId1 = ledgerHandle.getLedgerMetadata().getEnsembleAt(bkIndexOfEnsemble).get(0);
+        PerChannelBookieClientPool perChannelBookieClientPool = bookieClient.lookupClient(bookieId1);
+        CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
+        perChannelBookieClientPool.obtain(new BookkeeperInternalCallbacks.GenericCallback<PerChannelBookieClient>() {
+            @Override
+            public void operationComplete(int rc, PerChannelBookieClient result) {
+                channelFuture.complete(WhiteboxImpl.getInternalState(result, "channel"));
+            }
+        }, ledgerHandle.getId());
+        Channel channel = channelFuture.get();
+
+        ScheduledExecutorService bkServerIoMock =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("bk-server-io-mock"));
+        channel.eventLoop().execute(() -> {
+            // To avoid client IO thread being stuck, we use a separate event loop to mock the server delay. And the
+            // response handling is still in the client IO thread.
+            channel.pipeline().addAfter("bookieProtoDecoder", "delayInjection", new ChannelInboundHandlerAdapter(){
+                public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                    bkServerIoMock.schedule(() -> {
+                        // Call the real client io thread to handle the requests after a delayed time.
+                        ctx.executor().execute(() -> {
+                            ctx.fireChannelRead(msg);
+                        });
+                    }, delayTime, unit);
+                }
+            });
+        });
+        return () -> {
+            CompletableFuture<Void> removing = new CompletableFuture<>();
+            channel.eventLoop().execute(() -> {
+                channel.pipeline().remove("delayInjection");
+                removing.complete(null);
+            });
+            removing.whenComplete((__, ex) -> {
+                bkServerIoMock.shutdown();
+            });
+        };
     }
 
 }
