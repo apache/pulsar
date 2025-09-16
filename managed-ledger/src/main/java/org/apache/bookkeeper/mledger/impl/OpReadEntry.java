@@ -34,7 +34,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class OpReadEntry implements ReadEntriesCallback {
+class OpReadEntry {
     static final OpReadEntry WAITING_READ_OP_FOR_CLOSED_CURSOR = new OpReadEntry();
     private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
     /**
@@ -47,7 +47,7 @@ class OpReadEntry implements ReadEntriesCallback {
     Position readPosition;
     private int count;
     private ReadEntriesCallback callback;
-    Object ctx;
+    private Object ctx;
 
     // Results
     private List<Entry> entries;
@@ -110,32 +110,30 @@ class OpReadEntry implements ReadEntriesCallback {
         checkReadCompletion();
     }
 
-    @Override
-    public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
+    public void readEntriesComplete(List<Entry> returnedEntries) {
         try {
             internalReadEntriesComplete(returnedEntries);
         } catch (Throwable throwable) {
             log.error("[{}] Fallback to readEntriesFailed for exception in readEntriesComplete", this, throwable);
-            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable));
         }
     }
 
-    @Override
-    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+    public void readEntriesFailed(ManagedLedgerException exception) {
         try {
-            internalReadEntriesFailed(exception, ctx);
+            internalReadEntriesFailed(exception);
         } catch (Throwable throwable) {
             // At least we should complete the callback
-            fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+            fail(ManagedLedgerException.getManagedLedgerException(throwable));
         }
     }
 
-    private void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
+    private void internalReadEntriesFailed(ManagedLedgerException exception) {
         cursor.readOperationCompleted();
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            complete(ctx);
+            complete();
         } else if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
@@ -153,7 +151,7 @@ class OpReadEntry implements ReadEntriesCallback {
             }
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
-                fail(exception, ctx);
+                fail(exception);
                 return;
             }
             updateReadPosition(nexReadPosition);
@@ -174,7 +172,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 }
             }
 
-            fail(exception, ctx);
+            fail(exception);
         }
     }
 
@@ -198,7 +196,7 @@ class OpReadEntry implements ReadEntriesCallback {
             try {
                 cursor.readOperationCompleted();
             } finally {
-                complete(ctx);
+                complete();
             }
         }
     }
@@ -255,7 +253,7 @@ class OpReadEntry implements ReadEntriesCallback {
         recyclerHandle.recycle(this);
     }
 
-    private void complete(Object ctx) {
+    private void complete() {
         cursor.ledger.getExecutor().execute(() -> {
             try {
                 callback.readEntriesComplete(entries, ctx);
@@ -266,7 +264,7 @@ class OpReadEntry implements ReadEntriesCallback {
         });
     }
 
-    private void fail(ManagedLedgerException e, Object ctx) {
+    private void fail(ManagedLedgerException e) {
         try {
             callback.readEntriesFailed(e, ctx);
             cursor.ledger.mbean.recordReadEntriesError();

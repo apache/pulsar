@@ -4650,7 +4650,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 })
                 .when(ledger)
                 .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any());
+                        Mockito.anyLong(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -4756,7 +4756,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 })
                 .when(ledger)
                 .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any());
+                        Mockito.anyLong(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
