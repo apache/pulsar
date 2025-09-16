@@ -49,6 +49,7 @@ public class MemoryLimitControllerTest {
     @Test
     public void testLimit() throws Exception {
         MemoryLimitController mlc = new MemoryLimitController(100);
+        assertTrue(mlc.isMemoryLimited());
 
         for (int i = 0; i < 101; i++) {
             mlc.reserveMemory(1);
@@ -75,6 +76,12 @@ public class MemoryLimitControllerTest {
         mlc.releaseMemory(50);
         assertTrue(mlc.tryReserveMemory(1));
         assertEquals(mlc.currentUsagePercent(), 1.01);
+
+        MemoryLimitController mlcNoLimit = new MemoryLimitController(0);
+        assertFalse(mlcNoLimit.isMemoryLimited());
+        assertEquals(mlcNoLimit.currentUsagePercent(), 0.0);
+        assertTrue(mlcNoLimit.tryReserveMemory(1));
+        assertEquals(mlcNoLimit.currentUsagePercent(), 0.0);
     }
 
     @Test
