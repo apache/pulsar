@@ -52,6 +52,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final TopicsPattern topicsPattern;
     final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
+    private final TopicListWatcher topicListWatcher;
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
 
@@ -86,7 +87,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         this.updateTaskQueue = new PatternConsumerUpdateQueue(this);
         if (subscriptionMode == Mode.PERSISTENT) {
             long watcherId = client.newTopicListWatcherId();
-            new TopicListWatcher(updateTaskQueue, client, topicsPattern, watcherId,
+            topicListWatcher = new TopicListWatcher(updateTaskQueue, client, topicsPattern, watcherId,
                 namespaceName, topicsHash, watcherFuture, () -> recheckTopicsChangeAfterReconnect());
             watcherFuture
                .exceptionally(ex -> {
@@ -99,6 +100,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         } else {
             log.debug("Pattern consumer [{}] not creating topic list watcher for subscription mode {}",
                     conf.getSubscriptionName(), subscriptionMode);
+            topicListWatcher = null;
             watcherFuture.complete(null);
             this.recheckPatternTimeout = client.timer().newTimeout(
                     this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
@@ -386,12 +388,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             timeout.cancel();
             recheckPatternTimeout = null;
         }
-        watcherFuture.cancel(false);
-        CompletableFuture<Void> watcherCloseFuture = watcherFuture.thenCompose(
-                topicListWatcher -> Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
-                        .orElse(CompletableFuture.completedFuture(null))).exceptionally(t -> null);
+        CompletableFuture<Void> topicListWatcherCloseFuture =
+                Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
+                        .orElse(CompletableFuture.completedFuture(null)).exceptionally(t -> null);
         CompletableFuture<Void> runningTaskCancelFuture = updateTaskQueue.cancelAllAndWaitForTheRunningTask();
-        return FutureUtil.waitForAll(Lists.newArrayList(watcherCloseFuture, runningTaskCancelFuture))
+        return FutureUtil.waitForAll(Lists.newArrayList(topicListWatcherCloseFuture, runningTaskCancelFuture))
                 .exceptionally(t -> null).thenCompose(__ -> super.closeAsync());
     }
 
