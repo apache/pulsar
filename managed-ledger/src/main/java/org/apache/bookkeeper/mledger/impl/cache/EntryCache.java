@@ -18,10 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 
@@ -81,13 +81,10 @@ public interface EntryCache {
      *            the last entry to read (inclusive)
      * @param expectedReadCount resolves the expected read count for the given entry. When the expected read count is
      *                         >0, the entry can be cached and reused later.
-     * @param callback
-     *            the callback object that will be notified when read is done
-     * @param ctx
-     *            the context object
+     * @return the future of entries
      */
-    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-            ReadEntriesCallback callback, Object ctx);
+   CompletableFuture<List<Entry>> asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry,
+                                                 IntSupplier expectedReadCount);
 
     /**
      * Read entry at given position from the cache or from bookkeeper.
@@ -98,12 +95,9 @@ public interface EntryCache {
      *            the ledger handle
      * @param position
      *            position to read the entry from
-     * @param callback
-     *            the callback object that will be notified when read is done
-     * @param ctx
-     *            the context object
+     * @return the future of the entry
      */
-    void asyncReadEntry(ReadHandle lh, Position position, ReadEntryCallback callback, Object ctx);
+    CompletableFuture<Entry> asyncReadEntry(ReadHandle lh, Position position);
 
     /**
      * Get the total size in bytes of all the entries stored in this cache.

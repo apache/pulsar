@@ -115,13 +115,12 @@ public class PendingReadsManagerTest  {
                 long startEntry = invocationOnMock.getArgument(1);
                 long endEntry = invocationOnMock.getArgument(2);
                 IntSupplier expectedReadCount = invocationOnMock.getArgument(3);
-                AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(4);
-                Object ctx = invocationOnMock.getArgument(5);
-                pendingReadsManager.readEntries(lh, startEntry, endEntry, expectedReadCount, callback, ctx);
+                CompletableFuture<List<Entry>> future = invocationOnMock.getArgument(4);
+                pendingReadsManager.readEntries(lh, startEntry, endEntry, expectedReadCount, future);
                 return null;
             }
         }).when(rangeEntryCache).asyncReadEntry0(any(), anyLong(), anyLong(),
-                any(), any(), any(), anyBoolean());
+                any(), any(), anyBoolean());
 
         lh = mock(ReadHandle.class);
         ml = mock(ManagedLedgerImpl.class);
