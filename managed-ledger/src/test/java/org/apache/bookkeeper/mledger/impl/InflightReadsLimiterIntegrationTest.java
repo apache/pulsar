@@ -134,7 +134,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         doAnswer(answer).when(spyCurrentLedger).readUnconfirmedAsync(anyLong(), anyLong());
 
         // Initialize "entryCache.estimatedEntrySize" to the correct value.
-        entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, () -> 1).get();
+        releaseEntries(entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, () -> 1).get());
         int sizePerEntry = Long.valueOf(entryCache.getEstimatedEntrySize(ml.currentLedger)).intValue();
         Awaitility.await().untilAsserted(() -> {
             long remainingBytes = limiter.getRemainingBytes();
@@ -181,7 +181,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         // Complete the read1.
         Thread.sleep(3000);
         readCompleteSignal1.countDown();
-        future1.get();
+        releaseEntries(future1.get());
         long bytesAcquired2 = calculateBytesSizeBeforeFirstReading(readCount2, sizePerEntry);
         long remainingBytesExpected2 = totalCapacity - bytesAcquired2;
         log.info("acquired : {}", bytesAcquired2);
@@ -192,7 +192,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         });
 
         readCompleteSignal2.countDown();
-        future2.get();
+        releaseEntries(future2.get());
         Awaitility.await().untilAsserted(() -> {
             long remainingBytes = limiter.getRemainingBytes();
             log.info("remainingBytes 2: {}", remainingBytes);
@@ -205,5 +205,12 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
 
     private long calculateBytesSizeBeforeFirstReading(int entriesCount, int perEntrySize) {
         return entriesCount * perEntrySize;
+    }
+
+    // The permits will only be released after entries are released
+    private void releaseEntries(List<Entry> entries) {
+        for (Entry entry : entries) {
+            entry.release();
+        }
     }
 }

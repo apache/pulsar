@@ -347,27 +347,23 @@ public class RangeEntryCacheImpl implements EntryCache {
             return CompletableFuture.failedFuture(new ManagedLedgerException.TooManyRequestsException(message));
         }
         InflightReadsLimiter pendingReadsLimiter = getPendingReadsLimiter();
-        final var future = doAsyncReadEntriesByPosition(lh, firstPosition, lastPosition, numberOfEntries,
-                expectedReadCount);
-        future.thenAccept(entries -> {
-            if (!entries.isEmpty()) {
-                // release permits only when entries have been handled
-                AtomicInteger remainingCount = new AtomicInteger(entries.size());
-                for (Entry entry : entries) {
-                    ((EntryImpl) entry).onDeallocate(() -> {
-                        if (remainingCount.decrementAndGet() <= 0) {
-                            pendingReadsLimiter.release(handle);
-                        }
-                    });
-                }
-            } else {
+        return doAsyncReadEntriesByPosition(lh, firstPosition, lastPosition, numberOfEntries,
+                expectedReadCount
+        ).whenComplete((entries, e) -> {
+            if (e != null || entries.isEmpty()) {
                 pendingReadsLimiter.release(handle);
+                return;
             }
-        }).exceptionally(e -> {
-            pendingReadsLimiter.release(handle);
-            return null;
+            // release permits only when entries have been handled
+            AtomicInteger remainingCount = new AtomicInteger(entries.size());
+            for (Entry entry : entries) {
+                ((EntryImpl) entry).onDeallocate(() -> {
+                    if (remainingCount.decrementAndGet() <= 0) {
+                        pendingReadsLimiter.release(handle);
+                    }
+                });
+            }
         });
-        return future;
     }
 
     CompletableFuture<List<Entry>> doAsyncReadEntriesByPosition(
