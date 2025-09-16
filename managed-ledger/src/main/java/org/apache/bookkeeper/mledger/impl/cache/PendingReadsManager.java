@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Counter;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import java.util.function.IntSupplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 
 /**
@@ -292,7 +294,8 @@ public class PendingReadsManager {
         // this method isn't synchronized since that could lead to deadlocks
         private void readEntriesFailed(List<ReadEntriesCallbackWithContext> callbacks, Throwable error) {
             for (ReadEntriesCallbackWithContext callback : callbacks) {
-                callback.future.completeExceptionally(error);
+                ManagedLedgerException mlException = createManagedLedgerException(error);
+                callback.future.completeExceptionally(mlException);
             }
         }
 
