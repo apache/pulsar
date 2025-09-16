@@ -47,7 +47,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final ConnectionHandler connectionHandler;
     private final TopicsPattern topicsPattern;
     private final long watcherId;
-    private final long lookupDeadline;
     private volatile long createWatcherDeadline = 0;
     private final NamespaceName namespace;
     // TODO maintain the value based on updates from broker and warn the user if inconsistent with hash from polling
@@ -81,7 +80,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                 this);
         this.topicsPattern = topicsPattern;
         this.watcherId = watcherId;
-        this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         this.namespace = namespace;
         this.topicsHash = topicsHash;
         this.watcherFuture = watcherFuture;
@@ -90,20 +88,14 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         connectionHandler.grabCnx();
     }
 
-    @Override
     public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
-        boolean timeout = System.currentTimeMillis() > lookupDeadline;
-        if (nonRetriableError || timeout) {
+        if (nonRetriableError) {
             exception.setPreviousExceptionCount(previousExceptionCount);
             if (watcherFuture.completeExceptionally(exception)) {
                 setState(State.Failed);
-                if (nonRetriableError) {
-                    log.info("[{}] Watcher creation failed for {} with non-retriable error {}", topic, name,
-                            exception.getMessage());
-                } else {
-                    log.info("[{}] Watcher creation failed for {} after timeout", topic, name);
-                }
+                log.info("[{}] Watcher creation failed for {} with non-retriable error {}",
+                        topic, name, exception.getMessage());
                 deregisterFromClientCnx();
                 return false;
             }

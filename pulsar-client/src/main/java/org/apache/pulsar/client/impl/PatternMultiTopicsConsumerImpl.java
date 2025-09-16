@@ -386,6 +386,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             timeout.cancel();
             recheckPatternTimeout = null;
         }
+        watcherFuture.cancel(false);
         CompletableFuture<Void> watcherCloseFuture = watcherFuture.thenCompose(
                 topicListWatcher -> Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
                         .orElse(CompletableFuture.completedFuture(null))).exceptionally(t -> null);
