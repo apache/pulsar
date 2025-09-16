@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import io.prometheus.client.Counter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,9 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ReadEntriesContext;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 
 /**
@@ -132,7 +130,7 @@ public class PendingReadsManager {
 
     }
 
-    private record ReadEntriesCallbackWithContext(AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
+    private record ReadEntriesCallbackWithContext(ReadEntriesContext readEntriesContext,
                                                   long startEntry, long endEntry) {
     }
 
@@ -248,12 +246,11 @@ public class PendingReadsManager {
             });
         }
 
-        synchronized boolean addListener(AsyncCallbacks.ReadEntriesCallback callback,
-                                         Object ctx, long startEntry, long endEntry) {
+        synchronized boolean addListener(ReadEntriesContext context, long startEntry, long endEntry) {
             if (state == PendingReadState.COMPLETED) {
                 return false;
             }
-            listeners.add(new ReadEntriesCallbackWithContext(callback, ctx, startEntry, endEntry));
+            listeners.add(new ReadEntriesCallbackWithContext(context, startEntry, endEntry));
             return true;
         }
 
@@ -276,15 +273,14 @@ public class PendingReadsManager {
                 if (first.startEntry == key.startEntry
                         && first.endEntry == key.endEntry) {
                     // perfect match, no copy, this is the most common case
-                    first.callback.readEntriesComplete(entriesToReturn, first.ctx);
+                    first.readEntriesContext.complete(entriesToReturn);
                 } else {
-                    first.callback.readEntriesComplete(
-                            keepEntries(entriesToReturn, first.startEntry, first.endEntry), first.ctx);
+                    first.readEntriesContext.complete(keepEntries(entriesToReturn, first.startEntry, first.endEntry));
                 }
             } else {
                 for (ReadEntriesCallbackWithContext callback : callbacks) {
-                    callback.callback.readEntriesComplete(
-                            copyEntries(entriesToReturn, callback.startEntry, callback.endEntry), callback.ctx);
+                    callback.readEntriesContext.complete(
+                            copyEntries(entriesToReturn, callback.startEntry, callback.endEntry));
                 }
                 for (Entry entry : entriesToReturn) {
                     // don't decrease the read count when these entries are released
@@ -297,8 +293,7 @@ public class PendingReadsManager {
         // this method isn't synchronized since that could lead to deadlocks
         private void readEntriesFailed(List<ReadEntriesCallbackWithContext> callbacks, Throwable error) {
             for (ReadEntriesCallbackWithContext callback : callbacks) {
-                ManagedLedgerException mlException = createManagedLedgerException(error);
-                callback.callback.readEntriesFailed(mlException, callback.ctx);
+                callback.readEntriesContext.fail(error);
             }
         }
 
@@ -330,7 +325,7 @@ public class PendingReadsManager {
 
 
     void readEntries(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-                     final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+                     ReadEntriesContext context) {
         final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
         ConcurrentMap<PendingReadKey, PendingRead> pendingReadsForLedger =
@@ -345,8 +340,8 @@ public class PendingReadsManager {
 
             if (findBestCandidateOutcome.needsAdditionalReads()) {
                 CompletableFuture<List<Entry>> readFromMidFuture = new CompletableFuture<>();
-                ReadEntriesCallback presentReadCallback = new ReadEntriesCallback(readFromMidFuture);
-                listenerAdded = pendingRead.addListener(presentReadCallback, ctx, key.startEntry, key.endEntry);
+                listenerAdded = pendingRead.addListener(ReadEntriesContext.fromFuture(readFromMidFuture),
+                        key.startEntry, key.endEntry);
                 if (!listenerAdded) {
                     continue;
                 }
@@ -367,16 +362,16 @@ public class PendingReadsManager {
                         })
                         .whenComplete((finalResult, e) -> {
                             if (e != null) {
-                                callback.readEntriesFailed(createManagedLedgerException(e), ctx);
+                                context.fail(e);
                                 releaseEntriesSafely(readFromLeftFuture);
                                 releaseEntriesSafely(readFromMidFuture);
                                 releaseEntriesSafely(readFromRightFuture);
                             } else {
-                                callback.readEntriesComplete(finalResult, ctx);
+                                context.complete(finalResult);
                             }
                         });
             } else {
-                listenerAdded = pendingRead.addListener(callback, ctx, key.startEntry, key.endEntry);
+                listenerAdded = pendingRead.addListener(context, key.startEntry, key.endEntry);
             }
 
             if (createdByThisThread.get()) {
@@ -393,9 +388,8 @@ public class PendingReadsManager {
         CompletableFuture<List<Entry>> future;
         if (missingKey != null) {
             future = new CompletableFuture<>();
-            ReadEntriesCallback callback = new ReadEntriesCallback(future);
-            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, expectedReadCount, callback,
-                    null, false);
+            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, expectedReadCount,
+                    ReadEntriesContext.fromFuture(future), false);
         } else {
             future = CompletableFuture.completedFuture(Collections.emptyList());
         }
@@ -417,22 +411,4 @@ public class PendingReadsManager {
         cachedPendingReads.remove(id);
     }
 
-    static class ReadEntriesCallback implements AsyncCallbacks.ReadEntriesCallback {
-
-        private final CompletableFuture<List<Entry>> completableFuture;
-
-        public ReadEntriesCallback(CompletableFuture<List<Entry>> completableFuture) {
-            this.completableFuture = completableFuture;
-        }
-
-        @Override
-        public void readEntriesComplete(List<Entry> entries, Object ctx) {
-            completableFuture.complete(entries);
-        }
-
-        @Override
-        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            completableFuture.completeExceptionally(exception);
-        }
-    }
 }
