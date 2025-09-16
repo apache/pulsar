@@ -133,6 +133,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
+import org.apache.bookkeeper.mledger.util.CallbackUtils;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
@@ -2407,9 +2408,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, position.getLedgerId(),
                     position.getEntryId(), callback, readOpCount, createdTime, ctx);
             lastReadCallback = readCallback;
-            entryCache.asyncReadEntry(ledger, position, readCallback, readOpCount);
+            entryCache.asyncReadEntry(ledger, position).whenComplete((entry, throwable) ->
+                    CallbackUtils.complete(entry, throwable, readCallback, readOpCount));
         } else {
-            entryCache.asyncReadEntry(ledger, position, callback, ctx);
+            entryCache.asyncReadEntry(ledger, position).whenComplete((entry, throwable) ->
+                    CallbackUtils.complete(entry, throwable, callback, ctx));
         }
     }
 
@@ -2423,9 +2426,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
                     opReadEntry, readOpCount, createdTime, ctx);
             lastReadCallback = readCallback;
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, readOpCount);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount).whenComplete(
+                    (entries, throwable) -> CallbackUtils.complete(entries, throwable, readCallback, readOpCount));
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, opReadEntry, ctx);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount).whenComplete(
+                    (entries, throwable) -> CallbackUtils.complete(entries, throwable, opReadEntry, ctx));
         }
     }
 
