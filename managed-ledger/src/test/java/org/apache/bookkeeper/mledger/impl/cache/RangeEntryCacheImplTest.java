@@ -31,9 +31,9 @@ import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -72,14 +72,11 @@ public class RangeEntryCacheImplTest {
         doAnswer(invocation -> {
             long firstEntry = invocation.getArgument(1);
             long lastEntry = invocation.getArgument(2);
-            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(4);
-            Object ctx = invocation.getArgument(5);
             List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 1));
             for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
                 entries.add(EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER));
             }
-            callback.readEntriesComplete(entries, ctx);
-            return null;
+            return CompletableFuture.completedFuture(entries);
         }).when(pendingReadsManager).readEntries(any(), anyLong(), anyLong(), any());
         rangeEntryCache =
                 new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false, mockRangeCacheRemovalQueue,
@@ -170,11 +167,8 @@ public class RangeEntryCacheImplTest {
         Entry entry = EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER);
         rangeEntryCache.insert(entry);
         doAnswer(invocation -> {
-            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(4);
-            Object ctx = invocation.getArgument(5);
             System.out.println("Injecting test failure for readEntries");
-            callback.readEntriesFailed(new ManagedLedgerException("Injected test failure"), ctx);
-            return null;
+            return CompletableFuture.failedFuture(new ManagedLedgerException("Injected test failure"));
         }).when(pendingReadsManager).readEntries(any(), eq(51L), eq(99L), any());
         performReadAndValidateResult();
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), any());
