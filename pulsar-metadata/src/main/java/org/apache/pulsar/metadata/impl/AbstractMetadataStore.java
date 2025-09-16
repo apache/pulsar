@@ -77,6 +77,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final String metadataStoreName;
     protected final ScheduledExecutorService executor;
+    protected final ScheduledExecutorService cacheExecutor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
@@ -100,9 +101,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         this.executor = new ScheduledThreadPoolExecutor(1,
                 new DefaultThreadFactory(
                         StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
+        this.cacheExecutor = new ScheduledThreadPoolExecutor(4,
+                new DefaultThreadFactory("metadata-cache-loader"));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
+                .executor(cacheExecutor)
                 .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
@@ -126,6 +130,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-children", childrenCache);
 
         this.existsCache = Caffeine.newBuilder()
+                .executor(cacheExecutor)
                 .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
@@ -249,7 +254,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         JavaType typeRef = TypeFactory.defaultInstance().constructSimpleType(clazz, null);
         String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.executor);
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.cacheExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -258,7 +263,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
         String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.executor);
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.cacheExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -267,8 +272,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
                                                  MetadataCacheConfig cacheConfig) {
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<>(cacheName, this, serde, cacheConfig,
-                        this.executor);
+                new MetadataCacheImpl<>(cacheName, this, serde, cacheConfig, this.cacheExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -556,6 +560,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void close() throws Exception {
+        cacheExecutor.shutdownNow();
+        cacheExecutor.awaitTermination(10, TimeUnit.SECONDS);
         executor.shutdownNow();
         executor.awaitTermination(10, TimeUnit.SECONDS);
         this.metadataStoreStats.close();

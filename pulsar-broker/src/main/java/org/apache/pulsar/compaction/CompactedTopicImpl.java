@@ -23,6 +23,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -223,6 +224,7 @@ public class CompactedTopicImpl implements CompactedTopic {
     static AsyncLoadingCache<Long, MessageIdData> createCache(LedgerHandle lh,
                                                               long maxSize) {
         return Caffeine.newBuilder()
+                .executor(MoreExecutors.directExecutor())
                 .maximumSize(maxSize)
                 .buildAsync((entryId, executor) -> readOneMessageId(lh, entryId));
     }
