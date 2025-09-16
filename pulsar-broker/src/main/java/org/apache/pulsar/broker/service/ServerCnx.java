@@ -454,7 +454,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (cmd.getType() == BaseCommand.Type.PONG && cmd.getType() == BaseCommand.Type.PING) {
             return;
         }
-        if (requestRateLimiter.acquire(1) == 0) {
+        if (requestRateLimiter.acquire(1) == 0 && !pausedDueToRateLimitation) {
             log.warn("[{}] Reached rate limitation", this);
             // Stop receiving requests.
             pausedDueToRateLimitation = true;
