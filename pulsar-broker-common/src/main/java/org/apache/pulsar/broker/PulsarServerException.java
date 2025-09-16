@@ -46,6 +46,14 @@ public class PulsarServerException extends IOException {
         }
     }
 
+    public static class BookKeeperNotSupportedException extends PulsarServerException {
+
+        public BookKeeperNotSupportedException() {
+            super("ManagedLedgerStorage#getDefaultStorageClass does not return a BookkeeperManagedLedgerStorageClass "
+                    + "instance");
+        }
+    }
+
     public static PulsarServerException from(Throwable throwable) {
         if (throwable instanceof CompletionException) {
             return from(throwable.getCause());
