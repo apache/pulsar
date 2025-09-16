@@ -22,6 +22,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -133,7 +134,12 @@ class OpReadEntry {
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            complete();
+            if (ManagedLedgerException.shouldNotRead(exception)) {
+                entries.forEach(Entry::release);
+                fail(exception);
+            } else {
+                complete();
+            }
         } else if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
