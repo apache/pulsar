@@ -139,6 +139,9 @@ public class MemoryLimitController {
     }
 
     public double currentUsagePercent() {
+        if (!isMemoryLimited()) {
+            return 0.0;
+        }
         return 1.0 * currentUsage.get() / memoryLimit;
     }
 
