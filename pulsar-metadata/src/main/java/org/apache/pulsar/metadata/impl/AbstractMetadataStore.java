@@ -101,7 +101,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         this.executor = new ScheduledThreadPoolExecutor(1,
                 new DefaultThreadFactory(
                         StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
-        this.cacheExecutor = new ScheduledThreadPoolExecutor(4,
+        this.cacheExecutor = new ScheduledThreadPoolExecutor(Runtime.getRuntime().availableProcessors(),
                 new DefaultThreadFactory("metadata-cache-loader"));
         registerListener(this);
 
