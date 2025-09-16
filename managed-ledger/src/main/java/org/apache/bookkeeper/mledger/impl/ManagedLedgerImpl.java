@@ -130,7 +130,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
-import org.apache.bookkeeper.mledger.util.CallbackUtils;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
@@ -320,9 +319,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final ManagedLedgerMBeanImpl mbean;
     protected final Clock clock;
 
-    private static final AtomicLongFieldUpdater<ManagedLedgerImpl> READ_OP_COUNT_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(ManagedLedgerImpl.class, "readOpCount");
-    private volatile long readOpCount = 0;
     protected static final AtomicLongFieldUpdater<ManagedLedgerImpl> ADD_OP_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "addOpCount");
     private volatile long addOpCount = 0;
@@ -2396,53 +2392,39 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected void asyncReadEntry(ReadHandle ledger, Position position, ReadEntryCallback callback, Object ctx) {
         mbean.addEntriesRead(1);
+        final var future = entryCache.asyncReadEntry(ledger, position);
+        future.whenComplete((entry, throwable) -> {
+            if (throwable == null) {
+                callback.readEntryComplete(entry, ctx);
+            } else {
+                callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+            }
+        });
         if (config.getReadEntryTimeoutSeconds() > 0) {
-            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
             long createdTime = System.nanoTime();
-            final var future = entryCache.asyncReadEntry(ledger, position).thenApply(List::of);
-            future.whenComplete((entries, throwable) -> {
-                if (throwable == null) {
-                    callback.readEntryComplete(entries.get(0), ctx);
-                } else {
-                    callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
-                }
-            });
             lastReadEntriesOp = new PendingReadEntriesOp(position.getLedgerId(), position.getEntryId(), createdTime,
-                    readOpCount, future);
-        } else {
-            entryCache.asyncReadEntry(ledger, position).whenComplete((entry, throwable) ->
-                    CallbackUtils.complete(entry, throwable, callback, ctx));
+                    future);
         }
     }
 
     protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, OpReadEntry opReadEntry) {
         IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
+        final var future = entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount);
+        future.whenComplete((entries, throwable) -> {
+            if (throwable == null) {
+                opReadEntry.readEntriesComplete(entries);
+            } else {
+                opReadEntry.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable));
+            }
+        });
         if (config.getReadEntryTimeoutSeconds() > 0) {
-            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
             long createdTime = System.nanoTime();
-            final var future = entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount);
-            future.whenComplete((entries, throwable) -> {
-                if (throwable == null) {
-                    opReadEntry.readEntriesComplete(entries);
-                } else {
-                    opReadEntry.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable));
-                }
-            });
-            lastReadEntriesOp = new PendingReadEntriesOp(ledger.getId(), firstEntry, createdTime, readOpCount, future);
-        } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount).whenComplete(
-                    (entries, throwable) -> {
-                        if (throwable == null) {
-                            opReadEntry.readEntriesComplete(entries);
-                        } else {
-                            opReadEntry.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable));
-                        }
-                    });
+            lastReadEntriesOp = new PendingReadEntriesOp(ledger.getId(), firstEntry, createdTime, future);
         }
     }
 
-    record PendingReadEntriesOp(long ledgerId, long entryId, long createdTime, long readOpCount,
-                                CompletableFuture<List<Entry>> future) {
+    record PendingReadEntriesOp(long ledgerId, long entryId, long createdTime,
+                                CompletableFuture<?> future) {
     }
 
     @Override
@@ -4425,8 +4407,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         final var lastReadEntriesOp = this.lastReadEntriesOp;
-        if (lastReadEntriesOp != null && lastReadEntriesOp.readOpCount > 0 && TimeUnit.NANOSECONDS.toSeconds(
-                    System.nanoTime() - lastReadEntriesOp.createdTime) >= timeoutSec) {
+        if (lastReadEntriesOp != null && TimeUnit.NANOSECONDS.toSeconds(
+                System.nanoTime() - lastReadEntriesOp.createdTime) >= timeoutSec) {
             log.warn("[{}]-{}-{} read entry timeout after {} sec", this.name, lastReadEntriesOp.ledgerId,
                     lastReadEntriesOp.entryId, timeoutSec);
             lastReadEntriesOp.future.completeExceptionally(createManagedLedgerException(
