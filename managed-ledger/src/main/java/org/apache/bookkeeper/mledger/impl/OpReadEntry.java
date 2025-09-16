@@ -145,15 +145,15 @@ class OpReadEntry {
 
     private void internalReadEntriesFailed(ManagedLedgerException exception) {
         cursor.readOperationCompleted();
+        if (ManagedLedgerException.shouldNotRead(exception)) {
+            entries.forEach(Entry::release);
+            fail(exception);
+            return;
+        }
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            if (ManagedLedgerException.shouldNotRead(exception)) {
-                entries.forEach(Entry::release);
-                fail(exception);
-            } else {
-                complete();
-            }
+            complete();
         } else if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
