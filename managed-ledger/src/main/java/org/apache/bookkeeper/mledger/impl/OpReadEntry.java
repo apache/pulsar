@@ -77,7 +77,7 @@ class OpReadEntry {
         op.skipOpenLedgerFullyAcked = skipOpenLedgerFullyAcked;
         op.ctx = ctx;
         op.nextReadPosition = PositionFactory.create(op.readPosition);
-        op.completed = true;
+        op.completed = false;
         return op;
     }
 
@@ -116,10 +116,10 @@ class OpReadEntry {
         try {
             synchronized (this) {
                 if (completed) {
+                    returnedEntries.forEach(Entry::release);
                     return;
                 }
                 completed = true;
-                returnedEntries.forEach(Entry::release);
             }
             internalReadEntriesComplete(returnedEntries);
         } catch (Throwable throwable) {
