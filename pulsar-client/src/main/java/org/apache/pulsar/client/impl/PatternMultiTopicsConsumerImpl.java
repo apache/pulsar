@@ -63,6 +63,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private volatile String topicsHash;
 
     private PatternConsumerUpdateQueue updateTaskQueue;
+    private volatile boolean closed = false;
 
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
@@ -91,10 +92,16 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 namespaceName, topicsHash, watcherFuture, () -> recheckTopicsChangeAfterReconnect());
             watcherFuture
                .exceptionally(ex -> {
-                   log.warn("Pattern consumer [{}] unable to create topic list watcher. Falling back to only polling"
-                           + " for new topics", conf.getSubscriptionName(), ex);
-                   this.recheckPatternTimeout = client.timer().newTimeout(
-                           this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+                   if (closed) {
+                       log.warn("Pattern consumer [{}] was closed while creating topic list watcher",
+                               conf.getSubscriptionName(), ex);
+                   } else {
+                       log.warn(
+                               "Pattern consumer [{}] unable to create topic list watcher. Falling back to only polling"
+                                       + " for new topics", conf.getSubscriptionName(), ex);
+                       this.recheckPatternTimeout = client.timer()
+                               .newTimeout(this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+                   }
                    return null;
                });
         } else {
@@ -122,7 +129,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     // TimerTask to recheck topics change, and trigger subscribe/unsubscribe based on the change.
     @Override
     public void run(Timeout timeout) throws Exception {
-        if (timeout.isCancelled()) {
+        if (timeout.isCancelled() || closed) {
             return;
         }
         updateTaskQueue.appendRecheckOp();
@@ -383,6 +390,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     @Override
     @SuppressFBWarnings
     public CompletableFuture<Void> closeAsync() {
+        closed = true;
         Timeout timeout = recheckPatternTimeout;
         if (timeout != null) {
             timeout.cancel();
