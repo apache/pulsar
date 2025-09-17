@@ -40,6 +40,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -690,5 +691,36 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         });
     }
 
+    @Test(timeOut = 30000)
+    public void testDeleteEmptyTopicWithRetentionPolicy() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        super.baseSetup();
+        final String namespace = "prop/ns-abc";
+        final String topic = "persistent://" + namespace + "/testDeleteEmptyTopicWithRetention-" + UUID.randomUUID();
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(60, 1024));
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().untilAsserted(() ->
+            Assert.assertTrue(admin.topics().getList(namespace).contains(topic)));
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+            Assert.assertFalse(admin.topics().getList(namespace).contains(topic)));
+    }
+
+    @Test(timeOut = 30000)
+    public void testRetainTopicWithDataAndRetentionPolicy() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        super.baseSetup();
+        final String namespace = "prop/ns-abc";
+        final String topic = "persistent://" + namespace + "/testRetainTopicWithData-" + UUID.randomUUID();
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(60, 1024));
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producer.send("test message".getBytes());
+        producer.close();
+        Awaitility.await().during(5, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertTrue(admin.topics().getList(namespace).contains(topic)));
+    }
 
 }
