@@ -45,6 +45,7 @@ import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
@@ -79,7 +80,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
 
     private volatile long lastAccessTimestamp = System.currentTimeMillis();
 
-    private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
+    @VisibleForTesting
+    BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor,
                                           OffsetsCache entryOffsetsCache) {
         this.ledgerId = ledgerId;
@@ -121,11 +123,120 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         return promise;
     }
 
+    private class ReadTask implements Runnable {
+        private final long firstEntry;
+        private final long lastEntry;
+        private final CompletableFuture<LedgerEntries> promise;
+        private int seekedAndTryTimes = 0;
+
+        public ReadTask(long firstEntry, long lastEntry, CompletableFuture<LedgerEntries> promise) {
+            this.firstEntry = firstEntry;
+            this.lastEntry = lastEntry;
+            this.promise = promise;
+        }
+
+        @Override
+        public void run() {
+            if (state == State.Closed) {
+                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
+                        ledgerId, firstEntry, lastEntry);
+                promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
+                return;
+            }
+
+            List<LedgerEntry> entryCollector = new ArrayList<LedgerEntry>();
+            try {
+                readEntries(entryCollector);
+            } catch (Throwable t) {
+                log.error("Failed to read entries {} - {} from the offloader in ledger {}",
+                        firstEntry, lastEntry, ledgerId, t);
+                if (t instanceof KeyNotFoundException) {
+                    promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                } else {
+                    promise.completeExceptionally(t);
+                }
+                entryCollector.forEach(LedgerEntry::close);
+            }
+        }
+
+        private void readEntries(List<LedgerEntry> entryCollector) throws Exception {
+            if (firstEntry > lastEntry
+                    || firstEntry < 0
+                    || lastEntry > getLastAddConfirmed()) {
+                promise.completeExceptionally(new BKException.BKIncorrectParameterException());
+                return;
+            }
+            long entriesToRead = (lastEntry - firstEntry) + 1;
+            long expectedEntryId = firstEntry;
+            seekToEntry(firstEntry);
+            seekedAndTryTimes++;
+
+            while (entriesToRead > 0) {
+                long currentPosition = inputStream.getCurrentPosition();
+                int length = dataStream.readInt();
+                if (length < 0) { // hit padding or new block
+                    seekToEntry(expectedEntryId);
+                    continue;
+                }
+                long entryId = dataStream.readLong();
+                if (entryId == expectedEntryId) {
+                    entryOffsetsCache.put(ledgerId, entryId, currentPosition);
+                    ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
+                    entryCollector.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
+                    int toWrite = length;
+                    while (toWrite > 0) {
+                        toWrite -= buf.writeBytes(dataStream, toWrite);
+                    }
+                    entriesToRead--;
+                    expectedEntryId++;
+                } else {
+                    handleUnexpectedEntryId(expectedEntryId, entryId);
+                }
+            }
+            promise.complete(LedgerEntriesImpl.create(entryCollector));
+        }
+
+        // in the normal case, the entry id should increment in order. But if there has random access in
+        // the read method, we should allow to seek to the right position and the entry id should
+        // never over to the last entry again.
+        private void handleUnexpectedEntryId(long expectedId, long actEntryId) throws Exception {
+            LedgerMetadata ledgerMetadata = getLedgerMetadata();
+            OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedId);
+            OffloadIndexEntry offsetOfActId = actEntryId <= getLedgerMetadata().getLastEntryId() && actEntryId >= 0
+                    ? index.getIndexEntryForEntry(actEntryId) : null;
+            String logLine = String.format("Failed to read [ %s ~ %s ] of the ledger %s."
+                    + " Because got a incorrect entry id %s, the offset is %s."
+                    + " The expected entry id is %s, the offset is %s."
+                    + " Have seeked and retry read times: %s. LAC is %s.",
+                    firstEntry, lastEntry, ledgerId,
+                    actEntryId, offsetOfActId == null ? "null because it does not exist"
+                            : String.valueOf(offsetOfActId),
+                    expectedId, String.valueOf(offsetOfExpectedId),
+                    seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+            // If the offset is wrong, skip the retry and throw the exception.
+            // If it still fails after tried entries count times, throw the exception.
+            if (expectedId != actEntryId && offsetOfExpectedId != null && offsetOfExpectedId.equals(offsetOfActId)
+                    || seekedAndTryTimes > (lastEntry - firstEntry + 1)) {
+                log.error(logLine);
+                throw new BKException.BKUnexpectedConditionException();
+            } else {
+                log.warn(logLine);
+            }
+            seekToEntry(offsetOfExpectedId);
+            seekedAndTryTimes++;
+        }
+    }
+
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         if (log.isDebugEnabled()) {
             log.debug("Ledger {}: reading {} - {} ({} entries}",
                     getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
+        }
+        if (lastEntry < firstEntry || lastEntry > getLastAddConfirmed()) {
+            log.warn("Failed to read entries [ {} ~ {} ] from ledger {}, because the entries do not exist. LAC is {}",
+                    firstEntry, lastEntry, getId(), getLastAddConfirmed());
+            return CompletableFuture.failedFuture(new BKException.BKNoSuchEntryException());
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
 
@@ -138,91 +249,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             lastAccessTimestamp = System.currentTimeMillis();
             PENDING_READ_UPDATER.decrementAndGet(BlobStoreBackedReadHandleImpl.this);
         });
-        executor.execute(() -> {
-            if (state == State.Closed) {
-                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
-                        ledgerId, firstEntry, lastEntry);
-                promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
-                return;
-            }
-
-            List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
-            boolean seeked = false;
-            try {
-                if (firstEntry > lastEntry
-                    || firstEntry < 0
-                    || lastEntry > getLastAddConfirmed()) {
-                    promise.completeExceptionally(new BKException.BKIncorrectParameterException());
-                    return;
-                }
-                long entriesToRead = (lastEntry - firstEntry) + 1;
-                long nextExpectedId = firstEntry;
-
-                // checking the data stream has enough data to read to avoid throw EOF exception when reading data.
-                // 12 bytes represent the stream have the length and entryID to read.
-                if (dataStream.available() < 12) {
-                    log.warn("There hasn't enough data to read, current available data has {} bytes,"
-                        + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
-                    seekToEntry(firstEntry);
-                }
-
-                while (entriesToRead > 0) {
-                    long currentPosition = inputStream.getCurrentPosition();
-                    int length = dataStream.readInt();
-                    if (length < 0) { // hit padding or new block
-                        seekToEntry(nextExpectedId);
-                        continue;
-                    }
-                    long entryId = dataStream.readLong();
-
-                    if (entryId == nextExpectedId) {
-                        entryOffsetsCache.put(ledgerId, entryId, currentPosition);
-                        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
-                        entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
-                        int toWrite = length;
-                        while (toWrite > 0) {
-                            toWrite -= buf.writeBytes(dataStream, toWrite);
-                        }
-                        entriesToRead--;
-                        nextExpectedId++;
-                    } else if (entryId > nextExpectedId && entryId < lastEntry) {
-                        log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
-                            + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
-                        seekToEntry(nextExpectedId);
-                    } else if (entryId < nextExpectedId
-                        && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
-                        log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
-                        + ", seeking to the right position", entryId, nextExpectedId);
-                        seekToEntry(nextExpectedId);
-                    } else if (entryId > lastEntry) {
-                        // in the normal case, the entry id should increment in order. But if there has random access in
-                        // the read method, we should allow to seek to the right position and the entry id should
-                        // never over to the last entry again.
-                        if (!seeked) {
-                            seekToEntry(nextExpectedId);
-                            seeked = true;
-                            continue;
-                        }
-                        log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                            nextExpectedId, entryId, lastEntry);
-                        throw new BKException.BKUnexpectedConditionException();
-                    } else {
-                        long ignore = inputStream.skip(length);
-                    }
-                }
-
-                promise.complete(LedgerEntriesImpl.create(entries));
-            } catch (Throwable t) {
-                log.error("Failed to read entries {} - {} from the offloader in ledger {}",
-                    firstEntry, lastEntry, ledgerId, t);
-                if (t instanceof KeyNotFoundException) {
-                    promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
-                } else {
-                    promise.completeExceptionally(t);
-                }
-                entries.forEach(LedgerEntry::close);
-            }
-        });
+        executor.execute(new ReadTask(firstEntry, lastEntry, promise));
         return promise;
     }
 
@@ -236,6 +263,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             long dataOffset = index.getIndexEntryForEntry(nextExpectedId).getDataOffset();
             inputStream.seek(dataOffset);
         }
+    }
+
+    private void seekToEntry(OffloadIndexEntry offloadIndexEntry) throws IOException {
+        long dataOffset = offloadIndexEntry.getDataOffset();
+        inputStream.seek(dataOffset);
     }
 
     @Override
