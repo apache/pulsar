@@ -948,7 +948,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " many requests should be allowed in the rate limiting period."
 
     )
-    private int pulsarChannelRateLimitingRateAfterResumeFromUnreadable = 1000;
+    private int pulsarChannelRateLimitingRequestsAfterResumeFromUnreadable = 1000;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
