@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -916,7 +917,16 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        // Should not have been deleted, since we have retention
+        // Should be deleted, If the topic has no data, it can always be deleted regardless of retention policy, even
+        // if we have retention, see PR https://github.com/apache/pulsar/pull/24733
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.send("test gc".getBytes(StandardCharsets.UTF_8));
+        producer.close();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        runGC();
+        // Should not be deleted, the topic still has entries
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // Remove retention
