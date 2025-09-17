@@ -46,19 +46,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- * Comprehensive test suite for BlobStoreBackedReadHandleImpl.readAsync method.
- * 
- * This test covers:
- * - Normal read operations with valid entry ranges
- * - Error handling for invalid parameters
- * - State management (open/closed handle)
- * - Concurrent read operations
- * - Exception scenarios (IOException, KeyNotFoundException)
- * - Entry seeking and caching behavior
- * - Pending read counter management
- * - Last access timestamp updates
- */
 public class BlobStoreBackedReadHandleImplTest {
 
     private OffsetsCache offsetsCache = new OffsetsCache();
@@ -85,8 +72,8 @@ public class BlobStoreBackedReadHandleImplTest {
         return "Entry " + entryId;
     }
 
-    private Pair<BlobStoreBackedReadHandleImpl,ByteBuf> createReadHandle(long ledgerId, int entries,
-                                                                         boolean hasDirtyData) throws Exception {
+    private Pair<BlobStoreBackedReadHandleImpl,ByteBuf> createReadHandle(
+            long ledgerId, int entries,boolean hasDirtyData) throws Exception {
         // Build data.
         List<Pair<Integer, Integer>> offsets = new ArrayList<>();
         int totalLen = 0;
@@ -190,8 +177,8 @@ public class BlobStoreBackedReadHandleImplTest {
     @Test(dataProvider = "streamStartAt")
     public void testRead(int streamStartAt, boolean hasDirtyData) throws Exception {
         int entryCount = 5;
-        Pair<BlobStoreBackedReadHandleImpl,ByteBuf> ledgerDataPair = createReadHandle(1, entryCount,
-                hasDirtyData);
+        Pair<BlobStoreBackedReadHandleImpl,ByteBuf> ledgerDataPair
+                = createReadHandle(1, entryCount, hasDirtyData);
         BlobStoreBackedReadHandleImpl ledger = ledgerDataPair.getLeft();
         ByteBuf data = ledgerDataPair.getRight();
         data.readerIndex(streamStartAt);
