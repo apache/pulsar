@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -121,6 +121,20 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         Assert.assertEquals(consumer.getConsumers().size(), 5);
     }
 
+    @Test
+    public void testGetPoliciesIfPartitionsNotCreated() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        int numPartitions = 3;
+        // simulate partitioned topic without partitions
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .createPartitionedTopicAsync(TopicName.get(topic),
+                        new PartitionedTopicMetadata(numPartitions)).join();
+        // Verify: the command will not get an topic not found error.
+        admin.topics().getReplicationClusters(topic, true);
+        // cleanup.
+        admin.topics().deletePartitionedTopic(topic);
+    }
+
     @DataProvider(name = "restCreateMissedPartitions")
     public Object[] restCreateMissedPartitions() {
         return new Object[] { true, false };
@@ -135,15 +149,9 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         // simulate partitioned topic without partitions
         pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .createPartitionedTopicAsync(TopicName.get(topic),
-                new PartitionedTopicMetadata(numPartitions));
-        Consumer<byte[]> consumer = null;
-        try {
-            consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1")
-                    .subscribeAsync().get(3, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            //ok here, consumer will create failed with 'Topic does not exist'
-        }
-        Assert.assertNull(consumer);
+                new PartitionedTopicMetadata(numPartitions)).join();
+        Assert.assertEquals(admin.topics().getList("public/default").stream()
+            .filter(tp -> TopicName.get(tp).getPartitionedTopicName().endsWith(topic)).toList().size(), 0);
         if (useRestApi) {
             admin.topics().createMissedPartitions(topic);
         } else {
@@ -152,7 +160,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
                 admin.topics().createNonPartitionedTopic(topicName.getPartition(i).toString());
             }
         }
-        consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
         Assert.assertNotNull(consumer);
         Assert.assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         Assert.assertEquals(((MultiTopicsConsumerImpl) consumer).getConsumers().size(), 3);

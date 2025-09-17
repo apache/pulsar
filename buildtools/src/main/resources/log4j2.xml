@@ -19,20 +19,40 @@
     under the License.
 
 -->
-<Configuration status="INFO">
-    <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} %-5level [%t{12}] %c{1.} - %msg %X%n" />
-        </Console>
-    </Appenders>
-    <Loggers>
-        <Root level="warn">
-            <AppenderRef ref="Console" />
-        </Root>
-        <Logger name="org.eclipse.jetty" level="info"/>
-        <Logger name="org.apache.pulsar" level="info"/>
-        <Logger name="org.apache.bookkeeper" level="info"/>
-        <Logger name="org.apache.kafka" level="info"/>
-        <Logger name="org.testcontainers" level="info"/>
-    </Loggers>
+<Configuration xmlns="http://logging.apache.org/log4j/2.0/config"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://logging.apache.org/log4j/2.0/config https://logging.apache.org/log4j/2.0/log4j-core.xsd"
+               status="INFO">
+  <Properties>
+    <Property name="pulsar.test.logging.appender" value="CONSOLE"/>
+    <Property name="pulsar.test.logging.file" value="target/pulsar.test.log"/>
+    <Property name="pulsar.test.logging.file.immediateFlush" value="false"/>
+  </Properties>
+  <Appenders>
+    <!-- setting follow="true" is required for using ConsoleCaptor to validate log messages -->
+    <Console name="CONSOLE" target="SYSTEM_OUT" follow="true">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} %-5level [%t{12}] %c{1.} - %msg %X%n"/>
+    </Console>
+    <RollingFile name="FILE"
+                 fileName="${sys:pulsar.test.logging.file}"
+                 filePattern="${sys:pulsar.test.logging.file}-%i.log"
+                 immediateFlush="${sys:pulsar.test.logging.file.immediateFlush}"
+                 createOnDemand="true">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"/>
+      <Policies>
+        <SizeBasedTriggeringPolicy size="10MB"/>
+      </Policies>
+    </RollingFile>
+  </Appenders>
+  <Loggers>
+    <Root level="warn">
+      <!-- by setting -Dpulsar.test.logging.appender=FILE, it's possible to log to file only -->
+      <AppenderRef ref="${sys:pulsar.test.logging.appender}"/>
+    </Root>
+    <Logger name="org.eclipse.jetty" level="info"/>
+    <Logger name="org.apache.pulsar" level="info"/>
+    <Logger name="org.apache.bookkeeper" level="info"/>
+    <Logger name="org.apache.kafka" level="info"/>
+    <Logger name="org.testcontainers" level="info"/>
+  </Loggers>
 </Configuration>

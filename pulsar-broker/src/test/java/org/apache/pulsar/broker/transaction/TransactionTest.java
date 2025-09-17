@@ -35,6 +35,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.Unpooled;
@@ -77,6 +78,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -485,6 +487,42 @@ public class TransactionTest extends TransactionTestBase {
             transaction2.commit().get();
             return true;
         });
+    }
+
+    @Test
+    public void testSendAndAckWithSchema() throws Exception {
+        String topic = NAMESPACE1 + "/testAsyncSendAndAckWithSchema";
+        String topicName = "subscription";
+        getPulsarServiceList().get(0).getConfig().setBrokerDeduplicationEnabled(false);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("producer")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(topicName)
+                .subscribe();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        MessageId messageId = producer.newMessage(Schema.STRING, txn)
+                .value("testSendAndAckWithSchema")
+                .send();
+
+        txn.commit().get();
+
+        Message<byte[]> message = consumer.receive();
+        assertEquals(new String(message.getValue(), StandardCharsets.UTF_8), "testSendAndAckWithSchema");
+        assertNotNull(message.getSchemaVersion());
     }
 
     @Test
@@ -1649,7 +1687,7 @@ public class TransactionTest extends TransactionTestBase {
         when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
         // Mock managedLedger.
         ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
-        ManagedCursorContainer managedCursors = new ManagedCursorContainer();
+        ManagedCursorContainer managedCursors = new ManagedCursorContainerImpl();
         when(managedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
         when(managedLedger.getCursors()).thenReturn(managedCursors);
         Position position = PositionFactory.EARLIEST;

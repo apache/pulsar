@@ -2107,9 +2107,14 @@ public class BrokerService implements Closeable {
             managedLedgerConfig.setInactiveOffloadedLedgerEvictionTime(
                     serviceConfig.getManagedLedgerInactiveOffloadedLedgerEvictionTimeSeconds(),
                     TimeUnit.SECONDS);
-
-            managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
-                    serviceConfig.isCacheEvictionByMarkDeletedPosition());
+            if (serviceConfig.isCacheEvictionByExpectedReadCount()) {
+                managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(false);
+                managedLedgerConfig.setCacheEvictionByExpectedReadCount(true);
+            } else {
+                managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
+                        serviceConfig.isCacheEvictionByMarkDeletedPosition());
+                managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
+            }
             managedLedgerConfig.setMinimumBacklogCursorsForCaching(
                     serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
             managedLedgerConfig.setMinimumBacklogEntriesForCaching(
@@ -2611,7 +2616,7 @@ public class BrokerService implements Closeable {
     private void handlePoliciesUpdates(NamespaceName namespace) {
         pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                 .thenAcceptAsync(optPolicies -> {
-                    if (!optPolicies.isPresent()) {
+                    if (!optPolicies.isPresent() || optPolicies.get().deleted) {
                         return;
                     }
 
@@ -2875,7 +2880,20 @@ public class BrokerService implements Closeable {
                     defaultManagedLedgerFactory.updateCacheEvictionTimeThreshold(MILLISECONDS
                             .toNanos((long) cacheEvictionTimeThresholdMills));
                 });
-
+        //  add listener to notify broker managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes
+        //  dynamic config
+        registerConfigurationListener("managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes",
+                (managedLedgerCacheEvictionMaxRequeueCount) -> {
+                    defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+                            (int) managedLedgerCacheEvictionMaxRequeueCount);
+                });
+        //  add listener to notify broker managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed
+        //  dynamic config
+        registerConfigurationListener("managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed",
+                (extendTTLOfRecentlyAccessed) -> {
+                    defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfRecentlyAccessed(
+                            (boolean) extendTTLOfRecentlyAccessed);
+                });
 
         // add listener to update message-dispatch-rate in msg for topic
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
@@ -3614,11 +3632,20 @@ public class BrokerService implements Closeable {
             allowed = pulsar.getConfiguration().isAllowAutoTopicCreation();
         }
 
-        if (allowed && topicName.isPartitioned()) {
+        if (topicName.isPartitioned()) {
+            TopicName partitionedTopic = TopicName.get(topicName.getPartitionedTopicName());
             // cannot re-create topic while it is being deleted
             return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                    .isPartitionedTopicBeingDeletedAsync(topicName)
-                    .thenApply(beingDeleted -> !beingDeleted);
+                .getPartitionedTopicMetadataAsync(partitionedTopic, true)
+                .thenApply(partitionedTopicMetadata -> {
+                    if (partitionedTopicMetadata.isEmpty()) {
+                        return allowed;
+                    }
+                    if (partitionedTopicMetadata.get().deleted) {
+                        return false;
+                    }
+                    return partitionedTopicMetadata.get().partitions > topicName.getPartitionIndex();
+                });
         } else {
             return CompletableFuture.completedFuture(allowed);
         }

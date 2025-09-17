@@ -42,9 +42,11 @@ import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
@@ -57,6 +59,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -405,7 +408,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         //decode snapshot from entry
         ByteBuf headersAndPayload = entry.getDataBuffer();
         //skip metadata
-        Commands.parseMessageMetadata(headersAndPayload);
+        Commands.skipMessageMetadata(headersAndPayload);
         TransactionBufferSnapshotSegment snapshotSegment = Schema.AVRO(TransactionBufferSnapshotSegment.class)
                 .decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
 
@@ -730,12 +733,28 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
-            CompletableFuture<Void> res = persistentWorker.clearAllSnapshotSegments()
-                    .thenCompose((ignore) -> snapshotIndexWriter.getFuture()
-                            .thenCompose(indexesWriter -> indexesWriter.writeAsync(topic.getName(), null)))
-                    .thenRun(() ->
-                            log.debug("Successes to clear the snapshot segment and indexes for the topic [{}]",
-                                    topic.getName()));
+            NamespaceName namespaceName = TopicName.get(topic.getName()).getNamespaceObject();
+            PulsarService pulsar = topic.getBrokerService().getPulsar();
+            CompletableFuture<Void> deleteSegmentFuture = NamespaceEventsSystemTopicFactory.checkSystemTopicExists(
+                            namespaceName, EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS, pulsar)
+                    .thenCompose(exists -> {
+                        if (exists) {
+                            return persistentWorker.clearAllSnapshotSegments();
+                        }
+                        return CompletableFuture.completedFuture(null);
+                    });
+            CompletableFuture<Void> res = deleteSegmentFuture.thenCompose(ignore ->
+                    NamespaceEventsSystemTopicFactory.checkSystemTopicExists(
+                            namespaceName, EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, pulsar)
+                    .thenCompose(exists -> {
+                        if (exists) {
+                            return snapshotIndexWriter.getFuture()
+                                .thenCompose(writer -> writer.writeAsync(topic.getName(), null))
+                                .thenRun(() -> log.debug("Successes to clear the snapshot segment and indexes for"
+                                        + " the topic [{}]", topic.getName()));
+                        }
+                        return CompletableFuture.completedFuture(null);
+                    }));
             res.exceptionally(e -> {
                 log.error("Failed to clear the snapshot segment and indexes for the topic [{}]",
                         topic.getName(), e);

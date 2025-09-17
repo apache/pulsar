@@ -385,6 +385,11 @@ public class HttpSinkTest {
                     }
 
                     @Override
+                    public Optional<byte[]> getSchemaId() {
+                        return Optional.of(new byte[0]);
+                    }
+
+                    @Override
                     public boolean isReplicated() {
                         return false;
                     }

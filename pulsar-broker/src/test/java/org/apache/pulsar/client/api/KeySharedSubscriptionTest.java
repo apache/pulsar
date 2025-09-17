@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -917,6 +918,136 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertEquals(receives.size(), messages);
         producer.close();
         consumer.close();
+    }
+
+    /*
+        Verifies https://github.com/apache/pulsar/issues/23845 issue fixed
+
+        The scenario of verification
+
+        Preconditions:
+
+        1. Consumer "consumer" up and running
+        2. Producer "producer" connected to broker
+
+        Steps to reproduce:
+        1. "producer" send message with key "testMessageKey"
+        Example: "testMessage" hash is always 124
+
+        2. "consumer" receives BUT DO NOT acknowledge message with key "testMessageKey"
+        Example: "consumer" hash range: [0-256]. "testMessage" hash range: [0-256]
+
+        3. Add more consumers until hash range of message with key "testMessageKey" removed from "consumer" hash ranges
+        Example: "consumer" hash range: [0-123]. "consumer N" hash range: [124-136]. "testMessage" hash range: [124-136]
+
+        4. Stop the added consumers until message key "testMessageKey" hash range moved to "consumer" hash ranges
+        Example: "consumer" hash range: [0-128]. "testMessage" hash range: [0-128]
+
+        5. Add more consumers until hash range of message with key "testMessageKey" removed from "consumer" hash ranges
+        Example: "consumer" hash range: [0-96]. "consumer N" hash range: [121-154]. "testMessage" hash range: [121-154]
+
+        6. Stop "consumer"
+
+        Actual result for bug:
+        No message with key "testMessageKey" received by consumer who owns message's hash range
+
+        Expected result:
+        The message with key "testMessageKey" received by consumer who owns message's hash range
+        Example: "consumer N" with hash range [121-154] received the message
+
+     */
+    @Test
+    void testMessageDeliveredFromDrainingHashes() throws PulsarClientException {
+        String messageKey = "testMessageKey";
+        String topic = "testMessageDeliveredFromDrainingHashes" + UUID.randomUUID();
+
+        List<Consumer<Integer>> consumers = new ArrayList<>();
+
+        @Cleanup
+        Consumer<Integer> consumer = createConsumer(topic);
+        String initialOwnerName = consumer.getConsumerName();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+        producer.newMessage().key(messageKey).value(1).send();
+
+        // receive but not acknowledge the message to leave it in pending acks
+        Message<Integer> received = consumer.receive();
+        assertThat(received.getKey()).isEqualTo(messageKey);
+
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, SUBSCRIPTION_NAME);
+        StickyKeyConsumerSelector selector = dispatcher.getSelector();
+        int messageKeyHash = selector.makeStickyKeyHash(messageKey.getBytes(StandardCharsets.UTF_8));
+
+        try {
+            // add new consumers until hash range of the initial message owner moved
+            Pair<String, List<Consumer<Integer>>> addedConsumers = addConsumersUntilOwnerChanged(
+                    topic, initialOwnerName, messageKeyHash, selector
+            );
+            String currentOwnerName = addedConsumers.getKey();
+            consumers.addAll(addedConsumers.getValue());
+
+            // returning hash range to the initial owner
+            for (int i = consumers.size() - 1; i > -1 && !initialOwnerName.equals(currentOwnerName); i--) {
+                consumers.remove(i).close();
+                currentOwnerName = findOwnerName(selector, messageKeyHash);
+            }
+
+            // add new consumers until hash range of the initial message owner moved
+            Pair<String, List<Consumer<Integer>>> addedConsumersAfter = addConsumersUntilOwnerChanged(
+                    topic, initialOwnerName, messageKeyHash, selector
+            );
+
+            String currentOwnerNameAfter = addedConsumersAfter.getKey();
+            consumers.addAll(addedConsumersAfter.getValue());
+
+            // remove the initial owner
+            consumer.close();
+
+            // verify the message sent to new consumer which owns hash range
+            Optional<Consumer<Integer>> theNewOwnerMaybe = consumers
+                    .stream()
+                    .filter(c -> c.getConsumerName().equals(currentOwnerNameAfter))
+                    .findAny();
+
+            assertThat(theNewOwnerMaybe).isPresent();
+
+            Consumer<Integer> theNewOwner = theNewOwnerMaybe.get();
+
+            Message<Integer> message = theNewOwner.receive(5, TimeUnit.SECONDS);
+            assertThat(message).describedAs("Message with key " + messageKey
+                    + " expected to be delivered to consumer " + theNewOwner.getConsumerName()).isNotNull();
+            assertThat(message.getKey()).isEqualTo(messageKey);
+        } finally {
+            for (Consumer<Integer> c : consumers) {
+                c.close();
+            }
+        }
+    }
+
+    private Pair<String, List<Consumer<Integer>>> addConsumersUntilOwnerChanged(
+            String topic,
+            String initialOwnerName,
+            int messageKeyHash,
+            StickyKeyConsumerSelector selector
+    ) throws PulsarClientException {
+        String currentOwnerName;
+        List<Consumer<Integer>> consumers = new ArrayList<>();
+        do {
+            Consumer<Integer> addedC = createConsumer(topic);
+            consumers.add(addedC);
+            currentOwnerName = findOwnerName(selector, messageKeyHash);
+        } while (initialOwnerName.equals(currentOwnerName));
+        return Pair.of(currentOwnerName, consumers);
+    }
+
+    private String findOwnerName(StickyKeyConsumerSelector selector, int hash) {
+        return selector.getConsumerKeyHashRanges().entrySet().stream()
+                .filter(entry ->
+                        entry.getValue().stream().anyMatch(range -> range.contains(hash))
+                )
+                .findAny().orElseThrow(() -> new IllegalArgumentException("No owner for the hash " + hash))
+                .getKey().consumerName();
     }
 
     @Test(dataProvider = "currentImplementationType")
@@ -2536,5 +2667,71 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         } finally {
             logTopicStats(topic);
         }
+    }
+
+    @Test
+    public void testCustomStickyRange() throws Exception {
+        int messageCount = 100;
+        final String topicName = "persistent://public/default/test-sticky-range-" + System.nanoTime();
+        final String subscriptionName = "sub-sticky-range";
+
+        // 0. Init topic and subscription
+        admin.topics().createPartitionedTopic(topicName, 4);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // 1. Create a producer and send messages
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create()) {
+            for (int i = 0; i < messageCount; i++) {
+                String key = String.valueOf(i);
+                producer.newMessage()
+                        .value(String.valueOf(i).getBytes())
+                        .key(key)
+                        .send();
+            }
+        }
+
+        // 3. One by one create consumers consume message with different sticky hash range
+        KeySharedPolicy.KeySharedPolicySticky policy1 = KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(0, 9999), Range.of(20000, 29999), Range.of(40000, 49999));
+        KeySharedPolicy.KeySharedPolicySticky policy2 = KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(10000, 19999), Range.of(30000, 39999), Range.of(50000, 65535));
+
+        List<KeySharedPolicy.KeySharedPolicySticky> policies = Arrays.asList(policy1, policy2);
+        int[] receivedCounts = new int[2];
+        for (int i = 0; i < policies.size(); i++) {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .keySharedPolicy(policies.get(i))
+                    .subscribe();
+            while (true) {
+                try {
+                    Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        break;
+                    }
+                    receivedCounts[i]++;
+                    log.debug("Consumer #{} received message with key:{} total:{}",
+                            i + 1, msg.getKey(), receivedCounts[i]);
+                } catch (Exception e) {
+                    break;
+                }
+            }
+            // make sure consume closed before start next consumer
+            consumer.close();
+        }
+
+        int consumer1Received = receivedCounts[0];
+        int consumer2Received = receivedCounts[1];
+
+        log.info("Consumer1 total received: {}", consumer1Received);
+        log.info("Consumer2 total received: {}", consumer2Received);
+        Assert.assertEquals(consumer1Received + consumer2Received, messageCount,
+                "Total messages received by both consumers should be " + messageCount);
     }
 }

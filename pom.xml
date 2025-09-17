@@ -26,13 +26,13 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>29</version>
+    <version>35</version>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>4.1.0-SNAPSHOT</version>
+  <version>4.2.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -94,7 +94,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2024-10-14T13:32:50Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2025-09-01T03:46:57Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <!-- By default build for local Docker platform.
@@ -118,7 +118,11 @@ flexible messaging model and an intuitive client API.</description>
       -Xshare:off <!-- suppress sharing warning -->
       ${test.additional.args.jdk24}
       ${test.netty.args}
+      ${test.asyncprofiler.args}
+      ${test.jvm.args}
     </test.additional.args>
+    <!-- arguments to pass to test JVMs -->
+    <test.jvm.args></test.jvm.args>
     <test.additional.args.jdk24></test.additional.args.jdk24>
     <!-- Netty related JVM args, including Netty leak detection enabled in tests -->
     <test.netty.args>
@@ -148,6 +152,7 @@ flexible messaging model and an intuitive client API.</description>
       -Dio.netty.leakDetection.acquireAndReleaseOnly=true
       -Dio.netty.leakDetection.samplingInterval=32
     </test.netty.leakdetection.args>
+    <test.asyncprofiler.args></test.asyncprofiler.args>
     <testExitJvmOnLeak>false</testExitJvmOnLeak>
     <testExitJvmOnLeakDelayMillis>1000</testExitJvmOnLeakDelayMillis>
     <testLeakDetectionLevel>paranoid</testLeakDetectionLevel>
@@ -184,7 +189,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.122.Final</netty.version>
+    <netty.version>4.1.127.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
     <jetty.version>9.4.57.v20241219</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -196,11 +201,15 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.23.1</log4j2.version>
-    <bouncycastle.version>1.78.1</bouncycastle.version>
+    <!-- bouncycastle dependencies aren't necessarily aligned -->
+    <bouncycastle.bcprov-jdk18on.version>1.78.1</bouncycastle.bcprov-jdk18on.version>
+    <bouncycastle.bcpkix-jdk18on.version>1.81</bouncycastle.bcpkix-jdk18on.version>
+    <bouncycastle.bcprov-ext-jdk18on.version>1.78.1</bouncycastle.bcprov-ext-jdk18on.version>
     <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
-    <bouncycastle.bc-fips.version>1.0.2.5</bouncycastle.bc-fips.version>
+    <bouncycastle.bc-fips.version>1.0.2.6</bouncycastle.bc-fips.version>
     <jackson.version>2.17.2</jackson.version>
-    <fastutil.version>8.5.14</fastutil.version>
+    <fastutil.version>8.5.16</fastutil.version>
+    <jctools.version>4.0.5</jctools.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
@@ -224,25 +233,23 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.9.1</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
-    <aws-sdk.version>1.12.638</aws-sdk.version>
-    <avro.version>1.11.4</avro.version>
+    <aws-sdk.version>1.12.788</aws-sdk.version>
+    <aws-sdk2.version>2.32.28</aws-sdk2.version>
+    <avro.version>1.12.0</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
-    <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.5.5</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.7.7</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
-    <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
+    <mariadb-jdbc.version>3.5.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
-    <debezium.version>1.9.7.Final</debezium.version>
-    <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.33</debezium.mysql.version>
-    <!-- Override version that brings CVE-2022-3143 with debezium -->
-    <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
+    <debezium.version>3.2.2.Final</debezium.version>
+    <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
+    <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop3.version>3.4.0</hadoop3.version>
@@ -289,7 +296,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
-    <oxia.version>0.6.0</oxia.version>
+    <oxia.version>0.6.2</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
@@ -330,12 +337,12 @@ flexible messaging model and an intuitive client API.</description>
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
-    <license-maven-plugin.version>4.1</license-maven-plugin.version>
+    <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.3.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
-    <surefire.version>3.1.0</surefire.version>
+    <surefire.version>3.5.3</surefire.version>
     <maven-assembly-plugin.version>3.5.0</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.5.0</maven-dependency-plugin.version>
@@ -967,6 +974,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>${jctools.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.codehaus.jettison</groupId>
         <artifactId>jettison</artifactId>
         <version>${jettison.version}</version>
@@ -1012,13 +1025,19 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcprov-jdk18on</artifactId>
-        <version>${bouncycastle.version}</version>
+        <version>${bouncycastle.bcprov-jdk18on.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk18on</artifactId>
-        <version>${bouncycastle.version}</version>
+        <version>${bouncycastle.bcpkix-jdk18on.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-ext-jdk18on</artifactId>
+        <version>${bouncycastle.bcprov-ext-jdk18on.version}</version>
       </dependency>
 
       <dependency>
@@ -1354,6 +1373,14 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk2.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.distributedlog</groupId>
         <artifactId>distributedlog-core</artifactId>
         <version>${bookkeeper.version}</version>
@@ -1362,6 +1389,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>org.apache.bookkeeper</groupId>
             <artifactId>bookkeeper-server</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1998,6 +2029,14 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/zk-3.5-test-data/*</exclude>
                 <exclude>**/*_pb2.py</exclude>
                 <exclude>**/*_pb2_grpc.py</exclude>
+                <exclude>jmh-result-*</exclude>
+                <exclude>profile-results/**</exclude>
+                <!--
+                Exclude any files from license checks that are in hidden directories (name starting with ".")
+                at the top level. This helps exclude directories used by AI tools
+                while preserving license checks in subdirectories.
+                -->
+                <exclude>.*/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -2127,6 +2166,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>
             <exclude>**/.gitignore</exclude>
+            <exclude>**/.gitattributes</exclude>
             <exclude>**/.svn</exclude>
             <exclude>**/*.iws</exclude>
             <exclude>**/*.ipr</exclude>
@@ -2252,6 +2292,7 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
+            <failOnError>false</failOnError>
           </configuration>
         </plugin>
         <plugin>
@@ -2485,6 +2526,7 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
               <doclint>none</doclint>
+              <failOnError>false</failOnError>
             </configuration>
           </plugin>
           <plugin>
@@ -2948,6 +2990,46 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
 
     <profile>
+      <id>jdk21</id>
+      <activation>
+        <jdk>21</jdk>
+      </activation>
+      <properties>
+        <!-- nifi-nar-maven-plugin >= 2.0.0 require Java 21+ -->
+        <nifi-nar-maven-plugin.version>2.1.0</nifi-nar-maven-plugin.version>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.nifi</groupId>
+              <artifactId>nifi-nar-maven-plugin</artifactId>
+              <version>${nifi-nar-maven-plugin.version}</version>
+              <extensions>true</extensions>
+              <configuration>
+                <!--
+                skips nifi nar specific doc generation which isn't used for Pulsar nar files
+                see https://github.com/apache/nifi-maven/pull/35
+                -->
+                <skipDocGeneration>true</skipDocGeneration>
+                <finalName>${project.artifactId}-${project.version}</finalName>
+              </configuration>
+              <executions>
+                <execution>
+                  <id>default-nar</id>
+                  <phase>${narPluginPhase}</phase>
+                  <goals>
+                    <goal>nar</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
+    <profile>
       <id>jdk24</id>
       <activation>
         <jdk>24</jdk>
@@ -2973,6 +3055,81 @@ flexible messaging model and an intuitive client API.</description>
       </activation>
       <properties>
        <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+    </profile>
+
+    <!-- This profile is used to run tests with Async Profiler profiling.
+         Download Async Profiler from https://github.com/async-profiler/async-profiler/releases and
+         after installing set LIBASYNCPROFILER_PATH environment variable to the full path of the
+         libasyncProfiler.so (Linux) or libasyncProfiler.dylib (MacOS) file.
+         The profiler will generate a JFR file in the target directory with the name test_profile_<timestamp>_<forkNumber>.jfr
+         Async Profiler's jfrconv tool can be used to convert the JFR file to different type of flamegraphs.
+         For example, to convert the JFR file to a CPU flamegraph, run the following command:
+         jfrconv \-\-cpu target/test_profile_<timestamp>_<forkNumber>_<pid>.jfr
+         the result will be in a .html file in the target directory.
+         You can also use Eclipse Mission Control (https://adoptium.net/jmc) to open the JFR file and analyze it.
+         example usage:
+         ENABLE_MANUAL_TEST=true mvn -PtestAsyncProfiler test -pl pulsar-broker -Dtest=BrokerEntryCacheRollingRestartTest
+         On Linux, it's recommended to pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling:
+         ENABLE_MANUAL_TEST=true mvn -PtestAsyncProfiler -Dtest.asyncprofiler.event=cpu test -pl pulsar-broker -Dtest=BrokerEntryCacheRollingRestartTest
+    -->
+    <profile>
+      <id>testAsyncProfiler</id>
+      <properties>
+        <!-- On Linux, pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling.
+        See https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md for more details.
+        -->
+        <test.asyncprofiler.event>itimer</test.asyncprofiler.event>
+        <!-- Assumes Async Profiler 4.1+ to be installed, which supports "all" option -->
+        <!-- See https://github.com/async-profiler/async-profiler/blob/v4.1/src/arguments.cpp#L45 for supported options -->
+        <test.asyncprofiler.opts>event=${test.asyncprofiler.event},all,alloc=2m,jfrsync=profile</test.asyncprofiler.opts>
+        <test.asyncprofiler.outputformat>jfr</test.asyncprofiler.outputformat>
+        <test.asyncprofiler.args>
+          -XX:+UnlockDiagnosticVMOptions
+          -XX:+DebugNonSafepoints
+          -Xms${testMaxHeapSize} -XX:+AlwaysPreTouch
+          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},quiet,file=${pulsar.basedir}/target/test_profile_${git.commit.id.abbrev}_${maven.build.timestamp}_${surefire.forkNumber}_%p.${test.asyncprofiler.outputformat}
+          -Dpulsar.test.logging.appender=FILE
+          -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
+        </test.asyncprofiler.args>
+        <testForkCount>1</testForkCount>
+        <testRetryCount>0</testRetryCount>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
+        <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <injectAllReactorProjects>true</injectAllReactorProjects>
+              <skipPoms>false</skipPoms>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!-- This profile is used in addition to -PtestAsyncProfiler to profile created exceptions
+      This works only on Linux.
+      -->
+      <id>testAsyncProfilerExceptions</id>
+      <properties>
+        <test.asyncprofiler.opts>event=Java_java_lang_Throwable_fillInStackTrace,tree,reverse</test.asyncprofiler.opts>
+        <test.asyncprofiler.outputformat>html</test.asyncprofiler.outputformat>
+      </properties>
+    </profile>
+    <!-- profile that redirects log4j logs to a file -->
+    <profile>
+      <id>testLoggingToFile</id>
+      <properties>
+        <test.jvm.args>
+        -Dpulsar.test.logging.appender=FILE
+        -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
+        </test.jvm.args>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
       </properties>
     </profile>
   </profiles>

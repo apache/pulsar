@@ -283,4 +283,13 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         this.conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
         return this;
     }
+
+    @Override
+    public PulsarAdminBuilder description(String description) {
+        if (description != null && description.length() > 64) {
+            throw new IllegalArgumentException("description should be at most 64 characters");
+        }
+        this.conf.setDescription(description);
+        return this;
+    }
 }

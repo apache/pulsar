@@ -189,7 +189,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             Iterator<Entry> iterator = entries.iterator();
             while (iterator.hasNext()) {
                 Entry entry = iterator.next();
-                byte[] key = peekStickyKey(entry.getDataBuffer());
+                byte[] key = peekStickyKey(entry);
                 Consumer consumer = stickyKeyConsumerSelector.select(key);
                 // Skip the entry if it's not for current active consumer.
                 if (consumer == null || currentConsumer != consumer) {

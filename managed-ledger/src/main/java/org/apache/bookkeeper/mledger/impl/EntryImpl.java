@@ -24,15 +24,22 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 
+@Slf4j
 public final class EntryImpl extends AbstractCASReferenceCounted
         implements ReferenceCountedEntry, Comparable<EntryImpl> {
 
@@ -48,20 +55,26 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     private long entryId;
     private Position position;
     ByteBuf data;
+    private EntryReadCountHandler readCountHandler;
+    private boolean decreaseReadCountOnRelease = true;
+    @Getter @Setter
+    private MessageMetadata messageMetadata;
 
     private Runnable onDeallocate;
 
-    public static EntryImpl create(LedgerEntry ledgerEntry) {
+    public static EntryImpl create(LedgerEntry ledgerEntry, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
         entry.data = ledgerEntry.getEntryBuffer();
         entry.data.retain();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         entry.setRefCnt(1);
         return entry;
     }
 
-    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor) {
+    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor,
+                                   int expectedReadCount) {
         ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
         if (interceptor != null) {
             ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
@@ -74,7 +87,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
                 duplicateBuffer.release();
             }
         }
-        EntryImpl returnEntry = create(ledgerEntry);
+        EntryImpl returnEntry = create(ledgerEntry, expectedReadCount);
         if (processorHandle != null) {
             processorHandle.release();
             ledgerEntry.close();
@@ -84,41 +97,66 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
+        return create(ledgerId, entryId, data, 0);
+    }
+
+    @VisibleForTesting
+    public static EntryImpl create(long ledgerId, long entryId, byte[] data, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         entry.setRefCnt(1);
         return entry;
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
+        return create(ledgerId, entryId, data, 0);
+    }
+
+    public static EntryImpl create(long ledgerId, long entryId, ByteBuf data, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = data;
         entry.data.retain();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         entry.setRefCnt(1);
         return entry;
     }
 
-    public static EntryImpl create(Position position, ByteBuf data) {
+    public static EntryImpl create(Position position, ByteBuf data, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
         entry.position = PositionFactory.create(position);
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data;
         entry.data.retain();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         entry.setRefCnt(1);
         return entry;
     }
 
-    public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data) {
+    public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data, int expectedReadCount) {
         EntryImpl entry = RECYCLER.get();
         entry.position = PositionFactory.create(position);
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data.retainedDuplicate();
+        entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data,
+                                                        EntryReadCountHandler entryReadCountHandler) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = PositionFactory.create(position);
+        entry.ledgerId = position.getLedgerId();
+        entry.entryId = position.getEntryId();
+        entry.data = data.retainedDuplicate();
+        entry.readCountHandler = entryReadCountHandler;
         entry.setRefCnt(1);
         return entry;
     }
@@ -130,6 +168,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
+        entry.readCountHandler = other.readCountHandler;
+        entry.messageMetadata = other.messageMetadata;
         entry.setRefCnt(1);
         return entry;
     }
@@ -140,6 +180,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.ledgerId = other.getLedgerId();
         entry.entryId = other.getEntryId();
         entry.data = other.getDataBuffer().retainedDuplicate();
+        entry.readCountHandler = other.getReadCountHandler();
+        entry.messageMetadata = other.getMessageMetadata();
         entry.setRefCnt(1);
         return entry;
     }
@@ -227,6 +269,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @Override
     protected void deallocate() {
+        if (decreaseReadCountOnRelease && readCountHandler != null) {
+            readCountHandler.markRead();
+        }
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         if (onDeallocate != null) {
             try {
@@ -240,12 +285,37 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         ledgerId = -1;
         entryId = -1;
         position = null;
+        readCountHandler = null;
+        decreaseReadCountOnRelease = true;
+        messageMetadata = null;
         recyclerHandle.recycle(this);
     }
 
     @Override
     public boolean matchesPosition(Position key) {
         return key != null && key.compareTo(ledgerId, entryId) == 0;
+    }
+
+    @Override
+    public EntryReadCountHandler getReadCountHandler() {
+        return readCountHandler;
+    }
+
+    public void setDecreaseReadCountOnRelease(boolean enabled) {
+        decreaseReadCountOnRelease = enabled;
+    }
+
+    public void initializeMessageMetadataIfNeeded(String managedLedgerName) {
+        if (messageMetadata == null) {
+            try {
+                MessageMetadata msgMetadata = new MessageMetadata();
+                Commands.peekMessageMetadata(data, msgMetadata);
+                this.messageMetadata = msgMetadata;
+            } catch (Throwable t) {
+                log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,
+                        t);
+            }
+        }
     }
 
     @Override

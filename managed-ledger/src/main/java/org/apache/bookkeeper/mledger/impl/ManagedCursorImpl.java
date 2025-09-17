@@ -103,6 +103,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo.Builder;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -912,7 +913,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // Skip deleted entries.
         skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
         OpReadEntry op =
-                OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition, skipCondition);
+            OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition, skipCondition, true);
         ledger.asyncReadEntries(op);
     }
 
@@ -1072,7 +1073,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Skip deleted entries.
             skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
-                    ctx, maxPosition, skipCondition);
+                    ctx, maxPosition, skipCondition, true);
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 op.recycle();
@@ -2074,7 +2075,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         markDeletePosition = newMarkDeletePosition;
         individualDeletedMessages.removeAtMost(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
 
-        READ_POSITION_UPDATER.updateAndGet(this, currentReadPosition -> {
+        MutableBoolean readPositionUpdated = new MutableBoolean(false);
+        Position updatedReadPosition = READ_POSITION_UPDATER.updateAndGet(this, currentReadPosition -> {
             if (currentReadPosition.compareTo(markDeletePosition) <= 0) {
                 // If the position that is mark-deleted is past the read position, it
                 // means that the client has skipped some entries. We need to move
@@ -2084,12 +2086,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug("[{}] Moved read position from: {} to: {}, and new mark-delete position {}",
                             ledger.getName(), currentReadPosition, newReadPosition, markDeletePosition);
                 }
-                ledger.onCursorReadPositionUpdated(ManagedCursorImpl.this, newReadPosition);
+                readPositionUpdated.setTrue();
                 return newReadPosition;
             } else {
                 return currentReadPosition;
             }
         });
+        if (readPositionUpdated.booleanValue()) {
+            ledger.onCursorReadPositionUpdated(this, updatedReadPosition);
+        }
 
         return newMarkDeletePosition;
     }
@@ -4084,6 +4089,22 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             addWaitingCursorRunnable.run();
             registeredToWaitingCursors = true;
+        }
+    }
+
+    /**
+     * When cache eviction by expected read count is enabled, this method returns the number of cursors
+     * that are at the same position or before this cursor.
+     *
+     * @return the number of cursors at the same position or before
+     */
+    public int getNumberOfCursorsAtSamePositionOrBefore() {
+        if (ledger.getConfig().isCacheEvictionByExpectedReadCount()) {
+            return ledger.getNumberOfCursorsAtSamePositionOrBefore(this);
+        } else if (isCacheReadEntry()) {
+            return 1;
+        } else {
+            return 0;
         }
     }
 }
