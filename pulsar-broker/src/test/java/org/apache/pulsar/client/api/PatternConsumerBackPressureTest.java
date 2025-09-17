@@ -69,7 +69,8 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
         final int requests = 10_000;
         final String topicName = UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, topicCount);
-        final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime()
+                .availableProcessors());
 
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final AtomicInteger success = new AtomicInteger(0);
