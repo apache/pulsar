@@ -192,7 +192,7 @@ public class PulsarClusterMetadataSetup {
     }
 
     /**
-     * a wrapper for creating a persistent node with store. put but ignore exception of node exists.
+     * A wrapper for creating a persistent node using store.put(), ignoring the exception if the node already exists.
      */
     private static void createMetadataNode(MetadataStore store, String path, byte[] data)
             throws InterruptedException, ExecutionException {
