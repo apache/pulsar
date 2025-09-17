@@ -172,16 +172,16 @@ public class BlobStoreBackedReadHandleImplTest {
     @DataProvider
     public Object[][] streamStartAt() {
         return new Object[][] {
-//            // It gives a 0 value of the entry length.
-//            { 0, false },
-//            // It gives a 0 value of the entry length.
-//            { 1, false },
-//            // The first entry starts at 128.
-//            { 128, false },
-//            // It gives a 0 value of the entry length.
-//            { 0, true },
-//            // It gives a 0 value of the entry length.
-//            { 1, true },
+            // It gives a 0 value of the entry length.
+            { 0, false },
+            // It gives a 0 value of the entry length.
+            { 1, false },
+            // The first entry starts at 128.
+            { 128, false },
+            // It gives a 0 value of the entry length.
+            { 0, true },
+            // It gives a 0 value of the entry length.
+            { 1, true },
             // The first entry starts at 128.
             { 128, true }
         };
