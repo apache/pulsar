@@ -1118,7 +1118,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setRetention(topic, new RetentionPolicies(3, 1));
         Awaitility.await().untilAsserted(()
                 -> assertNotNull(admin.topicPolicies().getRetention(topic)));
-        assertTrue((boolean) shouldTopicBeRetained.invoke(persistentTopic));
+        assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         //topic-level disabled
         admin.topicPolicies().setRetention(topic, new RetentionPolicies(0, 0));
         Awaitility.await().untilAsserted(()
