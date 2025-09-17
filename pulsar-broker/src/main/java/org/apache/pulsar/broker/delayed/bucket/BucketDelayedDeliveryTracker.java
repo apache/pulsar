@@ -306,11 +306,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        synchronized (this) {
+        writeLock.lock();
+        try {
             if (timeout == null || timeout.isCancelled()) {
                 return;
             }
             lastMutableBucket.moveScheduledMessageToSharedQueue(getCutoffTime(), sharedBucketPriorityQueue);
+        } finally {
+            writeLock.unlock();
         }
         super.run(timeout);
     }
@@ -354,7 +357,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
 
                     // Put indexes back into the shared queue and downgrade to memory mode
-                    synchronized (BucketDelayedDeliveryTracker.this) {
+                    writeLock.lock();
+                    try {
                         immutableBucket.getSnapshotSegments().ifPresent(snapshotSegments -> {
                             for (SnapshotSegment snapshotSegment : snapshotSegments) {
                                 for (DelayedIndex delayedIndex : snapshotSegment.getIndexesList()) {
@@ -370,6 +374,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                 Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId));
                         snapshotSegmentLastIndexMap.remove(
                                 new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()));
+                    } finally {
+                        writeLock.unlock();
                     }
                     return INVALID_BUCKET_ID;
                 });
@@ -655,14 +661,19 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized boolean hasMessageAvailable() {
-        long cutoffTime = getCutoffTime();
+    public boolean hasMessageAvailable() {
+        writeLock.lock();
+        try {
+            long cutoffTime = getCutoffTime();
 
-        boolean hasMessageAvailable = getNumberOfDelayedMessages() > 0 && nextDeliveryTime() <= cutoffTime;
-        if (!hasMessageAvailable) {
-            updateTimer();
+            boolean hasMessageAvailable = getNumberOfDelayedMessages() > 0 && nextDeliveryTimeUnsafe() <= cutoffTime;
+            if (!hasMessageAvailable) {
+                updateTimer();
+            }
+            return hasMessageAvailable;
+        } finally {
+            writeLock.unlock();
         }
-        return hasMessageAvailable;
     }
 
     @Override
@@ -825,26 +836,36 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized CompletableFuture<Void> clear() {
-        CompletableFuture<Void> future = cleanImmutableBuckets();
-        sharedBucketPriorityQueue.clear();
-        lastMutableBucket.clear();
-        snapshotSegmentLastIndexMap.clear();
-        numberDelayedMessages.set(0);
-        return future;
+    public CompletableFuture<Void> clear() {
+        writeLock.lock();
+        try {
+            CompletableFuture<Void> future = cleanImmutableBuckets();
+            sharedBucketPriorityQueue.clear();
+            lastMutableBucket.clear();
+            snapshotSegmentLastIndexMap.clear();
+            numberDelayedMessages.set(0);
+            return future;
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     @Override
-    public synchronized void close() {
-        super.close();
-        lastMutableBucket.close();
-        sharedBucketPriorityQueue.close();
+    public void close() {
+        writeLock.lock();
         try {
-            List<CompletableFuture<Long>> completableFutures = immutableBuckets.asMapOfRanges().values().stream()
-                    .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
-            FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.warn("[{}] Failed wait to snapshot generate", dispatcher.getName(), e);
+            super.close();
+            lastMutableBucket.close();
+            sharedBucketPriorityQueue.close();
+            try {
+                List<CompletableFuture<Long>> completableFutures = immutableBuckets.asMapOfRanges().values().stream()
+                        .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
+                FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("[{}] Failed wait to snapshot generate", dispatcher.getName(), e);
+            }
+        } finally {
+            writeLock.unlock();
         }
     }
 
