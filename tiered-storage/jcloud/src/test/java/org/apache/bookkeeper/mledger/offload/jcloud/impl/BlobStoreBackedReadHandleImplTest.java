@@ -72,8 +72,8 @@ public class BlobStoreBackedReadHandleImplTest {
         return "Entry " + entryId;
     }
 
-    private Pair<BlobStoreBackedReadHandleImpl,ByteBuf> createReadHandle(
-            long ledgerId, int entries,boolean hasDirtyData) throws Exception {
+    private Pair<BlobStoreBackedReadHandleImpl, ByteBuf> createReadHandle(
+            long ledgerId, int entries, boolean hasDirtyData) throws Exception {
         // Build data.
         List<Pair<Integer, Integer>> offsets = new ArrayList<>();
         int totalLen = 0;
@@ -177,8 +177,8 @@ public class BlobStoreBackedReadHandleImplTest {
     @Test(dataProvider = "streamStartAt")
     public void testRead(int streamStartAt, boolean hasDirtyData) throws Exception {
         int entryCount = 5;
-        Pair<BlobStoreBackedReadHandleImpl,ByteBuf> ledgerDataPair
-                = createReadHandle(1, entryCount, hasDirtyData);
+        Pair<BlobStoreBackedReadHandleImpl, ByteBuf> ledgerDataPair =
+                createReadHandle(1, entryCount, hasDirtyData);
         BlobStoreBackedReadHandleImpl ledger = ledgerDataPair.getLeft();
         ByteBuf data = ledgerDataPair.getRight();
         data.readerIndex(streamStartAt);
