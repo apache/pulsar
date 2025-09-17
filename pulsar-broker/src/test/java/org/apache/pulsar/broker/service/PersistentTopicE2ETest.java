@@ -917,8 +917,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        // Should be deleted, If the topic has no data, it can always be deleted regardless of retention policy, even
-        // if we have retention, see PR https://github.com/apache/pulsar/pull/24733
+        // Should be deleted, If the topic has no data, it can always be deleted regardless of retention policy
+        // see PR https://github.com/apache/pulsar/pull/24733
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         producer = pulsarClient.newProducer().topic(topicName).create();
