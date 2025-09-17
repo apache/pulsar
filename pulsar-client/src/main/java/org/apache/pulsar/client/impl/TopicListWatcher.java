@@ -88,6 +88,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         connectionHandler.grabCnx();
     }
 
+    @Override
     public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         if (nonRetriableError) {
