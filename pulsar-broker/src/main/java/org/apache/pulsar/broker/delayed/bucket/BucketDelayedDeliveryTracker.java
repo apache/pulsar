@@ -549,71 +549,71 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 buckets.stream().map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE))
                         .toList();
 
-            return FutureUtil.waitForAll(createFutures).thenCompose(bucketId -> {
-                if (createFutures.stream().anyMatch(future -> INVALID_BUCKET_ID.equals(future.join()))) {
-                    return FutureUtil.failedFuture(new RuntimeException("Can't merge buckets due to bucket create failed"));
-                }
+        return FutureUtil.waitForAll(createFutures).thenCompose(bucketId -> {
+            if (createFutures.stream().anyMatch(future -> INVALID_BUCKET_ID.equals(future.join()))) {
+                return FutureUtil.failedFuture(new RuntimeException("Can't merge buckets due to bucket create failed"));
+            }
 
-                List<CompletableFuture<List<SnapshotSegment>>> getRemainFutures =
-                        buckets.stream().map(ImmutableBucket::getRemainSnapshotSegment).toList();
+            List<CompletableFuture<List<SnapshotSegment>>> getRemainFutures =
+                    buckets.stream().map(ImmutableBucket::getRemainSnapshotSegment).toList();
 
-                return FutureUtil.waitForAll(getRemainFutures)
-                        .thenApply(__ -> {
-                            return CombinedSegmentDelayedIndexQueue.wrap(
-                                    getRemainFutures.stream().map(CompletableFuture::join).toList());
-                        })
-                        .thenAccept(combinedDelayedIndexQueue -> {
-                            writeLock.lock();
-                            try {
-                                long createStartTime = System.currentTimeMillis();
-                                stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
-                                Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
-                                        lastMutableBucket.createImmutableBucketAndAsyncPersistent(
-                                                timeStepPerBucketSnapshotSegmentInMillis,
-                                                maxIndexesPerBucketSnapshotSegment,
-                                                sharedBucketPriorityQueue, combinedDelayedIndexQueue,
-                                                buckets.get(0).startLedgerId,
-                                                buckets.get(buckets.size() - 1).endLedgerId);
+            return FutureUtil.waitForAll(getRemainFutures)
+                    .thenApply(__ -> {
+                        return CombinedSegmentDelayedIndexQueue.wrap(
+                                getRemainFutures.stream().map(CompletableFuture::join).toList());
+                    })
+                    .thenAccept(combinedDelayedIndexQueue -> {
+                        writeLock.lock();
+                        try {
+                            long createStartTime = System.currentTimeMillis();
+                            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
+                            Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
+                                    lastMutableBucket.createImmutableBucketAndAsyncPersistent(
+                                            timeStepPerBucketSnapshotSegmentInMillis,
+                                            maxIndexesPerBucketSnapshotSegment,
+                                            sharedBucketPriorityQueue, combinedDelayedIndexQueue,
+                                            buckets.get(0).startLedgerId,
+                                            buckets.get(buckets.size() - 1).endLedgerId);
 
-                                // Merge bit map to new bucket
-                                Map<Long, RoaringBitmap> delayedIndexBitMap =
-                                        new HashMap<>(buckets.get(0).getDelayedIndexBitMap());
-                                for (int i = 1; i < buckets.size(); i++) {
-                                    buckets.get(i).delayedIndexBitMap.forEach((ledgerId, bitMapB) -> {
-                                        delayedIndexBitMap.compute(ledgerId, (k, bitMap) -> {
-                                            if (bitMap == null) {
-                                                return bitMapB;
-                                            }
+                            // Merge bit map to new bucket
+                            Map<Long, RoaringBitmap> delayedIndexBitMap =
+                                    new HashMap<>(buckets.get(0).getDelayedIndexBitMap());
+                            for (int i = 1; i < buckets.size(); i++) {
+                                buckets.get(i).delayedIndexBitMap.forEach((ledgerId, bitMapB) -> {
+                                    delayedIndexBitMap.compute(ledgerId, (k, bitMap) -> {
+                                        if (bitMap == null) {
+                                            return bitMapB;
+                                        }
 
-                                            bitMap.or(bitMapB);
-                                            return bitMap;
-                                        });
+                                        bitMap.or(bitMapB);
+                                        return bitMap;
                                     });
-                                }
-
-                                // optimize bm
-                                delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
-                                immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
-
-                                afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
-
-                                immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
-                                        .orElse(NULL_LONG_PROMISE).thenCompose(___ -> {
-                                            List<CompletableFuture<Void>> removeFutures =
-                                                    buckets.stream().map(bucket -> bucket.asyncDeleteBucketSnapshot(stats))
-                                                            .toList();
-                                            return FutureUtil.waitForAll(removeFutures);
-                                        });
-
-                                for (ImmutableBucket bucket : buckets) {
-                                    immutableBuckets.asMapOfRanges()
-                                            .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                                }
-                            } finally {
-                                writeLock.unlock();
+                                });
                             }
-                        });
-            });
+
+                            // optimize bm
+                            delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
+                            immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
+
+                            afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
+
+                            immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
+                                    .orElse(NULL_LONG_PROMISE).thenCompose(___ -> {
+                                        List<CompletableFuture<Void>> removeFutures =
+                                                buckets.stream().map(bucket -> bucket.asyncDeleteBucketSnapshot(stats))
+                                                        .toList();
+                                        return FutureUtil.waitForAll(removeFutures);
+                                    });
+
+                            for (ImmutableBucket bucket : buckets) {
+                                immutableBuckets.asMapOfRanges()
+                                        .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
+                            }
+                        } finally {
+                            writeLock.unlock();
+                        }
+                    });
+        });
     }
 
     private void createBucketSnapshotAsync() {
