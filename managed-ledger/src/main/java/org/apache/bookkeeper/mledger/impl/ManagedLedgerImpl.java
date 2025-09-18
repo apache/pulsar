@@ -27,6 +27,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
+import com.google.common.util.concurrent.RateLimiter;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -354,6 +355,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastEvictOffloadedLedgers;
     private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
 
+    private RateLimiter deleteLedgerRateLimiter;
+
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name) {
@@ -402,6 +405,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.minBacklogEntriesForCaching = config.getMinimumBacklogEntriesForCaching();
         this.maxBacklogBetweenCursorsForCaching = config.getMaxBacklogBetweenCursorsForCaching();
         this.managedLedgerAttributes = new ManagedLedgerAttributes(this);
+        this.deleteLedgerRateLimiter = RateLimiter.create(config.getThrottleDeleteLedger());
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -569,6 +573,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(Void v, Stat stat) {
                 ledgersStat = stat;
                 emptyLedgersToBeDeleted.forEach(ledgerId -> {
+                    deleteLedgerRateLimiter.acquire();
                     bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
                         log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, ledgerId, rc);
                     }, null);
@@ -1763,6 +1768,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.warn("[{}] Error updating meta data with the new list of ledgers: {}", name, e.getMessage());
                     handleBadVersion(e);
                     mbean.startDataLedgerDeleteOp();
+                    deleteLedgerRateLimiter.acquire();
                     bookKeeper.asyncDeleteLedger(lh.getId(), (rc1, ctx1) -> {
                         mbean.endDataLedgerDeleteOp();
                         if (rc1 != BKException.Code.OK) {
@@ -1846,6 +1852,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         STATE_UPDATER.set(this, State.LedgerOpened);
         // Delete original "currentLedger" if it has been removed from "ledgers".
         if (originalCurrentLedger != null && !ledgers.containsKey(originalCurrentLedger.getId())){
+            deleteLedgerRateLimiter.acquire();
             bookKeeper.asyncDeleteLedger(originalCurrentLedger.getId(), (rc, ctx) -> {
                 mbean.endDataLedgerDeleteOp();
                 log.info("[{}] Delete complete for empty ledger {}. rc={}", name, originalCurrentLedger.getId(), rc);
@@ -3385,6 +3392,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void asyncDeleteLedgerWithRetry(CompletableFuture<Void> future, long ledgerId, long retry) {
+        deleteLedgerRateLimiter.acquire();
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
             if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
@@ -3422,6 +3430,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Deleting ledger {}", name, ls);
             }
+            deleteLedgerRateLimiter.acquire();
             bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx1) -> {
                 switch (rc) {
                 case Code.NoSuchLedgerExistsException:

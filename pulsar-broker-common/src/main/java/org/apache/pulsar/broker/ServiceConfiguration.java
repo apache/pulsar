@@ -2203,6 +2203,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
     @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Rate limit the amount of deleting ledgers per second"
+    )
+    private double managedLedgerLedgerDeleteRateLimit = 1000.0;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
         doc = "Allow automated creation of topics if set to true (default value)."
