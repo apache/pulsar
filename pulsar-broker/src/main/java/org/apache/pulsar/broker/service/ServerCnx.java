@@ -37,6 +37,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -454,6 +455,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (cmd.getType() == BaseCommand.Type.PONG && cmd.getType() == BaseCommand.Type.PING) {
             return;
         }
+        if (log.isDebugEnabled()) {
+            final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
+            if (outboundBuffer != null) {
+                log.debug("Start to handle request [{}], totalPendingWriteBytes: {}, channel isWritable: {}",
+                        cmd.getType(), outboundBuffer.totalPendingWriteBytes(), ctx.channel().isWritable());
+            } else {
+                log.debug("Start to handle request [{}], channel isWritable: {}",
+                        cmd.getType(), ctx.channel().isWritable());
+            }
+        }
         if (requestRateLimiter.acquire(1) == 0 && !pausedDueToRateLimitation) {
             log.warn("[{}] Reached rate limitation", this);
             // Stop receiving requests.
@@ -477,7 +488,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             ctx.channel().config().setAutoRead(true);
             requestRateLimiter.timingOpen(rateLimitingSecondsAfterResumeFromUnreadable, TimeUnit.SECONDS);
         } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
-            log.info("[{}] is not writable, turn off channel auto-read", this);
+            final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
+            if (outboundBuffer != null) {
+                log.warn("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
+                        this, outboundBuffer.totalPendingWriteBytes());
+            } else {
+                log.warn("[{}] is not writable, turn off channel auto-read", this);
+            }
             ctx.channel().config().setAutoRead(false);
         }
         ctx.fireChannelWritabilityChanged();
