@@ -107,8 +107,8 @@ public class VipStatus {
                                 .collect(Collectors.joining(", "));
                         if (clock.millis() - lastPrintThreadDumpTimestamp > printThreadDumpIntervalMs) {
                             String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
-                            log.error("Deadlock detected, service may be unavailable, "
-                                    + "thread stack details are as follows: {}.", diagnosticResult);
+                            log.error("Deadlocked threads detected. {}. Service may be unavailable, "
+                                    + "thread stack details are as follows:\n{}", threadNames, diagnosticResult);
                             lastPrintThreadDumpTimestamp = clock.millis();
                         } else {
                             log.error("Deadlocked threads detected. {}", threadNames);
