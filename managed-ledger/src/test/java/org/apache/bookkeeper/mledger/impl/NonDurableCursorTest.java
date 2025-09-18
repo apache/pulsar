@@ -109,7 +109,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     void testOpenNonDurableCursorWhileLedgerIsAddingFirstEntryAfterTrimmed() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
                 .setRetentionTime(0, TimeUnit.MILLISECONDS);
