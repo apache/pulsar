@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.models;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
@@ -46,7 +47,8 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 public class TopKBundles {
 
     // temp array for sorting
-    private final List<Map.Entry<String, ? extends Comparable>> arr = new ArrayList<>();
+    private final List<Map.Entry<String, NamespaceBundleStats>> arr = new ArrayList<>();
+    public static final StrictNamespaceBundleStatsComparator strictNamespaceBundleStatsComparator = new StrictNamespaceBundleStatsComparator();
 
     private final TopBundlesLoadData loadData = new TopBundlesLoadData();
 
@@ -93,7 +95,7 @@ public class TopKBundles {
                 return;
             }
             topk = Math.min(topk, arr.size());
-            partitionSort(arr, topk);
+            TopKBundles.partitionSort(arr, topk, strictNamespaceBundleStatsComparator);
 
             for (int i = topk - 1; i >= 0; i--) {
                 var etr = arr.get(i);
@@ -105,7 +107,7 @@ public class TopKBundles {
         }
     }
 
-    public static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
+    public static <T> void partitionSort(List<Map.Entry<String, T>> arr, int k, Comparator<T> comparator) {
         int start = 0;
         int end = arr.size() - 1;
         int target = k - 1;
@@ -113,9 +115,9 @@ public class TopKBundles {
             int lo = start;
             int hi = end;
             int mid = lo;
-            var pivot = arr.get(hi).getValue();
+            var pivot = arr.get(hi);
             while (mid <= hi) {
-                int cmp = pivot.compareTo(arr.get(mid).getValue());
+                int cmp = comparator.compare(pivot.getValue(), arr.get(mid).getValue());
                 if (cmp < 0) {
                     var tmp = arr.get(lo);
                     arr.set(lo++, arr.get(mid));
@@ -138,7 +140,7 @@ public class TopKBundles {
                 start = mid;
             }
         }
-        Collections.sort(arr.subList(0, end), (a, b) -> b.getValue().compareTo(a.getValue()));
+        Collections.sort(arr.subList(0, end),(a,b)-> comparator.compare(b.getValue(), a.getValue()));
     }
 
     private boolean hasPolicies(String bundle) {
