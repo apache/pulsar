@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -107,6 +108,7 @@ public class VipStatusTest {
         private ExecutorService executorService = Executors.newCachedThreadPool();
         private ReentrantLock lockA = new ReentrantLock();
         private ReentrantLock lockB = new ReentrantLock();
+        private Phaser phaser = new Phaser(2);
 
         @SneakyThrows
         public void startDeadlock() {
@@ -126,7 +128,7 @@ public class VipStatusTest {
                 try {
                     lockA.lock();
                     System.out.println("ThreadOne acquired lockA");
-                    Thread.sleep(200);
+                    phaser.arriveAndAwaitAdvance();
                     while (!lockB.tryLock(1, TimeUnit.SECONDS)) {
                         System.out.println("ThreadOne acquired lockB");
                     }
@@ -144,7 +146,7 @@ public class VipStatusTest {
                 try {
                     lockB.lock();
                     System.out.println("ThreadOne acquired lockB");
-                    Thread.sleep(200);
+                    phaser.arriveAndAwaitAdvance();
                     while (!lockA.tryLock(1, TimeUnit.SECONDS)) {
                         System.out.println("ThreadOne acquired lockA");
                     }
