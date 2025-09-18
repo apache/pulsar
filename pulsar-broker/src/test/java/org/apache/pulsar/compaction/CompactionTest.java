@@ -1947,7 +1947,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         Mockito.verify(dispatcher, Mockito.atLeastOnce())
                 .readEntriesComplete(Mockito.argThat(argument -> argument.size() == 1),
-                        Mockito.any(PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.class));
+                        Mockito.any(org.apache.pulsar.broker.service.Consumer.class), Mockito.anyLong());
 
         consumer.close();
         producer.close();

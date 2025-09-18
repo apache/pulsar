@@ -21,6 +21,8 @@ package org.apache.bookkeeper.mledger.util;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
+import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -40,6 +42,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceStability.Evolving
 public class ManagedLedgerUtils {
 
+    public static final long NO_MAX_SIZE_LIMIT = -1L;
+
     public static CompletableFuture<ManagedCursor> openCursor(ManagedLedger ml, String cursorName) {
         final var future = new CompletableFuture<ManagedCursor>();
         ml.asyncOpenCursor(cursorName, new AsyncCallbacks.OpenCursorCallback() {
@@ -58,8 +62,13 @@ public class ManagedLedgerUtils {
 
     public static CompletableFuture<List<Entry>> readEntries(ManagedCursor cursor, int numberOfEntriesToRead,
                                                              Position maxPosition) {
+        return readEntries(cursor, numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, maxPosition);
+    }
+
+    public static CompletableFuture<List<Entry>> readEntries(ManagedCursor cursor, int numberOfEntriesToRead,
+                                                             long maxBytes, Position maxPosition) {
         final var future = new CompletableFuture<List<Entry>>();
-        cursor.asyncReadEntries(numberOfEntriesToRead, new AsyncCallbacks.ReadEntriesCallback() {
+        cursor.asyncReadEntries(numberOfEntriesToRead, maxBytes, new AsyncCallbacks.ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 future.complete(entries);
@@ -70,6 +79,24 @@ public class ManagedLedgerUtils {
                 future.completeExceptionally(exception);
             }
         }, null, (PositionImpl) maxPosition);
+        return future;
+    }
+
+    public static CompletableFuture<List<Entry>> readEntriesWithSkipOrWait(
+            ManagedCursor cursor, int maxEntries, long maxSizeBytes, PositionImpl maxPosition,
+            @Nullable Predicate<PositionImpl> skipCondition) {
+        final var future = new CompletableFuture<List<Entry>>();
+        cursor.asyncReadEntriesWithSkipOrWait(maxEntries, maxSizeBytes, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                future.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null, maxPosition, skipCondition);
         return future;
     }
 
