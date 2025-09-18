@@ -43,11 +43,12 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
         // store the entryId, it's not able to pass a Long.max() as entryId. In this case there's no point to require
         // both ledgerId and entryId to be Long.max()
-        if (startCursorPosition == null || startCursorPosition.compareTo(ledger.lastConfirmedEntry) > 0) {
+        Pair<PositionImpl, Long> lastPositionCounter = ledger.getLastPositionAndCounter();
+        if (startCursorPosition == null || startCursorPosition.compareTo(lastPositionCounter.getLeft()) > 0) {
             // Start from last entry
             switch (initialPosition) {
                 case Latest:
-                    initializeCursorPosition(ledger.getLastPositionAndCounter());
+                    initializeCursorPosition(lastPositionCounter);
                     break;
                 case Earliest:
                     initializeCursorPosition(ledger.getFirstPositionAndCounter());
