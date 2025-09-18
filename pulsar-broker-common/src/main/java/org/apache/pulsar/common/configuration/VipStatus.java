@@ -129,7 +129,8 @@ public class VipStatus {
                 }
             }
             lastCheckStatusResult = false;
-            log.warn("Failed to access \"status.html\". The service is not ready");
+            log.warn("Status file '{}' doesn't exist or ready probe value ({}) isn't true. The service is not ready",
+                    statusFilePath, isReady);
             throw new WebApplicationException(Status.NOT_FOUND);
         }
     }
