@@ -229,11 +229,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             log.debug("Ledger {}: reading {} - {} ({} entries}",
                     getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
         }
-        if (lastEntry < firstEntry || lastEntry > getLastAddConfirmed()) {
-            log.warn("Failed to read entries [ {} ~ {} ] from ledger {}, because the entries do not exist. LAC is {}",
-                    firstEntry, lastEntry, getId(), getLastAddConfirmed());
-            return CompletableFuture.failedFuture(new BKException.BKIncorrectParameterException());
-        }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
 
         // Ledger handles will be only marked idle when "pendingRead" is "0", it is not needed to update
