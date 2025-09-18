@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.configuration;
 
 import static org.testng.Assert.assertEquals;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -33,8 +34,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.util.Files;
 import org.mockito.Mockito;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -50,7 +51,7 @@ public class VipStatusTest {
     private VipStatus vipStatus;
     private File file;
 
-    @BeforeTest
+    @BeforeMethod
     public void setup() throws IOException {
         file = Files.newTemporaryFile();
         Supplier<Boolean> isReadyProbe = () -> true;
@@ -58,6 +59,7 @@ public class VipStatusTest {
         Mockito.when(mockServletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH)).thenReturn(file.getAbsolutePath());
         Mockito.when(mockServletContext.getAttribute(ATTRIBUTE_IS_READY_PROBE)).thenReturn(isReadyProbe);
         vipStatus = new VipStatus(mockServletContext, LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED);
+        VipStatus.reset();
     }
 
     @Test
@@ -68,26 +70,32 @@ public class VipStatusTest {
         testVipStatusCheckStatusWithDeadlock();
     }
 
-    @AfterTest
+    @AfterMethod(alwaysRun = true)
     public void release() throws IOException {
-        file.deleteOnExit();
+        if (file != null) {
+            file.delete();
+            file = null;
+        }
     }
 
+    @Test
     public void testVipStatusCheckStatusWithoutDeadlock() {
         assertEquals(vipStatus.checkStatus(), "OK");
     }
 
+    @Test
     public void testVipStatusCheckStatusWithDeadlock() {
-        MockDeadlock.startDeadlock();
+        MockDeadlock mockDeadlock = new MockDeadlock();
         boolean asExpected = true;
         try {
+            mockDeadlock.startDeadlock();
             vipStatus.checkStatus();
             asExpected = false;
             System.out.println("Simulated deadlock, no deadlock detected, not as expected.");
         } catch (Exception wae) {
             System.out.println("Simulated deadlock and detected it, as expected.");
         } finally {
-            MockDeadlock.executorService.shutdownNow();
+            mockDeadlock.close();
         }
 
         if (!asExpected) {
@@ -95,19 +103,24 @@ public class VipStatusTest {
         }
     }
 
-    public class MockDeadlock {
-        private static ExecutorService executorService = Executors.newCachedThreadPool();
-        private static ReentrantLock lockA = new ReentrantLock();
-        private static ReentrantLock lockB = new ReentrantLock();
+    static class MockDeadlock implements Closeable {
+        private ExecutorService executorService = Executors.newCachedThreadPool();
+        private ReentrantLock lockA = new ReentrantLock();
+        private ReentrantLock lockB = new ReentrantLock();
 
         @SneakyThrows
-        public static void startDeadlock() {
-            executorService.execute(new ThreadOne());
-            executorService.execute(new ThreadTwo());
+        public void startDeadlock() {
+            executorService.execute(new TaskOne());
+            executorService.execute(new TaskTwo());
             Thread.sleep(CHECK_STATUS_INTERVAL);
         }
 
-        private static class ThreadOne implements Runnable {
+        @Override
+        public void close() {
+            executorService.shutdownNow();
+        }
+
+        private class TaskOne implements Runnable {
             @Override
             public void run() {
                 try {
@@ -125,7 +138,7 @@ public class VipStatusTest {
             }
         }
 
-        private static class ThreadTwo implements Runnable {
+        private class TaskTwo implements Runnable {
             @Override
             public void run() {
                 try {

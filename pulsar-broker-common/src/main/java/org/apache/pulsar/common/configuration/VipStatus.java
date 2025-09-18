@@ -74,6 +74,13 @@ public class VipStatus {
         this.clock = Clock.systemUTC();
     }
 
+    @VisibleForTesting
+    static void reset() {
+        lastCheckStatusTimestamp = 0L;
+        lastPrintThreadDumpTimestamp = 0L;
+        lastCheckStatusResult = false;
+    }
+
     @GET
     public String checkStatus() {
         // Locking classes to avoid deadlock detection in multi-thread concurrent requests.
