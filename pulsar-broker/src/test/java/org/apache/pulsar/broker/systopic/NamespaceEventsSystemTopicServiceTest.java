@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import static org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService.getEventKey;
+import static org.apache.pulsar.broker.service.TopicPoliciesService.getEventKey;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import lombok.Cleanup;
@@ -127,7 +126,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
                 .policies(policies)
                 .build())
             .build();
-        systemTopicClientForNamespace1.newWriter().write(getEventKey(event), event);
+        systemTopicClientForNamespace1.newWriter().write(getEventKey(event, false), event);
         SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
         @Cleanup("release")
         Message<PulsarEvent> received = reader.readNext();

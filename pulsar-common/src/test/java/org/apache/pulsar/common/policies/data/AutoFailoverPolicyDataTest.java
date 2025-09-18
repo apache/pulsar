@@ -21,10 +21,8 @@ package org.apache.pulsar.common.policies.data;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
-
 import org.testng.annotations.Test;
 
 public class AutoFailoverPolicyDataTest {

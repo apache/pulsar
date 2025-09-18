@@ -71,6 +71,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     private void recoverCursor(Position mdPosition) {
         Pair<Position, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
         this.readPosition = isReadCompacted() ? mdPosition.getNext() : ledger.getNextValidPosition(mdPosition);
+        ledger.onCursorReadPositionUpdated(this, readPosition);
         markDeletePosition = ledger.getPreviousPosition(this.readPosition);
 
         // Initialize the counter such that the difference between the messages written on the ML and the
@@ -113,6 +114,8 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     @Override
     public void asyncClose(CloseCallback callback, Object ctx) {
         STATE_UPDATER.set(this, State.Closed);
+        closeWaitingCursor();
+        setInactive();
         callback.closeComplete(ctx);
     }
 
@@ -134,6 +137,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             super.rewind();
         } else {
             readPosition = markDeletePosition.getNext();
+            ledger.onCursorReadPositionUpdated(this, readPosition);
         }
     }
 

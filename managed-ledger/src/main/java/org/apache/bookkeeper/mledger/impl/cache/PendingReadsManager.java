@@ -21,12 +21,14 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import io.prometheus.client.Counter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntSupplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -226,7 +228,7 @@ public class PendingReadsManager {
             this.ledgerCache = ledgerCache;
         }
 
-        public synchronized void attach(CompletableFuture<List<EntryImpl>> handle) {
+        public synchronized void attach(CompletableFuture<List<Entry>> handle) {
             if (state != PendingReadState.INITIALISED) {
                 // this shouldn't ever happen. this is here to prevent misuse in future changes
                 throw new IllegalStateException("Unexpected state " + state + " for PendingRead for key " + key);
@@ -268,13 +270,13 @@ public class PendingReadsManager {
 
         // this method isn't synchronized since that could lead to deadlocks
         private void readEntriesComplete(List<ReadEntriesCallbackWithContext> callbacks,
-                                                List<EntryImpl> entriesToReturn) {
+                                         List<Entry> entriesToReturn) {
             if (callbacks.size() == 1) {
                 ReadEntriesCallbackWithContext first = callbacks.get(0);
                 if (first.startEntry == key.startEntry
                         && first.endEntry == key.endEntry) {
                     // perfect match, no copy, this is the most common case
-                    first.callback.readEntriesComplete((List) entriesToReturn, first.ctx);
+                    first.callback.readEntriesComplete(entriesToReturn, first.ctx);
                 } else {
                     first.callback.readEntriesComplete(
                             keepEntries(entriesToReturn, first.startEntry, first.endEntry), first.ctx);
@@ -284,7 +286,9 @@ public class PendingReadsManager {
                     callback.callback.readEntriesComplete(
                             copyEntries(entriesToReturn, callback.startEntry, callback.endEntry), callback.ctx);
                 }
-                for (EntryImpl entry : entriesToReturn) {
+                for (Entry entry : entriesToReturn) {
+                    // don't decrease the read count when these entries are released
+                    ((EntryImpl) entry).setDecreaseReadCountOnRelease(false);
                     entry.release();
                 }
             }
@@ -298,9 +302,9 @@ public class PendingReadsManager {
             }
         }
 
-        private static List<Entry> keepEntries(List<EntryImpl> list, long startEntry, long endEntry) {
+        private static List<Entry> keepEntries(List<Entry> list, long startEntry, long endEntry) {
             List<Entry> result = new ArrayList<>((int) (endEntry - startEntry + 1));
-            for (EntryImpl entry : list) {
+            for (Entry entry : list) {
                 long entryId = entry.getEntryId();
                 if (startEntry <= entryId && entryId <= endEntry) {
                     result.add(entry);
@@ -311,9 +315,9 @@ public class PendingReadsManager {
             return result;
         }
 
-        private static List<Entry> copyEntries(List<EntryImpl> entriesToReturn, long startEntry, long endEntry) {
+        private static List<Entry> copyEntries(List<Entry> entriesToReturn, long startEntry, long endEntry) {
             List<Entry> result = new ArrayList<>((int) (endEntry - startEntry + 1));
-            for (EntryImpl entry : entriesToReturn) {
+            for (Entry entry : entriesToReturn) {
                 long entryId = entry.getEntryId();
                 if (startEntry <= entryId && entryId <= endEntry) {
                     EntryImpl entryCopy = EntryImpl.create(entry);
@@ -325,7 +329,7 @@ public class PendingReadsManager {
     }
 
 
-    void readEntries(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
+    void readEntries(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
                      final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
@@ -338,117 +342,69 @@ public class PendingReadsManager {
             FindPendingReadOutcome findBestCandidateOutcome = findPendingRead(key,
                     pendingReadsForLedger, createdByThisThread);
             PendingRead pendingRead = findBestCandidateOutcome.pendingRead;
+
             if (findBestCandidateOutcome.needsAdditionalReads()) {
-                AsyncCallbacks.ReadEntriesCallback wrappedCallback = new AsyncCallbacks.ReadEntriesCallback() {
-                    @Override
-                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                        PendingReadKey missingOnLeft = findBestCandidateOutcome.missingOnLeft;
-                        PendingReadKey missingOnRight = findBestCandidateOutcome.missingOnRight;
-                        if (missingOnRight != null && missingOnLeft != null) {
-                            AsyncCallbacks.ReadEntriesCallback readFromLeftCallback =
-                                    new AsyncCallbacks.ReadEntriesCallback() {
-                                @Override
-                                public void readEntriesComplete(List<Entry> entriesFromLeft, Object dummyCtx1) {
-                                    AsyncCallbacks.ReadEntriesCallback readFromRightCallback =
-                                            new AsyncCallbacks.ReadEntriesCallback() {
-                                        @Override
-                                        public void readEntriesComplete(List<Entry> entriesFromRight,
-                                                                        Object dummyCtx2) {
-                                            List<Entry> finalResult =
-                                                    new ArrayList<>(entriesFromLeft.size()
-                                                            + entries.size() + entriesFromRight.size());
-                                            finalResult.addAll(entriesFromLeft);
-                                            finalResult.addAll(entries);
-                                            finalResult.addAll(entriesFromRight);
-                                            callback.readEntriesComplete(finalResult, ctx);
-                                        }
-
-                                        @Override
-                                        public void readEntriesFailed(ManagedLedgerException exception,
-                                                                      Object dummyCtx3) {
-                                            entries.forEach(Entry::release);
-                                            entriesFromLeft.forEach(Entry::release);
-                                            callback.readEntriesFailed(exception, ctx);
-                                        }
-                                    };
-                                    rangeEntryCache.asyncReadEntry0(lh,
-                                            missingOnRight.startEntry, missingOnRight.endEntry,
-                                            shouldCacheEntry, readFromRightCallback, null, false);
-                                }
-
-                                @Override
-                                public void readEntriesFailed(ManagedLedgerException exception, Object dummyCtx4) {
-                                    entries.forEach(Entry::release);
-                                    callback.readEntriesFailed(exception, ctx);
-                                }
-                            };
-                            rangeEntryCache.asyncReadEntry0(lh, missingOnLeft.startEntry, missingOnLeft.endEntry,
-                                    shouldCacheEntry, readFromLeftCallback, null, false);
-                        } else if (missingOnLeft != null) {
-                            AsyncCallbacks.ReadEntriesCallback readFromLeftCallback =
-                                    new AsyncCallbacks.ReadEntriesCallback() {
-
-                                        @Override
-                                        public void readEntriesComplete(List<Entry> entriesFromLeft,
-                                                                        Object dummyCtx5) {
-                                            List<Entry> finalResult =
-                                                    new ArrayList<>(entriesFromLeft.size() + entries.size());
-                                            finalResult.addAll(entriesFromLeft);
-                                            finalResult.addAll(entries);
-                                            callback.readEntriesComplete(finalResult, ctx);
-                                        }
-
-                                        @Override
-                                        public void readEntriesFailed(ManagedLedgerException exception,
-                                                                      Object dummyCtx6) {
-                                            entries.forEach(Entry::release);
-                                            callback.readEntriesFailed(exception, ctx);
-                                        }
-                                    };
-                            rangeEntryCache.asyncReadEntry0(lh, missingOnLeft.startEntry, missingOnLeft.endEntry,
-                                    shouldCacheEntry, readFromLeftCallback, null, false);
-                        } else if (missingOnRight != null) {
-                            AsyncCallbacks.ReadEntriesCallback readFromRightCallback =
-                                    new AsyncCallbacks.ReadEntriesCallback() {
-
-                                        @Override
-                                        public void readEntriesComplete(List<Entry> entriesFromRight,
-                                                                        Object dummyCtx7) {
-                                            List<Entry> finalResult =
-                                                    new ArrayList<>(entriesFromRight.size() + entries.size());
-                                            finalResult.addAll(entries);
-                                            finalResult.addAll(entriesFromRight);
-                                            callback.readEntriesComplete(finalResult, ctx);
-                                        }
-
-                                        @Override
-                                        public void readEntriesFailed(ManagedLedgerException exception,
-                                                                      Object dummyCtx8) {
-                                            entries.forEach(Entry::release);
-                                            callback.readEntriesFailed(exception, ctx);
-                                        }
-                                    };
-                            rangeEntryCache.asyncReadEntry0(lh, missingOnRight.startEntry, missingOnRight.endEntry,
-                                    shouldCacheEntry, readFromRightCallback, null, false);
-                        }
-                    }
-
-                    @Override
-                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                        callback.readEntriesFailed(exception, ctx);
-                    }
-                };
-                listenerAdded = pendingRead.addListener(wrappedCallback, ctx, key.startEntry, key.endEntry);
+                CompletableFuture<List<Entry>> readFromMidFuture = new CompletableFuture<>();
+                ReadEntriesCallback presentReadCallback = new ReadEntriesCallback(readFromMidFuture);
+                listenerAdded = pendingRead.addListener(presentReadCallback, ctx, key.startEntry, key.endEntry);
+                if (!listenerAdded) {
+                    continue;
+                }
+                CompletableFuture<List<Entry>> readFromLeftFuture =
+                        recursiveReadMissingEntriesAsync(lh, expectedReadCount, findBestCandidateOutcome.missingOnLeft);
+                CompletableFuture<List<Entry>> readFromRightFuture =
+                        recursiveReadMissingEntriesAsync(lh, expectedReadCount,
+                                findBestCandidateOutcome.missingOnRight);
+                readFromLeftFuture
+                        .thenCombine(readFromMidFuture, (left, mid) -> {
+                            List<Entry> result = new ArrayList<>(left);
+                            result.addAll(mid);
+                            return result;
+                        })
+                        .thenCombine(readFromRightFuture, (combined, right) -> {
+                            combined.addAll(right);
+                            return combined;
+                        })
+                        .whenComplete((finalResult, e) -> {
+                            if (e != null) {
+                                callback.readEntriesFailed(createManagedLedgerException(e), ctx);
+                                releaseEntriesSafely(readFromLeftFuture);
+                                releaseEntriesSafely(readFromMidFuture);
+                                releaseEntriesSafely(readFromRightFuture);
+                            } else {
+                                callback.readEntriesComplete(finalResult, ctx);
+                            }
+                        });
             } else {
                 listenerAdded = pendingRead.addListener(callback, ctx, key.startEntry, key.endEntry);
             }
 
-
             if (createdByThisThread.get()) {
-                CompletableFuture<List<EntryImpl>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
-                        lastEntry, shouldCacheEntry);
+                CompletableFuture<List<Entry>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
+                        lastEntry, expectedReadCount);
                 pendingRead.attach(readResult);
             }
+        }
+    }
+
+    private CompletableFuture<List<Entry>> recursiveReadMissingEntriesAsync(ReadHandle lh,
+                                                                            IntSupplier expectedReadCount,
+                                                                            PendingReadKey missingKey) {
+        CompletableFuture<List<Entry>> future;
+        if (missingKey != null) {
+            future = new CompletableFuture<>();
+            ReadEntriesCallback callback = new ReadEntriesCallback(future);
+            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, expectedReadCount, callback,
+                    null, false);
+        } else {
+            future = CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        return future;
+    }
+
+    private void releaseEntriesSafely(CompletableFuture<List<Entry>> future) {
+        if (!future.isCompletedExceptionally()) {
+            future.thenAccept(entries -> entries.forEach(Entry::release));
         }
     }
 
@@ -459,5 +415,24 @@ public class PendingReadsManager {
 
     void invalidateLedger(long id) {
         cachedPendingReads.remove(id);
+    }
+
+    static class ReadEntriesCallback implements AsyncCallbacks.ReadEntriesCallback {
+
+        private final CompletableFuture<List<Entry>> completableFuture;
+
+        public ReadEntriesCallback(CompletableFuture<List<Entry>> completableFuture) {
+            this.completableFuture = completableFuture;
+        }
+
+        @Override
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            completableFuture.complete(entries);
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            completableFuture.completeExceptionally(exception);
+        }
     }
 }

@@ -60,7 +60,8 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test(dataProvider = "topicDomainProvider")
     public void testExactlyOnceWithProducerNameSpecified(TopicDomain domain) throws PulsarClientException {
         Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default", "testExactlyOnceWithProducerNameSpecified").toString())
+                .topic(TopicName.get(domain.value(), "public", "default",
+                        "testExactlyOnceWithProducerNameSpecified").toString())
                 .producerName("p-name-1")
                 .create();
 
@@ -85,9 +86,11 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "topicDomainProvider")
-    public void testGeneratedNameProducerReconnect(TopicDomain domain) throws PulsarClientException, InterruptedException {
+    public void testGeneratedNameProducerReconnect(TopicDomain domain)
+            throws PulsarClientException, InterruptedException {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default", "testGeneratedNameProducerReconnect").toString())
+                .topic(TopicName.get(domain.value(), "public", "default",
+                        "testGeneratedNameProducerReconnect").toString())
                 .create();
         Assert.assertTrue(producer.isConnected());
         //simulate create producer timeout.
@@ -228,7 +231,13 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         }
 
         // Partition index is out of range.
-        assertThrows(NotAllowedException.class, () -> {
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
+            @Cleanup
+            Producer<byte[]> ignored =
+                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(3).toString())
+                            .create();
+        });
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
                     pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
@@ -254,14 +263,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         admin.topics().delete(TopicName.get(partitionedTopic).getPartition(1).toString());
 
         // Non-persistent topic only have the metadata, and no partition, so it works fine.
-        if (allowAutoTopicCreation || domain == TopicDomain.non_persistent) {
-            @Cleanup
-            Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
-        } else {
-            assertThrows(PulsarClientException.TopicDoesNotExistException.class, () -> {
-                @Cleanup
-                Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
-            });
-        }
+        @Cleanup
+        Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
     }
 }

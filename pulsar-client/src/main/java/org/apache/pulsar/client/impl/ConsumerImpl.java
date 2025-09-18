@@ -102,6 +102,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -124,7 +125,6 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -191,7 +191,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final MessageCrypto msgCrypto;
 
-    private Map<String, String> metadata;
+    private final Map<String, String> metadata;
 
     private final boolean readCompacted;
     private final boolean resetIncludeHead;
@@ -242,6 +242,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
     private volatile boolean hasSoughtByTimestamp = false;
+    // This field will be set after the state becomes Failed, then the following operations will fail immediately
+    private volatile Throwable failReason = null;
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -365,7 +367,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getProperties().isEmpty()) {
             metadata = Collections.emptyMap();
         } else {
-            metadata = new HashMap<>(conf.getProperties());
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
         this.connectionHandler = new ConnectionHandler(this,
@@ -919,7 +921,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
-            updateProxyMetadataIfNeeded(cnx);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.getReplicateSubscriptionState(),
@@ -974,31 +975,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     cnx.sendRequestWithId(cmd, closeRequestId);
                 }
 
+                final boolean retriable = PulsarClientException.isRetriableError(e.getCause());
+                final boolean unrecoverable = isUnrecoverableError(e.getCause());
                 if (e.getCause() instanceof PulsarClientException
-                        && PulsarClientException.isRetriableError(e.getCause())
+                        && retriable
+                        && !unrecoverable
                         && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
                     future.completeExceptionally(e.getCause());
-                } else if (!subscribeFuture.isDone()) {
+                } else if (!subscribeFuture.isDone() && !retriable) {
                     // unable to create new consumer, fail operation
                     setState(State.Failed);
+                    final Throwable throwable = PulsarClientException.wrap(e, String.format("Failed to subscribe the "
+                            + "topic %s with subscription name %s when connecting to the broker", topicName.toString(),
+                            subscription));
+                    fail(throwable);
+
                     closeConsumerTasks();
-                    subscribeFuture.completeExceptionally(
-                            PulsarClientException.wrap(e, String.format("Failed to subscribe the topic %s "
-                                            + "with subscription name %s when connecting to the broker",
-                                    topicName.toString(), subscription)));
+                    subscribeFuture.completeExceptionally(throwable);
                     client.cleanupConsumer(this);
-                } else if (e.getCause() instanceof TopicDoesNotExistException) {
-                    // The topic was deleted after the consumer was created, and we're
-                    // not allowed to recreate the topic. This can happen in few cases:
-                    //  * Regex consumer getting error after topic gets deleted
-                    //  * Regular consumer after topic is manually delete and with
-                    //    auto-topic-creation set to false
-                    // No more retries are needed in this case.
-                    setState(State.Failed);
-                    closeConsumerTasks();
-                    client.cleanupConsumer(this);
-                    log.warn("[{}][{}] Closed consumer because topic does not exist anymore {}",
-                            topic, subscription, cnx.channel().remoteAddress());
+                } else if (unrecoverable) {
+                    closeWhenReceivedUnrecoverableError(e.getCause(), cnx);
                 } else {
                     // consumer was subscribed and connected but we got some error, keep trying
                     future.completeExceptionally(e.getCause());
@@ -1011,6 +1007,37 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         }
         return future;
+    }
+
+    /***
+     * Different consumer implementation can define its additional unrecoverable error.
+     */
+    protected boolean isUnrecoverableError(Throwable t) {
+        // TopicDoesNotExistException: topic has been deleted.
+        // NotFoundException: topic has been deleted.
+        // IllegalStateException: consumer has been closed.
+        return (t instanceof TopicDoesNotExistException) || (t instanceof IllegalStateException)
+                || (t instanceof PulsarClientException.NotFoundException);
+    }
+
+    protected void closeWhenReceivedUnrecoverableError(Throwable t, ClientCnx cnx) {
+        // The topic was deleted after the consumer was created, and we're
+        // not allowed to recreate the topic. This can happen in few cases:
+        //  * Regex consumer getting error after topic gets deleted
+        //  * Regular consumer after topic is manually delete and with
+        //    auto-topic-creation set to false
+        // No more retries are needed in this case.
+        final String cnxStr = cnx == null ? "null" : String.valueOf(cnx.channel().remoteAddress());
+        log.warn("[{}][{}] {} Closed consumer because get an error that does not support to retry: {} {}",
+                topic, subscription, cnxStr, t.getClass().getName(), t.getMessage());
+        closeAsync().whenComplete((__, ex) -> {
+            if (ex == null) {
+                fail(t);
+                return;
+            }
+            log.error("[{}][{}] {} Failed to close consumer after got an error that does not support to retry: {} {}",
+                topic, subscription, cnxStr, t.getClass().getName(), t.getMessage());
+        });
     }
 
     protected void consumerIsReconnectedToBroker(ClientCnx cnx, int currentQueueSize) {
@@ -1093,13 +1120,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void connectionFailed(PulsarClientException exception) {
+    public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
             exception.setPreviousExceptionCount(previousExceptionCount);
             if (subscribeFuture.completeExceptionally(exception)) {
-                setState(State.Failed);
+                fail(exception);
                 if (nonRetriableError) {
                     log.info("[{}] Consumer creation failed for consumer {} with unretriableError {}",
                             topic, consumerId, exception.getMessage());
@@ -1109,10 +1136,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 closeConsumerTasks();
                 deregisterFromClientCnx();
                 client.cleanupConsumer(this);
+                return false;
+            } else {
+                Throwable actError = FutureUtil.unwrapCompletionException(exception);
+                if (isUnrecoverableError(actError)) {
+                    closeWhenReceivedUnrecoverableError(actError, null);
+                    return false;
+                }
             }
         } else {
             previousExceptionCount.incrementAndGet();
         }
+        return true;
     }
 
     @Override
@@ -1132,6 +1167,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
                 if (ex != null) {
                     log.warn("Exception ignored in closing deadLetterProducer of consumer", ex);
+                }
+            }));
+        }
+        if (schema != null) {
+            closeFutures.add(schema.closeAsync().whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    log.warn("Exception ignored in closing schema of consumer", ex);
                 }
             }));
         }
@@ -1211,17 +1253,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
-        if (poolMessages) {
-            releasePooledMessagesAndStopAcceptNew();
-        }
-    }
-
-    /**
-     * If enabled pooled messages, we should release the messages after closing consumer and stop accept the new
-     * messages.
-     */
-    private void releasePooledMessagesAndStopAcceptNew() {
-        incomingMessages.terminate(message -> message.release());
+        //terminate incomingMessages queue, stop accept the new messages and waking up blocked thread.
+        incomingMessages.terminate(Message::release);
         clearIncomingMessages();
     }
 
@@ -1258,7 +1291,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                   final BitSetRecyclable ackBitSet,
                                                   final BitSet ackSetInMessageId,
                                                   final int redeliveryCount,
-                                                  final long consumerEpoch) {
+                                                  final long consumerEpoch,
+                                                  final boolean isEncrypted) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, index);
         }
@@ -1296,7 +1330,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             final ByteBuf payloadBuffer = (singleMessagePayload != null) ? singleMessagePayload : payload;
             final MessageImpl<V> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
                     msgMetadata, singleMessageMetadata, payloadBuffer,
-                    createEncryptionContext(msgMetadata), cnx(), schema, redeliveryCount, poolMessages, consumerEpoch);
+                    createEncryptionContext(msgMetadata, isEncrypted), cnx(), schema, redeliveryCount,
+                    poolMessages, consumerEpoch);
             message.setBrokerEntryMetadata(brokerEntryMetadata);
             return message;
         } catch (IOException | IllegalStateException e) {
@@ -1315,8 +1350,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             final Schema<V> schema,
                                             final int redeliveryCount,
                                             final long consumerEpoch) {
+        return newMessage(messageId, brokerEntryMetadata, messageMetadata, payload, schema, redeliveryCount,
+                consumerEpoch, false);
+    }
+
+    protected <V> MessageImpl<V> newMessage(final MessageIdImpl messageId,
+                                            final BrokerEntryMetadata brokerEntryMetadata,
+                                            final MessageMetadata messageMetadata,
+                                            final ByteBuf payload,
+                                            final Schema<V> schema,
+                                            final int redeliveryCount,
+                                            final long consumerEpoch,
+                                            final boolean isEncrypted) {
         final MessageImpl<V> message = MessageImpl.create(topicName.toString(), messageId, messageMetadata, payload,
-                createEncryptionContext(messageMetadata), cnx(), schema, redeliveryCount, poolMessages, consumerEpoch);
+                createEncryptionContext(messageMetadata, isEncrypted), cnx(), schema, redeliveryCount,
+                poolMessages, consumerEpoch);
         message.setBrokerEntryMetadata(brokerEntryMetadata);
         return message;
     }
@@ -1342,7 +1390,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    private void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
+    protected void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
                                            final MessageMetadata messageMetadata,
                                            final ByteBuf byteBuf,
                                            final MessageIdImpl messageId,
@@ -1393,7 +1441,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             consumerEpoch = cmdMessage.getConsumerEpoch();
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
+            log.debug("[{}][{}] Received message: {}:{}", topic, subscription, messageId.getLedgerId(),
                     messageId.getEntryId());
         }
 
@@ -1428,15 +1476,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, redeliveryCount, msgMetadata, headersAndPayload,
+        DecryptResult decryptResult = decryptPayloadIfNeeded(messageId, redeliveryCount, msgMetadata, headersAndPayload,
                 cnx);
 
-        boolean isMessageUndecryptable = isMessageUndecryptable(msgMetadata);
-
-        if (decryptedPayload == null) {
+        if (decryptResult.shouldDiscard()) {
             // Message was discarded or CryptoKeyReader isn't implemented
             return;
         }
+
+        boolean isMessageUndecryptable = !decryptResult.success;
+
+        ByteBuf decryptedPayload = decryptResult.payload;
 
         // uncompress decryptedPayload and release decryptedPayload-ByteBuf
         ByteBuf uncompressedPayload = (isMessageUndecryptable || isChunkedMessage) ? decryptedPayload.retain()
@@ -1498,7 +1548,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             final MessageImpl<T> message =
                     newMessage(msgId, brokerEntryMetadata, msgMetadata, uncompressedPayload,
-                            schema, redeliveryCount, consumerEpoch);
+                            schema, redeliveryCount, consumerEpoch, isMessageUndecryptable);
             uncompressedPayload.release();
 
             if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
@@ -1518,7 +1568,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
             receiveIndividualMessagesFromBatch(brokerEntryMetadata, msgMetadata, redeliveryCount, ackSet,
-                    uncompressedPayload, messageId, cnx, consumerEpoch);
+                    uncompressedPayload, messageId, cnx, consumerEpoch, isMessageUndecryptable);
 
             uncompressedPayload.release();
         }
@@ -1718,7 +1768,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
                                             int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
-                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch) {
+                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
+                                            boolean isEncrypted) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
         // create ack tracker for entry aka batch
@@ -1741,7 +1792,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             for (int i = 0; i < batchSize; ++i) {
                 final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
                         singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
-                        ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch);
+                        ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch, isEncrypted);
                 if (message == null) {
                     // If it is not in ackBitSet, it means Broker does not want to deliver it to the client, and
                     // did not decrease the permits in the broker-side.
@@ -1923,11 +1974,53 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return connectionHandler.lastConnectionClosedTimestamp;
     }
 
-    private ByteBuf decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount, MessageMetadata msgMetadata,
-                                           ByteBuf payload, ClientCnx currentCnx) {
+    /**
+     * Represents the outcome of a message decryption attempt for the consumer.
+     */
+    private static class DecryptResult {
+        private final boolean success;
+        private final ByteBuf payload;
+
+        private DecryptResult(boolean success, ByteBuf decryptedPayload) {
+            this.success = success;
+            this.payload = decryptedPayload;
+        }
+
+        /**
+         * Returns true if the message should be discarded and not delivered to the consumer user.
+         */
+        public boolean shouldDiscard() {
+            return this.payload == null;
+        }
+
+        /**
+         * Creates a result indicating decryption succeeded and the payload is ready for use.
+         */
+        public static DecryptResult success(ByteBuf decryptedPayload) {
+            return new DecryptResult(true, decryptedPayload);
+        }
+
+        /**
+         * Creates a result indicating decryption failed, but the message should still be delivered.
+         */
+        public static DecryptResult failure(ByteBuf decryptedPayload) {
+            return new DecryptResult(false, decryptedPayload);
+        }
+
+        /**
+         * Creates a result indicating the message should be discarded.
+         */
+        public static DecryptResult discard() {
+            return new DecryptResult(false, null);
+        }
+    }
+
+    private DecryptResult decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount,
+                                                 MessageMetadata msgMetadata,
+                                                 ByteBuf payload, ClientCnx currentCnx) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
-            return payload.retain();
+            return DecryptResult.success(payload.retain());
         }
         int batchSize = msgMetadata.getNumMessagesInBatch();
         // If KeyReader is not configured throw exception based on config param
@@ -1941,7 +2034,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuffer nioDecryptedData = decryptedData.nioBuffer(0, maxDecryptedSize);
         if (msgCrypto.decrypt(() -> msgMetadata, payload.nioBuffer(), nioDecryptedData, conf.getCryptoKeyReader())) {
             decryptedData.writerIndex(nioDecryptedData.limit());
-            return decryptedData;
+            return DecryptResult.success(decryptedData);
         }
 
         decryptedData.release();
@@ -1949,7 +2042,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, false);
     }
 
-    private ByteBuf handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
+    private DecryptResult handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
             int redeliveryCount, int batchSize, boolean cryptoReaderNotExist) {
 
         switch (conf.getCryptoFailureAction()) {
@@ -1962,7 +2055,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.warn("[{}][{}][{}][{}] Decryption failed. Consuming encrypted message since config is set to"
                         + " consume.", topic, subscription, consumerName, messageId);
             }
-            return payload.retain();
+            return DecryptResult.failure(payload.retain());
         case DISCARD:
             if (cryptoReaderNotExist) {
                 log.warn(
@@ -1977,7 +2070,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         messageId.getBatchIndex());
             }
             discardMessage(messageId, currentCnx, ValidationError.DecryptionError, batchSize);
-            return null;
+            return DecryptResult.discard();
         case FAIL:
             if (cryptoReaderNotExist) {
                 log.error(
@@ -1992,11 +2085,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
             unAckedMessageTracker.add(m, redeliveryCount);
-            return null;
+            return DecryptResult.discard();
         default:
             log.warn("[{}][{}][{}] Invalid crypto failure state found, continue message consumption.", topic,
                     subscription, consumerName);
-            return payload.retain();
+            return DecryptResult.failure(payload.retain());
         }
     }
 
@@ -2245,8 +2338,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     try {
                         String originMessageIdStr = message.getMessageId().toString();
                         String originTopicNameStr = getOriginTopicNameStr(message);
+                        AutoProduceBytesSchema<byte[]> deadLetterMessageSchema =
+                            (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get());
+                        deadLetterMessageSchema.setRequireSchemaValidation(false);
                         TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                                producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                                producerDLQ.newMessage(deadLetterMessageSchema)
                                         .value(message.getData())
                                         .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
                         copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
@@ -2268,7 +2364,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 }).exceptionally(ex -> {
                                     if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
                                         log.warn(
-                                                "[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
+                                                "[{}] [{}] [{}] Failed to send DLQ message to {} "
+                                                        + "with ProducerQueueIsFullError for message id {}: {}",
                                                 topicName, subscription, consumerName,
                                                 deadLetterPolicy.getDeadLetterTopic(), messageId, ex.getMessage());
                                     } else {
@@ -2280,7 +2377,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     return null;
                                 });
                     } catch (Exception e) {
-                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                        log.warn("[{}] [{}] [{}] Failed to process DLQ message to {} for message id {}",
                                 topicName, subscription, consumerName, deadLetterPolicy.getDeadLetterTopic(), messageId,
                                 e);
                         result.complete(false);
@@ -2315,8 +2412,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
+                        AutoProduceBytesSchema<byte[]> deadLetterProducerSchema =
+                                (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES(schema);
+                        deadLetterProducerSchema.setRequireSchemaValidation(false);
                         ProducerBuilder<byte[]> builder =
-                                ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                ((ProducerBuilderImpl<byte[]>) client.newProducer(deadLetterProducerSchema))
                                         .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                         .producerName(
@@ -2798,6 +2898,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             });
         } else {
+            if (failReason != null) {
+                future.completeExceptionally(failReason);
+                return;
+            }
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
                 future.completeExceptionally(
@@ -2825,9 +2929,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * Create EncryptionContext if message payload is encrypted.
      *
      * @param msgMetadata
+     * @param isEncrypted
      * @return {@link Optional}<{@link EncryptionContext}>
      */
-    private Optional<EncryptionContext> createEncryptionContext(MessageMetadata msgMetadata) {
+    private Optional<EncryptionContext> createEncryptionContext(MessageMetadata msgMetadata,
+                                                                boolean isEncrypted) {
 
         EncryptionContext encryptionCtx = null;
         if (msgMetadata.getEncryptionKeysCount() > 0) {
@@ -2850,6 +2956,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     .setCompressionType(CompressionCodecProvider.convertFromWireProtocol(msgMetadata.getCompression()));
             encryptionCtx.setUncompressedMessageSize(msgMetadata.getUncompressedSize());
             encryptionCtx.setBatchSize(batchSize);
+            encryptionCtx.setEncrypted(isEncrypted);
         }
         return Optional.ofNullable(encryptionCtx);
     }
@@ -3159,14 +3266,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return cmd;
     }
 
-    private void updateProxyMetadataIfNeeded(ClientCnx cnx) {
-        boolean isProxy = cnx.isProxy() || client.getConfiguration().getProxyServiceUrl() != null;
-        if (isProxy && cnx.getLocalAddress() != null) {
-            metadata = metadata.isEmpty() ? new HashMap<>() : metadata;
-            metadata.put(Metadata.CLIENT_IP, cnx.getLocalAddress().toString());
-        }
-    }
-
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(List<MessageId> messageIds, AckType ackType,
                                                                         Map<String, Long> properties, TxnID txnID) {
         long requestId = client.newRequestId();
@@ -3179,6 +3278,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (MessageIdAdvUtils.isBatch(messageIdAdv)) {
                 final BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
                 bitSetRecyclable.set(0, messageIdAdv.getBatchSize());
+                messageIdData.setBatchSize(messageIdAdv.getBatchSize());
                 if (ackType == AckType.Cumulative) {
                     MessageIdAdvUtils.acknowledge(messageIdAdv, false);
                     bitSetRecyclable.clear(0, messageIdAdv.getBatchIndex() + 1);
@@ -3236,5 +3336,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @VisibleForTesting
     public Producer<byte[]> getDeadLetterProducer() throws ExecutionException, InterruptedException {
         return (deadLetterProducer == null || !deadLetterProducer.isDone()) ? null : deadLetterProducer.get();
+    }
+
+    private void fail(Throwable throwable) {
+        setState(State.Failed);
+        failReason = throwable;
     }
 }

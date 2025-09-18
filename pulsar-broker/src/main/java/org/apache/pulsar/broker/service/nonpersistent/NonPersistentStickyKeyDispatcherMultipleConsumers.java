@@ -135,7 +135,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             };
 
     @Override
-    public void sendMessages(List<Entry> entries) {
+    public synchronized void sendMessages(List<Entry> entries) {
         if (entries.isEmpty()) {
             return;
         }
@@ -151,7 +151,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         consumerStickyKeyHashesMap.clear();
 
         for (Entry entry : entries) {
-            byte[] stickyKey = peekStickyKey(entry.getDataBuffer());
+            byte[] stickyKey = peekStickyKey(entry);
             int stickyKeyHash = selector.makeStickyKeyHash(stickyKey);
 
             Consumer consumer = selector.select(stickyKeyHash);
@@ -182,7 +182,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
             } else {
                 entriesForConsumer.forEach(e -> {
-                    int totalMsgs = Commands.getNumberOfMessagesInBatch(e.getDataBuffer(), subscription.toString(), -1);
+                    int totalMsgs = getNumberOfMessagesInBatch(e);
                     if (totalMsgs > 0) {
                         msgDrop.recordEvent(totalMsgs);
                     }

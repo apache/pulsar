@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
@@ -107,8 +108,12 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
-        for (TopicStats topic : admin.topics().getPartitionedStats(partitionedTopicName, true).getPartitions()
-                                .values()) {
+        AtomicReference<Map<String, ? extends TopicStats>> partitionsStats = new AtomicReference<>();
+        Awaitility.await().until(() -> {
+            partitionsStats.set(admin.topics().getPartitionedStats(partitionedTopicName, true).getPartitions());
+            return partitionsStats.get().size() == 20;
+        });
+        for (TopicStats topic : partitionsStats.get().values()) {
                 assertEquals(topic.getSubscriptions().keySet(), List.of("sub-1"));
         }
 

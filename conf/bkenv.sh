@@ -61,7 +61,7 @@ done
 BOOKIE_GC="${BOOKIE_GC:-${PULSAR_GC}}"
 if [ -z "$BOOKIE_GC" ]; then
   BOOKIE_GC="-XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"
-  if [[ $JAVA_MAJOR_VERSION -ge 21 ]]; then
+  if [[ $JAVA_MAJOR_VERSION -eq 21 || $JAVA_MAJOR_VERSION -eq 22 ]]; then
     BOOKIE_GC="-XX:+UseZGC -XX:+ZGenerational ${BOOKIE_GC}"
   else
     BOOKIE_GC="-XX:+UseZGC ${BOOKIE_GC}"
@@ -89,7 +89,7 @@ if [[ -z "$BOOKIE_GC_LOG" ]]; then
 fi
 
 # Extra options to be passed to the jvm
-BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS:-"-Dio.netty.leakDetectionLevel=disabled ${PULSAR_EXTRA_OPTS:-"-Dio.netty.recycler.maxCapacityPerThread=4096"}"}"
+BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS:-"-Dio.netty.leakDetection.level=disabled ${PULSAR_EXTRA_OPTS:-"-Dio.netty.recycler.maxCapacityPerThread=4096"}"}"
 
 # Add extra paths to the bookkeeper classpath
 # BOOKIE_EXTRA_CLASSPATH=

@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.utils;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectExecResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
@@ -38,6 +39,7 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -205,10 +207,7 @@ public class DockerUtils {
                                                                                DockerClient dockerClient,
                                                                                String containerId,
                                                                                String... cmd) {
-        String execId = dockerClient.execCreateCmd(containerId)
-                .withCmd(cmd)
-                .withAttachStderr(true)
-                .withAttachStdout(true)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
                 .withUser(userId)
                 .exec()
                 .getId();
@@ -218,10 +217,7 @@ public class DockerUtils {
     public static CompletableFuture<ContainerExecResult> runCommandAsync(DockerClient dockerClient,
                                                                          String containerId,
                                                                          String... cmd) {
-        String execId = dockerClient.execCreateCmd(containerId)
-                .withCmd(cmd)
-                .withAttachStderr(true)
-                .withAttachStdout(true)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
                 .exec()
                 .getId();
         return runCommandAsync(execId, dockerClient, containerId, cmd);
@@ -294,10 +290,7 @@ public class DockerUtils {
                                                                    String containerId,
                                                                    String... cmd) throws ContainerExecException {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        String execId = dockerClient.execCreateCmd(containerId)
-                .withCmd(cmd)
-                .withAttachStderr(true)
-                .withAttachStdout(true)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
                 .exec()
                 .getId();
         final String containerName = getContainerName(dockerClient, containerId);
@@ -359,10 +352,7 @@ public class DockerUtils {
     public static CompletableFuture<Long> runCommandAsyncWithLogging(DockerClient dockerClient,
                                                                         String containerId, String... cmd) {
         CompletableFuture<Long> future = new CompletableFuture<>();
-        String execId = dockerClient.execCreateCmd(containerId)
-                .withCmd(cmd)
-                .withAttachStderr(true)
-                .withAttachStdout(true)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
                 .exec()
                 .getId();
         final String containerName = getContainerName(dockerClient, containerId);
@@ -398,6 +388,15 @@ public class DockerUtils {
                     }
                 });
         return future;
+    }
+
+    private static ExecCreateCmd createExecCreateCmd(DockerClient dockerClient, String containerId, String[] cmd) {
+        return dockerClient.execCreateCmd(containerId)
+                .withCmd(cmd)
+                .withAttachStderr(true)
+                .withAttachStdout(true)
+                // Clear out PULSAR_EXTRA_OPTS and OPTS so that they don't interfere with the test
+                .withEnv(List.of("PULSAR_EXTRA_OPTS=", "OPTS="));
     }
 
     private static InspectExecResponse waitForExecCmdToFinish(DockerClient dockerClient, String execId) {

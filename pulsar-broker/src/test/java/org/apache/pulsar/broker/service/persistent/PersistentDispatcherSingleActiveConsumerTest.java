@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -31,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -77,7 +79,8 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         Mockito.doReturn(topic).when(sub).getTopic();
         // Mock the dispatcher.
         PersistentDispatcherSingleActiveConsumer dispatcher =
-                Mockito.spy(new PersistentDispatcherSingleActiveConsumer(cursor, CommandSubscribe.SubType.Exclusive,0, topic, sub));
+                Mockito.spy(new PersistentDispatcherSingleActiveConsumer(cursor,
+                        CommandSubscribe.SubType.Exclusive, 0, topic, sub));
 
         // Mock a consumer
         Consumer consumer = Mockito.mock(Consumer.class);
@@ -109,17 +112,19 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
         // Mock the readEntriesOrWait(...) to simulate the cursor is closed.
         Mockito.doAnswer(inv -> {
-            PersistentDispatcherSingleActiveConsumer dispatcher1 = inv.getArgument(2);
-            dispatcher1.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
+            final var callback = (AsyncCallbacks.ReadEntriesCallback) inv.getArgument(2);
+            callback.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
                     null);
             return null;
-        }).when(cursor).asyncReadEntriesOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.eq(dispatcher),
-                Mockito.any(), Mockito.any());
+        }).when(cursor).asyncReadEntriesWithSkipOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.any());
 
         dispatcher.readMoreEntries(consumer);
 
-        // Verify: the readEntriesFailed should be called once and the scheduleReadEntriesWithDelay should not be called.
-        Assert.assertTrue(callReadEntriesFailed.get() == 1 && callScheduleReadEntriesWithDelayCnt.get() == 0);
+        // Verify: the readEntriesFailed should be called once and
+        // the scheduleReadEntriesWithDelay should not be called.
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(callReadEntriesFailed.get() == 1
+                && callScheduleReadEntriesWithDelayCnt.get() == 0));
 
         // Verify: the topic can be deleted successfully.
         admin.topics().delete(topicName, false);

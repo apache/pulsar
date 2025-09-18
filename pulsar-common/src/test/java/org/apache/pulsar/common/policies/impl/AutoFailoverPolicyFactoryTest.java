@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.impl;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.testng.Assert;

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -175,9 +176,25 @@ public class PulsarAdminBuilderImplTest {
 
     @SneakyThrows
     private Authentication createAdminAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").loadConf(confProps).build()) {
-            return ((PulsarAdminImpl)admin).auth;
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080")
+                .loadConf(confProps).build()) {
+            return ((PulsarAdminImpl) admin).auth;
         }
+    }
+
+    @Test
+    public void testClientDescription() throws PulsarClientException {
+        @Cleanup PulsarAdmin ignored =
+                PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").description("forked").build();
+    }
+
+    @Test
+    public void testClientDescriptionLengthExceed64() {
+        String longDescription = "a".repeat(65);
+        assertThatThrownBy(() -> {
+            @Cleanup PulsarAdmin ignored =
+                    PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").description(longDescription).build();
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
     private String secretAuthParams(String secret) {
@@ -188,7 +205,7 @@ public class PulsarAdminBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 

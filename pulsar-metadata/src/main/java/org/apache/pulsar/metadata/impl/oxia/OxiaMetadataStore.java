@@ -19,15 +19,15 @@
 package org.apache.pulsar.metadata.impl.oxia;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.streamnative.oxia.client.api.AsyncOxiaClient;
-import io.streamnative.oxia.client.api.DeleteOption;
-import io.streamnative.oxia.client.api.Notification;
-import io.streamnative.oxia.client.api.OxiaClientBuilder;
-import io.streamnative.oxia.client.api.PutOption;
-import io.streamnative.oxia.client.api.PutResult;
-import io.streamnative.oxia.client.api.Version;
-import io.streamnative.oxia.client.api.exceptions.KeyAlreadyExistsException;
-import io.streamnative.oxia.client.api.exceptions.UnexpectedVersionIdException;
+import io.oxia.client.api.AsyncOxiaClient;
+import io.oxia.client.api.DeleteOption;
+import io.oxia.client.api.Notification;
+import io.oxia.client.api.OxiaClientBuilder;
+import io.oxia.client.api.PutOption;
+import io.oxia.client.api.PutResult;
+import io.oxia.client.api.Version;
+import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
+import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -61,7 +61,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private Optional<MetadataEventSynchronizer> synchronizer;
 
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
-        super("oxia-metadata", OpenTelemetry.noop());
+        super("oxia-metadata", OpenTelemetry.noop(), null);
         this.client = oxia;
         this.identity = identity;
         this.synchronizer = Optional.empty();
@@ -74,7 +74,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             MetadataStoreConfig metadataStoreConfig,
             boolean enableSessionWatcher)
             throws Exception {
-        super("oxia-metadata", Objects.requireNonNull(metadataStoreConfig).getOpenTelemetry());
+        super("oxia-metadata", Objects.requireNonNull(metadataStoreConfig).getOpenTelemetry(),
+                metadataStoreConfig.getNodeSizeStats());
 
         var linger = metadataStoreConfig.getBatchingMaxDelayMillis();
         if (!metadataStoreConfig.isBatchingEnabled()) {
@@ -125,7 +126,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     Optional<GetResult> convertGetResult(
-            String path, io.streamnative.oxia.client.api.GetResult result) {
+            String path, io.oxia.client.api.GetResult result) {
         if (result == null) {
             return Optional.empty();
         }
@@ -147,7 +148,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
         var pathWithSlash = path + "/";
 
         return client

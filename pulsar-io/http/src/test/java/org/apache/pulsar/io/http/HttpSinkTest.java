@@ -212,7 +212,8 @@ public class HttpSinkTest {
                 .build())
             .build();
 
-        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema = Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema = Schema.KeyValue(keySchema, valueSchema,
+                KeyValueEncodingType.INLINE);
         KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyGenericRecord, valueGenericRecord);
         GenericObject genericObject = new GenericObject() {
             @Override
@@ -381,6 +382,11 @@ public class HttpSinkTest {
                     @Override
                     public byte[] getSchemaVersion() {
                         return new byte[0];
+                    }
+
+                    @Override
+                    public Optional<byte[]> getSchemaId() {
+                        return Optional.of(new byte[0]);
                     }
 
                     @Override

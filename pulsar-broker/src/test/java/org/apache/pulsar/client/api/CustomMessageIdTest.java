@@ -83,7 +83,6 @@ public class CustomMessageIdTest extends ProducerConsumerBase {
         final var consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName("sub")
-                .enableBatchIndexAcknowledgment(true)
                 .isAckReceiptEnabled(true)
                 .subscribe();
         for (int i = 0; i < 10; i++) {

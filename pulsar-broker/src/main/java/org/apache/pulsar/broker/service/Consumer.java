@@ -48,7 +48,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -65,7 +64,6 @@ import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.KeyLongValue;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageIdData;
-import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -103,8 +101,10 @@ public class Consumer {
     private final LongAdder messageAckCounter;
     private final Rate messageAckRate;
 
+    private volatile long firstMessagesSentTimestamp;
     private volatile long lastConsumedTimestamp;
     private volatile long lastAckedTimestamp;
+    private volatile long firstConsumedFlowTimestamp;
     private volatile long lastConsumedFlowTimestamp;
     private Rate chunkedMessageRate;
 
@@ -228,8 +228,7 @@ public class Consumer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         stats = new ConsumerStatsImpl();
-        String address = metadata != null ? metadata.get(Metadata.CLIENT_IP) : null;
-        stats.setAddress(StringUtils.isNotBlank(address) ? address : cnx.clientSourceAddressAndPort());
+        stats.setAddress(cnx.clientSourceAddressAndPort());
         stats.consumerName = consumerName;
         stats.appId = appId;
         stats.setConnectedSince(DateFormatter.format(connectedSince));
@@ -435,6 +434,9 @@ public class Consumer {
         writeAndFlushPromise.addListener(status -> {
             // only increment counters after the messages have been successfully written to the TCP/IP connection
             if (status.isSuccess()) {
+                if (firstMessagesSentTimestamp == 0) {
+                    firstMessagesSentTimestamp =  System.currentTimeMillis();
+                }
                 msgOut.recordMultipleEvents(totalMessages, totalBytes);
                 msgOutCounter.add(totalMessages);
                 bytesOutCounter.add(totalBytes);
@@ -757,7 +759,7 @@ public class Consumer {
 
     private void checkAckValidationError(CommandAck ack, Position position) {
         if (ack.hasValidationError()) {
-            log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
+            log.warn("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
                     consumerId, position, ack.getValidationError());
         }
     }
@@ -842,7 +844,11 @@ public class Consumer {
 
     public void flowPermits(int additionalNumberOfMessages) {
         checkArgument(additionalNumberOfMessages > 0);
-        this.lastConsumedFlowTimestamp = System.currentTimeMillis();
+        final long currentTs = System.currentTimeMillis();
+        if (firstConsumedFlowTimestamp == 0) {
+            firstConsumedFlowTimestamp  = currentTs;
+        }
+        this.lastConsumedFlowTimestamp = currentTs;
 
         // block shared consumer when unacked-messages reaches limit
         if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= getMaxUnackedMessages()) {
@@ -977,6 +983,8 @@ public class Consumer {
         stats.lastAckedTimestamp = lastAckedTimestamp;
         stats.lastConsumedTimestamp = lastConsumedTimestamp;
         stats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
+        stats.firstMessagesSentTimestamp = firstMessagesSentTimestamp;
+        stats.firstConsumedFlowTimestamp = firstConsumedFlowTimestamp;
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;

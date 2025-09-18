@@ -49,7 +49,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link WindowFunctionExecutor}
+ * Unit tests for {@link WindowFunctionExecutor}.
  */
 public class WindowFunctionExecutorTest {
 
@@ -140,7 +140,7 @@ public class WindowFunctionExecutorTest {
         when(context.getCurrentRecord()).thenReturn(record);
         doReturn(Optional.of("test-topic")).when(record).getTopicName();
         doReturn(record).when(context).getCurrentRecord();
-        doReturn(100l).when(record).getValue();
+        doReturn(100L).when(record).getValue();
         testWindowedPulsarFunction.process(10L, context);
         verify(record, times(1)).ack();
     }
@@ -157,7 +157,7 @@ public class WindowFunctionExecutorTest {
         doReturn(CompletableFuture.completedFuture(null)).when(context).publish(any(), any(), any());
 
         List<Event<Record<Long>>> tuples = new ArrayList<>();
-        tuples.add(new EventImpl<>(mock(Record.class), 0l, mock(Record.class)));
+        tuples.add(new EventImpl<>(mock(Record.class), 0L, mock(Record.class)));
         WindowLifecycleListener<Event<Record<Long>>> eventWindowLifecycleListener =
                 windowFunctionExecutor.newWindowLifecycleListener(context);
 
@@ -166,7 +166,7 @@ public class WindowFunctionExecutorTest {
             verify(tuple.getRecord(), times(0)).ack();
         }
 
-        eventWindowLifecycleListener.onActivation(tuples, new ArrayList<>(), new ArrayList<>(), 0l);
+        eventWindowLifecycleListener.onActivation(tuples, new ArrayList<>(), new ArrayList<>(), 0L);
         for (Event<Record<Long>> tuple : tuples) {
             verify(tuple.get(), times(1)).ack();
         }

@@ -101,6 +101,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration,
+                                                          TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineInitDuration >= 0,
+                "serviceUrlQuarantineInitDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineInitDurationMs(unit.toMillis(serviceUrlQuarantineInitDuration));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration,
+                                                         TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineMaxDuration >= 0,
+                "serviceUrlQuarantineMaxDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineMaxDurationMs(unit.toMillis(serviceUrlQuarantineMaxDuration));
+        return this;
+    }
+
+    @Override
     public ClientBuilder listenerName(String listenerName) {
         checkArgument(StringUtils.isNotBlank(listenerName), "Param listenerName must not be blank.");
         conf.setListenerName(StringUtils.trim(listenerName));
@@ -146,6 +164,11 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setAuthParamMap(authParams);
         conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
+        return this;
+    }
+
+    public ClientBuilderImpl originalPrincipal(String originalPrincipal) {
+        conf.setOriginalPrincipal(originalPrincipal);
         return this;
     }
 
@@ -454,21 +477,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
-    /**
-     * Set the description.
-     *
-     * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
-     * carried and saved by the broker. The client version string could be queried from the topic stats.
-     *
-     * <p> This method provides a way to add more description to a specific PulsarClient instance. If it's configured,
-     * the description will be appended to the original client version string, with '-' as the separator.
-     *
-     * <p>For example, if the client version is 3.0.0, and the description is "forked", the final client version string
-     * will be "Pulsar-Java-v3.0.0-forked".
-     *
-     * @param description the description of the current PulsarClient instance
-     * @throws IllegalArgumentException if the length of description exceeds 64
-     */
+    @Override
     public ClientBuilder description(String description) {
         if (description != null && description.length() > 64) {
             throw new IllegalArgumentException("description should be at most 64 characters");

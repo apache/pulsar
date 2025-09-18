@@ -363,6 +363,17 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Relates to server-side errors:
+     *  ServiceUnitNotReadyException, TopicFencedException and SubscriptionFencedException.
+     */
+    public static class ServiceNotReadyException extends LookupException {
+
+        public ServiceNotReadyException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Connect exception thrown by Pulsar client.
      */
     public static class ConnectException extends PulsarClientException {
@@ -961,7 +972,9 @@ public class PulsarClientException extends IOException {
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
         // wrap an exception with new message info
-        if (t instanceof TopicDoesNotExistException) {
+        if (t instanceof NotFoundException) {
+            return new NotFoundException(msg);
+        } else if (t instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
         } else if (t instanceof TimeoutException) {
             return new TimeoutException(msg);

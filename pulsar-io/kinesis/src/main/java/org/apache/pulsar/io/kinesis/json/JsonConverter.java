@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -78,11 +79,13 @@ public class JsonConverter {
             case BOOLEAN:
                 return jsonNodeFactory.booleanNode((Boolean) value);
             case BYTES:
+                byte[] bytes = new byte[((ByteBuffer) value).remaining()];
+                ((ByteBuffer) value).get(bytes);
                 // Workaround for https://github.com/wnameless/json-flattener/issues/91
                 if (convertBytesToString) {
-                    return jsonNodeFactory.textNode(Base64.getEncoder().encodeToString((byte[]) value));
+                    return jsonNodeFactory.textNode(Base64.getEncoder().encodeToString(bytes));
                 }
-                return jsonNodeFactory.binaryNode((byte[]) value);
+                return jsonNodeFactory.binaryNode(bytes);
             case FIXED:
                 // Workaround for https://github.com/wnameless/json-flattener/issues/91
                 if (convertBytesToString) {
@@ -96,8 +99,8 @@ public class JsonConverter {
                 Schema elementSchema = schema.getElementType();
                 ArrayNode arrayNode = jsonNodeFactory.arrayNode();
                 Object[] iterable;
-                if (value instanceof GenericData.Array) {
-                    iterable = ((GenericData.Array) value).toArray();
+                if (value instanceof GenericData.AbstractArray) {
+                    iterable = ((GenericData.AbstractArray) value).toArray();
                 } else {
                     iterable = (Object[]) value;
                 }

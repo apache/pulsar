@@ -38,7 +38,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.testng.annotations.DataProvider;
@@ -110,7 +110,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                             true, 0)
             }};
-            case "testWithFixedDelays", "testWithMixedDelays","testWithNoDelays" -> new Object[][]{{
+            case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays" -> new Object[][]{{
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
                             true, 100)
             }};
@@ -212,6 +212,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
     @Test
     public void testClose() throws Exception {
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
                 1, TimeUnit.MILLISECONDS);
 
@@ -249,8 +250,6 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         tracker.close();
 
         assertNull(exceptions[0]);
-
-        timer.stop();
     }
 
     @Test(dataProvider = "delayedTracker")
@@ -258,7 +257,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         assertFalse(tracker.hasMessageAvailable());
 
         int messageCount = 5;
-        for(int i = 1; i <= messageCount; i++) {
+        for (int i = 1; i <= messageCount; i++) {
             assertTrue(tracker.addMessage(i, i, 1));
         }
         clockTime.set(10);

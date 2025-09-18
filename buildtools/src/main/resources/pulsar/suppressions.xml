@@ -37,8 +37,14 @@
     <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java"/>
     <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
 
-    <!-- suppress most all checks expect below-->
-    <suppress checks="^(?!.*(UnusedImports|IllegalImport)).*$" files=".*[\\/]src[\\/]test[\\/].*"/>
+   <!--  suppress LineLength due to usage of multi-line String with split function  -->
+   <suppress files="ExtensibleLoadManagerImplTest.java" checks="LineLength"/>
+   <suppress files="BundleSplitterTaskTest.java" checks="TodoComment"/>
+   <suppress files="BlobStoreTestBase.java" checks="TodoComment"/>
+   <suppress files="BlobStoreManagedLedgerOffloaderBase.java" checks="TodoComment"/>
+   <suppress files="DebeziumMsSqlSourceTester.java" checks="RegexpSinglelineJava"/>
+   <suppress files="DebeziumOracleDbSourceTester.java" checks="RegexpSinglelineJava"/>
+   <suppress files="PulsarIODebeziumSourceRunner.java" checks="RegexpSinglelineJava"/>
 
     <suppress checks="IllegalImport" files="ProxyServiceStarter.java"/>
 

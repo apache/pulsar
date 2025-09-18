@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.apache.pulsar.client.api.SubscriptionType.Shared;
-import static org.apache.pulsar.client.api.SubscriptionType.Key_Shared;
-import static org.apache.pulsar.client.api.SubscriptionType.Failover;
 import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
+import static org.apache.pulsar.client.api.SubscriptionType.Failover;
+import static org.apache.pulsar.client.api.SubscriptionType.Key_Shared;
+import static org.apache.pulsar.client.api.SubscriptionType.Shared;
 import static org.testng.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,7 +60,6 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         super.doInitConf();
         conf.setSystemTopicEnabled(false);
         conf.setTransactionCoordinatorEnabled(false);
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
 
     @AfterClass(alwaysRun = true)
@@ -243,7 +242,6 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .subscriptionType(subType)
                 .isAckReceiptEnabled(true)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
         return consumer;
     }

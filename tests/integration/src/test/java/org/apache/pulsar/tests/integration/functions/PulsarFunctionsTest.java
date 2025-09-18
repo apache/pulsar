@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -65,6 +66,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.functions.BatchingConfig;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -256,7 +258,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void testWindowFunction(String type, String[] expectedResults) throws Exception {
-        int NUM_OF_MESSAGES = 100;
+        int numOfMessages = 100;
         int windowLengthCount = 10;
         int slidingIntervalCount = 5;
         String functionName = "test-" + type + "-window-fn-" + randomName(8);
@@ -335,7 +337,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(3, subStats.getMsgBacklog());
         assertEquals(3, subStats.getUnackedMessages());
 
-        for (int i = 3; i < NUM_OF_MESSAGES; i++) {
+        for (int i = 3; i < numOfMessages; i++) {
             producer.send(String.format("%d", i).getBytes());
         }
 
@@ -356,7 +358,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             i++;
         }
 
-        getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+        getFunctionStatus(functionName, numOfMessages, true);
 
         // in case last commit is not updated
         assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
@@ -689,7 +691,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean multipleInput,
                                            boolean withExtraDeps) throws Exception {
-        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null);
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null, null, null);
+    }
+
+    protected void testExclamationFunction(Runtime runtime,
+                                           boolean isTopicPattern,
+                                           boolean pyZip,
+                                           boolean multipleInput,
+                                           boolean withExtraDeps,
+                                           ConsumerConfig consumerConfig) throws Exception {
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null, null, null);
     }
 
     protected void testExclamationFunction(Runtime runtime,
@@ -698,7 +709,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean multipleInput,
                                            boolean withExtraDeps,
                                            ProducerConfig producerConfig) throws Exception {
-        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, producerConfig, null);
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null,
+                producerConfig, null);
     }
 
     protected void testExclamationFunction(Runtime runtime,
@@ -706,6 +718,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean multipleInput,
                                            boolean withExtraDeps,
+                                           ConsumerConfig consumerConfig,
                                            ProducerConfig producerConfig,
                                            java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
             throws Exception {
@@ -745,15 +758,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String info = getFunctionInfoSuccess(functionName);
         FunctionConfig config = ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class);
 
-        // check batching config
-        if (runtime == Runtime.JAVA) {
-            BatchingConfig batchingConfig = null;
-            if (producerConfig != null && producerConfig.getBatchingConfig() != null) {
-                batchingConfig = producerConfig.getBatchingConfig();
-            }
-            checkBatchingConfig(functionName, batchingConfig, config);
-        }
-
         // get function stats
         getFunctionStatsEmpty(functionName);
 
@@ -764,6 +768,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } else {
             // golang doesn't support schema
             publishAndConsumeMessagesBytes(inputTopicName, outputTopicName, numMessages);
+        }
+
+        // check batching config
+        if (runtime == Runtime.JAVA) {
+            BatchingConfig batchingConfig = null;
+            if (producerConfig != null && producerConfig.getBatchingConfig() != null) {
+                batchingConfig = producerConfig.getBatchingConfig();
+            }
+            checkLogs(functionName, batchingConfig, consumerConfig, config, inputTopicName);
         }
 
         // get function status
@@ -843,8 +856,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         });
     }
 
-    // checking batching config, we can only check this by checking the logs for now
-    private void checkBatchingConfig(String functionName, BatchingConfig config, FunctionConfig functionConfig) {
+    // checking batching config/consumer config, we can only check this by checking the logs for now
+    private void checkLogs(String functionName, BatchingConfig config, ConsumerConfig consumerConfig,
+                           FunctionConfig functionConfig, String topic) {
         if (config != null) {
             assertNotNull(functionConfig.getProducerConfig());
             assertNotNull(functionConfig.getProducerConfig().getBatchingConfig());
@@ -858,8 +872,58 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 finalConfig = BatchingConfig.builder().build();
             }
             assertTrue(functionLogs.contains(finalConfig.toString()));
+
+            // THREAD runtime doesn't include producer&consumer related logs in the function logs
+            if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                if (finalConfig.getBatchingMaxMessages() == null) {
+                    finalConfig.setBatchingMaxMessages(1000);
+                }
+                if (finalConfig.getBatchingMaxBytes() == null) {
+                    finalConfig.setBatchingMaxBytes(128 * 1024);
+                }
+                if (finalConfig.getBatchingMaxPublishDelayMs() == null) {
+                    finalConfig.setBatchingMaxPublishDelayMs(10);
+                }
+                if (finalConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency() == null) {
+                    finalConfig.setRoundRobinRouterBatchingPartitionSwitchFrequency(10);
+                }
+                String producerSpec = String.format(
+                        "\"batchingMaxPublishDelayMicros\":%d,\"batchingPartitionSwitchFrequencyByPublishDelay\":%d,"
+                                + "\"batchingMaxMessages\":%d,\"batchingMaxBytes\":%d,\"batchingEnabled\":%s",
+                        finalConfig.getBatchingMaxPublishDelayMs() * 1000,
+                        finalConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency(),
+                        finalConfig.getBatchingMaxMessages(),
+                        finalConfig.getBatchingMaxBytes(), finalConfig.isEnabled());
+                assertTrue(functionLogs.contains(producerSpec));
+            }
         } else {
             assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
+            // THREAD runtime doesn't include producer&consumer related logs in the function logs
+            if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
+            }
+        }
+
+        if (consumerConfig != null && consumerConfig.getMessagePayloadProcessorConfig() != null) {
+            MessagePayloadProcessorConfig payloadProcessorConfig = consumerConfig.getMessagePayloadProcessorConfig();
+            assertNotNull(functionConfig.getInputSpecs().get(topic));
+            assertNotNull(functionConfig.getInputSpecs().get(topic).getMessagePayloadProcessorConfig());
+            assertEquals(payloadProcessorConfig.toString(),
+                    functionConfig.getInputSpecs().get(topic).getMessagePayloadProcessorConfig().toString());
+
+            // THREAD runtime doesn't include producer&consumer related logs in the function logs
+            if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                assertTrue(functionLogs.contains("Processing message using TestPayloadProcessor"));
+            }
+            if (payloadProcessorConfig.getConfig() == null || payloadProcessorConfig.getConfig().isEmpty()) {
+                assertTrue(functionLogs.contains("TestPayloadProcessor constructor without configs"));
+            } else {
+                String configs = payloadProcessorConfig.getConfig().entrySet().stream()
+                        .map(entry -> entry.getKey() + "=" + entry.getValue())
+                        .collect(Collectors.joining(", "));
+                String expectedLogs = String.format("TestPayloadProcessor constructor with configs %s", configs);
+                assertTrue(functionLogs.contains(expectedLogs));
+            }
         }
     }
 

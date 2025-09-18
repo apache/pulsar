@@ -26,6 +26,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -49,6 +51,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
     private ServiceConfiguration conf;
     private ReplicatedSubscriptionsController controller;
     private List<ByteBuf> markers;
+    private List<ByteBuf> releaseQueue;
 
     @BeforeMethod
     public void setup() {
@@ -59,6 +62,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         conf.setReplicatedSubscriptionsSnapshotTimeoutSeconds(3);
 
         markers = new ArrayList<>();
+        releaseQueue = new ArrayList<>();
 
         controller = mock(ReplicatedSubscriptionsController.class);
         when(controller.localCluster()).thenReturn(localCluster);
@@ -70,6 +74,16 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         })
                 .when(controller)
                 .writeMarker(any(ByteBuf.class));
+    }
+
+    @AfterMethod
+    public void tearDown() {
+        if (markers != null) {
+            markers.forEach(ByteBuf::release);
+        }
+        if (releaseQueue != null) {
+            releaseQueue.forEach(ByteBuf::release);
+        }
     }
 
     @Test
@@ -84,8 +98,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // Should have sent out a marker to initiate the snapshot
         assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshotRequest request = Markers
-                .parseReplicatedSubscriptionsSnapshotRequest(markers.remove(0));
+        ReplicatedSubscriptionsSnapshotRequest request = parseReplicatedSubscriptionsSnapshotRequest();
         assertEquals(request.getSourceCluster(), localCluster);
 
         // Simulate the responses coming back
@@ -100,7 +113,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // At this point the snapshot should be created
         assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(markers.remove(0));
+        ReplicatedSubscriptionsSnapshot snapshot = parseReplicatedSubscriptionsSnapshot();
         assertEquals(snapshot.getClustersCount(), 1);
         assertEquals(snapshot.getClusterAt(0).getCluster(), "b");
         assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 11);
@@ -108,6 +121,19 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         assertEquals(snapshot.getLocalMessageId().getLedgerId(), 1);
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 1);
+    }
+
+    private ReplicatedSubscriptionsSnapshotRequest parseReplicatedSubscriptionsSnapshotRequest()
+            throws IOException {
+        ByteBuf byteBuf = markers.remove(0);
+        releaseQueue.add(byteBuf);
+        return Markers.parseReplicatedSubscriptionsSnapshotRequest(byteBuf);
+    }
+
+    private ReplicatedSubscriptionsSnapshot parseReplicatedSubscriptionsSnapshot() throws IOException {
+        ByteBuf byteBuf = markers.remove(0);
+        releaseQueue.add(byteBuf);
+        return Markers.parseReplicatedSubscriptionsSnapshot(byteBuf);
     }
 
     @Test
@@ -122,8 +148,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // Should have sent out a marker to initiate the snapshot
         assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshotRequest request = Markers
-                .parseReplicatedSubscriptionsSnapshotRequest(markers.remove(0));
+        ReplicatedSubscriptionsSnapshotRequest request = parseReplicatedSubscriptionsSnapshotRequest();
         assertEquals(request.getSourceCluster(), localCluster);
 
         // Simulate the responses coming back
@@ -150,7 +175,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // Since we have 2 remote clusters, a 2nd round of snapshot will be taken
         assertEquals(markers.size(), 1);
-        request = Markers.parseReplicatedSubscriptionsSnapshotRequest(markers.remove(0));
+        request = parseReplicatedSubscriptionsSnapshotRequest();
         assertEquals(request.getSourceCluster(), localCluster);
 
         // Responses coming back
@@ -177,7 +202,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // At this point the snapshot should be created
         assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(markers.remove(0));
+        ReplicatedSubscriptionsSnapshot snapshot = parseReplicatedSubscriptionsSnapshot();
         assertEquals(snapshot.getClustersCount(), 2);
         assertEquals(snapshot.getClusterAt(0).getCluster(), "b");
         assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 11);

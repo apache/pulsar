@@ -18,19 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.testng.Assert.assertNotNull;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.annotations.Test;
-import lombok.Cleanup;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Producer;
-import org.apache.pulsar.common.naming.Metadata;
 
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
@@ -54,7 +49,6 @@ public class TlsSniTest extends TlsProducerConsumerBase {
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceIpAddressUrl)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
-                .proxyServiceUrl(brokerServiceIpAddressUrl, ProxyProtocol.SNI)
                 .enableTlsHostnameVerification(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
@@ -66,12 +60,6 @@ public class TlsSniTest extends TlsProducerConsumerBase {
         PulsarClient pulsarClient = clientBuilder.build();
         // should be able to create producer successfully
         pulsarClient.newProducer().topic(topicName).create();
-        pulsarClient.newConsumer().topic(topicName).subscriptionName("test").subscribe();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
-        Producer producer = topic.getProducers().values().iterator().next();
-        assertNotNull(producer.getMetadata().get(Metadata.CLIENT_IP));
-        Consumer consumer = topic.getSubscription("test").getDispatcher().getConsumers().iterator().next();
-        assertNotNull(consumer.getMetadata().get(Metadata.CLIENT_IP));
     }
 }
 

@@ -112,6 +112,7 @@ message ConsumerSpec {
     map<string, string> consumerProperties = 6;
     CryptoSpec cryptoSpec = 7;
     bool poolMessages = 8;
+    MessagePayloadProcessorSpec messagePayloadProcessorSpec = 9;
 }
 
 message ProducerSpec {
@@ -146,6 +147,11 @@ message CryptoSpec {
     // define the action if consumer fail to decrypt data
     // one of FAIL, DISCARD, CONSUME
     FailureAction consumerCryptoFailureAction = 5;
+}
+
+message MessagePayloadProcessorSpec {
+    string className = 1;
+    string configs = 2;
 }
 
 message BatchingSpec {
