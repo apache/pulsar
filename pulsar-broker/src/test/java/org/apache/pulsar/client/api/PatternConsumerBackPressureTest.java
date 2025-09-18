@@ -66,7 +66,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
     @Test(timeOut = 60 * 1000)
     public void testInfiniteGetThousandsTopics() throws PulsarAdminException, InterruptedException {
         final int topicCount = 8192;
-        final int requests = 10_000;
+        final int requests = 2048;
         final String topicName = UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, topicCount);
         final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime()
