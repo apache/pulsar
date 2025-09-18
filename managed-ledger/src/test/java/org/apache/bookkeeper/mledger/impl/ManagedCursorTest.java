@@ -110,6 +110,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -5531,6 +5532,28 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         verify(spyLedger, never()).getLedgerHandle(firstLedgerId);
 
         ledger.close();
+    }
+
+    @Test
+    public void testConcurrentRead() throws Exception {
+        final var config = new ManagedLedgerConfig();
+        config.setReadEntryTimeoutSeconds(0);
+        config.setNewEntriesCheckDelayInMillis(1000);
+        @Cleanup final var ledger = factory.open("testConcurrentRead", config);
+        final var cursor = ledger.openCursor("cursor");
+        final var future1 = ManagedLedgerUtils.readEntriesWithSkipOrWait(cursor, 10, Integer.MAX_VALUE,
+                PositionFactory.LATEST, null);
+        final var future2 = ManagedLedgerUtils.readEntriesWithSkipOrWait(cursor, 10, Integer.MAX_VALUE,
+                PositionFactory.LATEST, null);
+        assertTrue(future2.isCompletedExceptionally());
+        try {
+            future2.get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException.ConcurrentWaitCallbackException);
+        }
+        ledger.addEntry("msg".getBytes());
+        assertEquals(future1.get(2, TimeUnit.SECONDS).get(0).getData(), "msg".getBytes());
     }
 
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
