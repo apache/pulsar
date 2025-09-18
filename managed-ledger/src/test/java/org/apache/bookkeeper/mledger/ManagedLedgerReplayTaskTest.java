@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -127,11 +128,11 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
             }
         }).when(cursor).hasMoreEntries();
         doAnswer(invocation -> {
-            final var callback = (AsyncCallbacks.ReadEntriesCallback) invocation.getArgument(1);
+            final var callback = (AsyncCallbacks.ReadEntriesCallback) invocation.getArgument(2);
             final var entries = List.<Entry>of(EntryImpl.create(1, 1, "msg".getBytes()));
             callback.readEntriesComplete(entries, null);
             return null;
-        }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(cursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
 
         try {
             replayTask.replay(cursor, (__, ___) -> {
