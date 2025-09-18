@@ -37,6 +37,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -269,6 +270,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private final long connectionLivenessCheckTimeoutMillis;
 
+    private static final AttributeKey<Boolean> CLOSED_BY_LOCAL_ATTR_KEY =
+            AttributeKey.valueOf("CLOSED_BY_LOCAL");
+
     // Number of bytes pending to be published from a single specific IO thread.
     private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
         @Override
@@ -380,6 +384,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             authRefreshTask.cancel(false);
         }
 
+        boolean closeByBroker = Boolean.TRUE.equals(ctx.channel().attr(CLOSED_BY_LOCAL_ATTR_KEY).get());
+
         // Connection is gone, close the producers immediately
         producers.forEach((__, producerFuture) -> {
             // prevent race conditions in completing producers
@@ -393,6 +399,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (brokerInterceptor != null) {
                     brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
                 }
+                dispatchCloseProducerEvent(producer,
+                        closeByBroker ? DisconnectInitiator.BROKER : DisconnectInitiator.CLIENT);
             }
         });
 
@@ -409,6 +417,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (brokerInterceptor != null) {
                         brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
                     }
+                    dispatchCloseConsumerEvent(consumer,
+                            closeByBroker ? DisconnectInitiator.BROKER : DisconnectInitiator.CLIENT);
                 } catch (BrokerServiceException e) {
                     log.warn("Consumer {} was already closed: {}", consumer, e);
                 }
@@ -449,7 +459,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ClientCnx.isKnownException(cause) ? cause.toString() : ExceptionUtils.getStackTrace(cause));
             }
         }
-        ctx.close();
+        close();
     }
 
     // ////
@@ -885,7 +895,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (!authRole.equals(newAuthRole)) {
                             log.warn("[{}] Principal cannot change during an authentication refresh expected={} got={}",
                                     remoteAddress, authRole, newAuthRole);
-                            ctx.close();
+                            close();
                         } else {
                             log.info("[{}] Refreshed authentication credentials for role {}", remoteAddress, authRole);
                         }
@@ -980,21 +990,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     "[{}] Cannot revalidate user credential when using proxy and"
                             + " not forwarding the credentials. Closing connection",
                     remoteAddress);
-            ctx.close();
+            close();
             return;
         }
 
         if (!supportsAuthenticationRefresh()) {
             log.warn("[{}] Closing connection because client doesn't support auth credentials refresh",
                     remoteAddress);
-            ctx.close();
+            close();
             return;
         }
 
         if (pendingAuthChallengeResponse) {
             log.warn("[{}] Closing connection after timeout on refreshing auth credentials",
                     remoteAddress);
-            ctx.close();
+            close();
             return;
         }
 
@@ -1014,7 +1024,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         } catch (AuthenticationException e) {
             log.warn("[{}] Failed to refresh authentication: {}", remoteAddress, e);
-            ctx.close();
+            close();
         }
     }
 
@@ -1389,7 +1399,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         .data(ConsumerConnectEventData.builder()
                                                 .consumerId(consumer.consumerId())
                                                 .consumerName(consumer.consumerName())
-                                                .consumerAddress(consumer.getClientAddress())
+                                                .address(consumer.cnx().toString())
                                                 .subscriptionType(subType)
                                                 .subscriptionName(subscriptionName)
                                                 .replicateSubscription(isReplicated)
@@ -1760,10 +1770,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);
                     ProducerConnectEventDataBuilder producerConnectEventDataBuilder = ProducerConnectEventData.builder()
-                            .producerAccessMode(producerAccessMode)
-                            .producerAddress(producer.getClientAddress())
-                            .producerId(producer.getProducerId())
-                            .producerName(producer.getProducerName());
+                            .accessMode(producerAccessMode)
+                            .address(producer.getCnx().toString())
+                            .id(producer.getProducerId())
+                            .name(producer.getProducerName());
                     newTopicEpoch.ifPresent(producerConnectEventDataBuilder::epoch);
                     newTopicEvent(topic.getName(), TopicEvent.PRODUCER_CONNECT)
                             .data(producerConnectEventDataBuilder.build())
@@ -3218,11 +3228,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void dispatchCloseConsumerEvent(Consumer consumer, DisconnectInitiator initiator) {
-        newTopicEvent(consumer.getSubscription().getTopicName(), TopicEvent.CONSUMER_DISCONNECT)
+        Subscription subscription = consumer.getSubscription();
+        if (subscription == null) {
+            return;
+        }
+        newTopicEvent(subscription.getTopicName(), TopicEvent.CONSUMER_DISCONNECT)
                 .data(ConsumerDisconnectEventData.builder()
-                        .consumerId(consumer.consumerId())
+                        .id(consumer.consumerId())
                         .consumerName(consumer.consumerName())
-                        .consumerAddress(consumer.getClientAddress())
+                        .address(consumer.cnx().toString())
+                        .subscriptionName(subscription.getName())
+                        .subscriptionType(subscription.getType())
                         .initiator(initiator)
                         .build())
                 .dispatch();
@@ -3231,9 +3247,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void dispatchCloseProducerEvent(Producer producer, DisconnectInitiator initiator) {
         newTopicEvent(producer.getTopic().getName(), TopicEvent.PRODUCER_DISCONNECT)
                 .data(ProducerDisconnectEventData.builder()
-                        .producerId(producer.getProducerId())
-                        .producerName(producer.getProducerName())
-                        .producerAddress(producer.getClientAddress())
+                        .id(producer.getProducerId())
+                        .name(producer.getProducerName())
+                        .address(producer.getCnx().toString())
                         .initiator(initiator)
                         .build())
                 .dispatch();
@@ -3245,17 +3261,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
      */
     protected void close() {
         if (ctx != null) {
+            ctx.channel().attr(CLOSED_BY_LOCAL_ATTR_KEY).set(true);
             ctx.close();
-            consumers.forEach((n, f) -> {
-                if (f.isDone()) {
-                    f.thenAccept(c -> dispatchCloseConsumerEvent(c, DisconnectInitiator.BROKER));
-                }
-            });
-            producers.forEach((n, f) -> {
-                if (f.isDone()) {
-                    f.thenAccept(p -> dispatchCloseProducerEvent(p, DisconnectInitiator.BROKER));
-                }
-            });
         }
     }
 
@@ -3717,7 +3724,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              * {@link #channelInactive(ChannelHandlerContext)} event occurs, so skip set it here.
                              */
                             log.warn("[{}] Connection check timed out. Closing connection.", this.toString());
-                            ctx.close();
+                            close();
                         } else {
                             log.error("[{}] Reached unexpected code block. Completing connection check.",
                                     this.toString());

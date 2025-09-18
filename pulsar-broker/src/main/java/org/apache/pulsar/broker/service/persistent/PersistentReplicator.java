@@ -598,12 +598,21 @@ public abstract class PersistentReplicator extends AbstractReplicator
         brokerService.executor().schedule(this::readMoreEntries, waitTimeMillis, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * @deprecated Use purgeBacklog() instead.
+     */
+    @Deprecated
     public CompletableFuture<Void> clearBacklog() {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        return purgeBacklog().thenAccept(ignored -> {
+        });
+    }
 
+    public CompletableFuture<Long> purgeBacklog() {
+        CompletableFuture<Long> future = new CompletableFuture<>();
+
+        long numberOfEntriesInBacklog = cursor.getNumberOfEntriesInBacklog(false);
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Backlog size before clearing: {}", replicatorId,
-                    cursor.getNumberOfEntriesInBacklog(false));
+            log.debug("[{}] Backlog size before clearing: {}", replicatorId, numberOfEntriesInBacklog);
         }
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
@@ -613,7 +622,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}] Backlog size after clearing: {}", replicatorId,
                             cursor.getNumberOfEntriesInBacklog(false));
                 }
-                future.complete(null);
+                future.complete(numberOfEntriesInBacklog);
             }
 
             @Override

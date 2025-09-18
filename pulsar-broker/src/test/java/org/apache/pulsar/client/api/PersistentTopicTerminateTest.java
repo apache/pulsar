@@ -21,12 +21,10 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.awaitility.Awaitility;
@@ -87,7 +85,8 @@ public class PersistentTopicTerminateTest extends ProducerConsumerBase {
             PersistentTopic persistentTopic =
                     (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
             ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-            CompletableFuture<List<LedgerInfo>> trimLedgersFuture =  ml.asyncTrimConsumedLedgers();
+            CompletableFuture<Void> trimLedgersFuture = new CompletableFuture<>();
+            ml.trimConsumedLedgersInBackground(trimLedgersFuture);
             trimLedgersFuture.join();
             assertTrue(ml.getLedgersInfo().size() <= 1);
         });

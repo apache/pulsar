@@ -53,6 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -98,6 +99,9 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener.LedgerRollEvent;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener.LedgerRollReason;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorNotFoundException;
@@ -1954,6 +1958,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 name, lh.getId(), BKException.getMessage(rc));
                     }
 
+                    notifyRollLedgerEvent(LedgerRollEvent.builder()
+                            .ledgerId(lh.getId())
+                            .reason(LedgerRollReason.FULL)
+                            .build());
+
                     ledgerClosed(lh);
                 }
             }, null);
@@ -2612,34 +2621,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void trimConsumedLedgersInBackground() {
-        asyncTrimConsumedLedgers();
+        trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
     }
 
     @Override
     public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
-        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
-        executor.execute(() -> internalTrimConsumedLedgers(future));
-        future.whenComplete((result, ex) -> {
-            if (ex != null) {
-                promise.completeExceptionally(ex);
-            } else {
-                promise.complete(null);
-            }
-        });
+        executor.execute(() -> internalTrimConsumedLedgers(promise));
     }
 
-    @Override
-    public CompletableFuture<List<LedgerInfo>> asyncTrimConsumedLedgers() {
-        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
-        executor.execute(() -> internalTrimConsumedLedgers(future));
-        return future;
-    }
-
-    public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<List<LedgerInfo>> promise) {
+    public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
         executor.execute(() -> internalTrimLedgers(isTruncate, promise));
     }
 
-    private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<List<LedgerInfo>> promise) {
+    private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
         scheduledExecutor.schedule(() -> trimConsumedLedgersInBackground(isTruncate, promise),
                 100, TimeUnit.MILLISECONDS);
     }
@@ -2759,7 +2753,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *
      * @throws Exception
      */
-    void internalTrimConsumedLedgers(CompletableFuture<List<LedgerInfo>> promise) {
+    void internalTrimConsumedLedgers(CompletableFuture<?> promise) {
         internalTrimLedgers(false, promise);
     }
 
@@ -2824,7 +2818,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void internalTrimLedgers(boolean isTruncate, CompletableFuture<List<LedgerInfo>> promise) {
+    void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
 
         internalEvictOffloadedLedgers();
 
@@ -3015,10 +3009,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     metadataMutex.unlock();
                     trimmerMutex.unlock();
 
+                    notifyDeleteLedgerEvent(ledgersToDelete.toArray(new LedgerInfo[0]));
                     for (LedgerInfo ls : ledgersToDelete) {
                         log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
                         asyncDeleteLedger(ls.getLedgerId(), ls);
                     }
+
+                    notifyDeleteLedgerEvent(offloadedLedgersToDelete.toArray(new LedgerInfo[0]));
                     for (LedgerInfo ls : offloadedLedgersToDelete) {
                         log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
                                 ls.getSize());
@@ -3033,7 +3030,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         });
                     }
 
-                    promise.complete(ledgersToDelete);
+                    promise.complete(null);
                 }
 
                 @Override
@@ -4784,6 +4781,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 name, lh.getId(), BKException.getMessage(rc));
                     }
 
+                    notifyRollLedgerEvent(LedgerRollEvent.builder()
+                            .ledgerId(lh.getId())
+                            .reason(LedgerRollReason.INACTIVE)
+                            .build());
+
                     ledgerClosed(lh);
                     // we do not create ledger here, since topic is inactive for a long time.
                 }, null);
@@ -4842,5 +4844,33 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         return theSlowestNonDurableReadPosition;
+    }
+
+    private final List<ManagedLedgerEventListener> ledgerEventListeners = new CopyOnWriteArrayList<>();
+
+    @Override
+    public void addLedgerEventListener(ManagedLedgerEventListener listener) {
+        Objects.requireNonNull(listener);
+        ledgerEventListeners.add(listener);
+    }
+
+    private void notifyRollLedgerEvent(LedgerRollEvent event) {
+        for (ManagedLedgerEventListener listener : ledgerEventListeners) {
+            try {
+                listener.onLedgerRoll(event);
+            } catch (Exception e) {
+                log.warn("Exception in ledger rolled listener for ledger {}", event, e);
+            }
+        }
+    }
+
+    private void notifyDeleteLedgerEvent(LedgerInfo... ledgerInfos) {
+        for (ManagedLedgerEventListener listener : ledgerEventListeners) {
+            try {
+                listener.onLedgerDelete(ledgerInfos);
+            } catch (Exception e) {
+                log.warn("Exception in ledger delete listener", e);
+            }
+        }
     }
 }

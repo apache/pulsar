@@ -66,7 +66,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class TopicEventsListenerTest extends BrokerTestBase {
 
-    final static Queue<String> events = new ConcurrentLinkedQueue<>();
+    private final Queue<String> events = new ConcurrentLinkedQueue<>();
     volatile String topicNameToWatch;
     String namespace;
 
@@ -291,9 +291,9 @@ public class TopicEventsListenerTest extends BrokerTestBase {
                 .topicName("persistent://prop/namespace/topic")
                 .stage(EventStage.SUCCESS)
                 .data(ProducerDisconnectEventData.builder()
-                        .producerId(1)
-                        .producerAddress("localhost:1234")
-                        .producerName("abc")
+                        .id(1)
+                        .address("localhost:1234")
+                        .name("abc")
                         .build())
                 .build();
         byte[] bytes = objectMapper.writeValueAsBytes(eventContext);

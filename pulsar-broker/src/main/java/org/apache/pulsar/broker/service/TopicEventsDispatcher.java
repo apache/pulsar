@@ -161,20 +161,26 @@ public class TopicEventsDispatcher {
         return new TopicEventBuilder(topic, event);
     }
 
+    public void notify(TopicEventsListener[] listeners, TopicEventBuilder builder) {
+        Objects.requireNonNull(listeners);
+        for (TopicEventsListener listener : listeners) {
+            builder.dispatch(listener);
+        }
+    }
+
     public class TopicEventBuilder {
         private final EventContext.EventContextBuilder builder;
 
         private TopicEventBuilder(String topic, TopicEvent event) {
+            TopicName topicName = TopicName.get(topic);
             builder = EventContext.builder()
-                    .topicName(topic)
+                    .topicName(topicName.getPartitionedTopicName())
+                    .partitionIndex(topicName.getPartitionIndex())
+                    .cluster(pulsar.getConfiguration().getClusterName())
                     .brokerId(brokerId)
                     .brokerVersion(pulsar.getBrokerVersion())
                     .event(event)
                     .stage(TopicEventsListener.EventStage.SUCCESS);
-            TopicName topicName = TopicName.get(topic);
-            if (topicName.isPartitioned()) {
-                builder.partitionIndex(topicName.getPartitionIndex());
-            }
         }
 
         public TopicEventBuilder role(String role, String originalRole) {
@@ -218,10 +224,20 @@ public class TopicEventsDispatcher {
         }
 
         public void dispatch() {
-            EventContext context = builder.build();
             for (TopicEventsListener listener : topicEventListeners) {
-                TopicEventsDispatcher.notify(listener, context);
+                dispatch(listener);
             }
+        }
+
+        public void dispatch(TopicEventsListener[] listeners) {
+            for (TopicEventsListener listener : listeners) {
+                dispatch(listener);
+            }
+        }
+
+        public void dispatch(TopicEventsListener listener) {
+            EventContext context = builder.build();
+            TopicEventsDispatcher.notify(listener, context);
         }
     }
 

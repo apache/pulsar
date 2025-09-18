@@ -23,14 +23,17 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 @Builder
 @Value
 @NoArgsConstructor(force = true)
 @AllArgsConstructor
 public class ConsumerDisconnectEventData implements EventData {
-    long consumerId;
+    long id;
     String consumerName;
-    String consumerAddress;
+    String address;
+    String subscriptionName;
+    SubType subscriptionType;
     DisconnectInitiator initiator;
 }

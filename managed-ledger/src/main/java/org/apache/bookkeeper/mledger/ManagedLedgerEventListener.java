@@ -16,25 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.event.data;
+package org.apache.bookkeeper.mledger;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
-@Builder
-@Value
-@NoArgsConstructor(force = true)
-@AllArgsConstructor
-public class TopicLookupEventData implements EventData {
-    String address;
-    String brokerUrl;
-    String brokerUrlTls;
-    String httpUrl;
-    String httpUrlTls;
-    boolean proxyThroughServiceUrl;
-    boolean authoritative;
-    boolean redirect;
+public interface ManagedLedgerEventListener {
+    enum LedgerRollReason {
+        FULL, // Ledger is full based on size or time
+        INACTIVE, // No writes for a while
+    }
+
+    @AllArgsConstructor
+    @NoArgsConstructor(force = true)
+    @Builder
+    @Value
+    class LedgerRollEvent {
+        long ledgerId;
+        LedgerRollReason reason;
+    }
+
+    void onLedgerRoll(LedgerRollEvent event);
+
+    void onLedgerDelete(LedgerInfo... ledgerInfos);
 }

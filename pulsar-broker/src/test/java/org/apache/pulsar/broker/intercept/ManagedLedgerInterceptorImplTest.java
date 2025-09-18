@@ -48,7 +48,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
@@ -188,7 +187,8 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         }
 
         // Trim ledgers.
-        CompletableFuture<List<LedgerInfo>> trimLedgerFuture = ledger.asyncTrimConsumedLedgers();
+        CompletableFuture<Void> trimLedgerFuture = new CompletableFuture<>();
+        ledger.trimConsumedLedgersInBackground(trimLedgerFuture);
         trimLedgerFuture.join();
 
         // verify.

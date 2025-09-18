@@ -22,19 +22,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener.LedgerRollReason;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
 
 @Builder
 @Value
 @NoArgsConstructor(force = true)
 @AllArgsConstructor
-public class TopicLookupEventData implements EventData {
-    String address;
-    String brokerUrl;
-    String brokerUrlTls;
-    String httpUrl;
-    String httpUrlTls;
-    boolean proxyThroughServiceUrl;
-    boolean authoritative;
-    boolean redirect;
+public class MessageRollEventData implements EventData {
+    long ledgerId;
+    LedgerRollReason reason;
 }

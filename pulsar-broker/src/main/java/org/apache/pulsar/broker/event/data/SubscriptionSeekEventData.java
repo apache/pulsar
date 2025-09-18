@@ -34,4 +34,6 @@ public class SubscriptionSeekEventData implements EventData {
     SubType subscriptionType;
     String messageId;
     Long timestamp;
+    String readPosition;
+    long backlog;
 }

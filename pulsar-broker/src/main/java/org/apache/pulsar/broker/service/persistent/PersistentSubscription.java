@@ -131,7 +131,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
-    private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    private volatile CompletableFuture<Position> inProgressResetCursorFuture;
     private final ServiceConfiguration config;
 
     static {
@@ -235,7 +235,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
-        CompletableFuture<Void> inProgressResetCursorFuture = this.inProgressResetCursorFuture;
+        CompletableFuture<Position> inProgressResetCursorFuture = this.inProgressResetCursorFuture;
         if (inProgressResetCursorFuture != null) {
             return inProgressResetCursorFuture.handle((ignore, ignoreEx) -> null)
                     .thenCompose(ignore -> addConsumerInternal(consumer));
@@ -689,12 +689,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public CompletableFuture<Void> clearBacklog() {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    public CompletableFuture<Long> purgeBacklog() {
+        CompletableFuture<Long> future = new CompletableFuture<>();
 
+        long numberOfEntriesInBacklog = cursor.getNumberOfEntriesInBacklog(false);
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Backlog size before clearing: {}", topicName, subName,
-                    cursor.getNumberOfEntriesInBacklog(false));
+            log.debug("[{}][{}] Backlog size before clearing: {}", topicName, subName, numberOfEntriesInBacklog);
         }
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
@@ -709,11 +709,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         if (ex != null) {
                             future.completeExceptionally(ex);
                         } else {
-                            future.complete(null);
+                            future.complete(numberOfEntriesInBacklog);
                         }
                     });
                 } else {
-                    future.complete(null);
+                    future.complete(numberOfEntriesInBacklog);
                 }
             }
 
@@ -725,6 +725,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }, null);
 
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> clearBacklog() {
+        return purgeBacklog().thenApply(v -> null);
     }
 
     @Override
@@ -759,7 +764,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        return resetCursorTo(timestamp).thenApply(v -> null);
+    }
+
+    @Override
+    public CompletableFuture<Position> resetCursorTo(long timestamp) {
+        CompletableFuture<Position> future = new CompletableFuture<>();
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
                 config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
 
@@ -790,7 +800,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 } else {
                     finalPosition = position.getNext();
                 }
-                CompletableFuture<Void> resetCursorFuture = resetCursor(finalPosition);
+                CompletableFuture<Position> resetCursorFuture = resetCursorTo(finalPosition);
                 FutureUtil.completeAfter(future, resetCursorFuture);
             }
 
@@ -811,11 +821,16 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public CompletableFuture<Void> resetCursor(Position finalPosition) {
+        return resetCursorTo(finalPosition).thenApply(v -> null);
+    }
+
+    @Override
+    public CompletableFuture<Position> resetCursorTo(Position finalPosition) {
         if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
             return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
         }
 
-        final CompletableFuture<Void> future = new CompletableFuture<>();
+        final CompletableFuture<Position> future = new CompletableFuture<>();
         inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
 
@@ -866,7 +881,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         inProgressResetCursorFuture = null;
-                        future.complete(null);
+                        future.complete(finalPosition);
                     }
 
                     @Override

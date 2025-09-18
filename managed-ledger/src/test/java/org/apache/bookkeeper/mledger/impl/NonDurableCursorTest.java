@@ -48,7 +48,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -718,7 +717,8 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntriesInBacklog(true), 5);
 
         // Since the durable cursor has moved, the data will be trimmed
-        CompletableFuture<List<LedgerInfo>> promise = ledger.asyncTrimConsumedLedgers();
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        ledger.internalTrimConsumedLedgers(promise);
         promise.join();
         // The mark delete position has moved to position 4:1, and the ledger 4 only has one entry,
         // so the ledger 4 can be deleted. nonDurableCursor should has the same backlog with durable cursor.
@@ -727,7 +727,8 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         c1.close();
         ledger.deleteCursor(c1.getName());
-        promise = ledger.asyncTrimConsumedLedgers();
+        promise = new CompletableFuture<>();
+        ledger.internalTrimConsumedLedgers(promise);
         promise.join();
 
         assertEquals(nonDurableCursor.getNumberOfEntries(), 0);
@@ -768,7 +769,8 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         c1.markDelete(positions.get(4));
 
-        CompletableFuture<List<LedgerInfo>> promise = ledger.asyncTrimConsumedLedgers();
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        ledger.internalTrimConsumedLedgers(promise);
         promise.join();
 
         Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(0).getLedgerId()));

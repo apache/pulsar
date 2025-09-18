@@ -33,7 +33,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 public class ConsumerConnectEventData implements EventData {
     long consumerId;
     String consumerName;
-    String consumerAddress;
+    String address;
     String subscriptionName;
     boolean durable;
     Boolean replicateSubscription;

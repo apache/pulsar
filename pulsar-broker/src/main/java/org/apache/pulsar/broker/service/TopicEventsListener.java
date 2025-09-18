@@ -27,6 +27,7 @@ import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * Listener for the Topic events.
@@ -52,6 +53,7 @@ public interface TopicEventsListener {
 
         MESSAGE_EXPIRE,
         MESSAGE_PURGE,
+        MESSAGE_ROLL,
 
         POLICIES_UPDATE,
         POLICIES_APPLY,
@@ -65,6 +67,7 @@ public interface TopicEventsListener {
         SUBSCRIPTION_CREATE,
         SUBSCRIPTION_DELETE,
         SUBSCRIPTION_SEEK,
+        SUBSCRIPTION_CLEAR_BACKLOG,
 
         REPLICATOR_START,
         REPLICATOR_STOP
@@ -90,11 +93,12 @@ public interface TopicEventsListener {
     @NoArgsConstructor(force = true)
     @AllArgsConstructor
     class EventContext {
+        String cluster;
         String brokerId;
         String proxyRole;
         String clientRole;
         String topicName;
-        Integer partitionIndex;
+        int partitionIndex;
         TopicEvent event;
         EventData data;
         EventStage stage;
@@ -123,6 +127,8 @@ public interface TopicEventsListener {
     }
 
     default void handleEvent(EventContext context) {
-        handleEvent(context.getTopicName(), context.getEvent(), context.getStage(), context.getError());
+        handleEvent(context.getPartitionIndex() >= 0
+                ? TopicName.getTopicPartitionNameString(context.getTopicName(), context.getPartitionIndex())
+                : context.getTopicName(), context.getEvent(), context.getStage(), context.getError());
     }
 }

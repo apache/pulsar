@@ -32,6 +32,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -72,6 +73,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
@@ -85,6 +87,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
@@ -92,6 +95,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.event.data.MessagePurgeEventData;
+import org.apache.pulsar.broker.event.data.MessageRollEventData;
 import org.apache.pulsar.broker.event.data.TopicPoliciesApplyEventData;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
@@ -371,6 +376,34 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 ? brokerService.getTopicOrderedExecutor().chooseThread(topic)
                 : null;
         this.ledger = ledger;
+        this.ledger.addLedgerEventListener(new ManagedLedgerEventListener() {
+            @Override
+            public void onLedgerRoll(LedgerRollEvent event) {
+                brokerService.getTopicEventsDispatcher()
+                        .newEvent(topic, TopicEvent.MESSAGE_ROLL)
+                        .data(MessageRollEventData.builder().reason(event.getReason()).ledgerId(event.getLedgerId())
+                                .build())
+                        .dispatch();
+            }
+
+            @Override
+            public void onLedgerDelete(ManagedLedgerInfo.LedgerInfo... ledgerInfos) {
+                if (ledgerInfos == null || ledgerInfos.length == 0) {
+                    return;
+                }
+
+                List<MessagePurgeEventData.LedgerInfo> purgedLedgers = Arrays.stream(ledgerInfos)
+                        .map(n -> MessagePurgeEventData.LedgerInfo.builder()
+                                .ledgerId(n.getLedgerId()).entries(n.getEntries())
+                                .build())
+                        .toList();
+                brokerService.getTopicEventsDispatcher()
+                        .newEvent(topic, TopicEvent.MESSAGE_PURGE)
+                        .data(MessagePurgeEventData.builder().ledgerInfos(purgedLedgers)
+                                .build())
+                        .dispatch();
+            }
+        });
         this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
                         .expectedItems(16)
                         .concurrencyLevel(1)

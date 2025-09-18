@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -68,6 +69,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -116,6 +118,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
@@ -3582,7 +3585,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         stateUpdater.setAccessible(true);
         stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
         ledger.rollCurrentLedgerIfFull();
-        CompletableFuture<List<LedgerInfo>> completableFuture = ledger.asyncTrimConsumedLedgers();
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        ledger.trimConsumedLedgersInBackground(completableFuture);
+        completableFuture.get();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getTotalSize(), 0));
     }
@@ -3656,7 +3661,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
         // Now we update the cursors that are still subscribing to ledgers that has been consumed completely
         managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
-        managedLedger.asyncTrimConsumedLedgers();
+        managedLedger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
         ManagedLedgerImpl finalManagedLedger = managedLedger;
         Awaitility.await().untilAsserted(() -> {
             // We only have one empty ledger at last [{entries=0}]
@@ -3760,7 +3765,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         cursor.clearBacklog();
         cursor2.clearBacklog();
-        ledger.asyncTrimConsumedLedgers();
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 1);
             assertEquals(ledger.ledgerCache.size(), 0);
@@ -3789,8 +3794,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.ledgers.size() - 1, entries);
         assertEquals(ledger.ledgerCache.size() - 1, entries - 1);
         cursor.clearBacklog();
-        ledger.asyncTrimConsumedLedgers();
-        ledger.asyncTrimConsumedLedgers();
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         // Cleanup fails because ManagedLedgerNotFoundException is thrown
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size() - 1, entries);
@@ -3874,6 +3879,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(ledgerOffloader);
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl)factory.open(
                 "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config));
+        doNothing().when(ledger).trimConsumedLedgersInBackground(any(CompletableFuture.class));
 
         // Retain the data.
         ledger.openCursor("test-cursor");
@@ -3888,7 +3894,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledgerOffloader = mock(NullLedgerOffloader.class);
         config.setLedgerOffloader(ledgerOffloader);
 
-        ledger.internalTrimConsumedLedgers(new CompletableFuture<>());
+        ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
         verify(ledgerOffloader, times(1)).isAppendable();
     }
 
@@ -4188,7 +4194,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Trim ledgers to make there is no entries in ML.
         ml.deleteCursor(cursorName);
-        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         ml.trimConsumedLedgersInBackground(true, future);
         future.get();
         assertEquals(ml.ledgers.size(), 1);
@@ -4428,7 +4434,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> assertEquals(ml.ledgers.size(), 2));
 
         // Act: Trigger trimming to delete the previous current ledger.
-        ml.internalTrimLedgers(false, new CompletableFuture<>());
+        ml.internalTrimLedgers(false, Futures.NULL_PROMISE);
         // Verify: A new ledger will be opened after the current ledger is closed and the previous current ledger can be
         // deleted.
         Awaitility.await().untilAsserted(() -> {
@@ -4487,5 +4493,81 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ml.getLedgersInfo().get(firstLedger).getPropertiesCount(), 0);
         Assert.assertEquals(ml.getLedgersInfo().get(lastLedger).getPropertiesCount(), 0);
+    }
+
+    @Test
+    public void testListenLedgerDelete() throws Exception {
+        String name = "testListenLedgerDelete-" + System.nanoTime();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name, config);
+
+        List<Position> addedPositions = new CopyOnWriteArrayList<>();
+        ml.addLedgerEventListener(new ManagedLedgerEventListener() {
+            @Override
+            public void onLedgerRoll(LedgerRollEvent event) {
+                // no-op
+            }
+
+            @Override
+            public void onLedgerDelete(LedgerInfo... ledgerInfos) {
+                addedPositions.forEach(n -> {
+                    for (LedgerInfo ledgerInfo : ledgerInfos) {
+                        if (n.getLedgerId() == ledgerInfo.getLedgerId()) {
+                            addedPositions.remove(n);
+                            log.info("Removed position: {}", n);
+                        }
+                    }
+                });
+            }
+        });
+
+        int messageCount = 4;
+        for (int i = 0; i < messageCount; i++) {
+            addedPositions.add(ml.addEntry(("entry-" + i).getBytes()));
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(addedPositions.size()).isZero();
+        });
+    }
+
+    @Test
+    public void testListenLedgerRoll() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        int maxEntriesPerLedger = 4;
+        config.setMaxEntriesPerLedger(maxEntriesPerLedger);
+        int maximumRolloverTimeMS = 500;
+        config.setMaximumRolloverTime(maximumRolloverTimeMS, TimeUnit.MILLISECONDS);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        int inactiveLedgerRollOverTimeMS = 3000;
+        config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMS, TimeUnit.MILLISECONDS);
+        String name = "testListenLedgerRoll-" + System.nanoTime();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name, config);
+
+        AtomicBoolean rolled = new AtomicBoolean(false);
+        ml.addLedgerEventListener(new ManagedLedgerEventListener() {
+            @Override
+            public void onLedgerRoll(LedgerRollEvent event) {
+                rolled.set(true);
+            }
+
+            @Override
+            public void onLedgerDelete(LedgerInfo... ledgerInfos) {
+                // no-op
+            }
+        });
+
+        for (int i = 0; i < maxEntriesPerLedger + 1; i++) {
+            ml.addEntry(("entry-" + i).getBytes());
+        }
+
+        Thread.sleep(inactiveLedgerRollOverTimeMS); // wait for the inactive
+
+        ml.checkInactiveLedgerAndRollOver();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(rolled.get()).isTrue();
+        });
     }
 }

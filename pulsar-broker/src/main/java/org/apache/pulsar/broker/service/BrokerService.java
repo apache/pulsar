@@ -92,7 +92,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -107,7 +107,6 @@ import org.apache.pulsar.broker.cache.BundlesQuotas;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory;
-import org.apache.pulsar.broker.event.data.MessagePurgeEventData;
 import org.apache.pulsar.broker.event.data.TopicCreateEventData;
 import org.apache.pulsar.broker.event.data.TopicDeleteEventData;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -420,7 +419,7 @@ public class BrokerService implements Closeable {
     public void addTopicEventListener(TopicEventsListener... listeners) {
         topicEventsDispatcher.addTopicEventListener(listeners);
         topics.keySet().forEach(topic ->
-                TopicEventsDispatcher.notify(listeners, topic, TopicEvent.LOAD, EventStage.SUCCESS, null));
+                topicEventsDispatcher.newEvent(topic, TopicEvent.LOAD).dispatch(listeners));
     }
 
     public void removeTopicEventListener(TopicEventsListener... listeners) {
@@ -2311,21 +2310,8 @@ public class BrokerService implements Closeable {
             if (t instanceof PersistentTopic) {
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
-                            CompletableFuture<List<ManagedLedgerInfo.LedgerInfo>> future =
-                                    managedLedger.asyncTrimConsumedLedgers();
-                            future.thenAccept(ledgerInfos -> {
-                                List<MessagePurgeEventData.LedgerInfo> purgedLedgers = ledgerInfos.stream()
-                                        .map(n -> MessagePurgeEventData.LedgerInfo.builder()
-                                                .ledgerId(n.getLedgerId()).entries(n.getEntries())
-                                                .build())
-                                        .toList();
-                                topicEventsDispatcher.newEvent(t.getName(), TopicEvent.MESSAGE_PURGE)
-                                        .data(MessagePurgeEventData.builder().ledgerInfos(purgedLedgers)
-                                                .build())
-                                        .dispatch();
-                            });
-                        }
-                );
+                            managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+                        });
             }
         });
     }

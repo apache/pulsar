@@ -23,18 +23,15 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 @Builder
 @Value
 @NoArgsConstructor(force = true)
 @AllArgsConstructor
-public class TopicLookupEventData implements EventData {
-    String address;
-    String brokerUrl;
-    String brokerUrlTls;
-    String httpUrl;
-    String httpUrlTls;
-    boolean proxyThroughServiceUrl;
-    boolean authoritative;
-    boolean redirect;
+public class SubscriptionClearBacklogEventData implements EventData {
+    String subscriptionName;
+    SubType subscriptionType;
+    String readPosition;
+    long cleared;
 }

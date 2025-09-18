@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -124,7 +123,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
-            CompletableFuture<List<LedgerInfo>> future = managedLedger.asyncTrimConsumedLedgers();
+            CompletableFuture<Void> future = new CompletableFuture();
+            managedLedger.trimConsumedLedgersInBackground(future);
             future.join();
             return managedLedger.getLedgersInfo().size() == 1;
         });

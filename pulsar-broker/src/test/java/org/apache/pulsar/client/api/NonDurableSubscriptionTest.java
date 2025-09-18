@@ -38,7 +38,6 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -325,7 +324,8 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        CompletableFuture<List<LedgerInfo>> trimLedgersTask = ml.asyncTrimConsumedLedgers();
+        CompletableFuture<Void> trimLedgersTask = new CompletableFuture<>();
+        ml.trimConsumedLedgersInBackground(trimLedgersTask);
         trimLedgersTask.join();
     }
 

@@ -139,6 +139,7 @@ public class TopicLookupBase extends AdminResource {
                             } else {
                                 eventDataBuilder.httpUrl(redirect.toString());
                             }
+                            eventDataBuilder.address(formatHttpAddress());
                             newTopicEvent(topicName, TopicEvent.LOOKUP)
                                     .data(eventDataBuilder.build())
                                     .dispatch();
@@ -158,6 +159,7 @@ public class TopicLookupBase extends AdminResource {
                                             .httpUrlTls(result.getLookupData().getHttpUrlTls())
                                             .brokerUrl(result.getLookupData().getBrokerUrl())
                                             .brokerUrlTls(result.getLookupData().getBrokerUrlTls())
+                                            .address(formatHttpAddress())
                                             .build())
                                     .dispatch();
                             return result.getLookupData();
@@ -168,6 +170,24 @@ public class TopicLookupBase extends AdminResource {
                     throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
+
+    private String formatHttpAddress() {
+        if (httpRequest == null) {
+            return "[L:/-:-1 - R:/-:-1]";
+        }
+
+        String id = "0x" + Integer.toHexString(System.identityHashCode(httpRequest));
+
+        String localAddr = httpRequest.getLocalAddr();
+        int localPort = httpRequest.getLocalPort();
+        String remoteAddr = httpRequest.getRemoteAddr();
+        int remotePort = httpRequest.getRemotePort();
+
+        return "[id: " + id + ", L:/" + localAddr + ':' + localPort
+                + " - R:/" + remoteAddr + ':' + remotePort
+                + "]";
+    }
+
 
     protected String internalGetNamespaceBundle(TopicName topicName) {
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.GET_BUNDLE);
@@ -268,6 +288,7 @@ public class TopicLookupBase extends AdminResource {
                                     .authoritative(true)
                                     .redirect(true)
                                     .proxyThroughServiceUrl(false)
+                                    .address(cnx.toString())
                                     .build())
                             .dispatch();
                 }
@@ -385,6 +406,8 @@ public class TopicLookupBase extends AdminResource {
                                 lookupfuture.whenComplete((__, ex) -> {
                                     if (ex == null) {
                                         cnx.newTopicEvent(topicName.toString(), TopicEvent.LOOKUP)
+                                                .clientVersion(cnx.getClientVersion())
+                                                .proxyVersion(cnx.getProxyVersion())
                                                 .data(TopicLookupEventData.builder()
                                                         .authoritative(newAuthoritative)
                                                         .httpUrl(lookupData.getHttpUrl())
@@ -393,6 +416,7 @@ public class TopicLookupBase extends AdminResource {
                                                         .brokerUrlTls(lookupData.getBrokerUrlTls())
                                                         .redirect(lookupResult.get().isRedirect())
                                                         .proxyThroughServiceUrl(proxyThroughServiceUrl)
+                                                        .address(cnx.toString())
                                                         .build())
                                                 .dispatch();
                                     }

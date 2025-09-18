@@ -29,9 +29,9 @@ import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
 @NoArgsConstructor(force = true)
 @AllArgsConstructor
 public class ProducerDisconnectEventData implements EventData {
-    long producerId;
-    String producerName;
-    String producerAddress;
+    long id;
+    String name;
+    String address;
     DisconnectInitiator initiator;
 
 }

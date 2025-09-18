@@ -74,13 +74,37 @@ public interface Subscription {
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);
 
+    /**
+     * @deprecated Use {@link #purgeBacklog()} instead.
+     */
+    @Deprecated
     CompletableFuture<Void> clearBacklog();
+
+    default CompletableFuture<Long> purgeBacklog() {
+        return clearBacklog().thenApply(v -> 0L);
+    }
 
     CompletableFuture<Void> skipMessages(int numMessagesToSkip);
 
+    /**
+     * @deprecated Use {@link #resetCursorTo(long)} instead.
+     */
+    @Deprecated
     CompletableFuture<Void> resetCursor(long timestamp);
 
+    default CompletableFuture<Position> resetCursorTo(long timestamp) {
+        return resetCursor(timestamp).thenApply(v -> null);
+    }
+
+    /**
+     * @deprecated Use {@link #resetCursorTo(Position)} instead.
+     */
+    @Deprecated
     CompletableFuture<Void> resetCursor(Position position);
+
+    default CompletableFuture<Position> resetCursorTo(Position position) {
+        return resetCursor(position).thenApply(v -> null);
+    }
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
