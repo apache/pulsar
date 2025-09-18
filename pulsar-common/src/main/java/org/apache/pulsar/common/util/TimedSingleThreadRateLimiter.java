@@ -49,12 +49,16 @@ public class TimedSingleThreadRateLimiter {
         mayRenew(now);
         if (remaining > permits) {
             remaining -= permits;
-            log.info("acquired acquired: {}, remaining:{}", permits, remaining);
+            if (log.isDebugEnabled()) {
+                log.debug("acquired: {}, remaining:{}", permits, remaining);
+            }
             return permits;
         } else {
             int acquired = remaining;
             remaining = 0;
-            log.info("acquired acquired: {}, remaining:{}", acquired, remaining);
+            if (log.isDebugEnabled()) {
+                log.debug("acquired: {}, remaining:{}", acquired, remaining);
+            }
             return acquired;
         }
     }
