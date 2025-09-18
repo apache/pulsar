@@ -400,14 +400,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (NamespaceService.isHeartbeatNamespace(namespace)) {
             return CompletableFuture.completedFuture(null);
         }
-        synchronized (this) {
-            if (readerCaches.get(namespace) != null) {
-                ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
-                return CompletableFuture.completedFuture(null);
-            } else {
-                return prepareInitPoliciesCacheAsync(namespace);
-            }
+        AtomicInteger bundlesCount =
+                ownedBundlesCountPerNamespace.computeIfAbsent(namespace, k -> new AtomicInteger(0));
+        int previousCount = bundlesCount.getAndIncrement();
+        if (previousCount == 0) {
+            // initialize policies cache asynchronously on the first bundle load
+            return prepareInitPoliciesCacheAsync(namespace);
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @VisibleForTesting
