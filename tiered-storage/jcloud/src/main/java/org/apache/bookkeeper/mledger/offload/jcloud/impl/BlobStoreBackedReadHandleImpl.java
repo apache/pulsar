@@ -146,7 +146,40 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
 
             List<LedgerEntry> entryCollector = new ArrayList<LedgerEntry>();
             try {
-                readEntries(entryCollector);
+                if (firstEntry > lastEntry
+                        || firstEntry < 0
+                        || lastEntry > getLastAddConfirmed()) {
+                    promise.completeExceptionally(new BKException.BKIncorrectParameterException());
+                    return;
+                }
+                long entriesToRead = (lastEntry - firstEntry) + 1;
+                long expectedEntryId = firstEntry;
+                seekToEntry(firstEntry);
+                seekedAndTryTimes++;
+
+                while (entriesToRead > 0) {
+                    long currentPosition = inputStream.getCurrentPosition();
+                    int length = dataStream.readInt();
+                    if (length < 0) { // hit padding or new block
+                        seekToEntry(expectedEntryId);
+                        continue;
+                    }
+                    long entryId = dataStream.readLong();
+                    if (entryId == expectedEntryId) {
+                        entryOffsetsCache.put(ledgerId, entryId, currentPosition);
+                        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
+                        entryCollector.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
+                        int toWrite = length;
+                        while (toWrite > 0) {
+                            toWrite -= buf.writeBytes(dataStream, toWrite);
+                        }
+                        entriesToRead--;
+                        expectedEntryId++;
+                    } else {
+                        handleUnexpectedEntryId(expectedEntryId, entryId);
+                    }
+                }
+                promise.complete(LedgerEntriesImpl.create(entryCollector));
             } catch (Throwable t) {
                 log.error("Failed to read entries {} - {} from the offloader in ledger {}",
                         firstEntry, lastEntry, ledgerId, t);
@@ -157,43 +190,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 }
                 entryCollector.forEach(LedgerEntry::close);
             }
-        }
-
-        private void readEntries(List<LedgerEntry> entryCollector) throws Exception {
-            if (firstEntry > lastEntry
-                    || firstEntry < 0
-                    || lastEntry > getLastAddConfirmed()) {
-                promise.completeExceptionally(new BKException.BKIncorrectParameterException());
-                return;
-            }
-            long entriesToRead = (lastEntry - firstEntry) + 1;
-            long expectedEntryId = firstEntry;
-            seekToEntry(firstEntry);
-            seekedAndTryTimes++;
-
-            while (entriesToRead > 0) {
-                long currentPosition = inputStream.getCurrentPosition();
-                int length = dataStream.readInt();
-                if (length < 0) { // hit padding or new block
-                    seekToEntry(expectedEntryId);
-                    continue;
-                }
-                long entryId = dataStream.readLong();
-                if (entryId == expectedEntryId) {
-                    entryOffsetsCache.put(ledgerId, entryId, currentPosition);
-                    ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
-                    entryCollector.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
-                    int toWrite = length;
-                    while (toWrite > 0) {
-                        toWrite -= buf.writeBytes(dataStream, toWrite);
-                    }
-                    entriesToRead--;
-                    expectedEntryId++;
-                } else {
-                    handleUnexpectedEntryId(expectedEntryId, entryId);
-                }
-            }
-            promise.complete(LedgerEntriesImpl.create(entryCollector));
         }
 
         // in the normal case, the entry id should increment in order. But if there has random access in
@@ -236,7 +232,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         if (lastEntry < firstEntry || lastEntry > getLastAddConfirmed()) {
             log.warn("Failed to read entries [ {} ~ {} ] from ledger {}, because the entries do not exist. LAC is {}",
                     firstEntry, lastEntry, getId(), getLastAddConfirmed());
-            return CompletableFuture.failedFuture(new BKException.BKNoSuchEntryException());
+            return CompletableFuture.failedFuture(new BKException.BKIncorrectParameterException());
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
 
