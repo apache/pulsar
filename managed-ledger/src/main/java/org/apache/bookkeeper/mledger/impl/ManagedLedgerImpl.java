@@ -405,7 +405,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.minBacklogEntriesForCaching = config.getMinimumBacklogEntriesForCaching();
         this.maxBacklogBetweenCursorsForCaching = config.getMaxBacklogBetweenCursorsForCaching();
         this.managedLedgerAttributes = new ManagedLedgerAttributes(this);
-        this.deleteLedgerRateLimiter = RateLimiter.create(config.getThrottleDeleteLedger());
+        if (config.getThrottleDeleteLedger() > 0) {
+            log.info("Throttling delete-ledger to {} permits per second", config.getThrottleDeleteLedger());
+            this.deleteLedgerRateLimiter = RateLimiter.create(config.getThrottleDeleteLedger());
+        }
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
