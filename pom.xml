@@ -216,8 +216,8 @@ flexible messaging model and an intuitive client API.</description>
     <docker-maven.version>0.45.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
-    <!-- match the byte-buddy version used by the mockito-core pom -->
-    <byte-buddy.version>1.15.11</byte-buddy.version>
+    <!-- match the byte-buddy version (or newer) used by the mockito-core pom -->
+    <byte-buddy.version>1.17.7</byte-buddy.version>
     <zt-zip.version>1.17</zt-zip.version>
     <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
@@ -275,7 +275,7 @@ flexible messaging model and an intuitive client API.</description>
     <jline3.version>3.21.0</jline3.version>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
-    <assertj-core.version>3.24.2</assertj-core.version>
+    <assertj-core.version>3.27.5</assertj-core.version>
     <lombok.version>1.18.42</lombok.version>
     <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
@@ -324,7 +324,7 @@ flexible messaging model and an intuitive client API.</description>
     <restassured.version>5.4.0</restassured.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
-    <mockito.version>5.17.0</mockito.version>
+    <mockito.version>5.19.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.3</objenesis.version> <!-- should match mockito-core objenesis version -->
