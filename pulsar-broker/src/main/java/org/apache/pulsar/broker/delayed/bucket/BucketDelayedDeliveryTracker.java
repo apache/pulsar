@@ -708,8 +708,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized NavigableSet<Position> getScheduledMessages(int maxMessages) {
-        if (!checkPendingLoadDone()) {
+    public NavigableSet<Position> getScheduledMessages(int maxMessages) {
+        if (pendingLoad != null && !pendingLoad.isDone()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.",
                         dispatcher.getName());
@@ -719,115 +719,109 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         long cutoffTime = getCutoffTime();
 
-        lastMutableBucket.moveScheduledMessageToSharedQueue(cutoffTime, sharedBucketPriorityQueue);
-
         NavigableSet<Position> positions = new TreeSet<>();
-        int n = maxMessages;
-
-        while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
-            long timestamp = sharedBucketPriorityQueue.peekN1();
-            if (timestamp > cutoffTime) {
-                break;
+        writeLock.lock();
+        try {
+            lastMutableBucket.moveScheduledMessageToSharedQueue(cutoffTime, sharedBucketPriorityQueue);
+            while (positions.size() < maxMessages && !sharedBucketPriorityQueue.isEmpty()) {
+                if (sharedBucketPriorityQueue.peekN1() > cutoffTime) {
+                    // All remaining messages are scheduled for the future
+                    break;
+                }
+                long ledgerId = sharedBucketPriorityQueue.peekN2();
+                long entryId = sharedBucketPriorityQueue.peekN3();
+                // Check if this message is a trigger to load the next snapshot segment
+                SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
+                ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(snapshotKey);
+                if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+                    // This is the last message of a segment. We need to load the next one.
+                    // Trigger the load and stop processing more messages in this run.
+                    // The positions collected so far will be returned.
+                    triggerAsyncLoadBucketSnapshot(bucket, snapshotKey);
+                    break;
+                }
+                // If it's a regular message (or in memory-only mode), process it.
+                sharedBucketPriorityQueue.pop(); // Consume the message from the queue
+                positions.add(PositionFactory.create(ledgerId, entryId));
+                removeIndexBit(ledgerId, entryId);
             }
+            if (!positions.isEmpty()) {
+                numberDelayedMessages.addAndGet(-positions.size());
+                updateTimer();
+            }
+        } finally {
+            writeLock.unlock();
+        }
 
-            long ledgerId = sharedBucketPriorityQueue.peekN2();
-            long entryId = sharedBucketPriorityQueue.peekN3();
+        return positions;
+    }
 
-            SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
+    private void triggerAsyncLoadBucketSnapshot(ImmutableBucket bucketToLoad, SnapshotKey snapshotKeyToLoad) {
+        final int preSegmentEntryId = bucketToLoad.currentSegmentEntryId;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
+                    dispatcher.getName(), bucketToLoad.bucketKey(), preSegmentEntryId + 1);
+        }
 
-            ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(snapshotKey);
-            if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
-                // All message of current snapshot segment are scheduled, try load next snapshot segment
-                if (bucket.merging) {
-                    log.info("[{}] Skip load to wait for bucket snapshot merge finish, bucketKey:{}",
-                            dispatcher.getName(), bucket.bucketKey());
-                    break;
-                }
+        boolean createFutureDone = bucketToLoad.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).isDone();
+        if (!createFutureDone) {
+            log.info("[{}] Skip load to wait for bucket snapshot create finish, bucketKey:{}",
+                    dispatcher.getName(), bucketToLoad.bucketKey());
+            return;
+        }
 
-                final int preSegmentEntryId = bucket.currentSegmentEntryId;
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
-                            dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1);
-                }
-                boolean createFutureDone = bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).isDone();
-                if (!createFutureDone) {
-                    log.info("[{}] Skip load to wait for bucket snapshot create finish, bucketKey:{}",
-                            dispatcher.getName(), bucket.bucketKey());
-                    break;
-                }
-
-                long loadStartTime = System.currentTimeMillis();
-                stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.load);
-                CompletableFuture<Void> loadFuture = pendingLoad = bucket.asyncLoadNextBucketSnapshotEntry()
-                        .thenAccept(indexList -> {
-                    synchronized (BucketDelayedDeliveryTracker.this) {
-                        this.snapshotSegmentLastIndexMap.remove(snapshotKey);
+        long loadStartTime = System.currentTimeMillis();
+        stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.load);
+        CompletableFuture<Void> loadFuture = pendingLoad = bucketToLoad.asyncLoadNextBucketSnapshotEntry()
+                .thenAccept(indexList -> {
+                    writeLock.lock();
+                    try {
+                        this.snapshotSegmentLastIndexMap.remove(snapshotKeyToLoad);
                         if (CollectionUtils.isEmpty(indexList)) {
                             immutableBuckets.asMapOfRanges()
-                                    .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                            bucket.asyncDeleteBucketSnapshot(stats);
+                                    .remove(Range.closed(bucketToLoad.startLedgerId, bucketToLoad.endLedgerId));
+                            bucketToLoad.asyncDeleteBucketSnapshot(stats);
                             return;
                         }
                         DelayedIndex
                                 lastDelayedIndex = indexList.get(indexList.size() - 1);
                         this.snapshotSegmentLastIndexMap.put(
                                 new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()),
-                                bucket);
+                                bucketToLoad);
                         for (DelayedIndex index : indexList) {
                             sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
                                     index.getEntryId());
                         }
+                    } finally {
+                        writeLock.unlock();
                     }
                 }).whenComplete((__, ex) -> {
                     if (ex != null) {
                         // Back bucket state
-                        bucket.setCurrentSegmentEntryId(preSegmentEntryId);
+                        bucketToLoad.setCurrentSegmentEntryId(preSegmentEntryId);
 
                         log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}, segmentEntryId: {}",
-                                dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1, ex);
+                                dispatcher.getName(), bucketToLoad.bucketKey(), preSegmentEntryId + 1, ex);
 
                         stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.load);
                     } else {
                         log.info("[{}] Load next bucket snapshot segment finish, bucketKey: {}, segmentEntryId: {}",
-                                dispatcher.getName(), bucket.bucketKey(),
-                                (preSegmentEntryId == bucket.lastSegmentEntryId) ? "-1" : preSegmentEntryId + 1);
+                                dispatcher.getName(), bucketToLoad.bucketKey(),
+                                (preSegmentEntryId == bucketToLoad.lastSegmentEntryId) ? "-1" : preSegmentEntryId + 1);
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.load,
                                 System.currentTimeMillis() - loadStartTime);
                     }
-                    synchronized (this) {
+                    writeLock.lock();
+                    try {
                         if (timeout != null) {
                             timeout.cancel();
                         }
                         timeout = timer.newTimeout(this, 0, TimeUnit.MILLISECONDS);
+                    } finally {
+                        writeLock.unlock();
                     }
                 });
-
-                if (!checkPendingLoadDone() || loadFuture.isCompletedExceptionally()) {
-                    break;
-                }
-            }
-
-            positions.add(PositionFactory.create(ledgerId, entryId));
-
-            sharedBucketPriorityQueue.pop();
-            removeIndexBit(ledgerId, entryId);
-
-            --n;
-            numberDelayedMessages.decrementAndGet();
-        }
-
-        updateTimer();
-
-        return positions;
-    }
-
-    private synchronized boolean checkPendingLoadDone() {
-        if (pendingLoad == null || pendingLoad.isDone()) {
-            pendingLoad = null;
-            return true;
-        }
-        return false;
     }
 
     @Override
