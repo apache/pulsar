@@ -276,7 +276,7 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.27.5</assertj-core.version>
-    <lombok.version>1.18.38</lombok.version>
+    <lombok.version>1.18.42</lombok.version>
     <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <jakarta.activation.version>1.2.2</jakarta.activation.version>
