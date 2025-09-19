@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,6 +48,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
+import org.apache.commons.lang3.tuple.MutableTriple;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
@@ -154,14 +156,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 }
                 long entriesToRead = (lastEntry - firstEntry) + 1;
                 long expectedEntryId = firstEntry;
-                seekToEntry(firstEntry);
+                seekToEntryOffset(firstEntry);
                 seekedAndTryTimes++;
 
                 while (entriesToRead > 0) {
                     long currentPosition = inputStream.getCurrentPosition();
                     int length = dataStream.readInt();
                     if (length < 0) { // hit padding or new block
-                        seekToEntry(expectedEntryId);
+                        seekToEntryOffset(expectedEntryId);
                         continue;
                     }
                     long entryId = dataStream.readLong();
@@ -209,17 +211,102 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                             : String.valueOf(offsetOfActId),
                     expectedId, String.valueOf(offsetOfExpectedId),
                     seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
-            // If the offset is wrong, skip the retry and throw the exception.
             // If it still fails after tried entries count times, throw the exception.
-            if (expectedId != actEntryId && offsetOfExpectedId != null && offsetOfExpectedId.equals(offsetOfActId)
-                    || seekedAndTryTimes > (lastEntry - firstEntry + 1)) {
+            long maxTryTimes = Math.max(3, (lastEntry - firstEntry + 1) >> 2);
+            if (seekedAndTryTimes > maxTryTimes) {
                 log.error(logLine);
                 throw new BKException.BKUnexpectedConditionException();
             } else {
                 log.warn(logLine);
             }
-            seekToEntry(offsetOfExpectedId);
+            seekToEntryOffset(expectedId);
             seekedAndTryTimes++;
+        }
+
+        private void skipPreviousEntry(long startEntryId, long expectedEntryId) throws IOException, BKException {
+            long nextExpectedEntryId = startEntryId;
+            while (nextExpectedEntryId < expectedEntryId) {
+                long offset = inputStream.getCurrentPosition();
+                int len = dataStream.readInt();
+                if (len < 0) {
+                    LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                    OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
+                    log.error("Failed to read [ {} ~ {} ] of the ledger {}."
+                        + " Because failed to skip a previous entry {}, len: {}, got a negative len."
+                        + " The expected entry id is {}, the offset is {}."
+                        + " Have seeked and retry read times: {}. LAC is {}.",
+                        firstEntry, lastEntry, ledgerId,
+                        nextExpectedEntryId, len,
+                        expectedEntryId, String.valueOf(offsetOfExpectedId),
+                        seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                    throw new BKException.BKUnexpectedConditionException();
+                }
+                long entryId = dataStream.readLong();
+                if (entryId == nextExpectedEntryId) {
+                    long skipped = inputStream.skip(len);
+                    if (skipped != len) {
+                        LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                        OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
+                        log.error("Failed to read [ {} ~ {} ] of the ledger {}."
+                            + " Because failed to skip a previous entry {}, offset: {}, len: {}, there is no more data."
+                            + " The expected entry id is {}, the offset is {}."
+                            + " Have seeked and retry read times: {}. LAC is {}.",
+                            firstEntry, lastEntry, ledgerId,
+                            entryId, offset, len,
+                            expectedEntryId, String.valueOf(offsetOfExpectedId),
+                            seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                        throw new BKException.BKUnexpectedConditionException();
+                    }
+                    nextExpectedEntryId++;
+                } else {
+                    LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                    OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
+                    log.error("Failed to read [ {} ~ {} ] of the ledger {}."
+                        + " Because got a incorrect entry id {},."
+                        + " The expected entry id is {}, the offset is {}."
+                        + " Have seeked and retry read times: {}. LAC is {}.",
+                        firstEntry, lastEntry, ledgerId,
+                        entryId, expectedEntryId, String.valueOf(offsetOfExpectedId),
+                        seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                    throw new BKException.BKUnexpectedConditionException();
+                }
+            }
+        }
+
+        private void seekToEntryOffset(long expectedEntryId) throws IOException, BKException {
+            // 1. Try to find the precise index.
+            // 1-1. Precise cached indexes.
+            Long cachedPreciseIndex = entryOffsetsCache.getIfPresent(ledgerId, expectedEntryId);
+            if (cachedPreciseIndex != null) {
+                inputStream.seek(cachedPreciseIndex);
+                return;
+            }
+            // 1-2. Precise persistent indexes.
+            OffloadIndexEntry indexOfNearestEntry = index.getIndexEntryForEntry(expectedEntryId);
+            if (indexOfNearestEntry.getEntryId() == expectedEntryId) {
+                inputStream.seek(indexOfNearestEntry.getDataOffset());
+                return;
+            }
+            // 2. Try to use the previous index.
+            Long cachedPreviousKnownOffset = entryOffsetsCache.getIfPresent(ledgerId, expectedEntryId - 1);
+            if (cachedPreviousKnownOffset != null) {
+                inputStream.seek(cachedPreviousKnownOffset);
+                skipPreviousEntry(expectedEntryId - 1, expectedEntryId);
+            }
+            // 3. Use the persistent index of the nearest entry that is smaller than "expectedEntryId".
+            if (indexOfNearestEntry.getEntryId() < expectedEntryId) {
+                inputStream.seek(indexOfNearestEntry.getDataOffset());
+                skipPreviousEntry(indexOfNearestEntry.getEntryId(), expectedEntryId);
+            } else {
+                LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                log.error("Failed to read [ {} ~ {} ] of the ledger {}."
+                    + " Because got a incorrect index {} of the entry {}, which is greater than expected."
+                    + " Have seeked and retry read times: {}. LAC is {}.",
+                    firstEntry, lastEntry, ledgerId,
+                    String.valueOf(indexOfNearestEntry), expectedEntryId,
+                    seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                throw new BKException.BKUnexpectedConditionException();
+            }
         }
     }
 
