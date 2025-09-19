@@ -134,7 +134,7 @@ public class TopicEventsDispatcher {
         Objects.requireNonNull(listeners);
         for (TopicEventsListener listener : listeners) {
             notify(listener, EventContext.builder()
-                    .topicName(topic)
+                    .topic(topic)
                     .event(event)
                     .stage(stage)
                     .error(t)
@@ -152,7 +152,7 @@ public class TopicEventsDispatcher {
             listener.handleEvent(context);
         } catch (Throwable ex) {
             log.error("TopicEventsListener {} exception while handling {} for topic {}",
-                    listener, context.getEvent(), context.getTopicName(), ex);
+                    listener, context.getEvent(), context.getTopic(), ex);
         }
     }
 
@@ -174,8 +174,8 @@ public class TopicEventsDispatcher {
         private TopicEventBuilder(String topic, TopicEvent event) {
             TopicName topicName = TopicName.get(topic);
             builder = EventContext.builder()
-                    .topicName(topicName.getPartitionedTopicName())
-                    .partitionIndex(topicName.getPartitionIndex())
+                    .topic(topicName.getPartitionedTopicName())
+                    .partition(topicName.getPartitionIndex())
                     .cluster(pulsar.getConfiguration().getClusterName())
                     .brokerId(brokerId)
                     .brokerVersion(pulsar.getBrokerVersion())

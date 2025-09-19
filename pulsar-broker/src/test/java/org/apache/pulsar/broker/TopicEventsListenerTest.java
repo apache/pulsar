@@ -288,7 +288,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
                 .brokerId("broker-1")
                 .proxyRole("proxy-role")
                 .clientRole("client-role")
-                .topicName("persistent://prop/namespace/topic")
+                .topic("persistent://prop/namespace/topic")
                 .stage(EventStage.SUCCESS)
                 .data(ProducerDisconnectEventData.builder()
                         .id(1)

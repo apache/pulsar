@@ -97,8 +97,8 @@ public interface TopicEventsListener {
         String brokerId;
         String proxyRole;
         String clientRole;
-        String topicName;
-        int partitionIndex;
+        String topic;
+        int partition;
         TopicEvent event;
         EventData data;
         EventStage stage;
@@ -127,8 +127,8 @@ public interface TopicEventsListener {
     }
 
     default void handleEvent(EventContext context) {
-        handleEvent(context.getPartitionIndex() >= 0
-                ? TopicName.getTopicPartitionNameString(context.getTopicName(), context.getPartitionIndex())
-                : context.getTopicName(), context.getEvent(), context.getStage(), context.getError());
+        handleEvent(context.getPartition() >= 0
+                ? TopicName.getTopicPartitionNameString(context.getTopic(), context.getPartition())
+                : context.getTopic(), context.getEvent(), context.getStage(), context.getError());
     }
 }
