@@ -224,8 +224,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         NamespaceBundle bundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(bundle)).when(nsSvc).getBundleAsync(any());
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
-        doReturn(true).when(nsSvc).isServiceUnitActive(any());
-        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isServiceUnitActiveAsync(any());
+        doReturn(CompletableFuture.completedFuture(null)).when(brokerService).checkTopicNsOwnership(any());
         doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
 
