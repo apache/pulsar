@@ -31,7 +31,7 @@
 
   <groupId>com.datastax.oss</groupId>
   <artifactId>buildtools</artifactId>
-  <version>4.0.3.7</version>
+  <version>4.0.3.8-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
@@ -43,7 +43,7 @@
   </developers>
 
   <properties>
-    <project.build.outputTimestamp>2025-09-19T09:13:20Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2025-09-19T09:15:42Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <maven.compiler.release>8</maven.compiler.release>
