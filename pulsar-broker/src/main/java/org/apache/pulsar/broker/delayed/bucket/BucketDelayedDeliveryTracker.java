@@ -846,20 +846,29 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public void close() {
+        List<CompletableFuture<Long>> completableFutures = Collections.emptyList();
         writeLock.lock();
         try {
             super.close();
             lastMutableBucket.close();
             sharedBucketPriorityQueue.close();
             try {
-                List<CompletableFuture<Long>> completableFutures = immutableBuckets.asMapOfRanges().values().stream()
+                completableFutures = immutableBuckets.asMapOfRanges().values().stream()
                         .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
-                FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
             } catch (Exception e) {
                 log.warn("[{}] Failed wait to snapshot generate", dispatcher.getName(), e);
             }
         } finally {
             writeLock.unlock();
+        }
+        try {
+            if (!completableFutures.isEmpty()) {
+                FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+            }
+        } catch (Exception e) {
+            log.warn("[{}] Failed wait to snapshot generate", dispatcher.getName(), e);
+        } finally {
+            bucketSnapshotExecutor.shutdown();
         }
     }
 
