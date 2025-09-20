@@ -2908,16 +2908,22 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenApply(policies -> policies.allowed_clusters);
     }
 
+    // TODO remove this sync method after async refactor
     private BundlesData getDefaultBundleData() {
-        Optional<Policies> nsPolicies;
         try {
-            nsPolicies = namespaceResources().getPolicies(namespaceName);
-        } catch (MetadataStoreException e) {
+            return getDefaultBundleDataAsync().get(config().getMetadataStoreOperationTimeoutSeconds(),
+                    TimeUnit.SECONDS);
+        } catch (Exception e) {
             log.error("[{}] Failed to get namespace-policy configuration for namespace {}", clientAppId(),
                     namespaceName, e);
             throw new RestException(e);
         }
-        return nsPolicies.isPresent() ? nsPolicies.get().bundles :
-                getBundles(config().getDefaultNumberOfNamespaceBundles());
     }
+
+    private CompletableFuture<BundlesData> getDefaultBundleDataAsync() {
+        return namespaceResources().getPoliciesAsync(namespaceName).thenApply(
+                optionalPolicies -> optionalPolicies.isPresent() ? optionalPolicies.get().bundles :
+                        getBundles(config().getDefaultNumberOfNamespaceBundles()));
+    }
+
 }
