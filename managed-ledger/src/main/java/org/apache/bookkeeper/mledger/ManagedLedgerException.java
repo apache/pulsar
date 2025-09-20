@@ -135,6 +135,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class CancelledException extends ManagedLedgerException {
+        public CancelledException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class TooManyRequestsException extends ManagedLedgerException {
         public TooManyRequestsException(String msg) {
             super(msg);
@@ -210,5 +216,11 @@ public class ManagedLedgerException extends Exception {
     public synchronized Throwable fillInStackTrace() {
         // Disable stack traces to be filled in
         return null;
+    }
+
+    public static boolean shouldNotRead(ManagedLedgerException exception) {
+        return exception instanceof ConcurrentWaitCallbackException
+                || exception instanceof ManagedLedgerException.CursorAlreadyClosedException
+                || exception instanceof ManagedLedgerException.CancelledException;
     }
 }
