@@ -192,7 +192,7 @@ public class PulsarClusterMetadataSetup {
     }
 
     /**
-     * a wrapper for creating a persistent node with store.put but ignore exception of node exists.
+     * A wrapper for creating a persistent node using store.put(), ignoring the exception if the node already exists.
      */
     private static void createMetadataNode(MetadataStore store, String path, byte[] data)
             throws InterruptedException, ExecutionException {
@@ -282,7 +282,7 @@ public class PulsarClusterMetadataSetup {
         try {
             initializeCluster(arguments, bundleNumberForDefaultNamespace);
         } catch (Exception e) {
-            System.err.println("Unexpected error occured.");
+            System.err.println("Unexpected error occurred.");
             e.printStackTrace(System.err);
             System.err.println("Terminating JVM...");
             ShutdownUtil.triggerImmediateForcefulShutdown();
@@ -300,7 +300,7 @@ public class PulsarClusterMetadataSetup {
                 arguments.configurationStoreConfigPath,
                 arguments.zkSessionTimeoutMillis);
 
-        final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
+        final String metadataStoreUrlNoIdentifier = MetadataStoreFactoryImpl
                 .removeIdentifierFromMetadataURL(arguments.metadataStoreUrl);
         // Format BookKeeper ledger storage metadata
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
@@ -322,7 +322,7 @@ public class PulsarClusterMetadataSetup {
             } else if (arguments.bookieMetadataServiceUri != null) {
                 uriStr = arguments.bookieMetadataServiceUri;
             } else {
-                uriStr = "zk+null://" + metadataStoreUrlNoIdentifer + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+                uriStr = "zk+null://" + metadataStoreUrlNoIdentifier + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
             }
 
             // initial distributed log metadata
@@ -331,7 +331,7 @@ public class PulsarClusterMetadataSetup {
             ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             // Format BookKeeper stream storage metadata
             if (arguments.numStreamStorageContainers > 0) {
-                ClusterInitializer initializer = new ZkClusterInitializer(metadataStoreUrlNoIdentifer);
+                ClusterInitializer initializer = new ZkClusterInitializer(metadataStoreUrlNoIdentifier);
                 initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
             }
         }
