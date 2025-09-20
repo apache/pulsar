@@ -61,6 +61,7 @@ public class ManagedLedgerConfig {
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
+    private double throttleDeleteLedger = 0;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -407,6 +408,26 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setThrottleMarkDelete(double throttleMarkDelete) {
         checkArgument(throttleMarkDelete >= 0.0);
         this.throttleMarkDelete = throttleMarkDelete;
+        return this;
+    }
+
+    /**
+     * @return the throttling rate limit for delete-ledger calls
+     */
+    public double getThrottleDeleteLedger() {
+        return throttleDeleteLedger;
+    }
+
+    /**
+     * Set the rate limiter on how many delete-ledger calls per second are allowed. If the value is set to 0, the rate
+     * limiter is disabled. Default is 0.
+     *
+     * @param throttleDeleteLedger
+     *            the max number of delete-ledger calls allowed per second
+     */
+    public ManagedLedgerConfig setThrottleDeleteLedger(double throttleDeleteLedger) {
+        checkArgument(throttleDeleteLedger >= 0.0);
+        this.throttleDeleteLedger = throttleDeleteLedger;
         return this;
     }
 
