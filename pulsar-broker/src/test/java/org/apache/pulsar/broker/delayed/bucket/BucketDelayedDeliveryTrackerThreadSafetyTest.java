@@ -31,12 +31,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.testng.annotations.AfterMethod;
@@ -45,9 +45,10 @@ import org.testng.annotations.Test;
 
 /**
  * Thread safety tests for BucketDelayedDeliveryTracker.
- * These tests verify that the hybrid approach with StampedLock and concurrent data structures
+ * These tests verify that the hybrid approach with ReentrantReadWriteLock and concurrent data structures
  * correctly handles concurrent access patterns without deadlocks, race conditions, or data corruption.
  */
+@Slf4j
 public class BucketDelayedDeliveryTrackerThreadSafetyTest {
 
     private BucketDelayedDeliveryTracker tracker;
@@ -97,88 +98,103 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
 
     @AfterMethod
     public void tearDown() throws Exception {
-        if (tracker != null) {
-            tracker.close();
-        }
+        // First shutdown executor to stop all threads
         if (executorService != null) {
             assertTrue(MoreExecutors.shutdownAndAwaitTermination(executorService, 5, TimeUnit.SECONDS),
-                "Executor should shutdown cleanly");
+                    "Executor should shutdown cleanly");
+        }
+        // Then close tracker safely after all threads stopped
+        if (tracker != null) {
+            tracker.close();
         }
     }
 
     /**
-     * Test concurrent containsMessage() calls while adding messages.
-     * This tests the StampedLock optimistic read performance under contention.
+     * Test concurrent containsMessage() calls while adding messages sequentially.
+     * This tests the ReentrantReadWriteLock read performance under contention.
+     * addMessage is executed sequentially (as in real scenarios), while containsMessage is concurrent.
      */
     @Test
     public void testConcurrentContainsMessageWithWrites() throws Exception {
-        final int numThreads = 16;
-        final int operationsPerThread = 1000;  // Restore to test bucket creation properly
+        final int numReadThreads = 8;
+        final int readsPerThread = 1000;
+        final int totalMessages = 5000;
         final CountDownLatch startLatch = new CountDownLatch(1);
-        final CountDownLatch doneLatch = new CountDownLatch(numThreads);
+        final CountDownLatch readersDone = new CountDownLatch(numReadThreads);
         final AtomicInteger errors = new AtomicInteger(0);
         final AtomicReference<Exception> firstException = new AtomicReference<>();
+        final AtomicInteger messagesAdded = new AtomicInteger(0);
 
-        // Start reader threads
-        for (int i = 0; i < numThreads / 2; i++) {
-            final int threadId = i;
+        // Start reader threads - these will run concurrently
+        for (int i = 0; i < numReadThreads; i++) {
             executorService.submit(() -> {
                 try {
                     startLatch.await();
-                    for (int j = 0; j < operationsPerThread; j++) {
-                        long ledgerId = threadId * 1000 + j;
-                        long entryId = j;
+                    // Continuously read for a period while messages are being added
+                    long endTime = System.currentTimeMillis() + 10000;
+                    int readCount = 0;
+                    while (System.currentTimeMillis() < endTime && readCount < readsPerThread) {
+                        // Check for messages across the range that might be added
+                        long ledgerId = 1000 + (readCount % totalMessages);
+                        long entryId = readCount % 100;
                         // This should not throw exceptions or block indefinitely
                         tracker.containsMessage(ledgerId, entryId);
+                        readCount++;
+                        if (readCount % 100 == 0) {
+                            Thread.sleep(1);
+                        }
                     }
                 } catch (Exception e) {
                     errors.incrementAndGet();
                     firstException.compareAndSet(null, e);
                     e.printStackTrace();
                 } finally {
-                    doneLatch.countDown();
+                    readersDone.countDown();
                 }
             });
         }
 
-        // Start writer threads
-        for (int i = numThreads / 2; i < numThreads; i++) {
-            final int threadId = i;
-            executorService.submit(() -> {
-                try {
-                    startLatch.await();
-                    for (int j = 0; j < operationsPerThread; j++) {
-                        long ledgerId = threadId * 1000 + j;
-                        long entryId = j;
-                        long deliverAt = System.currentTimeMillis() + 10000; // 10s delay
-                        tracker.addMessage(ledgerId, entryId, deliverAt);
+        // Start the single writer thread - sequential addMessage calls
+        executorService.submit(() -> {
+            try {
+                startLatch.await();
+                for (int i = 0; i < totalMessages; i++) {
+                    long ledgerId = 1000 + i;
+                    long entryId = i % 100;
+                    long deliverAt = System.currentTimeMillis() + 10000;
+                    boolean added = tracker.addMessage(ledgerId, entryId, deliverAt);
+                    if (added) {
+                        messagesAdded.incrementAndGet();
                     }
-                } catch (Exception e) {
-                    errors.incrementAndGet();
-                    firstException.compareAndSet(null, e);
-                    e.printStackTrace();
-                } finally {
-                    doneLatch.countDown();
+                    // Small delay to simulate real processing time
+                    if (i % 100 == 0) {
+                        Thread.sleep(1);
+                    }
                 }
-            });
-        }
+            } catch (Exception e) {
+                errors.incrementAndGet();
+                firstException.compareAndSet(null, e);
+                e.printStackTrace();
+            }
+        });
 
         startLatch.countDown();
-        assertTrue(doneLatch.await(30, TimeUnit.SECONDS), "Test should complete within 30 seconds");
+        assertTrue(readersDone.await(30, TimeUnit.SECONDS), "Readers should complete within 30 seconds");
 
         if (errors.get() > 0) {
             Exception exception = firstException.get();
             if (exception != null) {
-                System.err.println("First exception caught: " + exception.getMessage());
+                log.error("First exception caught: " + exception.getMessage());
                 exception.printStackTrace();
             }
         }
         assertEquals(errors.get(), 0, "No exceptions should occur during concurrent operations");
+        assertTrue(messagesAdded.get() > 0, "Some messages should have been added");
     }
 
     /**
      * Test concurrent nextDeliveryTime() calls.
-     * This verifies the StampedLock implementation for read-heavy operations.
+     * This verifies the ReentrantReadWriteLock implementation for read-heavy operations.
      */
     @Test
     public void testConcurrentNextDeliveryTime() throws Exception {
@@ -224,75 +240,149 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
      */
     @Test
     public void testDeadlockDetection() throws Exception {
-        final int numThreads = 32;
-        final int operationsPerThread = 100;
-        // Use Phaser for better concurrency coordination
-        final Phaser startPhaser = new Phaser(numThreads + 1); // +1 for main thread
-        final Phaser endPhaser = new Phaser(numThreads + 1); // +1 for main thread
+        final int numReadThreads = 30;
+        final int operationsPerThread = 200;
+        final int writeOperations = 1000;
+
+        final CountDownLatch startLatch = new CountDownLatch(1);
+        final CountDownLatch writerDone = new CountDownLatch(1);
+        final CountDownLatch readersDone = new CountDownLatch(numReadThreads);
         final AtomicBoolean deadlockDetected = new AtomicBoolean(false);
         final AtomicInteger completedOperations = new AtomicInteger(0);
+        final AtomicInteger writesCompleted = new AtomicInteger(0);
+        final AtomicReference<Exception> firstException = new AtomicReference<>();
+        // Single writer thread - executes addMessage sequentially
+        executorService.submit(() -> {
+            try {
+                startLatch.await();
+                for (int i = 0; i < writeOperations; i++) {
+                    try {
+                        long ledgerId = 50000 + i;
+                        long entryId = i;
+                        tracker.addMessage(ledgerId, entryId, System.currentTimeMillis() + 10000);
+                        writesCompleted.incrementAndGet();
+                        completedOperations.incrementAndGet();
 
-        // Mixed workload: reads, writes, and metric queries
-        for (int i = 0; i < numThreads; i++) {
+                        // Small delay to allow read threads to interleave
+                        if (i % 50 == 0) {
+                            Thread.sleep(1);
+                        }
+                    } catch (Exception e) {
+                        if (!(e instanceof IllegalArgumentException)) {
+                            deadlockDetected.set(true);
+                            firstException.compareAndSet(null, e);
+                            e.printStackTrace();
+                            break;
+                        }
+                        completedOperations.incrementAndGet();
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                deadlockDetected.set(true);
+            } catch (Exception e) {
+                deadlockDetected.set(true);
+                firstException.compareAndSet(null, e);
+                e.printStackTrace();
+            } finally {
+                writerDone.countDown();
+            }
+        });
+        // Multiple reader threads - execute read operations concurrently
+        for (int i = 0; i < numReadThreads; i++) {
             final int threadId = i;
-            final int workloadType = i % 4;
-
+            final int readOperationType = i % 3;
             executorService.submit(() -> {
                 try {
-                    // Wait for all threads to be ready
-                    startPhaser.arriveAndAwaitAdvance();
+                    startLatch.await();
 
-                    for (int j = 0; j < operationsPerThread; j++) {
+                    // Continue reading until writer is done, plus some extra operations
+                    int operationCount = 0;
+                    while ((writerDone.getCount() > 0 || operationCount < operationsPerThread)) {
                         try {
-                            switch (workloadType) {
-                                case 0: // containsMessage calls
-                                    tracker.containsMessage(threadId * 1000 + j, j);
+                            switch (readOperationType) {
+                                case 0:
+                                    // Check both existing and potentially non-existing messages
+                                    long ledgerId = 50000 + (operationCount % (writeOperations + 100));
+                                    long entryId = operationCount % 1000;
+                                    tracker.containsMessage(ledgerId, entryId);
                                     break;
-                                case 1: // addMessage calls
-                                    tracker.addMessage(threadId * 1000 + j, j, System.currentTimeMillis() + 5000);
-                                    break;
-                                case 2: // nextDeliveryTime calls
+                                case 1:
                                     tracker.nextDeliveryTime();
                                     break;
-                                case 3: // getNumberOfDelayedMessages calls
+                                case 2:
                                     tracker.getNumberOfDelayedMessages();
                                     break;
                             }
                             completedOperations.incrementAndGet();
+                            operationCount++;
+
+                            // Small delay to prevent excessive CPU usage
+                            if (operationCount % 100 == 0) {
+                                Thread.sleep(1);
+                            }
                         } catch (IllegalArgumentException e) {
-                            // IllegalArgumentException is expected for some operations
-                            // (e.g., calling nextDeliveryTime on empty queue, invalid ledger IDs)
-                            // This is not a deadlock, just normal validation
+                            // Expected for some operations (e.g., nextDeliveryTime on empty queue)
                             completedOperations.incrementAndGet();
+                            operationCount++;
+                        } catch (Exception e) {
+                            deadlockDetected.set(true);
+                            firstException.compareAndSet(null, e);
+                            e.printStackTrace();
+                            break;
+                        }
+
+                        // Break if we've done enough operations and writer is done
+                        if (writerDone.getCount() == 0 && operationCount >= operationsPerThread) {
+                            break;
                         }
                     }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    deadlockDetected.set(true);
                 } catch (Exception e) {
-                    // Only unexpected exceptions indicate potential deadlocks
-                    if (!(e instanceof IllegalArgumentException)) {
-                        deadlockDetected.set(true);
-                        e.printStackTrace();
-                    }
+                    deadlockDetected.set(true);
+                    firstException.compareAndSet(null, e);
+                    e.printStackTrace();
                 } finally {
-                    // Signal completion
-                    endPhaser.arriveAndDeregister();
+                    readersDone.countDown();
                 }
             });
         }
+        // Start all threads
+        startLatch.countDown();
+        // Wait for completion with timeout to detect deadlocks
+        boolean writerCompleted = false;
+        boolean readersCompleted = false;
 
-        // Start all threads at once
-        startPhaser.arriveAndAwaitAdvance();
-
-        // Wait for all threads to complete with timeout to detect potential deadlocks
         try {
-            endPhaser.awaitAdvanceInterruptibly(endPhaser.arrive(), 60, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            // Timeout or interrupt indicates potential deadlock
+            writerCompleted = writerDone.await(30, TimeUnit.SECONDS);
+            readersCompleted = readersDone.await(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             deadlockDetected.set(true);
-            e.printStackTrace();
         }
-
-        assertTrue(!deadlockDetected.get(), "No deadlocks should be detected");
+        // Check for deadlock indicators
+        if (!writerCompleted || !readersCompleted) {
+            deadlockDetected.set(true);
+            log.error("Test timed out - potential deadlock detected. Writer completed: {}, Readers completed: {}",
+                    writerCompleted, readersCompleted);
+        }
+        // Assert results
+        if (deadlockDetected.get()) {
+            Exception e = firstException.get();
+            if (e != null) {
+                throw new AssertionError("Deadlock or exception detected during test execution", e);
+            } else {
+                throw new AssertionError("Deadlock detected - test did not complete within timeout");
+            }
+        }
+        // Verify that operations actually completed
         assertTrue(completedOperations.get() > 0, "Some operations should complete");
+        assertTrue(writesCompleted.get() > 0, "Some write operations should complete");
+
+        log.info("Deadlock test completed successfully. Total operations: {}, Writes completed: {}",
+                completedOperations.get(), writesCompleted.get());
     }
 
     /**
@@ -301,85 +391,100 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
      */
     @Test
     public void testDataConsistencyUnderConcurrency() throws Exception {
-        final int numWriteThreads = 8;
         final int numReadThreads = 16;
-        final int messagesPerWriter = 500;
+        final int totalMessages = 4000;
+        final int readsPerThread = 1000;
         final CountDownLatch startLatch = new CountDownLatch(1);
-        final CountDownLatch writersDone = new CountDownLatch(numWriteThreads);
         final CountDownLatch readersDone = new CountDownLatch(numReadThreads);
+        final AtomicInteger errors = new AtomicInteger(0);
+        final AtomicReference<Exception> firstException = new AtomicReference<>();
         final AtomicInteger foundMessages = new AtomicInteger(0);
         final AtomicInteger totalMessagesAdded = new AtomicInteger(0);
-
-        // Writer threads add messages
-        for (int i = 0; i < numWriteThreads; i++) {
-            final int writerId = i;
-            executorService.submit(() -> {
-                try {
-                    startLatch.await();
-                    for (int j = 0; j < messagesPerWriter; j++) {
-                        long ledgerId = writerId * 10000 + j;
-                        long entryId = j;
-                        boolean added = tracker.addMessage(ledgerId, entryId, System.currentTimeMillis() + 30000);
-                        if (added) {
-                            totalMessagesAdded.incrementAndGet();
-                        }
-                    }
-                } catch (Exception e) {
-                    // Ignore exceptions for this test
-                } finally {
-                    writersDone.countDown();
-                }
-            });
-        }
-
-        // Reader threads check for messages
+        // Start reader threads - these will run concurrently
         for (int i = 0; i < numReadThreads; i++) {
             final int readerId = i;
             executorService.submit(() -> {
                 try {
                     startLatch.await();
+                    // Continuously read for a period while messages are being added
+                    long endTime = System.currentTimeMillis() + 12000;
+                    int readCount = 0;
+                    while (System.currentTimeMillis() < endTime && readCount < readsPerThread) {
+                        // Check for messages across the range that might be added
+                        int messageIndex = readCount % totalMessages;
+                        long ledgerId = 10000 + messageIndex;
+                        long entryId = messageIndex % 100;
 
-                    // Read for a while to catch messages being added
-                    long endTime = System.currentTimeMillis() + 5000; // Read for 5 seconds
-                    while (System.currentTimeMillis() < endTime) {
-                        for (int writerId = 0; writerId < numWriteThreads; writerId++) {
-                            for (int j = 0; j < messagesPerWriter; j++) {
-                                long ledgerId = writerId * 10000 + j;
-                                long entryId = j;
-                                if (tracker.containsMessage(ledgerId, entryId)) {
-                                    foundMessages.incrementAndGet();
-                                }
-                            }
+                        if (tracker.containsMessage(ledgerId, entryId)) {
+                            foundMessages.incrementAndGet();
                         }
-                        Thread.sleep(10); // Small delay to allow writes
+                        readCount++;
+
+                        if (readCount % 200 == 0) {
+                            Thread.sleep(1);
+                        }
                     }
                 } catch (Exception e) {
-                    // Ignore exceptions for this test
+                    errors.incrementAndGet();
+                    firstException.compareAndSet(null, e);
+                    e.printStackTrace();
                 } finally {
                     readersDone.countDown();
                 }
             });
         }
-
+        // Start the single writer thread - sequential addMessage calls
+        executorService.submit(() -> {
+            try {
+                startLatch.await();
+                for (int i = 0; i < totalMessages; i++) {
+                    long ledgerId = 10000 + i;
+                    long entryId = i % 100;
+                    long deliverAt = System.currentTimeMillis() + 30000;
+                    boolean added = tracker.addMessage(ledgerId, entryId, deliverAt);
+                    if (added) {
+                        totalMessagesAdded.incrementAndGet();
+                    }
+                    // Small delay to simulate real processing time and allow reads
+                    if (i % 200 == 0) {
+                        Thread.sleep(2);
+                    }
+                }
+            } catch (Exception e) {
+                errors.incrementAndGet();
+                firstException.compareAndSet(null, e);
+                e.printStackTrace();
+            }
+        });
         startLatch.countDown();
-
-        assertTrue(writersDone.await(30, TimeUnit.SECONDS), "Writers should complete");
-        assertTrue(readersDone.await(30, TimeUnit.SECONDS), "Readers should complete");
-
+        assertTrue(readersDone.await(40, TimeUnit.SECONDS), "Readers should complete within 40 seconds");
+        // Check for errors during concurrent operations
+        if (errors.get() > 0) {
+            Exception exception = firstException.get();
+            if (exception != null) {
+                log.error("First exception caught: " + exception.getMessage());
+                exception.printStackTrace();
+            }
+        }
+        assertEquals(errors.get(), 0, "No exceptions should occur during concurrent operations");
         // Verify final consistency
         long finalMessageCount = tracker.getNumberOfDelayedMessages();
         assertTrue(finalMessageCount >= 0, "Message count should be non-negative");
-
-        // The exact counts may vary due to timing, but we should have some successful operations
+        // The exact counts may vary due to timing, but we should have successful operations
         assertTrue(totalMessagesAdded.get() > 0, "Some messages should have been added");
+        assertTrue(foundMessages.get() >= 0, "Found messages count should be non-negative");
+
+        // Log results for analysis
+        log.info("Total messages added: {}, Found messages: {}, Final message count: {}",
+                totalMessagesAdded.get(), foundMessages.get(), finalMessageCount);
     }
 
     /**
-     * Test optimistic read performance under varying contention levels.
-     * This helps validate that the StampedLock optimistic reads are working efficiently.
+     * Test read performance under varying contention levels.
+     * This helps validate that the ReentrantReadWriteLock reads are working efficiently.
      */
     @Test
-    public void testOptimisticReadPerformance() throws Exception {
+    public void testReadPerformanceUnderContention() throws Exception {
         // Add baseline messages
         for (int i = 0; i < 1000; i++) {
             tracker.addMessage(i, i, System.currentTimeMillis() + 60000);
