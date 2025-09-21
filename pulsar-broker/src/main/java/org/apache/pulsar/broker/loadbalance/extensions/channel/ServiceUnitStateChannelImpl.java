@@ -460,14 +460,31 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
-        // If the channel is disabled or closed, this broker cannot be the active owner.
-        // If the table already has an owner, and it is not local, return it as is for upper-level redirection;
-        // otherwise, return empty.
+        // When the channel is disabled/closed, do not perform liveness verification, return according to the status:
         if (channelState == Disabled || channelState == Closed) {
-            if (owner.isPresent() && !isTargetBroker(owner.get())) {
-                return CompletableFuture.completedFuture(owner);
+            switch (state) {
+                // Owned/Splitting: Directly return owner (for isOwner judgment as true)
+                case Owned:
+                case Splitting:
+                    return CompletableFuture.completedFuture(owner);
+                case Assigning:
+                case Releasing:
+                    if (owner.isPresent()) {
+                        if (isTargetBroker(owner.get())) {
+                            // This machine is the target taker,
+                            // return an unfinished future with "waiting for ownership"
+                            return dedupeGetOwnerRequest(serviceUnit).thenApply(Optional::ofNullable);
+                        } else {
+                            // The target is another broker, return directly so that the upper layer can redirect
+                            return CompletableFuture.completedFuture(owner);
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(Optional.empty());
+                    }
+                // Other status: return empty
+                default:
+                    return CompletableFuture.completedFuture(Optional.empty());
             }
-            return CompletableFuture.completedFuture(Optional.empty());
         }
         // If this broker's registry does not exist(possibly suffering from connecting to the metadata store),
         // we return the owner without its activeness check.
