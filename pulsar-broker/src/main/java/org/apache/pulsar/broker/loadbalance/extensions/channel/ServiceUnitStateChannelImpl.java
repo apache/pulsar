@@ -460,8 +460,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
-        // If the channel is disabled or closed, this broker cannot be an active owner.
+        // If the channel is disabled or closed, this broker cannot be the active owner.
+        // If the table already has an owner, and it is not local, return it as is for upper-level redirection;
+        // otherwise, return empty.
         if (channelState == Disabled || channelState == Closed) {
+            if (owner.isPresent() && !isTargetBroker(owner.get())) {
+                return CompletableFuture.completedFuture(owner);
+            }
             return CompletableFuture.completedFuture(Optional.empty());
         }
         // If this broker's registry does not exist(possibly suffering from connecting to the metadata store),
