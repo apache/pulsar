@@ -23,6 +23,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
@@ -67,7 +68,15 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
 
     @VisibleForTesting
     InMemoryDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+        DelayedDeliveryContext context = new DispatcherDelayedDeliveryContext(dispatcher);
+        return new InMemoryDelayedDeliveryTracker(context, timer, tickTimeMillis,
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+    }
+
+    @VisibleForTesting
+    InMemoryDelayedDeliveryTracker newTracker0(String dispatcherName, ManagedCursor cursor) {
+        DelayedDeliveryContext context = new NoopDelayedDeliveryContext(dispatcherName, cursor);
+        return new InMemoryDelayedDeliveryTracker(context, timer, tickTimeMillis,
                 isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
     }
 

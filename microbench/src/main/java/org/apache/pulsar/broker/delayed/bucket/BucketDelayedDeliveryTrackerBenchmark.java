@@ -27,7 +27,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.MockPersistentDispatcher;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ActiveManagedCursorContainerImpl;
+import org.apache.bookkeeper.mledger.impl.MockManagedCursor;
+import org.apache.pulsar.broker.delayed.NoopDelayedDeliveryContext;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -68,7 +71,7 @@ public class BucketDelayedDeliveryTrackerBenchmark {
     private BucketDelayedDeliveryTracker tracker;
     private Timer timer;
     private MockBucketSnapshotStorage storage;
-    private MockPersistentDispatcher dispatcher;
+    private NoopDelayedDeliveryContext context;
     private AtomicLong messageIdGenerator;
 
     @Setup(Level.Trial)
@@ -92,12 +95,16 @@ public class BucketDelayedDeliveryTrackerBenchmark {
     private void setupMockComponents() throws Exception {
         timer = new HashedWheelTimer(new DefaultThreadFactory("test-delayed-delivery"), 100, TimeUnit.MILLISECONDS);
         storage = new MockBucketSnapshotStorage();
-        dispatcher = MockPersistentDispatcher.create();
+
+        ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
+        MockManagedCursor cursor = MockManagedCursor.createCursor(container, "test-cursor",
+                PositionFactory.create(0, 0));
+        context = new NoopDelayedDeliveryContext("delayed-JMH", cursor);
     }
 
     private void createTracker() throws Exception {
         tracker = new BucketDelayedDeliveryTracker(
-                dispatcher, timer, 1000, Clock.systemUTC(), true, storage,
+                context, timer, 1000, Clock.systemUTC(), true, storage,
                 20, 1000, 100, 50
         );
     }
