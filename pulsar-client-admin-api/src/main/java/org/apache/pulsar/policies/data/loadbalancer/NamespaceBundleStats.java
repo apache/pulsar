@@ -37,14 +37,14 @@ public class NamespaceBundleStats implements Comparable<NamespaceBundleStats>, S
     public long topics;
     public long cacheSize;
 
-    // Consider the throughput equal if difference is less than 100 KB/s
-    private static final double throughputDifferenceThreshold = 1e5;
-    // Consider the msgRate equal if the difference is less than 100
-    private static final double msgRateDifferenceThreshold = 100;
-    // Consider the total topics/producers/consumers equal if the difference is less than 500
-    private static final long topicConnectionDifferenceThreshold = 500;
-    // Consider the cache size equal if the difference is less than 100 kb
-    private static final long cacheSizeDifferenceThreshold = 100000;
+    // When comparing throughput, uses a resolution of 100 KB/s, effectively rounding values before comparison
+    private static final double throughputComparisonResolution = 1e5;
+    // When comparing message rate, uses a resolution of 100, effectively rounding values before comparison
+    private static final double msgRateComparisonResolution = 100;
+    // When comparing total topics/producers/consumers, uses a resolution/rounding of 500
+    private static final long topicConnectionComparisonResolution = 500;
+    // When comparing cache size, uses a resolution/rounding of 100kB
+    private static final long cacheSizeComparisonResolution = 100000;
 
     public NamespaceBundleStats() {
         reset();
@@ -89,39 +89,33 @@ public class NamespaceBundleStats implements Comparable<NamespaceBundleStats>, S
     public int compareByMsgRate(NamespaceBundleStats other) {
         double thisMsgRate = this.msgRateIn + this.msgRateOut;
         double otherMsgRate = other.msgRateIn + other.msgRateOut;
-        if (Math.abs(thisMsgRate - otherMsgRate) > msgRateDifferenceThreshold) {
-            return Double.compare(thisMsgRate, otherMsgRate);
-        }
-        return 0;
+        return compareDoubleWithResolution(thisMsgRate, otherMsgRate, msgRateComparisonResolution);
+    }
+
+    private static int compareDoubleWithResolution(double v1, double v2, double resolution) {
+        return Long.compare(Math.round(v1 / resolution), Math.round(v2 / resolution));
+    }
+
+    private static int compareLongWithResolution(long v1, long v2, long resolution) {
+        return Long.compare(v1 / resolution, v2 / resolution);
     }
 
     public int compareByTopicConnections(NamespaceBundleStats other) {
         long thisTopicsAndConnections = this.topics + this.consumerCount + this.producerCount;
         long otherTopicsAndConnections = other.topics + other.consumerCount + other.producerCount;
-        if (Math.abs(thisTopicsAndConnections - otherTopicsAndConnections) > topicConnectionDifferenceThreshold) {
-            return Long.compare(thisTopicsAndConnections, otherTopicsAndConnections);
-        }
-        return 0;
+        return compareLongWithResolution(thisTopicsAndConnections, otherTopicsAndConnections,
+                topicConnectionComparisonResolution);
     }
 
     public int compareByCacheSize(NamespaceBundleStats other) {
-        if (Math.abs(this.cacheSize - other.cacheSize) > cacheSizeDifferenceThreshold) {
-            return Long.compare(this.cacheSize, other.cacheSize);
-        }
-        return 0;
+        return compareLongWithResolution(cacheSize, other.cacheSize, cacheSizeComparisonResolution);
     }
 
     public int compareByBandwidthIn(NamespaceBundleStats other) {
-        if (Math.abs(this.msgThroughputIn - other.msgThroughputIn) > throughputDifferenceThreshold) {
-            return Double.compare(this.msgThroughputIn, other.msgThroughputIn);
-        }
-        return 0;
+        return compareDoubleWithResolution(msgThroughputIn, other.msgThroughputIn, throughputComparisonResolution);
     }
 
     public int compareByBandwidthOut(NamespaceBundleStats other) {
-        if (Math.abs(this.msgThroughputOut - other.msgThroughputOut) > throughputDifferenceThreshold) {
-            return Double.compare(this.msgThroughputOut, other.msgThroughputOut);
-        }
-        return 0;
+        return compareDoubleWithResolution(msgThroughputOut, other.msgThroughputOut, throughputComparisonResolution);
     }
 }
