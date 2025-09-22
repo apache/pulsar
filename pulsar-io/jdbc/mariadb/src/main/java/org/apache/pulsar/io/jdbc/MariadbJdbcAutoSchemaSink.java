@@ -104,6 +104,9 @@ public class MariadbJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
     @Override
     protected boolean handleDateTime(PreparedStatement statement, int index, Object value, String targetSqlType)
             throws Exception {
+        if (targetSqlType == null) {
+            return false;
+        }
         switch (targetSqlType) {
             case "Timestamp":
                 statement.setTimestamp(index, (Timestamp) value);

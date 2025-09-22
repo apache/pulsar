@@ -409,8 +409,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             return null;
         }
         if (fn.isContainerNode()) {
-            throw new IllegalArgumentException("Container nodes are not supported, the JSON must contains only "
-                    + "first level fields.");
+            return fn.toString();
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
         } else if (fn.isFloatingPointNumber()) {
