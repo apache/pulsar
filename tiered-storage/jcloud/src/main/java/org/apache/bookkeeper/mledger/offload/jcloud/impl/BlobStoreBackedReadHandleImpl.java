@@ -181,8 +181,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 }
                 promise.complete(LedgerEntriesImpl.create(entryCollector));
             } catch (Throwable t) {
-                log.error("Failed to read entries {} - {} from the offloader in ledger {}",
-                        firstEntry, lastEntry, ledgerId, t);
+                log.error("Failed to read entries {} - {} from the offloader in ledger {}, current position of input"
+                        + " stream is {}", firstEntry, lastEntry, ledgerId, inputStream.getCurrentPosition(), t);
                 if (t instanceof KeyNotFoundException) {
                     promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
                 } else {
@@ -285,13 +285,16 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 inputStream.seek(indexOfNearestEntry.getDataOffset());
                 return;
             }
-            // 2. Try to use the previous index.
+            // 2. Try to use the previous index. Since the entry-0 must have a precise index, we can skip to check
+            //    whether "expectedEntryId" is larger than 0;
             Long cachedPreviousKnownOffset = entryOffsetsCache.getIfPresent(ledgerId, expectedEntryId - 1);
             if (cachedPreviousKnownOffset != null) {
                 inputStream.seek(cachedPreviousKnownOffset);
                 skipPreviousEntry(expectedEntryId - 1, expectedEntryId);
+                return;
             }
             // 3. Use the persistent index of the nearest entry that is smaller than "expectedEntryId".
+            //    Because it is a sparse index, some entries need to be skipped.
             if (indexOfNearestEntry.getEntryId() < expectedEntryId) {
                 inputStream.seek(indexOfNearestEntry.getDataOffset());
                 skipPreviousEntry(indexOfNearestEntry.getEntryId(), expectedEntryId);
