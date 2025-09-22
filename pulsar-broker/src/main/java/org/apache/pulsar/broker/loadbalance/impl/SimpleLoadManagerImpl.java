@@ -820,7 +820,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     minLoadPercentage = loadPercentage;
                 } else {
                     if ((unboundedRanks ? ranking.compareMessageRateTo(selectedRanking)
-                            : ranking.compareTo(selectedRanking)) < 0) {
+                            : ranking.compareToOtherRanking(selectedRanking)) < 0) {
                         minLoadPercentage = loadPercentage;
                         selectedRU = candidate;
                         selectedRanking = ranking;
