@@ -203,7 +203,13 @@ public class TopicListService {
                                 "[{}] Received WatchTopicList for namespace [//{}] by {}",
                                 connection.toString(), namespaceName, requestId);
                     }
-                    connection.getCommandSender().sendWatchTopicListSuccess(requestId, watcherId, hash, topicList);
+                    connection.getCommandSender().sendWatchTopicListSuccess(requestId, watcherId, hash, topicList,
+                            t -> {
+                                // TODO add retry with backoff
+                                log.warn("[{}] Cannot acquire direct memory tokens for sending topic list success."
+                                                + "State will be inconsistent on the client. {}",
+                                        connection.toString(), t.getMessage());
+                            });
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
@@ -288,8 +294,13 @@ public class TopicListService {
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics) {
-        connection.getCommandSender().sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash);
+        connection.getCommandSender().sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
+                t -> {
+                    // TODO add retry with backoff
+                    log.warn(
+                            "[{}] Cannot acquire direct memory tokens for sending topic list update. State will be "
+                                    + "inconsistent on the client. {}",
+                            connection.toString(), t.getMessage());
+                });
     }
-
-
 }

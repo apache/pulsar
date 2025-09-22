@@ -178,6 +178,7 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -249,6 +250,8 @@ public class BrokerService implements Closeable {
     private final SingleThreadNonConcurrentFixedRateScheduler backlogQuotaChecker;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
+    @Getter
+    private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
     public static final String TOPIC_LOOKUP_USAGE_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.usage";
@@ -374,6 +377,14 @@ public class BrokerService implements Closeable {
         updateConfigurationAndRegisterListeners();
         this.lookupRequestSemaphore = new AtomicReference<>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
+        // Initialize topic list memory limiter
+        this.maxTopicListInFlightLimiter = new AsyncDualMemoryLimiterImpl(
+                pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
+                pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
+                pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),
+                pulsar.getConfiguration().getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
+                pulsar.getConfiguration().getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
+                pulsar.getConfiguration().getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
         this.topicLoadRequestSemaphore = new AtomicReference<>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), false));
         if (pulsar.getConfiguration().getMaxUnackedMessagesPerBroker() > 0
@@ -860,6 +871,8 @@ public class BrokerService implements Closeable {
                                         asyncCloseFutures.add(closeChannel(ch));
                                     }
                                 });
+
+                                maxTopicListInFlightLimiter.close();
 
                                 if (interceptor != null) {
                                     interceptor.close();

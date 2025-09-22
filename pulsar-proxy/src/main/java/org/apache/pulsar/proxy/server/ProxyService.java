@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -154,6 +155,9 @@ public class ProxyService implements Closeable {
     @Getter
     private final ConnectionController connectionController;
 
+    @Getter
+    private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
+
     private boolean gracefulShutdown = true;
 
     public ProxyService(ProxyConfiguration proxyConfig,
@@ -212,6 +216,15 @@ public class ProxyService implements Closeable {
         this.connectionController = new ConnectionController.DefaultConnectionController(
                 proxyConfig.getMaxConcurrentInboundConnections(),
                 proxyConfig.getMaxConcurrentInboundConnectionsPerIp());
+
+        // Initialize topic list memory limiter
+        this.maxTopicListInFlightLimiter = new AsyncDualMemoryLimiterImpl(
+                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
+                proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
+                proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),
+                proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
+                proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
+                proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
     }
 
     public void start() throws Exception {
@@ -390,6 +403,8 @@ public class ProxyService implements Closeable {
         closeAllConnections();
 
         dnsAddressResolverGroup.close();
+
+        maxTopicListInFlightLimiter.close();
 
         if (discoveryProvider != null) {
             discoveryProvider.close();
