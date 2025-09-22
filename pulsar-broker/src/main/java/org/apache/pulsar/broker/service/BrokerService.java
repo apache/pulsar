@@ -473,8 +473,9 @@ public class BrokerService implements Closeable {
 
         this.bundlesQuotas = new BundlesQuotas(pulsar);
         if (pulsar.getConfiguration().getManagedLedgerDeleteRateLimit() > 0) {
-            log.info("Setting managed ledger deletion rate limit to {}",
-                    pulsar.getConfiguration().getManagedLedgerDeleteRateLimit());
+            log.info("Setting managed ledger deletion rate limit to {}, concurrency {}",
+                    pulsar.getConfiguration().getManagedLedgerDeleteRateLimit(),
+                    pulsar.getConfiguration().getManagedLedgerDeleteConcurrency());
             this.ledgerDeletionRateLimiter = RateLimiter.create(
                     pulsar.getConfiguration().getManagedLedgerDeleteRateLimit());
             this.ledgerDeletionExecutorProvider = new ExecutorProvider(

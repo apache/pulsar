@@ -2210,7 +2210,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double managedLedgerDeleteRateLimit = 1000.0;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
-            doc = "Concurrency level for deleting ledgers at broker level when enabling managedLedgerDeleteRateLimit"
+            doc = "Concurrency level for deleting ledgers at broker level when rate limiting is enabled"
     )
     private int managedLedgerDeleteConcurrency = 5;
     @FieldContext(

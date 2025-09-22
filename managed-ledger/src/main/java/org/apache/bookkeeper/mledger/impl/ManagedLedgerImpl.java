@@ -355,8 +355,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastEvictOffloadedLedgers;
     private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
 
-    private RateLimiter deleteLedgerRateLimiter;
-    private ExecutorService deleteLedgerExecutor;
+    private RateLimiter deleteLedgerRateLimiter = null;
+    private ExecutorService deleteLedgerExecutor = null;
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
