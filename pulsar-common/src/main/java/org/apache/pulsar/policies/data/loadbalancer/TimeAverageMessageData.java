@@ -45,10 +45,10 @@ public class TimeAverageMessageData implements Comparable<TimeAverageMessageData
     // The average message rate out per second.
     private double msgRateOut;
 
-    // Consider the throughput equal if difference is less than 100 KB/s
+    // When comparing throughput, uses a resolution of 100 KB/s, effectively rounding values before comparison
     private static final double throughputComparisonResolution = 1e5;
-    // Consider the msgRate equal if the difference is less than 100
-    private static final double msgRateComparisionResolution = 100;
+    // When comparing message rate, uses a resolution of 100, effectively rounding values before comparison
+    private static final double msgRateComparisonResolution = 100;
 
     // For JSON only.
     public TimeAverageMessageData() {
@@ -203,7 +203,7 @@ public class TimeAverageMessageData implements Comparable<TimeAverageMessageData
     public int compareByMsgRate(TimeAverageMessageData other) {
         double thisMsgRate = this.msgRateIn + this.msgRateOut;
         double otherMsgRate = other.msgRateIn + other.msgRateOut;
-        return compareDoubleWithResolution(thisMsgRate, otherMsgRate, msgRateComparisionResolution);
+        return compareDoubleWithResolution(thisMsgRate, otherMsgRate, msgRateComparisonResolution);
     }
 
     public int compareByBandwidthIn(TimeAverageMessageData other) {

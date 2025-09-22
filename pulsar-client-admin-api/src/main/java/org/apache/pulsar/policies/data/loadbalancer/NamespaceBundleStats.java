@@ -37,13 +37,13 @@ public class NamespaceBundleStats implements Comparable<NamespaceBundleStats>, S
     public long topics;
     public long cacheSize;
 
-    // Consider the throughput equal if difference is less than 100 KB/s
+    // When comparing throughput, uses a resolution of 100 KB/s, effectively rounding values before comparison
     private static final double throughputComparisonResolution = 1e5;
-    // Consider the msgRate equal if the difference is less than 100
+    // When comparing message rate, uses a resolution of 100, effectively rounding values before comparison
     private static final double msgRateComparisonResolution = 100;
-    // Consider the total topics/producers/consumers equal if the difference is less than 500
+    // When comparing total topics/producers/consumers, uses a resolution/rounding of 500
     private static final long topicConnectionComparisonResolution = 500;
-    // Consider the cache size equal if the difference is less than 100 kb
+    // When comparing cache size, uses a resolution/rounding of 100kB
     private static final long cacheSizeComparisonResolution = 100000;
 
     public NamespaceBundleStats() {
