@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,7 +47,6 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
-import org.apache.commons.lang3.tuple.MutableTriple;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
