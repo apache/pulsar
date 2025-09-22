@@ -43,6 +43,9 @@ public class TimedSingleThreadRateLimiter {
 
     public int acquire(int permits) {
         final long now = System.currentTimeMillis();
+        if (permits < 0) {
+            return 0;
+        }
         if (now > closeAfterAtMs) {
             return permits;
         }
@@ -64,7 +67,11 @@ public class TimedSingleThreadRateLimiter {
     }
 
     public void timingOpen(long closeAfter, final TimeUnit unit) {
-        this.closeAfterAtMs = System.currentTimeMillis() + unit.toMillis(closeAfter);
+        if (closeAfter <= 0) {
+            this.closeAfterAtMs = 0;
+        } else {
+            this.closeAfterAtMs = System.currentTimeMillis() + unit.toMillis(closeAfter);
+        }
     }
 
     private void mayRenew(long now) {

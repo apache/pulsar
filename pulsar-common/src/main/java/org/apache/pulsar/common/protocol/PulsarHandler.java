@@ -26,6 +26,7 @@ import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 import lombok.Setter;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
@@ -61,7 +62,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    protected void messageReceived() {
+    protected void messageReceived(BaseCommand cmd) {
         waitingForPingResponse = false;
     }
 

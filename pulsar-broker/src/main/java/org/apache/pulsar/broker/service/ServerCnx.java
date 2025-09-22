@@ -451,7 +451,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    protected void checkRateLimit(BaseCommand cmd) {
+    private void checkRateLimit(BaseCommand cmd) {
         if (cmd.getType() == BaseCommand.Type.PONG && cmd.getType() == BaseCommand.Type.PING) {
             return;
         }
@@ -3700,8 +3700,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void messageReceived() {
-        super.messageReceived();
+    protected void messageReceived(BaseCommand cmd) {
+        checkRateLimit(cmd);
+        super.messageReceived(cmd);
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
             connectionCheckInProgress.complete(Optional.of(true));
             connectionCheckInProgress = null;
