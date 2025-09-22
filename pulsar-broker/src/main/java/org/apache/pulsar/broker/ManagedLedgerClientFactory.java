@@ -54,6 +54,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerClientFactory.class);
     private static final String DEFAULT_STORAGE_CLASS_NAME = "bookkeeper";
     private BookkeeperManagedLedgerStorageClass defaultStorageClass;
+    private BookKeeperClientFactory bookkeeperProvider;
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
@@ -67,9 +68,18 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     @Override
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                           BookKeeperClientFactory bookkeeperProvider,
-                           EventLoopGroup eventLoopGroup,
-                           OpenTelemetry openTelemetry) throws Exception {
+                           OpenTelemetry openTelemetry) {
+        throw new IllegalStateException("The initialize method should not be called for the built-in storage");
+    }
+
+    @VisibleForTesting
+    public ManagedLedgerClientFactory() {
+    }
+
+    public ManagedLedgerClientFactory(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
+                                      EventLoopGroup eventLoopGroup,
+                                      OpenTelemetry openTelemetry) throws Exception {
+        this.bookkeeperProvider = new BookKeeperClientFactoryImpl();
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
@@ -171,6 +181,11 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             }
 
             @Override
+            public BookKeeperClientFactory getBookKeeperClientFactory() {
+                return bookkeeperProvider;
+            }
+
+            @Override
             public BookKeeper getBookKeeperClient() {
                 return defaultBkClient;
             }
@@ -246,6 +261,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                     log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
                 }
             });
+            bookkeeperProvider.close();
             log.info("Closed BookKeeper client");
         } catch (Exception e) {
             log.warn(e.getMessage(), e);
