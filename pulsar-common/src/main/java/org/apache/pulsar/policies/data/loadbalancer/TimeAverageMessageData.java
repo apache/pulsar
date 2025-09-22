@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import static org.apache.pulsar.common.util.CompareUtil.compareDoubleWithResolution;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -45,9 +46,9 @@ public class TimeAverageMessageData implements Comparable<TimeAverageMessageData
     private double msgRateOut;
 
     // Consider the throughput equal if difference is less than 100 KB/s
-    private static final double throughputDifferenceThreshold = 1e5;
+    private static final double throughputComparisonResolution = 1e5;
     // Consider the msgRate equal if the difference is less than 100
-    private static final double msgRateDifferenceThreshold = 100;
+    private static final double msgRateComparisionResolution = 100;
 
     // For JSON only.
     public TimeAverageMessageData() {
@@ -202,23 +203,14 @@ public class TimeAverageMessageData implements Comparable<TimeAverageMessageData
     public int compareByMsgRate(TimeAverageMessageData other) {
         double thisMsgRate = this.msgRateIn + this.msgRateOut;
         double otherMsgRate = other.msgRateIn + other.msgRateOut;
-        if (Math.abs(thisMsgRate - otherMsgRate) > msgRateDifferenceThreshold) {
-            return Double.compare(thisMsgRate, otherMsgRate);
-        }
-        return 0;
+        return compareDoubleWithResolution(thisMsgRate, otherMsgRate, msgRateComparisionResolution);
     }
 
     public int compareByBandwidthIn(TimeAverageMessageData other) {
-        if (Math.abs(this.msgThroughputIn - other.msgThroughputIn) > throughputDifferenceThreshold) {
-            return Double.compare(this.msgThroughputIn, other.msgThroughputIn);
-        }
-        return 0;
+        return compareDoubleWithResolution(msgThroughputIn, other.msgThroughputIn, throughputComparisonResolution);
     }
 
     public int compareByBandwidthOut(TimeAverageMessageData other) {
-        if (Math.abs(this.msgThroughputOut - other.msgThroughputOut) > throughputDifferenceThreshold) {
-            return Double.compare(this.msgThroughputOut, other.msgThroughputOut);
-        }
-        return 0;
+        return compareDoubleWithResolution(msgThroughputOut, other.msgThroughputOut, throughputComparisonResolution);
     }
 }
