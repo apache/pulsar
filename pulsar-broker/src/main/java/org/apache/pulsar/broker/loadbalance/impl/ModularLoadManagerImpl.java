@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.models.BundleDataComparator;
 import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -189,7 +190,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
     // array used for sorting and select topK bundles
-    private final List<Map.Entry<String, ? extends Comparable>> bundleArr = new ArrayList<>();
+    private final List<Map.Entry<String, BundleData>> bundleArr = new ArrayList<>();
+    public static final BundleDataComparator bundleDataComparator = new BundleDataComparator();
+
 
 
     /**
@@ -1170,7 +1173,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 // no bundle to update
                 return 0;
             }
-            TopKBundles.partitionSort(bundleArr, updateBundleCount);
+            TopKBundles.partitionSort(bundleArr, updateBundleCount, bundleDataComparator);
             return updateBundleCount;
         }
     }

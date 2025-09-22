@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -288,8 +289,8 @@ public class TopKBundlesTest {
     public void testPartitionSort() {
 
         Random rand = new Random();
-        List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
-        List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
+        List<Map.Entry<String, Integer>> actual = new ArrayList<>();
+        List<Map.Entry<String, Integer>> expected = new ArrayList<>();
 
         for (int j = 0; j < 100; j++) {
             Map<String, Integer> map = new HashMap<>();
@@ -305,8 +306,8 @@ public class TopKBundlesTest {
                 expected.add(etr);
             }
             int topk = rand.nextInt(max) + 1;
-            TopKBundles.partitionSort(actual, topk);
-            Collections.sort(expected, (a, b) -> b.getValue().compareTo(a.getValue()));
+            TopKBundles.partitionSort(actual, topk, (a, b) -> b.compareTo(a));
+            Collections.sort(expected, (a, b) -> a.getValue().compareTo(b.getValue()));
             String errorMsg = null;
             for (int i = 0; i < topk; i++) {
                 Integer l = (Integer) actual.get(i).getValue();
@@ -318,5 +319,58 @@ public class TopKBundlesTest {
                 assertNull(errorMsg);
             }
         }
+    }
+
+    @Test
+    public void testCollectionsSortFailsWithTransitivityViolation() {
+        // Create many elements with values that are more likely to trigger transitivity violation detection
+        // Using the same approach as testPartitionSortTransitivityIssue but with Collections.sort
+        Random rnd = new Random(0);
+        ArrayList<NamespaceBundleStats> stats = new ArrayList<>();
+        
+        // Create 1000 elements with values around the threshold boundary
+        for (int i = 0; i < 1000; ++i) {
+            NamespaceBundleStats statsA = new NamespaceBundleStats();
+            statsA.msgThroughputIn = 4 * 75000 * rnd.nextDouble();  // Values around threshold (1e5)
+            statsA.msgThroughputOut = 75000000 - (4 * (75000 * rnd.nextDouble()));
+            statsA.msgRateIn = 4 * 75 * rnd.nextDouble();
+            statsA.msgRateOut = 75000 - (4 * 75 * rnd.nextDouble());
+            statsA.topics = i;
+            statsA.consumerCount = i;
+            statsA.producerCount = 4 * rnd.nextInt(375);
+            statsA.cacheSize = 75000000 - (rnd.nextInt(4 * 75000));
+            stats.add(statsA);
+        }
+
+        List<Map.Entry<String, NamespaceBundleStats>> bundleEntries = new ArrayList<>();
+        for (NamespaceBundleStats s : stats) {
+            bundleEntries.add(new HashMap.SimpleEntry<>("bundle-" + s.msgThroughputIn, s));
+        }
+
+        // This should throw IllegalArgumentException due to transitivity violation
+        try {
+            Collections.sort(bundleEntries, (a, b) -> a.getValue().compareTo(b.getValue()));
+            System.out.println("SUCCESS: Collections.sort completed without throwing exception!");
+        } catch (IllegalArgumentException e) {
+            System.out.println("ERROR: Collections.sort detected transitivity violation!");
+            System.out.println("Exception message: " + e.getMessage());
+            
+            // Verify the exception message contains the expected text
+            assertTrue(e.getMessage().contains("Comparison method violates its general contract") ||
+                      e.getMessage().contains("transitivity") ||
+                      e.getMessage().contains("comparison"),
+                      "Expected IllegalArgumentException about comparison contract violation, got: " + e.getMessage());
+        }
+
+        // Now test that TopKBundles.partitionSort works with the same data
+        // Create bundle entries for partitionSort
+        List<Map.Entry<String, NamespaceBundleStats>> bundleEntriesForPartitionSort = new ArrayList<>();
+        for (NamespaceBundleStats s : stats) {
+            bundleEntriesForPartitionSort.add(new HashMap.SimpleEntry<>("bundle-" + s.msgThroughputIn, s));
+        }
+        
+        // This should work without throwing an exception
+        TopKBundles.partitionSort(bundleEntriesForPartitionSort, 10, TopKBundles.strictNamespaceBundleStatsComparator.reversed());
+
     }
 }
