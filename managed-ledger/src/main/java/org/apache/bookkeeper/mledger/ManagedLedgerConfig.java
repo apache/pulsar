@@ -24,6 +24,8 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.util.concurrent.RateLimiter;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -61,7 +63,7 @@ public class ManagedLedgerConfig {
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
-    private double throttleDeleteLedger = 0;
+    private RateLimiter ledgerDeletaRateLimiter;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -412,22 +414,14 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * @return the throttling rate limit for delete-ledger calls
+     * @return the throttling rate limit for mark-delete calls
      */
-    public double getThrottleDeleteLedger() {
-        return throttleDeleteLedger;
+    public RateLimiter getLedgerDeletaRateLimiter() {
+        return ledgerDeletaRateLimiter;
     }
 
-    /**
-     * Set the rate limiter on how many delete-ledger calls per second are allowed. If the value is set to 0, the rate
-     * limiter is disabled. Default is 0.
-     *
-     * @param throttleDeleteLedger
-     *            the max number of delete-ledger calls allowed per second
-     */
-    public ManagedLedgerConfig setThrottleDeleteLedger(double throttleDeleteLedger) {
-        checkArgument(throttleDeleteLedger >= 0.0);
-        this.throttleDeleteLedger = throttleDeleteLedger;
+    public ManagedLedgerConfig setLedgerDeleteRateLimiter(RateLimiter rateLimiter) {
+        this.ledgerDeletaRateLimiter = rateLimiter;
         return this;
     }
 

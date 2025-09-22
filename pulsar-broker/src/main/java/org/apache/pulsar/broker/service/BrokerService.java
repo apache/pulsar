@@ -329,6 +329,9 @@ public class BrokerService implements Closeable {
     private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
     private volatile boolean unloaded = false;
 
+    // rate limiter for ledger deletion at broker level, thus all managed ledgers sharing the same rate limiter
+    private final RateLimiter ledgerDeletionRateLimiter;
+
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
         this.clock = pulsar.getClock();
@@ -468,6 +471,14 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar);
+        if (pulsar.getConfiguration().getManagedLedgerDeleteRateLimit() > 0) {
+            log.info("Setting managed ledger deletion rate limit to {}",
+                    pulsar.getConfiguration().getManagedLedgerDeleteRateLimit());
+            this.ledgerDeletionRateLimiter = RateLimiter.create(
+                    pulsar.getConfiguration().getManagedLedgerDeleteRateLimit());
+        } else {
+            this.ledgerDeletionRateLimiter = null;
+        }
     }
 
     protected DispatchRateLimiterFactory createDispatchRateLimiterFactory(ServiceConfiguration config)
@@ -2058,7 +2069,7 @@ public class BrokerService implements Closeable {
             managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate() >= 0
                     ? persistencePolicies.getManagedLedgerMaxMarkDeleteRate()
                     : serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
-            managedLedgerConfig.setThrottleDeleteLedger(serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
+            managedLedgerConfig.setLedgerDeleteRateLimiter(this.ledgerDeletionRateLimiter);
             managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
             managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
 
