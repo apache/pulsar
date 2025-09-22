@@ -395,6 +395,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 List<MessagePurgeEventData.LedgerInfo> purgedLedgers = Arrays.stream(ledgerInfos)
                         .map(n -> MessagePurgeEventData.LedgerInfo.builder()
                                 .ledgerId(n.getLedgerId()).entries(n.getEntries())
+                                .timestamp(n.getTimestamp())
                                 .build())
                         .toList();
                 brokerService.getTopicEventsDispatcher()

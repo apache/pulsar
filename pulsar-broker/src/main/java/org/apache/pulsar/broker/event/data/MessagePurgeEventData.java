@@ -39,5 +39,6 @@ public class MessagePurgeEventData implements EventData {
     public static class LedgerInfo {
         long ledgerId;
         long entries;
+        long timestamp;
     }
 }
