@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.RateLimiter;
@@ -64,6 +65,7 @@ public class ManagedLedgerConfig {
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
     private RateLimiter ledgerDeletaRateLimiter;
+    private ExecutorService ledgerDeleteExecutor;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -422,6 +424,18 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setLedgerDeleteRateLimiter(RateLimiter rateLimiter) {
         this.ledgerDeletaRateLimiter = rateLimiter;
+        return this;
+    }
+
+    /**
+     * @return the executor service to be used for deleting ledgers
+     */
+    public ExecutorService getLedgerDeleteExecutor() {
+        return ledgerDeleteExecutor;
+    }
+
+    public ManagedLedgerConfig setLedgerDeleteExecutor(ExecutorService executor) {
+        this.ledgerDeleteExecutor = executor;
         return this;
     }
 

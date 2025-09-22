@@ -331,6 +331,7 @@ public class BrokerService implements Closeable {
 
     // rate limiter for ledger deletion at broker level, thus all managed ledgers sharing the same rate limiter
     private final RateLimiter ledgerDeletionRateLimiter;
+    private final ExecutorProvider ledgerDeletionExecutorProvider;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -476,8 +477,12 @@ public class BrokerService implements Closeable {
                     pulsar.getConfiguration().getManagedLedgerDeleteRateLimit());
             this.ledgerDeletionRateLimiter = RateLimiter.create(
                     pulsar.getConfiguration().getManagedLedgerDeleteRateLimit());
+            this.ledgerDeletionExecutorProvider = new ExecutorProvider(
+                    pulsar.getConfiguration().getManagedLedgerDeleteConcurrency(),
+                    "pulsar-ledger-deletion");
         } else {
             this.ledgerDeletionRateLimiter = null;
+            this.ledgerDeletionExecutorProvider = null;
         }
     }
 
@@ -2070,6 +2075,7 @@ public class BrokerService implements Closeable {
                     ? persistencePolicies.getManagedLedgerMaxMarkDeleteRate()
                     : serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
             managedLedgerConfig.setLedgerDeleteRateLimiter(this.ledgerDeletionRateLimiter);
+            managedLedgerConfig.setLedgerDeleteExecutor(this.ledgerDeletionExecutorProvider.getExecutor());
             managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
             managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
 

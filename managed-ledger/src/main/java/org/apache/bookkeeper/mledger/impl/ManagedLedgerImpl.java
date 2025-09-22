@@ -356,6 +356,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
 
     private RateLimiter deleteLedgerRateLimiter;
+    private ExecutorService deleteLedgerExecutor;
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
@@ -407,6 +408,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.managedLedgerAttributes = new ManagedLedgerAttributes(this);
         if (config.getLedgerDeletaRateLimiter() != null) {
             this.deleteLedgerRateLimiter = config.getLedgerDeletaRateLimiter();
+            this.deleteLedgerExecutor = config.getLedgerDeleteExecutor();
         }
     }
 
@@ -3414,10 +3416,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, null);
     }
 
+    /**
+     * Delete a ledger asynchronously, applying rate limiting if configured.
+     * @param ledgerId
+     * @param cb
+     * @param ctx
+     */
     private void asyncDeleteLedgerWithRateLimit(long ledgerId, org.apache.bookkeeper.client.AsyncCallback.DeleteCallback cb,
                                                 Object ctx) {
-        deleteLedgerRateLimiter.acquire();
-        bookKeeper.asyncDeleteLedger(ledgerId, cb, ctx);
+        if (deleteLedgerRateLimiter != null) {
+            deleteLedgerExecutor.execute(() -> {
+                deleteLedgerRateLimiter.acquire();
+                bookKeeper.asyncDeleteLedger(ledgerId, cb, ctx);
+            });
+        } else {
+            bookKeeper.asyncDeleteLedger(ledgerId, cb, ctx);
+        }
     }
 
     @SuppressWarnings("checkstyle:fallthrough")
