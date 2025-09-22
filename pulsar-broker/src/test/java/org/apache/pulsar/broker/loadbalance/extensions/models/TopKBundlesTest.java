@@ -271,4 +271,29 @@ public class TopKBundlesTest {
             }
         }
     }
+
+    // Issue https://github.com/apache/pulsar/issues/24754
+    @Test
+    public void testPartitionSortCompareToContractViolationIssue() {
+        Random rnd = new Random(0);
+        ArrayList<NamespaceBundleStats> stats = new ArrayList<>();
+        for (int i = 0; i < 1000; ++i) {
+            NamespaceBundleStats s = new NamespaceBundleStats();
+            s.msgThroughputIn = 4 * 75000 * rnd.nextDouble();  // Just above threshold (1e5)
+            s.msgThroughputOut = 75000000 - (4 * (75000 * rnd.nextDouble()));
+            s.msgRateIn = 4 * 75 * rnd.nextDouble();
+            s.msgRateOut = 75000 - (4 * 75 * rnd.nextDouble());
+            s.topics = i;
+            s.consumerCount = i;
+            s.producerCount = 4 * rnd.nextInt(375);
+            s.cacheSize = 75000000 - (rnd.nextInt(4 * 75000));
+            stats.add(s);
+        }
+        List<Map.Entry<String, ? extends Comparable>> bundleEntries = new ArrayList<>();
+
+        for (NamespaceBundleStats s : stats) {
+            bundleEntries.add(Map.entry("bundle-" + s.msgThroughputIn, s));
+        }
+        TopKBundles.partitionSort(bundleEntries, 100);
+    }
 }
