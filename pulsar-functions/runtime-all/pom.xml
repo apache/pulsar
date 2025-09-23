@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>4.1.1-SNAPSHOT</version>
+    <version>4.1.1</version>
   </parent>
 
   <!--
