@@ -948,7 +948,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " many requests should be allowed in the rate limiting period."
 
     )
-    private int pulsarChannelRateLimitingRequestsAfterResumeFromUnreadable = 5;
+    private int pulsarChannelFailureCooldownRateLimitRate = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -957,7 +957,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " period in milliseconds."
 
     )
-    private int pulsarChannelRateLimitingRequestsPeriodAfterResumeFromUnreadable = 10;
+    private int pulsarChannelFailureCooldownRateLimitPeriod = 10;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -967,7 +967,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " reach the \"pulsarChannelWriteBufferHighWaterMark\"， the timer will be reset. Setting a negative"
             + " value will disable the rate limiting."
     )
-    private int pulsarChannelRateLimitingSecondsAfterResumeFromUnreadable = 5;
+    private int pulsarChannelFailureCooldownSeconds = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
