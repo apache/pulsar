@@ -30,8 +30,8 @@ import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 @NoArgsConstructor(force = true)
 @AllArgsConstructor
 public class ProducerConnectEventData implements EventData {
-    long id;
-    String name;
+    long producerId;
+    String producerName;
     String address;
     ProducerAccessMode accessMode;
     Long epoch;

@@ -1772,8 +1772,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ProducerConnectEventDataBuilder producerConnectEventDataBuilder = ProducerConnectEventData.builder()
                             .accessMode(producerAccessMode)
                             .address(producer.getCnx().toString())
-                            .id(producer.getProducerId())
-                            .name(producer.getProducerName());
+                            .producerId(producer.getProducerId())
+                            .producerName(producer.getProducerName());
                     newTopicEpoch.ifPresent(producerConnectEventDataBuilder::epoch);
                     newTopicEvent(topic.getName(), TopicEvent.PRODUCER_CONNECT)
                             .data(producerConnectEventDataBuilder.build())
@@ -3247,8 +3247,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void dispatchCloseProducerEvent(Producer producer, DisconnectInitiator initiator) {
         newTopicEvent(producer.getTopic().getName(), TopicEvent.PRODUCER_DISCONNECT)
                 .data(ProducerDisconnectEventData.builder()
-                        .id(producer.getProducerId())
-                        .name(producer.getProducerName())
+                        .producerId(producer.getProducerId())
+                        .producerName(producer.getProducerName())
                         .address(producer.getCnx().toString())
                         .initiator(initiator)
                         .build())

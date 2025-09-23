@@ -291,9 +291,9 @@ public class TopicEventsListenerTest extends BrokerTestBase {
                 .topic("persistent://prop/namespace/topic")
                 .stage(EventStage.SUCCESS)
                 .data(ProducerDisconnectEventData.builder()
-                        .id(1)
+                        .producerId(1)
                         .address("localhost:1234")
-                        .name("abc")
+                        .producerName("abc")
                         .build())
                 .build();
         byte[] bytes = objectMapper.writeValueAsBytes(eventContext);
