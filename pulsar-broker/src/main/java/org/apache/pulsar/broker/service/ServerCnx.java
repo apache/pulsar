@@ -321,11 +321,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.pauseReceivingRequestsIfUnwritable =
                 pulsar.getConfig().isPulsarChannelPauseReceivingRequestsIfUnwritable();
         this.requestRateLimiter = new TimedSingleThreadRateLimiter(
-                pulsar.getConfig().getPulsarChannelFailureCooldownRateLimitRate(),
-                pulsar.getConfig().getPulsarChannelFailureCooldownRateLimitPeriod(),
+                pulsar.getConfig().getPulsarChannelUnReadableCooldownLimitRate(),
+                pulsar.getConfig().getPulsarChannelUnReadableCooldownRateLimitPeriod(),
                 TimeUnit.MILLISECONDS);
         this.rateLimitingSecondsAfterResumeFromUnreadable =
-                pulsar.getConfig().getPulsarChannelFailureCooldownSeconds();
+                pulsar.getConfig().getPulsarChannelUnReadableCooldownSeconds();
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
