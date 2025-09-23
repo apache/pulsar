@@ -322,7 +322,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 pulsar.getConfig().isPulsarChannelPauseReceivingRequestsIfUnwritable();
         this.requestRateLimiter = new TimedSingleThreadRateLimiter(
                 pulsar.getConfig().getPulsarChannelRateLimitingRequestsAfterResumeFromUnreadable(),
-                1, TimeUnit.SECONDS);
+                pulsar.getConfig().getPulsarChannelRateLimitingRequestsPeriodAfterResumeFromUnreadable(),
+                TimeUnit.MILLISECONDS);
         this.rateLimitingSecondsAfterResumeFromUnreadable =
                 pulsar.getConfig().getPulsarChannelRateLimitingSecondsAfterResumeFromUnreadable();
         this.service = pulsar.getBrokerService();
@@ -452,7 +453,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void checkPauseReceivingRequestsAfterResumeRateLimit(BaseCommand cmd) {
-        if (cmd.getType() == BaseCommand.Type.PONG && cmd.getType() == BaseCommand.Type.PING) {
+        if (rateLimitingSecondsAfterResumeFromUnreadable <= 0 || cmd.getType() == BaseCommand.Type.PONG
+                || cmd.getType() == BaseCommand.Type.PING) {
             return;
         }
         if (log.isDebugEnabled()) {

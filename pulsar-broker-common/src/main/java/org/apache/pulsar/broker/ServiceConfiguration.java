@@ -948,7 +948,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " many requests should be allowed in the rate limiting period."
 
     )
-    private int pulsarChannelRateLimitingRequestsAfterResumeFromUnreadable = 1000;
+    private int pulsarChannelRateLimitingRequestsAfterResumeFromUnreadable = 5;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "After the connection is recovered from an unreadable state, the channel will be rate-limited for a"
+                + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines the"
+                + " period in milliseconds."
+
+    )
+    private int pulsarChannelRateLimitingRequestsPeriodAfterResumeFromUnreadable = 10;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
