@@ -953,7 +953,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "After the connection is recovered from an pause receiving state, the channel will be rate-limited for a"
+        doc = "After the connection is recovered from a pause receiving state, the channel will be rate-limited for a"
             + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines how"
             + " many requests should be allowed in the rate limiting period."
 
@@ -962,7 +962,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "After the connection is recovered from an pause receiving state, the channel will be rate-limited for a"
+        doc = "After the connection is recovered from a pause receiving state, the channel will be rate-limited for a"
             + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines the"
             + " period of the rate limiter in milliseconds."
 
