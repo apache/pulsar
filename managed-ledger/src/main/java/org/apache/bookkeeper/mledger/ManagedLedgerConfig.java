@@ -24,6 +24,7 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.RateLimiter;
@@ -64,7 +65,7 @@ public class ManagedLedgerConfig {
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
-    private RateLimiter ledgerDeletaRateLimiter;
+    private Semaphore ledgerDeletionSemaphore;
     private ExecutorService ledgerDeleteExecutor;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
@@ -416,14 +417,14 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * @return the throttling rate limit for mark-delete calls
+     * @return the semaphore used to limit concurrent ledger deletions
      */
-    public RateLimiter getLedgerDeletaRateLimiter() {
-        return ledgerDeletaRateLimiter;
+    public Semaphore getLedgerDeletionSemaphore() {
+        return ledgerDeletionSemaphore;
     }
 
-    public ManagedLedgerConfig setLedgerDeleteRateLimiter(RateLimiter rateLimiter) {
-        this.ledgerDeletaRateLimiter = rateLimiter;
+    public ManagedLedgerConfig setLedgerDeletionSemaphore(Semaphore semaphore) {
+        this.ledgerDeletionSemaphore = semaphore;
         return this;
     }
 

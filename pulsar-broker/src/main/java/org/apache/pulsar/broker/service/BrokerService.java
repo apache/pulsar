@@ -329,8 +329,10 @@ public class BrokerService implements Closeable {
     private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
     private volatile boolean unloaded = false;
 
-    // rate limiter for ledger deletion at broker level, thus all managed ledgers sharing the same rate limiter
-    private final RateLimiter ledgerDeletionRateLimiter;
+    // semaphore for limiting the concurrency of ledger deletion at broker level,
+    // thus all managed ledgers sharing the same semaphore
+    private final Semaphore ledgerDeletionSemaphore;
+
     private final ExecutorProvider ledgerDeletionExecutorProvider;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
@@ -472,17 +474,17 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar);
-        if (pulsar.getConfiguration().getManagedLedgerDeleteRateLimit() > 0) {
-            log.info("Setting managed ledger deletion rate limit to {}, concurrency {}",
-                    pulsar.getConfiguration().getManagedLedgerDeleteRateLimit(),
+        if (pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests() > 0) {
+            log.info("Setting managed ledger deletion max concurrent requests to {} and executor pool size to {}",
+                    pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests(),
                     pulsar.getConfiguration().getManagedLedgerDeleteConcurrency());
-            this.ledgerDeletionRateLimiter = RateLimiter.create(
-                    pulsar.getConfiguration().getManagedLedgerDeleteRateLimit());
+            this.ledgerDeletionSemaphore = new Semaphore(
+                    pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests());
             this.ledgerDeletionExecutorProvider = new ExecutorProvider(
                     pulsar.getConfiguration().getManagedLedgerDeleteConcurrency(),
                     "pulsar-ledger-deletion");
         } else {
-            this.ledgerDeletionRateLimiter = null;
+            this.ledgerDeletionSemaphore = null;
             this.ledgerDeletionExecutorProvider = null;
         }
     }
@@ -2075,7 +2077,7 @@ public class BrokerService implements Closeable {
             managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate() >= 0
                     ? persistencePolicies.getManagedLedgerMaxMarkDeleteRate()
                     : serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
-            managedLedgerConfig.setLedgerDeleteRateLimiter(this.ledgerDeletionRateLimiter);
+            managedLedgerConfig.setLedgerDeletionSemaphore(this.ledgerDeletionSemaphore);
             managedLedgerConfig.setLedgerDeleteExecutor(this.ledgerDeletionExecutorProvider.getExecutor());
             managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
             managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
