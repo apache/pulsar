@@ -1820,9 +1820,7 @@ public class BrokerService implements Closeable {
 
                         @Override
                         public void onSkipNonRecoverableEntries(long entryCount) {
-                            for (long i = 0; i < entryCount; i++) {
-                                pulsarStats.getBrokerOperabilityMetrics().recordNonRecoverableEntriesSkipped();
-                            }
+                            pulsarStats.getBrokerOperabilityMetrics().recordNonRecoverableEntriesSkipped(entryCount);
                         }
                     });
             }

@@ -249,4 +249,9 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         this.nonRecoverableEntriesSkippedCount.increment();
         NON_RECOVERABLE_ENTRIES_SKIPPED.inc();
     }
+
+    public void recordNonRecoverableEntriesSkipped(long amount) {
+        this.nonRecoverableEntriesSkippedCount.add(amount);
+        NON_RECOVERABLE_ENTRIES_SKIPPED.inc(amount);
+    }
 }
