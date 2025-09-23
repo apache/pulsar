@@ -19,7 +19,6 @@
 package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.concurrent.TimeUnit;
 import org.testng.annotations.Test;
 
