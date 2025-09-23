@@ -24,7 +24,7 @@
   <parent>
     <artifactId>pulsar-io-jdbc</artifactId>
     <groupId>org.apache.pulsar</groupId>
-    <version>3.0.14-SNAPSHOT</version>
+    <version>3.0.14</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 

@@ -31,7 +31,7 @@
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>buildtools</artifactId>
-  <version>3.0.14-SNAPSHOT</version>
+  <version>3.0.14</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
@@ -43,7 +43,7 @@
   </developers>
 
   <properties>
-    <project.build.outputTimestamp>2025-07-31T11:57:09Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2025-09-23T21:39:41Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <maven.compiler.release>8</maven.compiler.release>

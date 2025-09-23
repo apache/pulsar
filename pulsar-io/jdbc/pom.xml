@@ -33,7 +33,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.0.14-SNAPSHOT</version>
+    <version>3.0.14</version>
   </parent>
 
   <artifactId>pulsar-io-jdbc</artifactId>
