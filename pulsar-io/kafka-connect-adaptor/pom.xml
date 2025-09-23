@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>4.0.7-SNAPSHOT</version>
+    <version>4.0.7</version>
   </parent>
 
   <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
