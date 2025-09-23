@@ -944,18 +944,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "After the connection is recovered from an unreadable state, the channel will be rate-limited for a"
-                    + " of time window to avoid overwhelming due to the backlog of requests. This parameter defines how"
-                    + " long the rate limiting should last, in seconds. Once the bytes that are waiting to be sent out"
-                    + " reach the \"pulsarChannelWriteBufferHighWaterMark\"， the timer will be reset. Setting a negative"
-                    + " value will disable the rate limiting."
+                + " of time window to avoid overwhelming due to the backlog of requests. This parameter defines how"
+                + " long the rate limiting should last, in seconds. Once the bytes that are waiting to be sent out"
+                + " reach the \"pulsarChannelWriteBufferHighWaterMark\"， the timer will be reset. Setting a negative"
+                + " value will disable the rate limiting."
     )
     private int pulsarChannelUnReadableCooldownSeconds = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "After the connection is recovered from an unreadable state, the channel will be rate-limited for a"
-                + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines how"
-                + " many requests should be allowed in the rate limiting period."
+            + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines how"
+            + " many requests should be allowed in the rate limiting period."
 
     )
     private int pulsarChannelUnReadableCooldownLimitRate = 5;
@@ -963,8 +963,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "After the connection is recovered from an unreadable state, the channel will be rate-limited for a"
-                + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines the"
-                + " period in milliseconds."
+            + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines the"
+            + " period in milliseconds."
 
     )
     private int pulsarChannelUnReadableCooldownRateLimitPeriod = 10;
