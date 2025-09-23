@@ -451,7 +451,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    private void checkRateLimit(BaseCommand cmd) {
+    private void checkPauseReceivingRequestsAfterResumeRateLimit(BaseCommand cmd) {
         if (cmd.getType() == BaseCommand.Type.PONG && cmd.getType() == BaseCommand.Type.PING) {
             return;
         }
@@ -465,6 +465,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         cmd.getType(), ctx.channel().isWritable());
             }
         }
+        // "requestRateLimiter" will return the permits that you acquired if it is not opening(has been called
+        // "timingOpen(duration)").
         if (requestRateLimiter.acquire(1) == 0 && !pausedDueToRateLimitation) {
             log.warn("[{}] Reached rate limitation", this);
             // Stop receiving requests.
@@ -3701,7 +3703,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     protected void messageReceived(BaseCommand cmd) {
-        checkRateLimit(cmd);
+        checkPauseReceivingRequestsAfterResumeRateLimit(cmd);
         super.messageReceived(cmd);
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
             connectionCheckInProgress.complete(Optional.of(true));
