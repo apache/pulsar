@@ -969,7 +969,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " per every 10ms."
 
     )
-    private int pulsarChannelPauseReceivingCooldownRateLimitPeriod = 10;
+    private int pulsarChannelPauseReceivingCooldownRateLimitPeriodMs = 10;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
