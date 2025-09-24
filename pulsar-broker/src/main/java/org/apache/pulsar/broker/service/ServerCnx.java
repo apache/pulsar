@@ -253,7 +253,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final TopicsPattern.RegexImplementation topicsPatternImplementation;
     private final boolean pauseReceivingRequestsIfUnwritable;
     private final TimedSingleThreadRateLimiter requestRateLimiter;
-    private final int rateLimitingSecondsAfterResumeFromUnreadable;
+    private final int pauseReceivingCooldownMilliSeconds;
     private boolean pausedDueToRateLimitation = false;
 
     // Tracks and limits number of bytes pending to be published from a single specific IO thread.
@@ -321,11 +321,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.pauseReceivingRequestsIfUnwritable =
                 pulsar.getConfig().isPulsarChannelPauseReceivingRequestsIfUnwritable();
         this.requestRateLimiter = new TimedSingleThreadRateLimiter(
-                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownLimitRate(),
+                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownRateLimitPermits(),
                 pulsar.getConfig().getPulsarChannelPauseReceivingCooldownRateLimitPeriod(),
                 TimeUnit.MILLISECONDS);
-        this.rateLimitingSecondsAfterResumeFromUnreadable =
-                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownSeconds();
+        this.pauseReceivingCooldownMilliSeconds =
+                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownMilliSeconds();
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
@@ -453,7 +453,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void checkPauseReceivingRequestsAfterResumeRateLimit(BaseCommand cmd) {
-        if (rateLimitingSecondsAfterResumeFromUnreadable <= 0 || cmd.getType() == BaseCommand.Type.PONG
+        if (!pauseReceivingRequestsIfUnwritable
+                || pauseReceivingCooldownMilliSeconds <= 0 || cmd.getType() == BaseCommand.Type.PONG
                 || cmd.getType() == BaseCommand.Type.PING) {
             return;
         }
@@ -490,14 +491,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (pauseReceivingRequestsIfUnwritable && ctx.channel().isWritable()) {
             log.info("[{}] is writable, turn on channel auto-read", this);
             ctx.channel().config().setAutoRead(true);
-            requestRateLimiter.timingOpen(rateLimitingSecondsAfterResumeFromUnreadable, TimeUnit.SECONDS);
+            requestRateLimiter.timingOpen(pauseReceivingCooldownMilliSeconds, TimeUnit.MILLISECONDS);
         } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
             final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
             if (outboundBuffer != null) {
-                log.warn("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
+                log.info("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
                         this, outboundBuffer.totalPendingWriteBytes());
             } else {
-                log.warn("[{}] is not writable, turn off channel auto-read", this);
+                log.info("[{}] is not writable, turn off channel auto-read", this);
             }
             ctx.channel().config().setAutoRead(false);
         }

@@ -949,7 +949,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " reach the \"pulsarChannelWriteBufferHighWaterMark\"， the timer will be reset. Setting a negative"
                 + " value will disable the rate limiting."
     )
-    private int pulsarChannelPauseReceivingCooldownSeconds = 5;
+    private int pulsarChannelPauseReceivingCooldownMilliSeconds = 5000;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -958,13 +958,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " many requests should be allowed in the rate limiting period."
 
     )
-    private int pulsarChannelPauseReceivingCooldownLimitRate = 5;
+    private int pulsarChannelPauseReceivingCooldownRateLimitPermits = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "After the connection is recovered from a pause receiving state, the channel will be rate-limited for a"
-            + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines the"
-            + " period of the rate limiter in milliseconds."
+            + " period of time defined by pulsarChannelPauseReceivingCooldownSeconds to avoid overwhelming due to the"
+            + " backlog of requests. This parameter defines the period of the rate limiter in milliseconds. If the rate"
+            + " limit period is set to 1000, then the unit is requests per second. When it's 10, the unit is requests"
+            + " per every 10ms."
 
     )
     private int pulsarChannelPauseReceivingCooldownRateLimitPeriod = 10;
