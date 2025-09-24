@@ -312,7 +312,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         assertEquals(activeBrokers.size(), NUM_BROKERS);
 
-        for (int i = 0; i < activeBrokers.size(); i++) {
+        for (int i = 0; i < activeBrokers.size(); i++) { // test
             String namespace = antiAffinityEnabledNameSpace + "-" + i;
             admin.namespaces().createNamespace(namespace, 10);
             admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
