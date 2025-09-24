@@ -325,7 +325,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 pulsar.getConfig().getPulsarChannelPauseReceivingCooldownRateLimitPeriod(),
                 TimeUnit.MILLISECONDS);
         this.pauseReceivingCooldownMilliSeconds =
-                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownMilliSeconds();
+                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownMs();
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
@@ -495,10 +495,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
             final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
             if (outboundBuffer != null) {
-                log.info("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
-                        this, outboundBuffer.totalPendingWriteBytes());
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
+                            this, outboundBuffer.totalPendingWriteBytes());
+                }
             } else {
-                log.info("[{}] is not writable, turn off channel auto-read", this);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] is not writable, turn off channel auto-read", this);
+                }
             }
             ctx.channel().config().setAutoRead(false);
         }

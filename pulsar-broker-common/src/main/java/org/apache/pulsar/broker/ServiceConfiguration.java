@@ -945,11 +945,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             doc = "After the connection is recovered from an pause receiving state, the channel will be rate-limited"
                 + " for a of time window to avoid overwhelming due to the backlog of requests. This parameter defines"
-                + " how long the rate limiting should last, in seconds. Once the bytes that are waiting to be sent out"
+                + " how long the rate limiting should last, in millis. Once the bytes that are waiting to be sent out"
                 + " reach the \"pulsarChannelWriteBufferHighWaterMark\"， the timer will be reset. Setting a negative"
                 + " value will disable the rate limiting."
     )
-    private int pulsarChannelPauseReceivingCooldownMilliSeconds = 5000;
+    private int pulsarChannelPauseReceivingCooldownMs = 5000;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
