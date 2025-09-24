@@ -499,8 +499,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
             if (outboundBuffer != null) {
                 if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
-                    PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
-                            this, outboundBuffer.totalPendingWriteBytes());
+                    PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read,"
+                        + " totalPendingWriteBytes: {}", this, outboundBuffer.totalPendingWriteBytes());
                 }
             } else {
                 if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
