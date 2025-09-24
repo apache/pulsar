@@ -296,7 +296,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testSetNamespaceAntiAffinityGroupWithEmptyPolicies() throws Exception {
         // 1. create namespace with empty policies
-        String setNamespaceAntiAffinityGroupNs = "test-set--namespace-anti-affinity-group-ns";
+        String setNamespaceAntiAffinityGroupNs = "test-set-namespace-anti-affinity-group-ns";
         asyncRequests(
                 response -> namespaces.createNamespace(response, testTenant, setNamespaceAntiAffinityGroupNs, null));
 
@@ -319,7 +319,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testSetNamespaceAntiAffinityGroupWithExistBundlePolicies() throws Exception {
         // 1. create namespace with specified num bundles
-        String setNamespaceAntiAffinityGroupNs = "test-set--namespace-anti-affinity-group-ns";
+        String setNamespaceAntiAffinityGroupNs = "test-set-namespace-anti-affinity-group-ns";
         Policies policies = new Policies();
         policies.bundles = getBundles(10);
         asyncRequests(response -> namespaces.createNamespace(response, testTenant, setNamespaceAntiAffinityGroupNs,
@@ -344,7 +344,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testEnableMigrationWithEmptyPolicies() throws Exception {
         // 1. create namespace with empty policies
-        String enableMigrationGroupNs = "test-set--namespace-enable-migration-ns";
+        String enableMigrationGroupNs = "test-set-namespace-enable-migration-ns";
         asyncRequests(response -> namespaces.createNamespace(response, testTenant, enableMigrationGroupNs, null));
 
         // 2.set enable migration
@@ -365,7 +365,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testEnableMigrationWithExistBundlePolicies() throws Exception {
         // 1. create namespace with specified num bundles
-        String enableMigrationGroupNs = "test-set--namespace-enable-migration-ns";
+        String enableMigrationGroupNs = "test-set-namespace-enable-migration-ns";
         Policies policiesReq = new Policies();
         policiesReq.bundles = getBundles(10);
         asyncRequests(

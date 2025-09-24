@@ -303,7 +303,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @Test(timeOut = 80 * 1000)
-    public void testAntiaffinityPolicy() throws PulsarAdminException {
+    public void testAntiAffinityPolicy() throws PulsarAdminException {
         final String namespaceAntiAffinityGroup = "my-anti-affinity-filter";
         final String antiAffinityEnabledNameSpace = DEFAULT_TENANT + "/my-ns-filter" + nsSuffix;
         final int numPartition = 20;
