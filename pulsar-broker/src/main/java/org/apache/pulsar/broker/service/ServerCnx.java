@@ -177,12 +177,12 @@ import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
-import org.apache.pulsar.utils.TimedSingleThreadRateLimiter;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.utils.TimedSingleThreadRateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
