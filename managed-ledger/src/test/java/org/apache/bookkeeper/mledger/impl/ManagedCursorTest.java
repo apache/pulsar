@@ -91,6 +91,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener.LedgerRollReason;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -4854,13 +4855,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         long ledger1 = ml.getCurrentLedger().getId();
         ml.getCurrentLedger().close();
-        ml.ledgerClosed(ml.getCurrentLedger());
+        ml.ledgerClosedWithReason(ml.getCurrentLedger(), LedgerRollReason.FULL);
         for (int i = 0; i < 100; i++) {
             ml.addEntry(new byte[]{1, 2});
         }
         long ledger2 = ml.getCurrentLedger().getId();
         ml.getCurrentLedger().close();
-        ml.ledgerClosed(ml.getCurrentLedger());
+        ml.ledgerClosedWithReason(ml.getCurrentLedger(), LedgerRollReason.FULL);
         for (int i = 0; i < 100; i++) {
             ml.addEntry(new byte[]{1, 2, 3, 4});
         }

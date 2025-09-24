@@ -95,8 +95,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
-import org.apache.pulsar.broker.event.data.MessagePurgeEventData;
-import org.apache.pulsar.broker.event.data.MessageRollEventData;
+import org.apache.pulsar.broker.event.data.LedgerPurgeEventData;
+import org.apache.pulsar.broker.event.data.LedgerRollEventData;
 import org.apache.pulsar.broker.event.data.TopicPoliciesApplyEventData;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
@@ -380,8 +380,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             @Override
             public void onLedgerRoll(LedgerRollEvent event) {
                 brokerService.getTopicEventsDispatcher()
-                        .newEvent(topic, TopicEvent.MESSAGE_ROLL)
-                        .data(MessageRollEventData.builder().reason(event.getReason()).ledgerId(event.getLedgerId())
+                        .newEvent(topic, TopicEvent.LEDGER_ROLL)
+                        .data(LedgerRollEventData.builder().reason(event.getReason()).ledgerId(event.getLedgerId())
                                 .build())
                         .dispatch();
             }
@@ -392,15 +392,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return;
                 }
 
-                List<MessagePurgeEventData.LedgerInfo> purgedLedgers = Arrays.stream(ledgerInfos)
-                        .map(n -> MessagePurgeEventData.LedgerInfo.builder()
+                List<LedgerPurgeEventData.LedgerInfo> purgedLedgers = Arrays.stream(ledgerInfos)
+                        .map(n -> LedgerPurgeEventData.LedgerInfo.builder()
                                 .ledgerId(n.getLedgerId()).entries(n.getEntries())
                                 .timestamp(n.getTimestamp())
                                 .build())
                         .toList();
                 brokerService.getTopicEventsDispatcher()
-                        .newEvent(topic, TopicEvent.MESSAGE_PURGE)
-                        .data(MessagePurgeEventData.builder().ledgerInfos(purgedLedgers)
+                        .newEvent(topic, TopicEvent.LEDGER_PURGE)
+                        .data(LedgerPurgeEventData.builder().ledgerInfos(purgedLedgers)
                                 .build())
                         .dispatch();
             }

@@ -1871,7 +1871,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // //////////////////////////////////////////////////////////////////////
     // Private helpers
 
-    synchronized void ledgerClosed(final LedgerHandle lh) {
+    synchronized void ledgerClosedWithReason(final LedgerHandle lh, LedgerRollReason ledgerRollReason) {
         final State state = STATE_UPDATER.get(this);
         LedgerHandle currentLedger = this.currentLedger;
         if (currentLedger == lh && (state == State.ClosingLedger || state == State.LedgerOpened)) {
@@ -1904,7 +1904,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
 
-        createLedgerAfterClosed();
+        createLedgerAfterClosed(ledgerRollReason);
     }
 
     @Override
@@ -1914,12 +1914,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    synchronized void createLedgerAfterClosed() {
+    synchronized void createLedgerAfterClosed(LedgerRollReason ledgerRollReason) {
         if (isNeededCreateNewLedgerAfterCloseLedger()) {
             log.info("[{}] Creating a new ledger after closed {}", name,
                     currentLedger == null ? "null" : currentLedger.getId());
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
+            notifyRollLedgerEvent(LedgerRollEvent.builder()
+                    .ledgerId(currentLedger == null ? -1 : currentLedger.getId())
+                    .reason(ledgerRollReason)
+                    .build());
             mbean.startDataLedgerCreateOp();
             // Use the executor here is to avoid use the Zookeeper thread to create the ledger which will lead
             // to deadlock at the zookeeper client, details to see https://github.com/apache/pulsar/issues/13736
@@ -1958,12 +1962,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 name, lh.getId(), BKException.getMessage(rc));
                     }
 
-                    notifyRollLedgerEvent(LedgerRollEvent.builder()
-                            .ledgerId(lh.getId())
-                            .reason(LedgerRollReason.FULL)
-                            .build());
-
-                    ledgerClosed(lh);
+                    ledgerClosedWithReason(lh, LedgerRollReason.FULL);
                 }
             }, null);
         }
@@ -4781,12 +4780,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 name, lh.getId(), BKException.getMessage(rc));
                     }
 
-                    notifyRollLedgerEvent(LedgerRollEvent.builder()
-                            .ledgerId(lh.getId())
-                            .reason(LedgerRollReason.INACTIVE)
-                            .build());
-
-                    ledgerClosed(lh);
+                    ledgerClosedWithReason(lh, LedgerRollReason.INACTIVE);
                     // we do not create ledger here, since topic is inactive for a long time.
                 }, null);
                 return true;

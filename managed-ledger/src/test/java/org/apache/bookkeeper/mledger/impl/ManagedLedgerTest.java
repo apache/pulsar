@@ -119,6 +119,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerEventListener;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener.LedgerRollReason;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
@@ -2650,7 +2651,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> {
            assertEquals("LedgerOpened", WhiteboxImpl.getInternalState(managedLedger, "state").toString());
         });
-        managedLedger.createLedgerAfterClosed();
+        managedLedger.createLedgerAfterClosed(LedgerRollReason.FULL);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(managedLedger.getLedgersInfo().size(), 3);
             assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.LedgerOpened);
@@ -4167,7 +4168,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p3.getLedgerId() + 1, -1)));
 
         // More than one ledger.
-        ml.ledgerClosed(ml.currentLedger);
+        ml.ledgerClosedWithReason(ml.currentLedger, LedgerRollReason.FULL);
         PositionImpl p4 = (PositionImpl) ml.addEntry(data);
         PositionImpl p5 = (PositionImpl) ml.addEntry(data);
         PositionImpl p6 = (PositionImpl) ml.addEntry(data);
@@ -4181,8 +4182,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
 
         // Switch ledger and make the entry id of Last confirmed entry is -1;
-        ml.ledgerClosed(ml.currentLedger);
-        ml.createLedgerAfterClosed();
+        ml.ledgerClosedWithReason(ml.currentLedger, LedgerRollReason.FULL);
+        ml.createLedgerAfterClosed(LedgerRollReason.FULL);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ml.currentLedgerEntries, 0);
         });

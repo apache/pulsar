@@ -28,6 +28,7 @@ public interface ManagedLedgerEventListener {
     enum LedgerRollReason {
         FULL, // Ledger is full based on size or time
         INACTIVE, // No writes for a while
+        APPEND_FAIL, // Failed to append to the ledger
     }
 
     @AllArgsConstructor

@@ -29,7 +29,7 @@ import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
 @Value
 @NoArgsConstructor(force = true)
 @AllArgsConstructor
-public class MessagePurgeEventData implements EventData {
+public class LedgerPurgeEventData implements EventData {
     List<LedgerInfo> ledgerInfos;
 
     @Builder

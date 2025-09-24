@@ -18,13 +18,14 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.assertEquals;
 import static org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImplTest.TestPayloadProcessor;
+import static org.testng.Assert.assertEquals;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerEventListener.LedgerRollReason;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
@@ -43,8 +44,8 @@ public class MangedLedgerInterceptorImplTest2 extends MockedBookKeeperTestCase {
 
     public static void switchLedgerManually(ManagedLedgerImpl ledger){
         LedgerHandle originalLedgerHandle = ledger.currentLedger;
-        ledger.ledgerClosed(ledger.currentLedger);
-        ledger.createLedgerAfterClosed();
+        ledger.ledgerClosedWithReason(ledger.currentLedger, LedgerRollReason.FULL);
+        ledger.createLedgerAfterClosed(LedgerRollReason.FULL);
         Awaitility.await().until(() -> {
             return ledger.state == ManagedLedgerImpl.State.LedgerOpened && ledger.currentLedger != originalLedgerHandle;
         });

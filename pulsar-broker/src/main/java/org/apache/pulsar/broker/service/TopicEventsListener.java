@@ -52,8 +52,8 @@ public interface TopicEventsListener {
         TOPIC_METADATA_UPDATE,
 
         MESSAGE_EXPIRE,
-        MESSAGE_PURGE,
-        MESSAGE_ROLL,
+        LEDGER_PURGE,
+        LEDGER_ROLL,
 
         POLICIES_UPDATE,
         POLICIES_APPLY,

@@ -29,7 +29,7 @@ import org.apache.pulsar.broker.service.TopicEventsListener.EventData;
 @Value
 @NoArgsConstructor(force = true)
 @AllArgsConstructor
-public class MessageRollEventData implements EventData {
+public class LedgerRollEventData implements EventData {
     long ledgerId;
     LedgerRollReason reason;
 }
