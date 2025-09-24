@@ -193,6 +193,8 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
+    private static final Logger PAUSE_RECEIVING_LOG = LoggerFactory.getLogger(ServerCnx.class.getName()
+            + ".pauseReceiving");
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
@@ -458,13 +460,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 || cmd.getType() == BaseCommand.Type.PING) {
             return;
         }
-        if (log.isDebugEnabled()) {
+        if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
             final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
             if (outboundBuffer != null) {
-                log.debug("Start to handle request [{}], totalPendingWriteBytes: {}, channel isWritable: {}",
-                        cmd.getType(), outboundBuffer.totalPendingWriteBytes(), ctx.channel().isWritable());
+                PAUSE_RECEIVING_LOG.debug("Start to handle request [{}], totalPendingWriteBytes: {}, channel"
+                    + " isWritable: {}", cmd.getType(), outboundBuffer.totalPendingWriteBytes(),
+                    ctx.channel().isWritable());
             } else {
-                log.debug("Start to handle request [{}], channel isWritable: {}",
+                PAUSE_RECEIVING_LOG.debug("Start to handle request [{}], channel isWritable: {}",
                         cmd.getType(), ctx.channel().isWritable());
             }
         }
@@ -495,13 +498,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
             final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
             if (outboundBuffer != null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
+                if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
+                    PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read, totalPendingWriteBytes: {}",
                             this, outboundBuffer.totalPendingWriteBytes());
                 }
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] is not writable, turn off channel auto-read", this);
+                if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
+                    PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read", this);
                 }
             }
             ctx.channel().config().setAutoRead(false);
