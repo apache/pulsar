@@ -25,6 +25,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.testng.annotations.Test;
 
@@ -43,7 +44,7 @@ public class PulsarDecoderTest {
             }
 
             @Override
-            protected void messageReceived() {
+            protected void messageReceived(BaseCommand cmd) {
             }
         });
         decoder.channelRead(mock(ChannelHandlerContext.class), cmdBuf);

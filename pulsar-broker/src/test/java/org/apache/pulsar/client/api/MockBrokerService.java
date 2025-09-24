@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSendHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSubscribeHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandTopicLookupHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandUnsubscribeHook;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
@@ -132,7 +133,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void messageReceived() {
+        protected void messageReceived(BaseCommand cmd) {
         }
 
         @Override
