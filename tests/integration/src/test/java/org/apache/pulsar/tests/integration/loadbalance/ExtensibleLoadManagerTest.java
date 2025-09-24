@@ -312,8 +312,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         assertEquals(activeBrokers.size(), NUM_BROKERS);
 
+        Set<String> antiAffinityEnabledNameSpacesReq = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
             String namespace = antiAffinityEnabledNameSpace + "-" + i;
+            antiAffinityEnabledNameSpacesReq.add(namespace);
             admin.namespaces().createNamespace(namespace, 10);
             admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
             admin.clusters().createFailureDomain(clusterName, namespaceAntiAffinityGroup, FailureDomain.builder()
@@ -324,6 +326,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                     admin.clusters().getFailureDomain(clusterName, namespaceAntiAffinityGroup);
             assertEquals(failureDomainResp.getBrokers(), Set.of(activeBrokers.get(i)));
         }
+
+        List<String> antiAffinityNamespacesResp =
+                admin.namespaces().getAntiAffinityNamespaces(DEFAULT_TENANT, clusterName, namespaceAntiAffinityGroup);
+        assertEquals(new HashSet<>(antiAffinityNamespacesResp), antiAffinityEnabledNameSpacesReq);
 
         Set<String> result = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
