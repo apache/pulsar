@@ -963,7 +963,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "After the connection is recovered from a pause receiving state, the channel will be rate-limited for a"
-            + " period of time defined by pulsarChannelPauseReceivingCooldownSeconds to avoid overwhelming due to the"
+            + " period of time defined by pulsarChannelPauseReceivingCooldownMs to avoid overwhelming due to the"
             + " backlog of requests. This parameter defines the period of the rate limiter in milliseconds. If the rate"
             + " limit period is set to 1000, then the unit is requests per second. When it's 10, the unit is requests"
             + " per every 10ms."
