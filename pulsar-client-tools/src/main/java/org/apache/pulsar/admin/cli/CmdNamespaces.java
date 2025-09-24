@@ -851,6 +851,35 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Command(description = "Load a namespace or a namespace bundle")
+    private class Load extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Option(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}")
+        private String bundle;
+
+        @Option(names = { "--loadTopicInBundle", "-l" },
+                description = {"load all the topics in bundles or not when load namespace"})
+        private boolean loadTopicInBundle;
+
+        @Option(names = { "--authoritative", "-a" },
+                description = "load namespace bundle from the current serving broker or not")
+        private boolean authoritative;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+
+            if (bundle == null) {
+                getAdmin().namespaces().loadNamespace(namespace, loadTopicInBundle, authoritative);
+            } else {
+                System.out.println(getAdmin().namespaces()
+                        .loadNamespaceBundle(namespace, bundle, loadTopicInBundle, authoritative).toString());
+            }
+        }
+    }
+
     @Command(description = "Unload a namespace from the current serving broker")
     private class Unload extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
@@ -2741,6 +2770,7 @@ public class CmdNamespaces extends CmdBase {
         addCommand("get-bookie-affinity-group", new GetBookieAffinityGroup());
         addCommand("delete-bookie-affinity-group", new DeleteBookieAffinityGroup());
 
+        addCommand("load", new Load());
         addCommand("unload", new Unload());
 
         addCommand("split-bundle", new SplitBundle());
