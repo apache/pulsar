@@ -318,6 +318,11 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
             admin.clusters().createFailureDomain(clusterName, namespaceAntiAffinityGroup, FailureDomain.builder()
                     .brokers(Set.of(activeBrokers.get(i))).build());
+            String namespaceAntiAffinityGroupResp = admin.namespaces().getNamespaceAntiAffinityGroup(namespace);
+            assertEquals(namespaceAntiAffinityGroupResp, namespaceAntiAffinityGroup);
+            FailureDomain failureDomainResp =
+                    admin.clusters().getFailureDomain(clusterName, namespaceAntiAffinityGroup);
+            assertEquals(failureDomainResp.getBrokers(), Set.of(activeBrokers.get(i)));
         }
 
         Set<String> result = new HashSet<>();
