@@ -316,7 +316,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         for (int i = 0; i < activeBrokers.size(); i++) {
             String namespace = antiAffinityEnabledNameSpace + "-" + i;
             antiAffinityEnabledNameSpacesReq.add(namespace);
-            admin.namespaces().createNamespace(namespace, 10);
+            admin.namespaces().createNamespace(namespace, 1);
             admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
             admin.clusters().createFailureDomain(clusterName, namespaceAntiAffinityGroup, FailureDomain.builder()
                     .brokers(Set.of(activeBrokers.get(i))).build());
