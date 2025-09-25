@@ -45,7 +45,7 @@ import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
-    private PulsarClientSharedResourcesImpl sharedResources;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
 
     public ClientBuilderImpl() {
         this(new ClientConfigurationData());
