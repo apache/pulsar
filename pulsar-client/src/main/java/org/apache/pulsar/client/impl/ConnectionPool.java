@@ -121,7 +121,7 @@ public class ConnectionPool implements AutoCloseable {
                           @NonNull ClientConfigurationData conf, @NonNull EventLoopGroup eventLoopGroup,
                           Supplier<ClientCnx> clientCnxSupplier,
                           @NonNull Optional<Supplier<AddressResolver<InetSocketAddress>>> addressResolverSupplier,
-                          @NonNull ScheduledExecutorService scheduledExecutorService)
+                          ScheduledExecutorService scheduledExecutorService)
             throws PulsarClientException {
         if (clientCnxSupplier == null) {
             clientCnxSupplier = () -> new ClientCnx(instrumentProvider, conf, eventLoopGroup);
