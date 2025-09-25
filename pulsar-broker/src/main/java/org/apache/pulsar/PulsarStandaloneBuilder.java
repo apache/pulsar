@@ -21,6 +21,10 @@ package org.apache.pulsar;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public final class PulsarStandaloneBuilder {
 
@@ -95,6 +99,31 @@ public final class PulsarStandaloneBuilder {
         pulsarStandalone.setAdvertisedAddress(advertisedAddress);
         return this;
     }
+
+    public PulsarClient buildClient () throws Exception {
+        return PulsarClient.builder() 
+            .serviceUrl(pulsarStandalone.getConfig().getBrokerServiceUrl())
+            .build();
+    }
+
+    public PulsarAdmin buildAdmin() throws Exception {
+        return PulsarAdmin.builder() 
+            .serviceHttpUrl(pulsarStandalone.getConfig().getWebServiceAddress())
+            .build();
+    }
+
+    private PulsarStandaloneBuilder() throws IOException {
+        pulsarStandalone = new PulsarStandalone();
+        pulsarStandalone.setWipeData(true);
+        pulsarStandalone.setNoFunctionsWorker(true);
+
+        Path tempZkDir = Files.createTempDirectory("zk");
+        Path tempBkDir = Files.createTempDirectory("bk");
+
+        pulsarStandalone.setZkDir(tempZkDir.toString());
+        pulsarStandalone.setBkDir(tempBkDir.toString());
+    }
+
 
     public PulsarStandalone build() {
         ServiceConfiguration config = new ServiceConfiguration();
