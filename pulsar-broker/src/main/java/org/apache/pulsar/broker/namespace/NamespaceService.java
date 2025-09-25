@@ -43,9 +43,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -1223,35 +1221,6 @@ public class NamespaceService implements AutoCloseable {
 
         return FutureUtil.failedFuture(
                 new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName()));
-    }
-
-    /**
-     * @deprecated This method is only used in test now.
-     */
-    @Deprecated
-    public boolean isServiceUnitActive(TopicName topicName) {
-        try {
-            return isServiceUnitActiveAsync(topicName).get(pulsar.getConfig()
-                    .getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            LOG.warn("Unable to find OwnedBundle for topic in time - [{}]", topicName, e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
-        // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-            return getBundleAsync(topicName)
-                    .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
-        }
-        return getBundleAsync(topicName).thenCompose(bundle -> {
-            Optional<CompletableFuture<OwnedBundle>> optionalFuture = ownershipCache.getOwnedBundleAsync(bundle);
-            if (optionalFuture.isEmpty()) {
-                return CompletableFuture.completedFuture(false);
-            }
-            return optionalFuture.get().thenApply(ob -> ob != null && ob.isActive());
-        });
     }
 
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {

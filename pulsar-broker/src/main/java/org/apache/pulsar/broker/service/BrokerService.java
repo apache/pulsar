@@ -1704,38 +1704,29 @@ public class BrokerService implements Closeable {
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        Map<String, String> properties) {
         TopicName topicName = TopicName.get(topic);
-        pulsar.getNamespaceService().isServiceUnitActiveAsync(topicName)
-                .thenAccept(isActive -> {
-                    if (isActive) {
-                        CompletableFuture<Map<String, String>> propertiesFuture;
-                        if (properties == null) {
-                            //Read properties from storage when loading topic.
-                            propertiesFuture = fetchTopicPropertiesAsync(topicName);
-                        } else {
-                            propertiesFuture = CompletableFuture.completedFuture(properties);
-                        }
-                        propertiesFuture.thenAccept(finalProperties ->
-                                //TODO add topicName in properties?
-                                createPersistentTopic0(topic, createIfMissing, topicFuture,
-                                        finalProperties)
-                        ).exceptionally(throwable -> {
-                            log.warn("[{}] Read topic property failed", topic, throwable);
-                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                            topicFuture.completeExceptionally(throwable);
-                            return null;
-                        });
-                    } else {
-                        // namespace is being unloaded
-                        String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
-                        log.warn(msg);
-                        pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                        topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-                    }
-                }).exceptionally(ex -> {
-                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                    topicFuture.completeExceptionally(ex);
-                    return null;
-                });
+        checkTopicNsOwnership(topic).thenRun(() -> {
+            CompletableFuture<Map<String, String>> propertiesFuture;
+            if (properties == null) {
+                //Read properties from storage when loading topic.
+                propertiesFuture = fetchTopicPropertiesAsync(topicName);
+            } else {
+                propertiesFuture = CompletableFuture.completedFuture(properties);
+            }
+            propertiesFuture.thenAccept(finalProperties ->
+                    //TODO add topicName in properties?
+                    createPersistentTopic0(topic, createIfMissing, topicFuture,
+                            finalProperties)
+            ).exceptionally(throwable -> {
+                log.warn("[{}] Read topic property failed", topic, throwable);
+                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                topicFuture.completeExceptionally(throwable);
+                return null;
+            });
+        }).exceptionally(e -> {
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+            topicFuture.completeExceptionally(e.getCause());
+            return null;
+        });
     }
 
     @VisibleForTesting
