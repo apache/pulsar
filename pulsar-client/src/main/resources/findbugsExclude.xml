@@ -258,6 +258,10 @@
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
+      <Class name="org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl"/>
+      <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
         <Class name="org.apache.pulsar.client.impl.ClientCnx"/>
         <Method name="getPendingRequests"/>
         <Bug pattern="EI_EXPOSE_REP"/>
