@@ -44,6 +44,7 @@ import org.apache.pulsar.common.tls.InetAddressUtils;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
+    private static final long serialVersionUID = 1L;
     ClientConfigurationData conf;
     private transient PulsarClientSharedResourcesImpl sharedResources;
 
