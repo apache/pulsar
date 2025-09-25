@@ -777,6 +777,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 batchingConfig = producerConfig.getBatchingConfig();
             }
             checkLogs(functionName, batchingConfig, consumerConfig, config, inputTopicName);
+        } else if (runtime == Runtime.PYTHON) {
+            String functionLogs = pulsarCluster.getFunctionLogs(functionName);
+            assertFalse(functionLogs.contains("Failed to load the crypto key reader from spec"));
         }
 
         // get function status
