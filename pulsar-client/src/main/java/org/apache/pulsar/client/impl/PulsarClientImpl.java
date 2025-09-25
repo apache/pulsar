@@ -24,6 +24,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.AddressResolver;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import java.io.IOException;
@@ -129,6 +130,8 @@ public class PulsarClientImpl implements PulsarClient {
     private final ScheduledExecutorProvider scheduledExecutorProvider;
     private final boolean createdEventLoopGroup;
     private final boolean createdCnxPool;
+    private final DnsResolverGroupImpl dnsResolverGroupLocalInstance;
+    private final AddressResolver<InetSocketAddress> addressResolver;
 
     public enum State {
         Open, Closing, Closed
@@ -168,22 +171,22 @@ public class PulsarClientImpl implements PulsarClient {
     private TransactionCoordinatorClientImpl tcClient;
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
-        this(conf, null, null, null, null, null, null, null);
+        this(conf, null, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, null, null, null, null, null, null);
+        this(conf, eventLoopGroup, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, null, null, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                             Timer timer)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
@@ -192,7 +195,7 @@ public class PulsarClientImpl implements PulsarClient {
                             ScheduledExecutorProvider scheduledExecutorProvider)
             throws PulsarClientException {
         this(conf, eventLoopGroup, connectionPool, timer, externalExecutorProvider, internalExecutorProvider,
-                scheduledExecutorProvider, null);
+                scheduledExecutorProvider, null, null);
     }
 
     @Builder(builderClassName = "PulsarClientImplBuilder")
@@ -200,7 +203,8 @@ public class PulsarClientImpl implements PulsarClient {
                              Timer timer, ExecutorProvider externalExecutorProvider,
                              ExecutorProvider internalExecutorProvider,
                              ScheduledExecutorProvider scheduledExecutorProvider,
-                             ExecutorProvider lookupExecutorProvider) throws PulsarClientException {
+                             ExecutorProvider lookupExecutorProvider,
+                             DnsResolverGroupImpl dnsResolverGroup) throws PulsarClientException {
 
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
@@ -225,10 +229,29 @@ public class PulsarClientImpl implements PulsarClient {
             conf.getAuthentication().start();
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
                     new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
-            connectionPoolReference =
-                    connectionPool != null ? connectionPool :
-                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup,
-                                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor());
+            if (connectionPool != null) {
+                connectionPoolReference = connectionPool;
+                dnsResolverGroupLocalInstance = null;
+                addressResolver = null;
+            } else {
+                DnsResolverGroupImpl dnsResolverGroupReference;
+                if (dnsResolverGroup == null) {
+                    dnsResolverGroupReference =
+                            dnsResolverGroupLocalInstance = new DnsResolverGroupImpl(eventLoopGroupReference, conf);
+                } else {
+                    dnsResolverGroupReference = dnsResolverGroup;
+                    dnsResolverGroupLocalInstance = null;
+                }
+                addressResolver = dnsResolverGroupReference.createAddressResolver(eventLoopGroupReference);
+                connectionPoolReference = ConnectionPool.builder()
+                        .instrumentProvider(instrumentProvider)
+                        .conf(conf)
+                        .eventLoopGroup(eventLoopGroupReference)
+                        .addressResolverSupplier(Optional.of(() -> addressResolver))
+                        .scheduledExecutorService(
+                                (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor())
+                        .build();
+            }
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
@@ -917,6 +940,14 @@ public class PulsarClientImpl implements PulsarClient {
             // close the service url provider allocated resource.
             if (conf != null && conf.getServiceUrlProvider() != null) {
                 conf.getServiceUrlProvider().close();
+            }
+
+            if (addressResolver != null) {
+                addressResolver.close();
+            }
+
+            if (dnsResolverGroupLocalInstance != null) {
+                dnsResolverGroupLocalInstance.close();
             }
 
             try {

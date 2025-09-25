@@ -404,7 +404,7 @@ public class ProxyConnection extends PulsarHandler {
             if (this.connectionPool == null) {
                 this.connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
                         clientCnxSupplier,
-                        Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())), null);
+                        Optional.of(() -> dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())), null);
             } else {
                 LOG.error("BUG! Connection Pool has already been created for proxy connection to {} state {} role {}",
                         remoteAddress, state, maybeAnonymizedClientAuthRole);
