@@ -228,7 +228,7 @@ public class PulsarClientImpl implements PulsarClient {
             clientClock = conf.getClock();
             conf.getAuthentication().start();
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
-                    new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
+                    createScheduledExecutorProvider(conf);
             if (connectionPool != null) {
                 connectionPoolReference = connectionPool;
                 dnsResolverGroupLocalInstance = null;
@@ -254,11 +254,11 @@ public class PulsarClientImpl implements PulsarClient {
             }
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
-                    new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
+                    createExternalExecutorProvider(conf);
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
-                    new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
+                    createInternalExecutorProvider(conf);
             this.lookupExecutorProvider = lookupExecutorProvider != null ? lookupExecutorProvider :
-                    new ExecutorProvider(1, "pulsar-client-lookup");
+                    createLookupExecutorProvider();
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
             } else {
@@ -267,7 +267,7 @@ public class PulsarClientImpl implements PulsarClient {
                         this.lookupExecutorProvider.getExecutor());
             }
             if (timer == null) {
-                this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
+                this.timer = createTimer();
                 needStopTimer = true;
             } else {
                 this.timer = timer;
@@ -306,6 +306,26 @@ public class PulsarClientImpl implements PulsarClient {
             closeCnxPool(connectionPoolReference);
             throw t;
         }
+    }
+
+    static HashedWheelTimer createTimer() {
+        return new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
+    }
+
+    static ExecutorProvider createLookupExecutorProvider() {
+        return new ExecutorProvider(1, "pulsar-client-lookup");
+    }
+
+    static ExecutorProvider createInternalExecutorProvider(ClientConfigurationData conf) {
+        return new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
+    }
+
+    static ExecutorProvider createExternalExecutorProvider(ClientConfigurationData conf) {
+        return new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
+    }
+
+    static ScheduledExecutorProvider createScheduledExecutorProvider(ClientConfigurationData conf) {
+        return new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
     }
 
     private void reduceConsumerReceiverQueueSize() {
@@ -1299,12 +1319,12 @@ public class PulsarClientImpl implements PulsarClient {
         });
     }
 
-    private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
+    static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
         ThreadFactory threadFactory = getThreadFactory("pulsar-client-io");
         return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
     }
 
-    private static ThreadFactory getThreadFactory(String poolName) {
+    static ThreadFactory getThreadFactory(String poolName) {
         return new ExecutorProvider.ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
