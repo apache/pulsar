@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
@@ -32,9 +33,7 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
     @Override
     public PulsarClientSharedResourcesBuilder resourceTypes(
             PulsarClientSharedResources.ResourceType... sharedResourceType) {
-        for (PulsarClientSharedResources.ResourceType resourceType : sharedResourceType) {
-            resourceTypes.add(resourceType);
-        }
+        resourceTypes.addAll(List.of(sharedResourceType));
         return this;
     }
 
