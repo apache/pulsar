@@ -124,7 +124,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received cmd {}", ctx.channel(), cmd.getType());
             }
-            messageReceived();
+            messageReceived(cmd);
 
             switch (cmd.getType()) {
             case PARTITIONED_METADATA:
@@ -486,7 +486,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         }
     }
 
-    protected abstract void messageReceived();
+    protected abstract void messageReceived(BaseCommand cmd);
 
     private ServerError getServerError(int errorCode) {
         ServerError serverError = ServerError.valueOf(errorCode);

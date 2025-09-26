@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>29</version>
+    <version>35</version>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
@@ -216,8 +216,8 @@ flexible messaging model and an intuitive client API.</description>
     <docker-maven.version>0.45.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
-    <!-- match the byte-buddy version used by the mockito-core pom -->
-    <byte-buddy.version>1.15.11</byte-buddy.version>
+    <!-- match the byte-buddy version (or newer) used by the mockito-core pom -->
+    <byte-buddy.version>1.17.7</byte-buddy.version>
     <zt-zip.version>1.17</zt-zip.version>
     <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
@@ -275,8 +275,8 @@ flexible messaging model and an intuitive client API.</description>
     <jline3.version>3.21.0</jline3.version>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
-    <assertj-core.version>3.24.2</assertj-core.version>
-    <lombok.version>1.18.38</lombok.version>
+    <assertj-core.version>3.27.5</assertj-core.version>
+    <lombok.version>1.18.42</lombok.version>
     <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <jakarta.activation.version>1.2.2</jakarta.activation.version>
@@ -324,7 +324,7 @@ flexible messaging model and an intuitive client API.</description>
     <restassured.version>5.4.0</restassured.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
-    <mockito.version>5.17.0</mockito.version>
+    <mockito.version>5.19.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.3</objenesis.version> <!-- should match mockito-core objenesis version -->
@@ -357,8 +357,8 @@ flexible messaging model and an intuitive client API.</description>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
-    <spotbugs-maven-plugin.version>4.9.3.0</spotbugs-maven-plugin.version>
-    <spotbugs.version>4.9.3</spotbugs.version>
+    <spotbugs-maven-plugin.version>4.9.6.0</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.9.6</spotbugs.version>
     <errorprone.version>2.38.0</errorprone.version>
     <errorprone-slf4j.version>0.1.28</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
@@ -1102,38 +1102,16 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient</artifactId>
+        <artifactId>simpleclient_bom</artifactId>
         <version>${prometheus.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_hotspot</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_log4j2</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_servlet</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_jetty</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_caffeine</artifactId>
-        <version>${prometheus.version}</version>
+        <groupId>io.prometheus.jmx</groupId>
+        <artifactId>collector</artifactId>
+        <version>${prometheus-jmx.version}</version>
       </dependency>
 
       <dependency>
@@ -1389,6 +1367,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>org.apache.bookkeeper</groupId>
             <artifactId>bookkeeper-server</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
           </exclusion>
         </exclusions>
       </dependency>

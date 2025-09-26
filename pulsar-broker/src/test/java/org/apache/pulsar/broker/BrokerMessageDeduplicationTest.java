@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -121,7 +122,7 @@ public class BrokerMessageDeduplicationTest {
         try {
             doAnswer(invocation -> {
                 throw new RuntimeException("asyncReadEntries failed");
-            }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+            }).when(cursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
             deduplication.checkStatus().get(3, TimeUnit.SECONDS);
             fail();
         } catch (ExecutionException e) {

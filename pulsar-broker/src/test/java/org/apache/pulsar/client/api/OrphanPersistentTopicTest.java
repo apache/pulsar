@@ -245,7 +245,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         admin.topics().createNonPartitionedTopic(tpName);
         admin.namespaces().unload(ns);
 
-        // Inject an error when calling "NamespaceService.isServiceUnitActiveAsync".
+        // Inject an error when loading the topic
         AtomicInteger failedTimes = new AtomicInteger();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         doAnswer(invocation -> {
@@ -258,7 +258,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
             }
             return invocation.callRealMethod();
-        }).when(namespaceService).isServiceUnitActiveAsync(any(TopicName.class));
+        }).when(namespaceService).checkBundleOwnership(any(TopicName.class), any());
 
         // Verify: the consumer can create successfully eventually.
         Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
@@ -295,7 +295,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
             }
             return invocation.callRealMethod();
-        }).when(namespaceService).isServiceUnitActiveAsync(any(TopicName.class));
+        }).when(namespaceService).checkBundleOwnership(any(TopicName.class), any());
 
         // Verify: the consumer create failed due to pulsar does not allow to create topic automatically.
         try {
