@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.apache.pulsar.client.api.PulsarClientSharedResources.ResourceType;
+import static org.apache.pulsar.client.api.PulsarClientSharedResources.SharedResource;
+import java.net.InetSocketAddress;
+import java.util.Collection;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Builder for configuring and creating {@link PulsarClientSharedResources}.
@@ -54,24 +58,20 @@ public interface PulsarClientSharedResourcesBuilder {
      * {@link PulsarClientSharedResources}. If this method isn't called, resources for all resource types
      * will be created and exposed.
      * Calling this method is additive and the builder will accumulate the shared resource types from all method calls.
-     * When specifying {@link ResourceType#dnsResolver}, it is mandatory to also set
-     * {@link ResourceType#eventLoopGroup} since the shared DNS resolver requires the event loop group.
+     * When specifying {@link SharedResource#DnsResolver}, it is mandatory to also set
+     * {@link SharedResource#EventLoopGroup} since the shared DNS resolver requires the event loop group.
      *
-     * @param sharedResourceType one or more resource types to include
+     * @param sharedResource one or more resource types to include
      * @return this builder
      */
-    PulsarClientSharedResourcesBuilder resourceTypes(ResourceType... sharedResourceType);
+    PulsarClientSharedResourcesBuilder resourceTypes(SharedResource... sharedResource);
 
     /**
-     * Applies client-level configuration hints that affect how shared resources are created.
-     * <p>
-     * For example, IO thread counts or DNS settings on the {@link ClientBuilder} may be used to size or
-     * initialize the underlying shared components.
-     *
-     * @param clientBuilder a client builder carrying relevant configuration
+     * @param sharedResource one or more resource types to include
      * @return this builder
+     * @see {@link #resourceTypes(SharedResource...)}
      */
-    PulsarClientSharedResourcesBuilder configureResources(ClientBuilder clientBuilder);
+    PulsarClientSharedResourcesBuilder resourceTypes(Collection<SharedResource> sharedResource);
 
     /**
      * Builds the {@link PulsarClientSharedResources} instance. It is necessary to call
@@ -81,4 +81,147 @@ public interface PulsarClientSharedResourcesBuilder {
      * @return the shared resources to be used in {@link ClientBuilder#sharedResources(PulsarClientSharedResources)}
      */
     PulsarClientSharedResources build();
+
+    /**
+     * Configures a thread pool for the specified shared resource type.
+     *
+     * @param sharedResource the type of shared resource to configure
+     * @param configurer     a consumer that configures the thread pool settings
+     * @return this builder instance for method chaining
+     */
+    PulsarClientSharedResourcesBuilder configureThreadPool(SharedResource sharedResource,
+                                                           Consumer<ThreadPoolConfig> configurer);
+
+    /**
+     * Configures the event loop group settings.
+     *
+     * @param configurer a consumer that configures the event loop group settings
+     * @return this builder instance for method chaining
+     */
+    PulsarClientSharedResourcesBuilder configureEventLoop(Consumer<EventLoopGroupConfig> configurer);
+
+    /**
+     * Configures the DNS resolver settings.
+     *
+     * @param configurer a consumer that configures the DNS resolver settings
+     * @return this builder instance for method chaining
+     */
+    PulsarClientSharedResourcesBuilder configureDnsResolver(Consumer<DnsResolverConfig> configurer);
+
+    /**
+     * Configures the timer settings.
+     *
+     * @param configurer a consumer that configures the timer settings
+     * @return this builder instance for method chaining
+     */
+    PulsarClientSharedResourcesBuilder configureTimer(Consumer<TimerConfig> configurer);
+
+    /**
+     * Configuration interface for thread pool settings.
+     */
+    interface ThreadPoolConfig {
+        /**
+         * Sets the name of the thread pool.
+         *
+         * @param name the name to set for the thread pool
+         * @return this config instance for method chaining
+         */
+        ThreadPoolConfig name(String name);
+
+        /**
+         * Sets the number of threads in the thread pool.
+         *
+         * @param numberOfThreads the number of threads to use
+         * @return this config instance for method chaining
+         */
+        ThreadPoolConfig numberOfThreads(int numberOfThreads);
+
+        /**
+         * Sets whether the threads should be daemon threads.
+         *
+         * @param daemon true if the threads should be daemon threads, false otherwise
+         * @return this config instance for method chaining
+         */
+        ThreadPoolConfig daemon(boolean daemon);
+    }
+
+    /**
+     * Configuration interface for event loop group settings.
+     */
+    interface EventLoopGroupConfig {
+        /**
+         * Sets the name of the event loop group.
+         *
+         * @param name the name to set for the event loop group
+         * @return this config instance for method chaining
+         */
+        EventLoopGroupConfig name(String name);
+
+        /**
+         * Sets the number of threads in the event loop.
+         *
+         * @param numberOfThreads the number of threads to use
+         * @return this config instance for method chaining
+         */
+        EventLoopGroupConfig numberOfThreads(int numberOfThreads);
+
+        /**
+         * Sets whether the threads should be daemon threads.
+         *
+         * @param daemon true if the threads should be daemon threads, false otherwise
+         * @return this config instance for method chaining
+         */
+        EventLoopGroupConfig daemon(boolean daemon);
+
+        /**
+         * Enables or disables busy-wait polling mode.
+         *
+         * @param enableBusyWait true to enable busy-wait polling, false to disable
+         * @return this config instance for method chaining
+         */
+        EventLoopGroupConfig enableBusyWait(boolean enableBusyWait);
+    }
+
+    /**
+     * Configuration interface for timer settings.
+     */
+    interface TimerConfig {
+        /**
+         * Sets the name of the timer.
+         *
+         * @param name the name to set for the timer
+         * @return this config instance for method chaining
+         */
+        TimerConfig name(String name);
+
+        /**
+         * Sets the tick duration for the timer.
+         *
+         * @param tickDuration the duration of each tick
+         * @param timeUnit     the time unit for the tick duration
+         * @return this config instance for method chaining
+         */
+        TimerConfig tickDuration(long tickDuration, TimeUnit timeUnit);
+    }
+
+    /**
+     * Configuration interface for DNS resolver settings.
+     */
+    interface DnsResolverConfig {
+        /**
+         * Sets the local bind address and port for DNS lookup client.
+         *
+         * @param bindAddress the socket address (address and port) to bind the DNS client to
+         * @return the DNS resolver configuration instance for chained calls
+         */
+        DnsResolverConfig bindAddress(InetSocketAddress bindAddress);
+
+        /**
+         * Sets the DNS server addresses to be used for DNS lookups.
+         *
+         * @param addresses collection of DNS server socket addresses (address and port)
+         * @return the DNS resolver configuration instance for chained calls
+         */
+        DnsResolverConfig serverAddresses(Collection<InetSocketAddress> addresses);
+    }
 }

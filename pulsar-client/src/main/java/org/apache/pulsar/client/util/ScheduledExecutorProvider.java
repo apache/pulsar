@@ -24,6 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ScheduledExecutorProvider extends ExecutorProvider {
+    public ScheduledExecutorProvider(int numThreads, String poolName, boolean daemon) {
+        super(numThreads, poolName, daemon);
+    }
 
     public ScheduledExecutorProvider(int numThreads, String poolName) {
         super(numThreads, poolName);

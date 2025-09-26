@@ -18,29 +18,29 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.apache.pulsar.client.impl.PulsarClientImpl.createExternalExecutorProvider;
-import static org.apache.pulsar.client.impl.PulsarClientImpl.createInternalExecutorProvider;
-import static org.apache.pulsar.client.impl.PulsarClientImpl.createLookupExecutorProvider;
-import static org.apache.pulsar.client.impl.PulsarClientImpl.createScheduledExecutorProvider;
-import static org.apache.pulsar.client.impl.PulsarClientImpl.createTimer;
-import static org.apache.pulsar.client.impl.PulsarClientImpl.getEventLoopGroup;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createDnsResolverGroupWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createEventLoopGroupWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createExternalExecutorProviderWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createInternalExecutorProviderWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createLookupExecutorProviderWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createScheduledExecutorProviderWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createTimer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 import java.util.Collection;
 import java.util.EnumSet;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import lombok.Getter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
 @Getter
 public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResources {
-    Set<ResourceType> resourceTypes;
+    Set<SharedResource> sharedResources;
     protected final EventLoopGroup ioEventLoopGroup;
     private final ExecutorProvider internalExecutorProvider;
     private final ExecutorProvider externalExecutorProvider;
@@ -49,49 +49,63 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
     private final ExecutorProvider lookupExecutorProvider;
     private final DnsResolverGroupImpl dnsResolverGroup;
 
-    public PulsarClientSharedResourcesImpl(Set<ResourceType> resourceTypes,
-                                           ClientConfigurationData conf) {
-        if (resourceTypes.isEmpty()) {
-            this.resourceTypes = EnumSet.allOf(ResourceType.class);
+    public PulsarClientSharedResourcesImpl(Set<SharedResource> sharedResources,
+                                           Map<SharedResource, PulsarClientSharedResourcesBuilderImpl.ResourceConfig>
+                                                   resourceConfigs) {
+        if (sharedResources.isEmpty()) {
+            this.sharedResources = EnumSet.allOf(SharedResource.class);
         } else {
-            this.resourceTypes = Set.copyOf(resourceTypes);
+            this.sharedResources = Set.copyOf(sharedResources);
         }
-        if (this.resourceTypes.contains(ResourceType.dnsResolver)
-            && !this.resourceTypes.contains(ResourceType.eventLoopGroup)) {
+        if (this.sharedResources.contains(SharedResource.DnsResolver)
+            && !this.sharedResources.contains(SharedResource.EventLoopGroup)) {
             throw new IllegalArgumentException(
                     "It's necessary to enable ResourceType.eventLoopGroup when using ResourceType.dnsResolverGroup");
         }
-        this.ioEventLoopGroup = this.resourceTypes.contains(ResourceType.eventLoopGroup)
-                ? getEventLoopGroup(conf)
+        this.ioEventLoopGroup = this.sharedResources.contains(SharedResource.EventLoopGroup)
+                ? createEventLoopGroupWithResourceConfig(
+                getResourceConfig(resourceConfigs, SharedResource.EventLoopGroup))
                 : null;
-        this.externalExecutorProvider = this.resourceTypes.contains(ResourceType.externalExecutor)
-                ? createExternalExecutorProvider(conf)
+        this.externalExecutorProvider = this.sharedResources.contains(SharedResource.ListenerExecutor)
+                ? createExternalExecutorProviderWithResourceConfig(
+                getResourceConfig(resourceConfigs, SharedResource.ListenerExecutor))
                 : null;
-        this.internalExecutorProvider = this.resourceTypes.contains(ResourceType.internalExecutor)
-                ? createInternalExecutorProvider(conf)
+        this.internalExecutorProvider = this.sharedResources.contains(SharedResource.InternalExecutor)
+                ? createInternalExecutorProviderWithResourceConfig(
+                getResourceConfig(resourceConfigs, SharedResource.InternalExecutor))
                 : null;
-        this.scheduledExecutorProvider = this.resourceTypes.contains(ResourceType.scheduledExecutor)
-                ? createScheduledExecutorProvider(conf)
+        this.scheduledExecutorProvider = this.sharedResources.contains(SharedResource.ScheduledExecutor)
+                ? createScheduledExecutorProviderWithResourceConfig(
+                getResourceConfig(resourceConfigs, SharedResource.ScheduledExecutor))
                 : null;
-        this.lookupExecutorProvider = this.resourceTypes.contains(ResourceType.lookupExecutor)
-                ? createLookupExecutorProvider()
+        this.lookupExecutorProvider = this.sharedResources.contains(SharedResource.LookupExecutor)
+                ? createLookupExecutorProviderWithResourceConfig(
+                getResourceConfig(resourceConfigs, SharedResource.LookupExecutor))
                 : null;
-        this.timer = this.resourceTypes.contains(ResourceType.timer)
-                ? createTimer()
+        this.timer = this.sharedResources.contains(SharedResource.Timer)
+                ? createTimer(getResourceConfig(resourceConfigs, SharedResource.Timer))
                 : null;
-        this.dnsResolverGroup = this.resourceTypes.contains(ResourceType.dnsResolver)
-                ? new DnsResolverGroupImpl(Objects.requireNonNull(ioEventLoopGroup), conf)
+        this.dnsResolverGroup = this.sharedResources.contains(SharedResource.DnsResolver)
+                ? createDnsResolverGroupWithResourceConfig(
+                        getResourceConfig(resourceConfigs, SharedResource.DnsResolver),
+                        ioEventLoopGroup)
                 : null;
     }
 
-    @Override
-    public boolean contains(ResourceType resourceType) {
-        return resourceTypes.contains(resourceType);
+    private <T extends PulsarClientSharedResourcesBuilderImpl.ResourceConfig> T getResourceConfig(
+            Map<SharedResource, PulsarClientSharedResourcesBuilderImpl.ResourceConfig> resourceConfigs,
+            SharedResource resource) {
+        return (T) resourceConfigs.get(resource);
     }
 
+
     @Override
-    public Collection<ResourceType> getResourceTypes() {
-        return resourceTypes;
+    public boolean contains(SharedResource sharedResource) {
+        return sharedResources.contains(sharedResource);
+    }
+
+    public Collection<SharedResource> getSharedResources() {
+        return sharedResources;
     }
 
     @Override

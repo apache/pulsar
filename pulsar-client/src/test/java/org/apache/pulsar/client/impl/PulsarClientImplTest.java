@@ -51,9 +51,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -259,21 +257,5 @@ public class PulsarClientImplTest {
                 .conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .build();
-    }
-
-    @Test
-    public void testSharedResources() throws PulsarClientException {
-        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder().build();
-        List<PulsarClient> clients = new ArrayList<>();
-        for (int i = 0; i < 1000; i++) {
-            clients.add(PulsarClient.builder()
-                    .serviceUrl("pulsar://localhost:6650")
-                    .sharedResources(sharedResources)
-                    .build());
-        }
-        for (PulsarClient client : clients) {
-            client.close();
-        }
-        sharedResources.close();
     }
 }

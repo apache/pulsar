@@ -25,7 +25,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AddressResolver;
-import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -44,7 +43,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -97,7 +95,6 @@ import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,13 +219,14 @@ public class PulsarClientImpl implements PulsarClient {
             this.createdExecutorProviders = externalExecutorProvider == null;
             this.createdScheduledProviders = scheduledExecutorProvider == null;
             this.createdLookupProviders = lookupExecutorProvider == null;
-            eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
+            eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup :
+                    PulsarClientResourcesConfigurer.createEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
-                    createScheduledExecutorProvider(conf);
+                    PulsarClientResourcesConfigurer.createScheduledExecutorProvider(conf);
             if (connectionPool != null) {
                 connectionPoolReference = connectionPool;
                 dnsResolverGroupLocalInstance = null;
@@ -237,7 +235,9 @@ public class PulsarClientImpl implements PulsarClient {
                 DnsResolverGroupImpl dnsResolverGroupReference;
                 if (dnsResolverGroup == null) {
                     dnsResolverGroupReference =
-                            dnsResolverGroupLocalInstance = new DnsResolverGroupImpl(eventLoopGroupReference, conf);
+                            dnsResolverGroupLocalInstance =
+                                    PulsarClientResourcesConfigurer.createDnsResolverGroup(conf,
+                                            eventLoopGroupReference);
                 } else {
                     dnsResolverGroupReference = dnsResolverGroup;
                     dnsResolverGroupLocalInstance = null;
@@ -254,11 +254,11 @@ public class PulsarClientImpl implements PulsarClient {
             }
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
-                    createExternalExecutorProvider(conf);
+                    PulsarClientResourcesConfigurer.createExternalExecutorProvider(conf);
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
-                    createInternalExecutorProvider(conf);
+                    PulsarClientResourcesConfigurer.createInternalExecutorProvider(conf);
             this.lookupExecutorProvider = lookupExecutorProvider != null ? lookupExecutorProvider :
-                    createLookupExecutorProvider();
+                    PulsarClientResourcesConfigurer.createLookupExecutorProvider();
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
             } else {
@@ -267,7 +267,7 @@ public class PulsarClientImpl implements PulsarClient {
                         this.lookupExecutorProvider.getExecutor());
             }
             if (timer == null) {
-                this.timer = createTimer();
+                this.timer = PulsarClientResourcesConfigurer.createTimer();
                 needStopTimer = true;
             } else {
                 this.timer = timer;
@@ -306,26 +306,6 @@ public class PulsarClientImpl implements PulsarClient {
             closeCnxPool(connectionPoolReference);
             throw t;
         }
-    }
-
-    static HashedWheelTimer createTimer() {
-        return new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
-    }
-
-    static ExecutorProvider createLookupExecutorProvider() {
-        return new ExecutorProvider(1, "pulsar-client-lookup");
-    }
-
-    static ExecutorProvider createInternalExecutorProvider(ClientConfigurationData conf) {
-        return new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
-    }
-
-    static ExecutorProvider createExternalExecutorProvider(ClientConfigurationData conf) {
-        return new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
-    }
-
-    static ScheduledExecutorProvider createScheduledExecutorProvider(ClientConfigurationData conf) {
-        return new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
     }
 
     private void reduceConsumerReceiverQueueSize() {
@@ -1317,15 +1297,6 @@ public class PulsarClientImpl implements PulsarClient {
                 return Collections.singletonList(topic);
             }
         });
-    }
-
-    static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
-        ThreadFactory threadFactory = getThreadFactory("pulsar-client-io");
-        return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
-    }
-
-    static ThreadFactory getThreadFactory(String poolName) {
-        return new ExecutorProvider.ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
     void cleanupProducer(ProducerBase<?> producer) {

@@ -54,40 +54,57 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
  * which can be obtained via the {@link #builder()} method.
  *
  * @see PulsarClientSharedResourcesBuilder
- * @see ResourceType
+ * @see SharedResource
  */
 public interface PulsarClientSharedResources extends AutoCloseable {
-    enum ResourceType {
+    enum SharedResource {
         // pulsar-io threadpool
-        eventLoopGroup,
-        // pulsar-timer threadpool
-        timer,
-        // pulsar-client-internal threadpool
-        internalExecutor,
+        EventLoopGroup(SharedResourceType.EventLoopGroup),
         // pulsar-external-listener threadpool
-        externalExecutor,
+        ListenerExecutor(SharedResourceType.ThreadPool),
+        // pulsar-timer threadpool
+        Timer(SharedResourceType.Timer),
+        // pulsar-client-internal threadpool
+        InternalExecutor(SharedResourceType.ThreadPool),
         // pulsar-client-scheduled threadpool
-        scheduledExecutor,
+        ScheduledExecutor(SharedResourceType.ThreadPool),
         // pulsar-lookup threadpool
-        lookupExecutor,
+        LookupExecutor(SharedResourceType.ThreadPool),
         // DNS resolver and cache that must be shared together with eventLoopGroup
-        dnsResolver
+        DnsResolver(SharedResourceType.DnsResolver);
+
+        private final SharedResourceType type;
+
+        SharedResource(SharedResourceType type) {
+            this.type = type;
+        }
+
+        public SharedResourceType getType() {
+            return type;
+        }
+    }
+
+    enum SharedResourceType {
+        EventLoopGroup,
+        ThreadPool,
+        Timer,
+        DnsResolver;
     }
 
     /**
      * Checks if a resource type is contained in the shared resources instance.
      *
-     * @param resourceType the type of resource to check
+     * @param sharedResource the type of resource to check
      * @return true if the resource type is contained in this instance, false otherwise
      */
-    boolean contains(ResourceType resourceType);
+    boolean contains(SharedResource sharedResource);
 
     /**
      * Gets all resource types contained in this shared resources instance.
      *
      * @return collection of resource types available in this instance
      */
-    Collection<ResourceType> getResourceTypes();
+    Collection<SharedResource> getSharedResources();
 
     /**
      * Creates a new builder for constructing instances of {@link PulsarClientSharedResources}.
