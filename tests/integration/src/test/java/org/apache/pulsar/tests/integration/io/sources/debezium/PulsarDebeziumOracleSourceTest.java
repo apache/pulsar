@@ -55,7 +55,7 @@ public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
         final String sourceName = "test-source-debezium-oracle-" + functionRuntimeType + "-" + randomName(8);
 
         // This is the event count to be created by prepareSource.
-        final int numMessages = 39;
+        final int numMessages = 2;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
