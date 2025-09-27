@@ -110,13 +110,27 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
 
     @Override
     public void close() throws PulsarClientException {
-        externalExecutorProvider.shutdownNow();
-        internalExecutorProvider.shutdownNow();
-        scheduledExecutorProvider.shutdownNow();
-        lookupExecutorProvider.shutdownNow();
-        dnsResolverGroup.close();
-        timer.stop();
-        EventLoopUtil.shutdownGracefully(ioEventLoopGroup);
+        if (externalExecutorProvider != null) {
+            externalExecutorProvider.shutdownNow();
+        }
+        if (internalExecutorProvider != null) {
+            internalExecutorProvider.shutdownNow();
+        }
+        if (scheduledExecutorProvider != null) {
+            scheduledExecutorProvider.shutdownNow();
+        }
+        if (lookupExecutorProvider != null) {
+            lookupExecutorProvider.shutdownNow();
+        }
+        if (dnsResolverGroup != null) {
+            dnsResolverGroup.close();
+        }
+        if (timer != null) {
+            timer.stop();
+        }
+        if (ioEventLoopGroup != null) {
+            EventLoopUtil.shutdownGracefully(ioEventLoopGroup);
+        }
     }
 
     public void applyTo(PulsarClientImpl.PulsarClientImplBuilder instanceBuilder) {
