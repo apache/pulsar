@@ -95,7 +95,7 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
 
     static class TimerResourceConfig extends NamedResourceConfig<TimerConfig> implements TimerConfig {
         long tickDuration = 1L;
-        TimeUnit tickDurationTimeUnit  = TimeUnit.MILLISECONDS;
+        TimeUnit tickDurationTimeUnit = TimeUnit.MILLISECONDS;
 
         TimerResourceConfig() {
             name = PulsarClientResourcesConfigurer.NAME_TIMER;
