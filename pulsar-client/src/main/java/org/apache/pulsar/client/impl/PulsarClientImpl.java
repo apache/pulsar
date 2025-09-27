@@ -1206,6 +1206,13 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public void reloadLookUp() throws PulsarClientException {
+        if (lookup != null) {
+            try {
+                lookup.close();
+            } catch (Exception e) {
+                log.warn("Failed to close previous lookup service before replacing", e);
+            }
+        }
         lookup = createLookup(conf.getServiceUrl());
     }
 
