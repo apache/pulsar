@@ -28,8 +28,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import org.apache.pulsar.client.api.DnsResolverConfig;
+import org.apache.pulsar.client.api.EventLoopGroupConfig;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
+import org.apache.pulsar.client.api.ThreadPoolConfig;
+import org.apache.pulsar.client.api.TimerConfig;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 
 public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientSharedResourcesBuilder {
@@ -239,7 +243,7 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
 
     @Override
     public PulsarClientSharedResourcesBuilder configureThreadPool(
-            PulsarClientSharedResources.SharedResource sharedResource, Consumer<ThreadPoolConfig> configurer) {
+            PulsarClientSharedResources.SharedResource sharedResource, Consumer<ThreadPoolConfig<?>> configurer) {
         if (sharedResource.getType() != PulsarClientSharedResources.SharedResourceType.ThreadPool) {
             throw new IllegalArgumentException("The shared resource " + sharedResource + " doesn't support thread pool"
                     + " configuration");
