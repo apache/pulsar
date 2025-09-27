@@ -178,7 +178,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.27.1</commons-compress.version>
 
     <bookkeeper.version>4.17.2</bookkeeper.version>
-    <zookeeper.version>3.9.3</zookeeper.version>
+    <zookeeper.version>3.9.4</zookeeper.version>
     <commons-cli.version>1.9.0</commons-cli.version>
     <commons-text.version>1.13.1</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
