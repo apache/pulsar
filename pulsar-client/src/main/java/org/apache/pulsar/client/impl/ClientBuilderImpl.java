@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
@@ -43,7 +44,9 @@ import org.apache.pulsar.common.tls.InetAddressUtils;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
+    private static final long serialVersionUID = 1L;
     ClientConfigurationData conf;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
 
     public ClientBuilderImpl() {
         this(new ClientConfigurationData());
@@ -68,12 +71,19 @@ public class ClientBuilderImpl implements ClientBuilder {
         if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
             setAuthenticationFromPropsIfAvailable(conf);
         }
-        return new PulsarClientImpl(conf);
+        PulsarClientImpl.PulsarClientImplBuilder instanceBuilder = PulsarClientImpl.builder();
+        instanceBuilder.conf(conf);
+        if (sharedResources != null) {
+            sharedResources.applyTo(instanceBuilder);
+        }
+        return instanceBuilder.build();
     }
 
     @Override
     public ClientBuilder clone() {
-        return new ClientBuilderImpl(conf.clone());
+        ClientBuilderImpl clientBuilder = new ClientBuilderImpl(conf.clone());
+        clientBuilder.sharedResources = sharedResources;
+        return clientBuilder;
     }
 
     @Override
@@ -483,6 +493,12 @@ public class ClientBuilderImpl implements ClientBuilder {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sharedResources(PulsarClientSharedResources sharedResources) {
+        this.sharedResources = (PulsarClientSharedResourcesImpl) sharedResources;
         return this;
     }
 

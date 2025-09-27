@@ -177,10 +177,13 @@ function test_group_other() {
                    **/OffloadersCacheTest.java
                   **/PrimitiveSchemaTest.java,
                   **/BlobStoreManagedLedgerOffloaderTest.java,
-                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java'
+                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java,
+                  **/DnsResolverTest.java'
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
+  # DnsResolverTest needs to be run separately since it relies on static field values
+  mvn_test -pl pulsar-common -Dinclude='**/DnsResolverTest.java'
 
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderStreamingTest.java'

@@ -16,24 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.client.api;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
-public class ScheduledExecutorProvider extends ExecutorProvider {
-    public ScheduledExecutorProvider(int numThreads, String poolName, boolean daemon) {
-        super(numThreads, poolName, daemon);
-    }
-
-    public ScheduledExecutorProvider(int numThreads, String poolName) {
-        super(numThreads, poolName);
-    }
-
-    @Override
-    protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-        return Executors.newSingleThreadScheduledExecutor(threadFactory);
-    }
+/**
+ * Configuration interface for event loop group settings.
+ */
+public interface EventLoopGroupConfig extends ThreadPoolConfig<EventLoopGroupConfig> {
+    /**
+     * Enables or disables busy-wait polling mode.
+     *
+     * @param enableBusyWait true to enable busy-wait polling, false to disable
+     * @return this config instance for method chaining
+     */
+    EventLoopGroupConfig enableBusyWait(boolean enableBusyWait);
 }
