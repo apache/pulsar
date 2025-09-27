@@ -21,7 +21,7 @@ package org.apache.pulsar.client.api;
 /**
  * Configuration interface for thread pool settings.
  */
-public interface ThreadPoolConfig<T extends ThreadPoolConfig<?>> {
+public interface ThreadPoolConfig<T extends ThreadPoolConfig<T>> {
     /**
      * Sets the name of the thread pool.
      *
