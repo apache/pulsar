@@ -61,8 +61,13 @@ public class DnsResolverUtil {
                     .map(Integer::decode)
                     .filter(i -> i > 0)
                     .orElseGet(() -> {
-                        if (System.getSecurityManager() == null) {
-                            return JDK_DEFAULT_TTL;
+                        try {
+                            if (System.getSecurityManager() == null) {
+                                return JDK_DEFAULT_TTL;
+                            }
+                        } catch (Throwable t) {
+                            log.warn("Cannot use current logic to resolve JDK default DNS TTL settings. {}",
+                                    t.getMessage());
                         }
                         return DEFAULT_TTL;
                     });
