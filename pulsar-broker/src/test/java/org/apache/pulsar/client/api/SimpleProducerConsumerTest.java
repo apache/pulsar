@@ -42,6 +42,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -5303,5 +5304,61 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testResourceSharingEndToEnd() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic");
+        int numberOfClients = 10;
+        List<PulsarClient> clients = new ArrayList<>();
+        @Cleanup
+        Closeable closeClients = () -> {
+            for (PulsarClient client : clients) {
+                try {
+                    client.close();
+                } catch (PulsarClientException e) {
+                    log.error("Failed to close client {}", client, e);
+                }
+            }
+        };
+        @Cleanup
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder().build();
+        List<Consumer<byte[]>> consumers = new ArrayList<>();
+
+        for (int i = 0; i < numberOfClients; i++) {
+            PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(brokerServiceUrl(true))
+                    .sharedResources(sharedResources)
+                    .build();
+            clients.add(client);
+            consumers.add(client.newConsumer().topic(topic)
+                    .subscriptionName("my-subscriber-name" + i).subscribe());
+        }
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topic);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        for (Consumer<byte[]> consumer : consumers) {
+            Message<byte[]> msg = null;
+            Set<String> messageSet = new HashSet<>();
+            for (int i = 0; i < 10; i++) {
+                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                String receivedMessage = new String(msg.getData());
+                log.debug("Received message: [{}]", receivedMessage);
+                String expectedMessage = "my-message-" + i;
+                testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            }
+            // Acknowledge the consumption of all messages at once
+            consumer.acknowledgeCumulative(msg);
+            consumer.close();
+        }
+        log.info("-- Exiting {} test --", methodName);
     }
 }
