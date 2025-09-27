@@ -59,18 +59,18 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
         }
     }
 
-    static class ThreadPoolResourceConfig extends NamedResourceConfig<ThreadPoolResourceConfig> implements ThreadPoolConfig {
+    static class ThreadPoolResourceConfig extends NamedResourceConfig<ThreadPoolConfig> implements ThreadPoolConfig {
         int numberOfThreads = Runtime.getRuntime().availableProcessors();
         boolean daemon = Thread.currentThread().isDaemon();
 
         @Override
-        public ThreadPoolResourceConfig numberOfThreads(int numberOfThreads) {
+        public ThreadPoolConfig numberOfThreads(int numberOfThreads) {
             this.numberOfThreads = numberOfThreads;
             return this;
         }
 
         @Override
-        public ThreadPoolResourceConfig daemon(boolean daemon) {
+        public ThreadPoolConfig daemon(boolean daemon) {
             this.daemon = daemon;
             return this;
         }
