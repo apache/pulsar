@@ -74,6 +74,14 @@ public interface PulsarClientSharedResourcesBuilder {
     PulsarClientSharedResourcesBuilder resourceTypes(Collection<SharedResource> sharedResource);
 
     /**
+     * Share only the configured resources. It's not allowed to use {@link #resourceTypes(SharedResource...)} when
+     * this method is called. When configuring {@link SharedResource#DnsResolver}, it is mandatory to also
+     * configure {@link SharedResource#EventLoopGroup} since the shared DNS resolver requires the event loop group.
+     * @return this builder instance for method chaining
+     */
+    PulsarClientSharedResourcesBuilder shareConfigured();
+
+    /**
      * Builds the {@link PulsarClientSharedResources} instance. It is necessary to call
      * {@link PulsarClientSharedResources#close()} on the instance to release resources. All clients must be closed
      * before closing the shared resources.

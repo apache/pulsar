@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -30,13 +31,13 @@ import org.testng.annotations.Test;
 public class PulsarClientSharedResourcesBuilderImplTest {
     @Test
     public void testSharedResources() throws PulsarClientException {
-        runClientsWithSharedResources(PulsarClientSharedResources.builder().build());
+        runClientsWithSharedResources(PulsarClientSharedResources.builder().build(), 1000);
     }
 
-    private static void runClientsWithSharedResources(PulsarClientSharedResources sharedResources)
+    private static void runClientsWithSharedResources(PulsarClientSharedResources sharedResources, int numberOfClients)
             throws PulsarClientException {
         List<PulsarClient> clients = new ArrayList<>();
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < numberOfClients; i++) {
             clients.add(PulsarClient.builder()
                     .serviceUrl("pulsar://localhost:6650")
                     .sharedResources(sharedResources)
@@ -91,8 +92,43 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                     timerConfig.name("testTimer").tickDuration(100, TimeUnit.MILLISECONDS);
                 })
                 .build();
-        runClientsWithSharedResources(sharedResources);
+        runClientsWithSharedResources(sharedResources, 1000);
         sharedResources.close();
     }
 
+    @Test
+    public void testPartialSharing() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources =
+                PulsarClientSharedResources.builder()
+                        .shareConfigured()
+                        .configureEventLoop(eventLoopGroupConfig -> {
+                    eventLoopGroupConfig.name("testEventLoop").numberOfThreads(10);
+                }).configureDnsResolver(dnsResolverConfig -> {
+                    dnsResolverConfig.bindAddress(new InetSocketAddress(0));
+                }).build();
+        runClientsWithSharedResources(sharedResources, 2);
+        sharedResources.close();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testDnsResolverRequiresEventLoop() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources =
+                PulsarClientSharedResources.builder()
+                        .shareConfigured()
+                        .configureDnsResolver(dnsResolverConfig -> {
+                            dnsResolverConfig.bindAddress(new InetSocketAddress(0));
+                        }).build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testDnsResolverRequiresEventLoopAlternativeSyntax() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources =
+                PulsarClientSharedResources.builder()
+                        // exclude all except EventLoopGroup
+                        .resourceTypes(EnumSet.complementOf(
+                                EnumSet.of(PulsarClientSharedResources.SharedResource.EventLoopGroup)))
+                        .configureDnsResolver(dnsResolverConfig -> {
+                            dnsResolverConfig.bindAddress(new InetSocketAddress(0));
+                        }).build();
+    }
 }

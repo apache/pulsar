@@ -51,16 +51,31 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
 
     public PulsarClientSharedResourcesImpl(Set<SharedResource> sharedResources,
                                            Map<SharedResource, PulsarClientSharedResourcesBuilderImpl.ResourceConfig>
-                                                   resourceConfigs) {
-        if (sharedResources.isEmpty()) {
-            this.sharedResources = EnumSet.allOf(SharedResource.class);
+                                                   resourceConfigs, boolean shareConfigured) {
+        if (shareConfigured) {
+            if (resourceConfigs.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "No resources have been configured while using shareConfigured mode");
+            }
+            this.sharedResources = Set.copyOf(resourceConfigs.keySet());
         } else {
-            this.sharedResources = Set.copyOf(sharedResources);
+            if (sharedResources.isEmpty()) {
+                this.sharedResources = EnumSet.allOf(SharedResource.class);
+            } else {
+                this.sharedResources = Set.copyOf(sharedResources);
+            }
         }
         if (this.sharedResources.contains(SharedResource.DnsResolver)
             && !this.sharedResources.contains(SharedResource.EventLoopGroup)) {
-            throw new IllegalArgumentException(
-                    "It's necessary to enable ResourceType.eventLoopGroup when using ResourceType.dnsResolverGroup");
+            if (shareConfigured) {
+                throw new IllegalArgumentException(
+                        "It's necessary to configure ResourceType.eventLoopGroup when configuring ResourceType"
+                                + ".dnsResolverGroup");
+            } else {
+                throw new IllegalArgumentException(
+                        "It's necessary to enable ResourceType.eventLoopGroup when using ResourceType"
+                                + ".dnsResolverGroup");
+            }
         }
         this.ioEventLoopGroup = this.sharedResources.contains(SharedResource.EventLoopGroup)
                 ? createEventLoopGroupWithResourceConfig(

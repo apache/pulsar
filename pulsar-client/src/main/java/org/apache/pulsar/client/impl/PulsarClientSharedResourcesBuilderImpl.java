@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientSharedResourcesBuilder {
     Set<PulsarClientSharedResources.SharedResource> sharedResources = new HashSet<>();
     Map<PulsarClientSharedResources.SharedResource, ResourceConfig> resourceConfigs = new HashMap<>();
+    private boolean shareConfigured;
 
     interface ResourceConfig {
 
@@ -129,13 +130,28 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
     @Override
     public PulsarClientSharedResourcesBuilder resourceTypes(
             PulsarClientSharedResources.SharedResource... sharedResource) {
+        if (shareConfigured) {
+            throw new IllegalStateException("Cannot set resourceTypes when shareConfigured() has already been called");
+        }
         return resourceTypes(List.of(sharedResource));
     }
 
     @Override
     public PulsarClientSharedResourcesBuilder resourceTypes(
             Collection<PulsarClientSharedResources.SharedResource> sharedResource) {
+        if (shareConfigured) {
+            throw new IllegalStateException("Cannot set resourceTypes when shareConfigured() has already been called");
+        }
         sharedResources.addAll(sharedResource);
+        return this;
+    }
+
+    @Override
+    public PulsarClientSharedResourcesBuilder shareConfigured() {
+        if (!sharedResources.isEmpty()) {
+            throw new IllegalStateException("Cannot use shareConfigured() when resourceTypes has already been set");
+        }
+        shareConfigured = true;
         return this;
     }
 
@@ -187,6 +203,6 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
 
     @Override
     public PulsarClientSharedResources build() {
-        return new PulsarClientSharedResourcesImpl(sharedResources, resourceConfigs);
+        return new PulsarClientSharedResourcesImpl(sharedResources, resourceConfigs, shareConfigured);
     }
 }
