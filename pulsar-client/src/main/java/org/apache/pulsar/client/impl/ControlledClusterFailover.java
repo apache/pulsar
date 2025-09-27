@@ -104,6 +104,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             }
         });
         confBuilder.setNettyTimer(pulsarClient.timer());
+        confBuilder.setEventLoopGroup(pulsarClient.eventLoopGroup());
         AsyncHttpClientConfig config = confBuilder.build();
         return new DefaultAsyncHttpClient(config);
     }
