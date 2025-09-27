@@ -99,7 +99,18 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     @VisibleForTesting
     BucketDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher)
             throws RecoverDelayedDeliveryTrackerException {
-        return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+        DelayedDeliveryContext context = new DispatcherDelayedDeliveryContext(dispatcher);
+        return new BucketDelayedDeliveryTracker(context, timer, tickTimeMillis,
+                isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
+                TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
+                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
+    }
+
+    @VisibleForTesting
+    BucketDelayedDeliveryTracker newTracker0(String dispatcherName, ManagedCursor cursor)
+            throws RecoverDelayedDeliveryTrackerException {
+        DelayedDeliveryContext context = new NoopDelayedDeliveryContext(dispatcherName, cursor);
+        return new BucketDelayedDeliveryTracker(context, timer, tickTimeMillis,
                 isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
                 TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
                 delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
