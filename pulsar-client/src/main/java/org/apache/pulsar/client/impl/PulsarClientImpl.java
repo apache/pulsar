@@ -236,8 +236,8 @@ public class PulsarClientImpl implements PulsarClient {
                 if (dnsResolverGroup == null) {
                     dnsResolverGroupReference =
                             dnsResolverGroupLocalInstance =
-                                    PulsarClientResourcesConfigurer.createDnsResolverGroup(conf,
-                                            eventLoopGroupReference);
+                                    PulsarClientResourcesConfigurer.createDnsResolverGroup(conf
+                                    );
                 } else {
                     dnsResolverGroupReference = dnsResolverGroup;
                     dnsResolverGroupLocalInstance = null;

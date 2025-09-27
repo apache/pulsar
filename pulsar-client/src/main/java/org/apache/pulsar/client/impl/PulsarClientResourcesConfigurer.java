@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
-import io.netty.resolver.dns.SequentialDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
-import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
@@ -137,18 +135,15 @@ class PulsarClientResourcesConfigurer {
         return new ExecutorProvider.ExtendedThreadFactory(poolName, daemon);
     }
 
-    static DnsResolverGroupImpl createDnsResolverGroup(ClientConfigurationData conf,
-                                                                         EventLoopGroup eventLoopGroup) {
-        return new DnsResolverGroupImpl(eventLoopGroup, conf);
+    static DnsResolverGroupImpl createDnsResolverGroup(ClientConfigurationData conf) {
+        return new DnsResolverGroupImpl(conf);
     }
 
     static DnsResolverGroupImpl createDnsResolverGroupWithResourceConfig(
-            PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig resourceConfig,
-            EventLoopGroup eventLoopGroup) {
+            PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig resourceConfig) {
         if (resourceConfig == null) {
             resourceConfig = new PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig();
         }
-        return new DnsResolverGroupImpl(eventLoopGroup, Optional.ofNullable(resourceConfig.localAddress),
-                Optional.ofNullable(resourceConfig.serverAddresses).map(SequentialDnsServerAddressStreamProvider::new));
+        return new DnsResolverGroupImpl(resourceConfig);
     }
 }

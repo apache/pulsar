@@ -65,18 +65,6 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
                 this.sharedResources = Set.copyOf(sharedResources);
             }
         }
-        if (this.sharedResources.contains(SharedResource.DnsResolver)
-            && !this.sharedResources.contains(SharedResource.EventLoopGroup)) {
-            if (shareConfigured) {
-                throw new IllegalArgumentException(
-                        "It's necessary to configure ResourceType.eventLoopGroup when configuring ResourceType"
-                                + ".dnsResolverGroup");
-            } else {
-                throw new IllegalArgumentException(
-                        "It's necessary to enable ResourceType.eventLoopGroup when using ResourceType"
-                                + ".dnsResolverGroup");
-            }
-        }
         this.ioEventLoopGroup = this.sharedResources.contains(SharedResource.EventLoopGroup)
                 ? createEventLoopGroupWithResourceConfig(
                 getResourceConfig(resourceConfigs, SharedResource.EventLoopGroup))
@@ -102,8 +90,7 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
                 : null;
         this.dnsResolverGroup = this.sharedResources.contains(SharedResource.DnsResolver)
                 ? createDnsResolverGroupWithResourceConfig(
-                        getResourceConfig(resourceConfigs, SharedResource.DnsResolver),
-                        ioEventLoopGroup)
+                getResourceConfig(resourceConfigs, SharedResource.DnsResolver))
                 : null;
     }
 

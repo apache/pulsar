@@ -61,10 +61,7 @@ public class DnsResolverUtil {
                     .map(Integer::decode)
                     .filter(i -> i > 0)
                     .orElseGet(() -> {
-                        if (System.getSecurityManager() == null) {
-                            return JDK_DEFAULT_TTL;
-                        }
-                        return DEFAULT_TTL;
+                        return JDK_DEFAULT_TTL;
                     });
 
             negativeTtl = Optional.ofNullable(negativeTtlStr)
@@ -91,5 +88,17 @@ public class DnsResolverUtil {
     public static void applyJdkDnsCacheSettings(DnsNameResolverBuilder dnsNameResolverBuilder) {
         dnsNameResolverBuilder.ttl(MIN_TTL, TTL);
         dnsNameResolverBuilder.negativeTtl(NEGATIVE_TTL);
+    }
+
+    public static int getDefaultMinTTL() {
+        return MIN_TTL;
+    }
+
+    public static int getDefaultTTL() {
+        return TTL;
+    }
+
+    public static int getDefaultNegativeTTL() {
+        return NEGATIVE_TTL;
     }
 }

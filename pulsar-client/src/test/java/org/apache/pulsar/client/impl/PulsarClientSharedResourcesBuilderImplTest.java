@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -110,25 +109,26 @@ public class PulsarClientSharedResourcesBuilderImplTest {
         sharedResources.close();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testDnsResolverRequiresEventLoop() throws PulsarClientException {
+    @Test
+    public void testDnsResolverConfig() throws PulsarClientException {
         PulsarClientSharedResources sharedResources =
                 PulsarClientSharedResources.builder()
                         .shareConfigured()
                         .configureDnsResolver(dnsResolverConfig -> {
-                            dnsResolverConfig.localAddress(new InetSocketAddress(0));
+                            dnsResolverConfig
+                                    .localAddress(new InetSocketAddress(0))
+                                    .serverAddresses(List.of(new InetSocketAddress("8.8.8.8", 53)))
+                                    .minTtl(0)
+                                    .maxTtl(45)
+                                    .negativeTtl(10)
+                                    .ndots(1)
+                                    .searchDomains(List.of("mycompany.com"))
+                                    .queryTimeoutMillis(5000L)
+                                    .tcpFallbackEnabled(true)
+                                    .tcpFallbackOnTimeoutEnabled(false)
+                                    .traceEnabled(false);
                         }).build();
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testDnsResolverRequiresEventLoopAlternativeSyntax() throws PulsarClientException {
-        PulsarClientSharedResources sharedResources =
-                PulsarClientSharedResources.builder()
-                        // exclude all except EventLoopGroup
-                        .resourceTypes(EnumSet.complementOf(
-                                EnumSet.of(PulsarClientSharedResources.SharedResource.EventLoopGroup)))
-                        .configureDnsResolver(dnsResolverConfig -> {
-                            dnsResolverConfig.localAddress(new InetSocketAddress(0));
-                        }).build();
+        runClientsWithSharedResources(sharedResources, 2);
+        sharedResources.close();
     }
 }

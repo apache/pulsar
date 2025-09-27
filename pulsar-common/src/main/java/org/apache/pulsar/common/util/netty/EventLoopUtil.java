@@ -57,13 +57,7 @@ public class EventLoopUtil {
      */
     public static EventLoopGroup newEventLoopGroup(int nThreads, boolean enableBusyWait, ThreadFactory threadFactory) {
         if (Epoll.isAvailable()) {
-            String enableIoUring = System.getProperty(ENABLE_IO_URING);
-
-            // By default, io_uring will not be enabled, even if available. The environment variable will be used:
-            // enable.io_uring=1
-            if (StringUtils.equalsAnyIgnoreCase(enableIoUring, "1", "true")) {
-                // Throw exception if IOUring cannot be used
-                IOUring.ensureAvailability();
+            if (isIoUringEnabledAndAvailable()) {
                 return new IOUringEventLoopGroup(nThreads, threadFactory);
             } else {
                 if (!enableBusyWait) {
@@ -96,6 +90,15 @@ public class EventLoopUtil {
         }
     }
 
+    private static boolean isIoUringEnabledAndAvailable() {
+        // By default, io_uring will not be enabled, even if available. The environment variable will be used:
+        // enable.io_uring=1
+        boolean ioUringEnabled = StringUtils.equalsAnyIgnoreCase(System.getProperty(ENABLE_IO_URING), "1", "true");
+        // Throw exception if IOUring cannot be used
+        IOUring.ensureAvailability();
+        return ioUringEnabled;
+    }
+
     /**
      * Return a SocketChannel class suitable for the given EventLoopGroup implementation.
      *
@@ -112,6 +115,25 @@ public class EventLoopUtil {
         }
     }
 
+    /**
+     * Returns the most appropriate SocketChannel implementation based on the system's capabilities
+     * and configuration. Precedence:
+     * 1) IO_uring (if available and enabled via 'pulsar.enableUring')
+     * 2) Epoll (if available)
+     * 3) NIO (fallback)
+     */
+    public static Class<? extends SocketChannel> getClientSocketChannelClass() {
+        if (Epoll.isAvailable()) {
+            if (isIoUringEnabledAndAvailable()) {
+                return IOUringSocketChannel.class;
+            } else {
+                return EpollSocketChannel.class;
+            }
+        } else {
+            return NioSocketChannel.class;
+        }
+    }
+
     public static Class<? extends ServerSocketChannel> getServerSocketChannelClass(EventLoopGroup eventLoopGroup) {
         if (eventLoopGroup instanceof IOUringEventLoopGroup) {
             return IOUringServerSocketChannel.class;
@@ -122,11 +144,49 @@ public class EventLoopUtil {
         }
     }
 
+    /**
+     * Returns the most appropriate ServerSocketChannel implementation based on the system's capabilities
+     * and configuration. Precedence:
+     * 1) IO_uring (if available and enabled via 'pulsar.enableUring')
+     * 2) Epoll (if available)
+     * 3) NIO (fallback)
+     */
+    public static Class<? extends ServerSocketChannel> getServerSocketChannelClass() {
+        if (Epoll.isAvailable()) {
+            if (isIoUringEnabledAndAvailable()) {
+                return IOUringServerSocketChannel.class;
+            } else {
+                return EpollServerSocketChannel.class;
+            }
+        } else {
+            return NioServerSocketChannel.class;
+        }
+    }
+
     public static Class<? extends DatagramChannel> getDatagramChannelClass(EventLoopGroup eventLoopGroup) {
         if (eventLoopGroup instanceof IOUringEventLoopGroup) {
             return IOUringDatagramChannel.class;
         } else if (eventLoopGroup instanceof EpollEventLoopGroup) {
             return EpollDatagramChannel.class;
+        } else {
+            return NioDatagramChannel.class;
+        }
+    }
+
+    /**
+     * Returns the most appropriate DatagramChannel implementation based on the system's capabilities
+     * and configuration. Precedence:
+     * 1) IO_uring (if available and enabled via 'pulsar.enableUring')
+     * 2) Epoll (if available)
+     * 3) NIO (fallback)
+     */
+    public static Class<? extends DatagramChannel> getDatagramChannelClass() {
+        if (Epoll.isAvailable()) {
+            if (isIoUringEnabledAndAvailable()) {
+                return IOUringDatagramChannel.class;
+            } else {
+                return EpollDatagramChannel.class;
+            }
         } else {
             return NioDatagramChannel.class;
         }

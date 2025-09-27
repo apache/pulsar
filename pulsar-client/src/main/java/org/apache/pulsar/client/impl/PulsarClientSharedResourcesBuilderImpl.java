@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Lists;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashMap;
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 
 public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientSharedResourcesBuilder {
     Set<PulsarClientSharedResources.SharedResource> sharedResources = new HashSet<>();
@@ -113,6 +115,15 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
     static class DnsResolverResourceConfig implements ResourceConfig, DnsResolverConfig {
         InetSocketAddress localAddress;
         Collection<InetSocketAddress> serverAddresses;
+        int minTtl = DnsResolverUtil.getDefaultMinTTL();
+        int maxTtl = DnsResolverUtil.getDefaultTTL();
+        int negativeTtl = DnsResolverUtil.getDefaultNegativeTTL();
+        long queryTimeoutMillis = -1L;
+        boolean traceEnabled = true;
+        boolean tcpFallbackEnabled = true;
+        boolean tcpFallbackOnTimeoutEnabled = true;
+        int ndots = -1;
+        Collection<String> searchDomains;
 
         @Override
         public DnsResolverConfig localAddress(InetSocketAddress localAddress) {
@@ -121,8 +132,62 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
         }
 
         @Override
-        public DnsResolverConfig serverAddresses(Collection<InetSocketAddress> addresses) {
-            this.serverAddresses = List.copyOf(addresses);
+        public DnsResolverConfig serverAddresses(Iterable<InetSocketAddress> addresses) {
+            this.serverAddresses = Lists.newArrayList(addresses);
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig minTtl(int minTtl) {
+            this.minTtl = minTtl;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig maxTtl(int maxTtl) {
+            this.maxTtl = maxTtl;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig negativeTtl(int negativeTtl) {
+            this.negativeTtl = negativeTtl;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig queryTimeoutMillis(long queryTimeoutMillis) {
+            this.queryTimeoutMillis = queryTimeoutMillis;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig traceEnabled(boolean traceEnabled) {
+            this.traceEnabled = traceEnabled;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig tcpFallbackEnabled(boolean tcpFallbackEnabled) {
+            this.tcpFallbackEnabled = tcpFallbackEnabled;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig tcpFallbackOnTimeoutEnabled(boolean tcpFallbackOnTimeoutEnabled) {
+            this.tcpFallbackOnTimeoutEnabled = tcpFallbackOnTimeoutEnabled;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig ndots(int ndots) {
+            this.ndots = ndots;
+            return this;
+        }
+
+        @Override
+        public DnsResolverConfig searchDomains(Iterable<String> searchDomains) {
+            this.searchDomains = Lists.newArrayList(searchDomains);
             return this;
         }
     }
