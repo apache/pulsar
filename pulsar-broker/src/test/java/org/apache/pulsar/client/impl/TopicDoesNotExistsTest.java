@@ -39,6 +39,8 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         conf.setAllowAutoTopicCreation(false);
         super.internalSetup();
         super.producerBaseSetup();
