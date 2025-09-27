@@ -94,8 +94,10 @@ public class EventLoopUtil {
         // By default, io_uring will not be enabled, even if available. The environment variable will be used:
         // enable.io_uring=1
         boolean ioUringEnabled = StringUtils.equalsAnyIgnoreCase(System.getProperty(ENABLE_IO_URING), "1", "true");
-        // Throw exception if IOUring cannot be used
-        IOUring.ensureAvailability();
+        if (ioUringEnabled) {
+            // Throw exception if IOUring cannot be used
+            IOUring.ensureAvailability();
+        }
         return ioUringEnabled;
     }
 
