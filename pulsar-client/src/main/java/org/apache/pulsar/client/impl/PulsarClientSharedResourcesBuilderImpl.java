@@ -111,12 +111,12 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
     }
 
     static class DnsResolverResourceConfig implements ResourceConfig, DnsResolverConfig {
-        InetSocketAddress bindAddress;
+        InetSocketAddress localAddress;
         Collection<InetSocketAddress> serverAddresses;
 
         @Override
-        public DnsResolverConfig bindAddress(InetSocketAddress bindAddress) {
-            this.bindAddress = bindAddress;
+        public DnsResolverConfig localAddress(InetSocketAddress localAddress) {
+            this.localAddress = localAddress;
             return this;
         }
 

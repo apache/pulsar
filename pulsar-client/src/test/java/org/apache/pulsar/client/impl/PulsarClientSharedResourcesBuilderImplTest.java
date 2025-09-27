@@ -58,7 +58,7 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                             .numberOfThreads(10);
                 })
                 .configureDnsResolver(dnsResolverConfig -> {
-                    dnsResolverConfig.bindAddress(new InetSocketAddress(0));
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
                 })
                 .configureThreadPool(PulsarClientSharedResources.SharedResource.ListenerExecutor,
                         threadPoolConfig -> {
@@ -104,7 +104,7 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                         .configureEventLoop(eventLoopGroupConfig -> {
                     eventLoopGroupConfig.name("testEventLoop").numberOfThreads(10);
                 }).configureDnsResolver(dnsResolverConfig -> {
-                    dnsResolverConfig.bindAddress(new InetSocketAddress(0));
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
                 }).build();
         runClientsWithSharedResources(sharedResources, 2);
         sharedResources.close();
@@ -116,7 +116,7 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                 PulsarClientSharedResources.builder()
                         .shareConfigured()
                         .configureDnsResolver(dnsResolverConfig -> {
-                            dnsResolverConfig.bindAddress(new InetSocketAddress(0));
+                            dnsResolverConfig.localAddress(new InetSocketAddress(0));
                         }).build();
     }
 
@@ -128,7 +128,7 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                         .resourceTypes(EnumSet.complementOf(
                                 EnumSet.of(PulsarClientSharedResources.SharedResource.EventLoopGroup)))
                         .configureDnsResolver(dnsResolverConfig -> {
-                            dnsResolverConfig.bindAddress(new InetSocketAddress(0));
+                            dnsResolverConfig.localAddress(new InetSocketAddress(0));
                         }).build();
     }
 }

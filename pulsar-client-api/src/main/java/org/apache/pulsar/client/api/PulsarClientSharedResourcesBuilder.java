@@ -219,10 +219,10 @@ public interface PulsarClientSharedResourcesBuilder {
         /**
          * Sets the local bind address and port for DNS lookup client.
          *
-         * @param bindAddress the socket address (address and port) to bind the DNS client to
+         * @param localAddress the socket address (address and port) to bind the DNS client to
          * @return the DNS resolver configuration instance for chained calls
          */
-        DnsResolverConfig bindAddress(InetSocketAddress bindAddress);
+        DnsResolverConfig localAddress(InetSocketAddress localAddress);
 
         /**
          * Sets the DNS server addresses to be used for DNS lookups.

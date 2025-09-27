@@ -148,7 +148,7 @@ class PulsarClientResourcesConfigurer {
         if (resourceConfig == null) {
             resourceConfig = new PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig();
         }
-        return new DnsResolverGroupImpl(eventLoopGroup, Optional.ofNullable(resourceConfig.bindAddress),
+        return new DnsResolverGroupImpl(eventLoopGroup, Optional.ofNullable(resourceConfig.localAddress),
                 Optional.ofNullable(resourceConfig.serverAddresses).map(SequentialDnsServerAddressStreamProvider::new));
     }
 }
