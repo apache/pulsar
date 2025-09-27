@@ -213,8 +213,7 @@ public class TopicLookupBase extends PulsarWebResource {
                         // and other vital information. Even after namespace starting deletion,
                         // we need to access the metadata of system topics to create readers and clean up topic data.
                         // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
-                        checkLocalOrGetPeerReplicationCluster(pulsarService,
-                                topicName.getNamespaceObject(), SystemTopicNames.isSystemTopic(topicName))
+                        checkLocalOrGetPeerReplicationCluster(pulsarService, topicName)
                                 .thenAccept(peerClusterData -> {
                                     if (peerClusterData == null) {
                                         // (4) all validation passed: initiate lookup
