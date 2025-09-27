@@ -26,8 +26,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
-import com.google.common.collect.ImmutableMap;
 import io.netty.channel.embedded.EmbeddedChannel;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -77,7 +77,7 @@ public class AbstractTopicTest extends BrokerTestBase {
             }
             Topic topic = spy(topicOpt.get());
             AbstractSubscription subscription = mock(subscriptionClass);
-            doReturn(ImmutableMap.of("subscription", subscription))
+            doReturn(Map.of("subscription", subscription))
                     .when(topic).getSubscriptions();
             return Pair.of((AbstractTopic) topic, subscription);
         };
@@ -127,7 +127,7 @@ public class AbstractTopicTest extends BrokerTestBase {
 
         // Add old producer
         topic.addProducer(oldProducer, new CompletableFuture<>()).join();
-        
+
         CountDownLatch oldCnxCheckInvokedLatch = new CountDownLatch(1);
         CountDownLatch oldCnxCheckStartLatch = new CountDownLatch(1);
         doAnswer(invocation -> {
@@ -151,14 +151,14 @@ public class AbstractTopicTest extends BrokerTestBase {
 
         // Wait until new producer entered `AbstractTopic#tryOverwriteOldProducer`
         oldCnxCheckInvokedLatch.await();
-        
+
         topic.close(true);
         // Run pending tasks to remove old producer from topic.
         ((EmbeddedChannel) oldCnx.ctx().channel()).runPendingTasks();
-        
+
         // Unblock ServerCnx#checkConnectionLiveness to resume `AbstractTopic#tryOverwriteOldProducer`
         oldCnxCheckStartLatch.countDown();
-        
+
         // As topic is fenced, adding new producer should fail.
         try {
             producerEpoch.join();

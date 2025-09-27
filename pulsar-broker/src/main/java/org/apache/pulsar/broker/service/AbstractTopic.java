@@ -765,11 +765,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return brokerService.checkTopicNsOwnership(getName())
                 .thenCompose(__ ->
                         incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
-                .thenCompose(producerEpoch -> 
+                .thenCompose(producerEpoch ->
                         internalAddProducer(producer).thenApply(ignore -> {
                             USAGE_COUNT_UPDATER.incrementAndGet(this);
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), 
+                                log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(),
                                         USAGE_COUNT_UPDATER.get(this));
                             }
                             return producerEpoch;
@@ -963,7 +963,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 log.warn("[{}] Attempting to add producer to a terminated topic", topic);
                 throw new TopicTerminatedException("Topic was already terminated");
             }
-            
+
             if (isSameAddressProducersExceeded(producer)) {
                 log.warn("[{}] Attempting to add producer to topic which reached max same address producers limit",
                         topic);
