@@ -50,6 +50,11 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
 
         public T name(String name) {
             this.name = name;
+            return self();
+        }
+
+        @SuppressWarnings("unchecked")
+        T self() {
             return (T) this;
         }
     }
@@ -224,6 +229,7 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends ResourceConfig> T getOrCreateConfig(PulsarClientSharedResources.SharedResource sharedResource) {
         return (T) resourceConfigs.computeIfAbsent(sharedResource, k -> {
             switch (sharedResource.getType()) {
