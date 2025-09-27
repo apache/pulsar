@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.pulsar.tests</groupId>
         <artifactId>tests-parent</artifactId>
-        <version>3.0.14</version>
+        <version>3.0.15-SNAPSHOT</version>
     </parent>
 
     <artifactId>bc_2_0_0</artifactId>

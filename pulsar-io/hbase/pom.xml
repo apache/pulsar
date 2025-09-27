@@ -25,7 +25,7 @@
     <parent>
         <artifactId>pulsar-io</artifactId>
         <groupId>org.apache.pulsar</groupId>
-        <version>3.0.14</version>
+        <version>3.0.15-SNAPSHOT</version>
     </parent>
     <artifactId>pulsar-io-hbase</artifactId>
     <name>Pulsar IO :: Hbase</name>
