@@ -202,7 +202,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Builder(builderClassName = "PulsarClientImplBuilder")
-    private PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
+    public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
                              Timer timer, ExecutorProvider externalExecutorProvider,
                              ExecutorProvider internalExecutorProvider,
                              ScheduledExecutorProvider scheduledExecutorProvider,
@@ -236,7 +236,8 @@ public class PulsarClientImpl implements PulsarClient {
             if (connectionPool != null) {
                 connectionPoolReference = connectionPool;
                 dnsResolverGroupLocalInstance = null;
-                addressResolver = null;
+                addressResolver = dnsResolverGroup != null
+                        ? dnsResolverGroup.createAddressResolver(eventLoopGroupReference) : null;
             } else {
                 DnsResolverGroupImpl dnsResolverGroupReference;
                 if (dnsResolverGroup == null) {
