@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.util.Timer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -70,7 +71,8 @@ public class HttpClient implements Closeable {
     protected ScheduledExecutorService executorService;
     protected PulsarSslFactory sslFactory;
 
-    protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
+    protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Timer timer)
+            throws PulsarClientException {
         this.authentication = conf.getAuthentication();
         this.clientConf = conf;
         this.serviceNameResolver = new PulsarServiceNameResolver(conf.getServiceUrlQuarantineInitDurationMs(),
@@ -128,6 +130,7 @@ public class HttpClient implements Closeable {
             }
         }
         confBuilder.setEventLoopGroup(eventLoopGroup);
+        confBuilder.setNettyTimer(timer);
         AsyncHttpClientConfig config = confBuilder.build();
         httpClient = new DefaultAsyncHttpClient(config);
 

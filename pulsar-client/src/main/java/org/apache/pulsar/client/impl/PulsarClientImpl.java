@@ -259,18 +259,18 @@ public class PulsarClientImpl implements PulsarClient {
                     PulsarClientResourcesConfigurer.createInternalExecutorProvider(conf);
             this.lookupExecutorProvider = lookupExecutorProvider != null ? lookupExecutorProvider :
                     PulsarClientResourcesConfigurer.createLookupExecutorProvider();
-            if (conf.getServiceUrl().startsWith("http")) {
-                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
-            } else {
-                lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
-                        conf.isUseTls(), this.scheduledExecutorProvider.getExecutor(),
-                        this.lookupExecutorProvider.getExecutor());
-            }
             if (timer == null) {
                 this.timer = PulsarClientResourcesConfigurer.createTimer();
                 needStopTimer = true;
             } else {
                 this.timer = timer;
+            }
+            if (conf.getServiceUrl().startsWith("http")) {
+                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup, timer);
+            } else {
+                lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
+                        conf.isUseTls(), this.scheduledExecutorProvider.getExecutor(),
+                        this.lookupExecutorProvider.getExecutor());
             }
 
             if (conf.getServiceUrlProvider() != null) {
@@ -1211,7 +1211,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService createLookup(String url) throws PulsarClientException {
         if (url.startsWith("http")) {
-            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup);
+            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup, timer);
         } else {
             return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
