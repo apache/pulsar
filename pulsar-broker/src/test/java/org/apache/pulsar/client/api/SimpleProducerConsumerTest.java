@@ -5306,11 +5306,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
-    public void testResourceSharingEndToEnd() throws Exception {
+    @Test(dataProvider = "trueFalse")
+    public void testResourceSharingEndToEnd(boolean usePulsarBinaryProtocol) throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic");
-        int numberOfClients = 10;
+        int numberOfClients = 50;
         List<PulsarClient> clients = new ArrayList<>();
         @Cleanup
         Closeable closeClients = () -> {
@@ -5328,7 +5328,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         for (int i = 0; i < numberOfClients; i++) {
             PulsarClient client = PulsarClient.builder()
-                    .serviceUrl(brokerServiceUrl(true))
+                    .serviceUrl(brokerServiceUrl(usePulsarBinaryProtocol))
                     .sharedResources(sharedResources)
                     .build();
             clients.add(client);
@@ -5359,6 +5359,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             consumer.acknowledgeCumulative(msg);
             consumer.close();
         }
+
         log.info("-- Exiting {} test --", methodName);
     }
 }

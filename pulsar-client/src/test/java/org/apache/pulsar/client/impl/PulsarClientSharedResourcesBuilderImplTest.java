@@ -30,15 +30,17 @@ import org.testng.annotations.Test;
 public class PulsarClientSharedResourcesBuilderImplTest {
     @Test
     public void testSharedResources() throws PulsarClientException {
-        runClientsWithSharedResources(PulsarClientSharedResources.builder().build(), 1000);
+        runClientsWithSharedResources(PulsarClientSharedResources.builder().build(), 1000, false);
+        runClientsWithSharedResources(PulsarClientSharedResources.builder().build(), 1000, true);
     }
 
-    private static void runClientsWithSharedResources(PulsarClientSharedResources sharedResources, int numberOfClients)
+    private static void runClientsWithSharedResources(PulsarClientSharedResources sharedResources, int numberOfClients,
+                                                      boolean useHttpLookup)
             throws PulsarClientException {
         List<PulsarClient> clients = new ArrayList<>();
         for (int i = 0; i < numberOfClients; i++) {
             clients.add(PulsarClient.builder()
-                    .serviceUrl("pulsar://localhost:6650")
+                    .serviceUrl(useHttpLookup ? "http://localhost:8080" : "pulsar://localhost:6650")
                     .sharedResources(sharedResources)
                     .build());
         }
@@ -91,7 +93,7 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                     timerConfig.name("testTimer").tickDuration(100, TimeUnit.MILLISECONDS);
                 })
                 .build();
-        runClientsWithSharedResources(sharedResources, 1000);
+        runClientsWithSharedResources(sharedResources, 1000, false);
         sharedResources.close();
     }
 
@@ -105,7 +107,7 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                 }).configureDnsResolver(dnsResolverConfig -> {
                     dnsResolverConfig.localAddress(new InetSocketAddress(0));
                 }).build();
-        runClientsWithSharedResources(sharedResources, 2);
+        runClientsWithSharedResources(sharedResources, 2, false);
         sharedResources.close();
     }
 
@@ -128,7 +130,7 @@ public class PulsarClientSharedResourcesBuilderImplTest {
                                     .tcpFallbackOnTimeoutEnabled(false)
                                     .traceEnabled(false);
                         }).build();
-        runClientsWithSharedResources(sharedResources, 2);
+        runClientsWithSharedResources(sharedResources, 2, false);
         sharedResources.close();
     }
 }

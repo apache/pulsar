@@ -266,7 +266,8 @@ public class PulsarClientImpl implements PulsarClient {
                 this.timer = timer;
             }
             if (conf.getServiceUrl().startsWith("http")) {
-                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup, timer);
+                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup, this.timer,
+                        addressResolver);
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
                         conf.isUseTls(), this.scheduledExecutorProvider.getExecutor(),
@@ -1211,7 +1212,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService createLookup(String url) throws PulsarClientException {
         if (url.startsWith("http")) {
-            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup, timer);
+            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup, timer, addressResolver);
         } else {
             return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());

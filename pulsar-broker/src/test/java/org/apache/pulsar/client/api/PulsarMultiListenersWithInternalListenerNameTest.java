@@ -138,7 +138,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
         @Cleanup
         LookupService lookupService = useHttp ? new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors,
-                null) :
+                null, null) :
                 new BinaryProtoLookupService((PulsarClientImpl) this.pulsarClient,
                 lookupUrl.toString(), "internal", false, this.executorService);
         TopicName topicName = TopicName.get("persistent://public/default/test");
@@ -174,7 +174,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         conf.setMaxLookupRedirects(10);
 
         @Cleanup
-        HttpLookupService lookupService = new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors, null);
+        HttpLookupService lookupService = new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors, null,
+                null);
         NamespaceService namespaceService = pulsar.getNamespaceService();
 
         LookupResult lookupResult = new LookupResult(pulsar.getWebServiceAddress(), null,
