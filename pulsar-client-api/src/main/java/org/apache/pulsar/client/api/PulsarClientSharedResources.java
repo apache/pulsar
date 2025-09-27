@@ -53,12 +53,6 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
  * <p>The instance should be created using the {@link PulsarClientSharedResourcesBuilder},
  * which can be obtained via the {@link #builder()} method.
  *
- * Please notice that the current implementation doesn't cover sharing the HTTP client resources in the
- * Pulsar client implementation. A separate HTTP client instance will be created for each PulsarClient instance
- * when HTTP serviceUrl is provided. It's recommended to use the binary protocol for lookups by providing
- * a pulsar:// or pulsar+ssl:// url to serviceUrl when instantiating the client.
- *
- *
  * @see PulsarClientSharedResourcesBuilder
  * @see SharedResource
  */
