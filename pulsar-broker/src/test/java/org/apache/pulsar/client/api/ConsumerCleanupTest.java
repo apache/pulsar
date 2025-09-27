@@ -34,6 +34,8 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         super.internalSetup();
         super.producerBaseSetup();
     }

@@ -56,6 +56,8 @@ public class TopicTerminationTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         super.baseSetup();
     }
 

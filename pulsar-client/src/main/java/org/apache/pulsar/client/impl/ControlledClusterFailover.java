@@ -27,6 +27,8 @@ import io.netty.handler.codec.http.HttpResponse;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -59,27 +61,27 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
     private static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
     private static final int DEFAULT_MAX_REDIRECTS = 20;
+    private final Map<String, String> headers;
+    private final String urlProvider;
 
     private PulsarClientImpl pulsarClient;
     private volatile String currentPulsarServiceUrl;
     private volatile ControlledConfiguration currentControlledConfiguration;
     private final ScheduledExecutorService executor;
     private final long interval;
-    private final AsyncHttpClient httpClient;
-    private final BoundRequestBuilder requestBuilder;
+    private AsyncHttpClient httpClient;
+    private BoundRequestBuilder requestBuilder;
 
     private ControlledClusterFailover(ControlledClusterFailoverBuilderImpl builder) throws IOException {
         this.currentPulsarServiceUrl = builder.defaultServiceUrl;
         this.interval = builder.interval;
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
-
-        this.httpClient = buildHttpClient();
-        this.requestBuilder = httpClient.prepareGet(builder.urlProvider)
-            .addHeader("Accept", "application/json");
-
+        urlProvider = builder.urlProvider;
         if (builder.header != null && !builder.header.isEmpty()) {
-            builder.header.forEach(requestBuilder::addHeader);
+            headers = new LinkedHashMap<>(builder.header);
+        } else {
+            headers = Collections.emptyMap();
         }
     }
 
@@ -101,6 +103,8 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                     && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
+        confBuilder.setNettyTimer(pulsarClient.timer());
+        confBuilder.setEventLoopGroup(pulsarClient.eventLoopGroup());
         AsyncHttpClientConfig config = confBuilder.build();
         return new DefaultAsyncHttpClient(config);
     }
@@ -108,6 +112,12 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     @Override
     public void initialize(PulsarClient client) {
         this.pulsarClient = (PulsarClientImpl) client;
+        this.httpClient = buildHttpClient();
+        this.requestBuilder = httpClient.prepareGet(urlProvider)
+                // share Pulsar client DNS resolver and cache
+                .setNameResolver(pulsarClient.getNameResolver())
+                .addHeader("Accept", "application/json");
+        headers.forEach(requestBuilder::addHeader);
 
         // start to check service url every 30 seconds
         this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {

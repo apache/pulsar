@@ -16,24 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.client.api;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeUnit;
 
-@Slf4j
-public class ScheduledExecutorProvider extends ExecutorProvider {
-    public ScheduledExecutorProvider(int numThreads, String poolName, boolean daemon) {
-        super(numThreads, poolName, daemon);
-    }
+/**
+ * Configuration interface for timer settings.
+ */
+public interface TimerConfig {
+    /**
+     * Sets the name of the timer.
+     *
+     * @param name the name to set for the timer
+     * @return this config instance for method chaining
+     */
+    TimerConfig name(String name);
 
-    public ScheduledExecutorProvider(int numThreads, String poolName) {
-        super(numThreads, poolName);
-    }
-
-    @Override
-    protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-        return Executors.newSingleThreadScheduledExecutor(threadFactory);
-    }
+    /**
+     * Sets the tick duration for the timer.
+     *
+     * @param tickDuration the duration of each tick
+     * @param timeUnit     the time unit for the tick duration
+     * @return this config instance for method chaining
+     */
+    TimerConfig tickDuration(long tickDuration, TimeUnit timeUnit);
 }

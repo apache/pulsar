@@ -41,36 +41,68 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 public class DnsResolverGroupImpl implements AutoCloseable {
     private final DnsAddressResolverGroup dnsAddressResolverGroup;
 
-    public DnsResolverGroupImpl(EventLoopGroup eventLoopGroup, ClientConfigurationData conf) {
+    public DnsResolverGroupImpl(ClientConfigurationData conf) {
         Optional<InetSocketAddress> bindAddress = Optional.ofNullable(conf.getDnsLookupBindAddress())
                 .map(addr -> new InetSocketAddress(addr, conf.getDnsLookupBindPort()));
         Optional<DnsServerAddressStreamProvider> dnsServerAddresses = Optional.ofNullable(conf.getDnsServerAddresses())
                 .filter(Predicate.not(List::isEmpty))
                 .map(SequentialDnsServerAddressStreamProvider::new);
-        this.dnsAddressResolverGroup = createAddressResolverGroup(eventLoopGroup, bindAddress, dnsServerAddresses);
+        this.dnsAddressResolverGroup = createAddressResolverGroup(bindAddress, dnsServerAddresses);
     }
 
-    public DnsResolverGroupImpl(EventLoopGroup eventLoopGroup, Optional<InetSocketAddress> bindAddress,
-                                Optional<DnsServerAddressStreamProvider> dnsServerAddresses) {
-        this.dnsAddressResolverGroup = createAddressResolverGroup(eventLoopGroup, bindAddress, dnsServerAddresses);
+    public DnsResolverGroupImpl(PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig dnsConfig) {
+        this.dnsAddressResolverGroup = createAddressResolverGroup(dnsConfig);
     }
 
-    private static DnsAddressResolverGroup createAddressResolverGroup(EventLoopGroup eventLoopGroup,
-                                                                      Optional<InetSocketAddress> bindAddress,
+    private DnsAddressResolverGroup createAddressResolverGroup(
+            PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig dnsConfig) {
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
+                .traceEnabled(dnsConfig.traceEnabled)
+                .channelType(EventLoopUtil.getDatagramChannelClass());
+        if (dnsConfig.tcpFallbackEnabled || dnsConfig.tcpFallbackOnTimeoutEnabled) {
+            dnsNameResolverBuilder.socketChannelType(EventLoopUtil.getClientSocketChannelClass(),
+                    dnsConfig.tcpFallbackOnTimeoutEnabled);
+        }
+        dnsNameResolverBuilder
+                .ttl(dnsConfig.minTtl, dnsConfig.maxTtl)
+                .negativeTtl(dnsConfig.negativeTtl);
+        if (dnsConfig.queryTimeoutMillis > -1L) {
+            dnsNameResolverBuilder.queryTimeoutMillis(dnsConfig.queryTimeoutMillis);
+        }
+        if (dnsConfig.ndots > -1) {
+            dnsNameResolverBuilder.ndots(dnsConfig.ndots);
+        }
+        if (dnsConfig.localAddress != null) {
+            dnsNameResolverBuilder.localAddress(dnsConfig.localAddress);
+        }
+        if (dnsConfig.serverAddresses != null) {
+            Optional.ofNullable(dnsConfig.serverAddresses)
+                    .map(SequentialDnsServerAddressStreamProvider::new)
+                    .ifPresent(dnsServerAddressStreamProvider -> {
+                        dnsNameResolverBuilder.nameServerProvider(dnsServerAddressStreamProvider);
+                    });
+        }
+        if (dnsConfig.searchDomains != null) {
+            dnsNameResolverBuilder.searchDomains(dnsConfig.searchDomains);
+        }
+        return new DnsAddressResolverGroup(dnsNameResolverBuilder);
+    }
+
+    private static DnsAddressResolverGroup createAddressResolverGroup(Optional<InetSocketAddress> bindAddress,
                                                                       Optional<DnsServerAddressStreamProvider>
                                                                               dnsServerAddresses) {
-        DnsNameResolverBuilder dnsNameResolverBuilder = createDnsNameResolverBuilder(eventLoopGroup);
+        DnsNameResolverBuilder dnsNameResolverBuilder = createDnsNameResolverBuilder();
         bindAddress.ifPresent(dnsNameResolverBuilder::localAddress);
         dnsServerAddresses.ifPresent(dnsNameResolverBuilder::nameServerProvider);
 
         return new DnsAddressResolverGroup(dnsNameResolverBuilder);
     }
 
-    private static DnsNameResolverBuilder createDnsNameResolverBuilder(EventLoopGroup eventLoopGroup) {
+    private static DnsNameResolverBuilder createDnsNameResolverBuilder() {
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
                 .traceEnabled(true)
-                .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup))
-                .socketChannelType(EventLoopUtil.getClientSocketChannelClass(eventLoopGroup), true);
+                .channelType(EventLoopUtil.getDatagramChannelClass())
+                .socketChannelType(EventLoopUtil.getClientSocketChannelClass(), true);
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
         return dnsNameResolverBuilder;
     }

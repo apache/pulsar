@@ -61,13 +61,17 @@ public class ExecutorProvider {
     }
 
     public ExecutorProvider(int numThreads, String poolName) {
+        this(numThreads, poolName, Thread.currentThread().isDaemon());
+    }
+
+    public ExecutorProvider(int numThreads, String poolName, boolean daemon) {
         checkArgument(numThreads > 0);
         this.numThreads = numThreads;
         Objects.requireNonNull(poolName);
         executors = new ArrayList<>(numThreads);
         for (int i = 0; i < numThreads; i++) {
             ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
-                    poolName, Thread.currentThread().isDaemon());
+                    poolName, daemon);
             ExecutorService executor = createExecutor(threadFactory);
             executors.add(Pair.of(executor, threadFactory));
         }

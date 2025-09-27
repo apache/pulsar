@@ -54,6 +54,12 @@ public class ControlledClusterFailoverTest {
             .build();
 
         ControlledClusterFailover controlledClusterFailover = (ControlledClusterFailover) provider;
+
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
+        controlledClusterFailover.initialize(pulsarClient);
+
         Request request = controlledClusterFailover.getRequestBuilder().build();
 
         Assert.assertTrue(provider instanceof ControlledClusterFailover);

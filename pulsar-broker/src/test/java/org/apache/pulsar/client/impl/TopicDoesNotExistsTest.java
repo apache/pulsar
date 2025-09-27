@@ -39,6 +39,8 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         conf.setAllowAutoTopicCreation(false);
         super.internalSetup();
         super.producerBaseSetup();
@@ -61,7 +63,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
                     .create();
             Assert.fail("Create producer should failed while topic does not exists.");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e instanceof PulsarClientException.NotFoundException);
+            Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
         }
         Thread.sleep(2000);
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
