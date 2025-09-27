@@ -94,12 +94,12 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
                 : null;
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends PulsarClientSharedResourcesBuilderImpl.ResourceConfig> T getResourceConfig(
             Map<SharedResource, PulsarClientSharedResourcesBuilderImpl.ResourceConfig> resourceConfigs,
             SharedResource resource) {
         return (T) resourceConfigs.get(resource);
     }
-
 
     @Override
     public boolean contains(SharedResource sharedResource) {
