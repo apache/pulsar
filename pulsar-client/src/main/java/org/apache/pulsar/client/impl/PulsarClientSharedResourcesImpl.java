@@ -27,7 +27,6 @@ import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.crea
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createTimer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -106,7 +105,7 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
         return sharedResources.contains(sharedResource);
     }
 
-    public Collection<SharedResource> getSharedResources() {
+    public Set<SharedResource> getSharedResources() {
         return sharedResources;
     }
 

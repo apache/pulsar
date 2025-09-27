@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.Collection;
+import java.util.Set;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
@@ -108,9 +108,9 @@ public interface PulsarClientSharedResources extends AutoCloseable {
     /**
      * Gets all resource types contained in this shared resources instance.
      *
-     * @return collection of resource types available in this instance
+     * @return set of resource types available in this instance
      */
-    Collection<SharedResource> getSharedResources();
+    Set<SharedResource> getSharedResources();
 
     /**
      * Creates a new builder for constructing instances of {@link PulsarClientSharedResources}.
