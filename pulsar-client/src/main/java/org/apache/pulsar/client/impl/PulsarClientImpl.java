@@ -25,8 +25,12 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AddressResolver;
+import io.netty.resolver.InetSocketAddressResolver;
+import io.netty.resolver.NameResolver;
 import io.netty.util.Timer;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.time.Duration;
@@ -50,6 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -128,6 +133,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final boolean createdEventLoopGroup;
     private final boolean createdCnxPool;
     private final DnsResolverGroupImpl dnsResolverGroupLocalInstance;
+    @Getter
     private final AddressResolver<InetSocketAddress> addressResolver;
 
     public enum State {
@@ -267,7 +273,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup, this.timer,
-                        addressResolver);
+                        getNameResolver());
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
                         conf.isUseTls(), this.scheduledExecutorProvider.getExecutor(),
@@ -1212,7 +1218,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService createLookup(String url) throws PulsarClientException {
         if (url.startsWith("http")) {
-            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup, timer, addressResolver);
+            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup, timer, getNameResolver());
         } else {
             return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
@@ -1406,5 +1412,40 @@ public class PulsarClientImpl implements PulsarClient {
     // @Override
     public TransactionBuilder newTransaction() {
         return new TransactionBuilderImpl(this, tcClient);
+    }
+
+    NameResolver<InetAddress> getNameResolver() {
+        if (addressResolver != null) {
+            return extractNameResolver(addressResolver);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Use reflection to extract Netty NameResolver from addressResolver instance.
+     * @param addressResolver Netty AddressResolver instance
+     * @return Netty NameResolver instance
+     */
+    @SuppressWarnings("unchecked")
+    private NameResolver<InetAddress> extractNameResolver(AddressResolver<InetSocketAddress> addressResolver) {
+        if (InetSocketAddressResolver.class.isInstance(addressResolver)) {
+            try {
+                Field nameResolverField =
+                        FieldUtils.getDeclaredField(InetSocketAddressResolver.class, "nameResolver", true);
+                if (nameResolverField != null) {
+                    return (NameResolver<InetAddress>) FieldUtils.readField(nameResolverField, addressResolver);
+                } else {
+                    log.warn("Could not find nameResolver Field in InetSocketAddressResolver");
+                }
+            } catch (Throwable t) {
+                log.warn("Failed to extract NameResolver from addressResolver. DNS resolver won't be shared for HTTP "
+                        + "client.", t);
+            }
+        } else {
+            log.warn("Cannot extract NameResolver from addressResolver instance. DNS resolver won't be shared for HTTP "
+                    + "client.");
+        }
+        return null;
     }
 }

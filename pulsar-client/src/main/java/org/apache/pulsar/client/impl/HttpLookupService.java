@@ -19,12 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
-import io.netty.resolver.AddressResolver;
-import io.netty.resolver.InetSocketAddressResolver;
 import io.netty.resolver.NameResolver;
 import io.netty.util.Timer;
 import io.opentelemetry.api.common.Attributes;
-import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -34,7 +31,6 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -80,9 +76,9 @@ public class HttpLookupService implements LookupService {
 
     public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
                              EventLoopGroup eventLoopGroup, Timer timer,
-                             AddressResolver<InetSocketAddress> addressResolver)
+                             NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, extractNameResolver(addressResolver));
+        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 
@@ -94,33 +90,6 @@ public class HttpLookupService implements LookupService {
                 histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "metadata").build());
         histoGetSchema = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "schema").build());
         histoListTopics = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "list-topics").build());
-    }
-
-    /**
-     * Use reflection to extract Netty NameResolver from addressResolver instance.
-     * @param addressResolver Netty AddressResolver instance
-     * @return Netty NameResolver instance
-     */
-    @SuppressWarnings("unchecked")
-    private NameResolver<InetAddress> extractNameResolver(AddressResolver<InetSocketAddress> addressResolver) {
-        if (InetSocketAddressResolver.class.isInstance(addressResolver)) {
-            try {
-                Field nameResolverField =
-                        FieldUtils.getDeclaredField(InetSocketAddressResolver.class, "nameResolver", true);
-                if (nameResolverField != null) {
-                    return (NameResolver<InetAddress>) FieldUtils.readField(nameResolverField, addressResolver);
-                } else {
-                    log.warn("Could not find nameResolver Field in InetSocketAddressResolver");
-                }
-            } catch (Throwable t) {
-                log.warn("Failed to extract NameResolver from addressResolver. DNS resolver won't be shared for HTTP "
-                        + "lookups.", t);
-            }
-        } else {
-            log.warn("Cannot extract NameResolver from addressResolver instance. DNS resolver won't be shared for HTTP "
-                    + "lookups.");
-        }
-        return null;
     }
 
     @Override
