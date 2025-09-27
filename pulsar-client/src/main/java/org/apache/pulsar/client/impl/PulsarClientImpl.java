@@ -25,9 +25,11 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AddressResolver;
+import io.netty.resolver.DefaultNameResolver;
 import io.netty.resolver.InetSocketAddressResolver;
 import io.netty.resolver.NameResolver;
 import io.netty.util.Timer;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -1447,6 +1449,7 @@ public class PulsarClientImpl implements PulsarClient {
             log.warn("Cannot extract NameResolver from addressResolver instance. DNS resolver won't be shared for HTTP "
                     + "client.");
         }
-        return null;
+        // fallback to JDK default resolver
+        return new DefaultNameResolver(ImmediateEventExecutor.INSTANCE);
     }
 }
