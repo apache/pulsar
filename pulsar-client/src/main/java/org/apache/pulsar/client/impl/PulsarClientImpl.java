@@ -102,6 +102,7 @@ import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1418,11 +1419,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     NameResolver<InetAddress> getNameResolver() {
-        if (addressResolver != null) {
-            return extractNameResolver(addressResolver);
-        } else {
-            return null;
-        }
+        return DnsResolverUtil.adaptToNameResolver(addressResolver);
     }
 
     /**
