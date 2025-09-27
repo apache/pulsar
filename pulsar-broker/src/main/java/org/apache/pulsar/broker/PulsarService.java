@@ -401,7 +401,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.brokerClientSharedLookupExecutorProvider =
                 new ScheduledExecutorProvider(1, "broker-client-shared-lookup-executor");
         this.brokerClientSharedDnsResolverGroup =
-                new DnsResolverGroupImpl(this.ioEventLoopGroup,
+                new DnsResolverGroupImpl(
                         loadBrokerClientProperties(new ClientConfigurationData()));
 
         // here in the constructor we don't have the offloader scheduler yet
