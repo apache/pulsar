@@ -56,8 +56,6 @@ public interface PulsarClientSharedResourcesBuilder {
      * {@link PulsarClientSharedResources}. If this method isn't called, resources for all resource types
      * will be created and exposed.
      * Calling this method is additive and the builder will accumulate the shared resource types from all method calls.
-     * When specifying {@link SharedResource#DnsResolver}, it is mandatory to also set
-     * {@link SharedResource#EventLoopGroup} since the shared DNS resolver requires the event loop group.
      *
      * @param sharedResource one or more resource types to include
      * @return this builder
@@ -73,8 +71,7 @@ public interface PulsarClientSharedResourcesBuilder {
 
     /**
      * Share only the configured resources. It's not allowed to use {@link #resourceTypes(SharedResource...)} when
-     * this method is called. When configuring {@link SharedResource#DnsResolver}, it is mandatory to also
-     * configure {@link SharedResource#EventLoopGroup} since the shared DNS resolver requires the event loop group.
+     * this method is called.
      * @return this builder instance for method chaining
      */
     PulsarClientSharedResourcesBuilder shareConfigured();
