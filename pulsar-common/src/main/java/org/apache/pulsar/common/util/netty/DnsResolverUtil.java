@@ -61,7 +61,10 @@ public class DnsResolverUtil {
                     .map(Integer::decode)
                     .filter(i -> i > 0)
                     .orElseGet(() -> {
-                        return JDK_DEFAULT_TTL;
+                        if (System.getSecurityManager() == null) {
+                            return JDK_DEFAULT_TTL;
+                        }
+                        return DEFAULT_TTL;
                     });
 
             negativeTtl = Optional.ofNullable(negativeTtlStr)
