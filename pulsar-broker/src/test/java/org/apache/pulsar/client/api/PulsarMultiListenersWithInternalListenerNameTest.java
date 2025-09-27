@@ -22,6 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.resolver.DefaultNameResolver;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -138,7 +140,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
         @Cleanup
         LookupService lookupService = useHttp ? new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors,
-                null, null) :
+                null, new DefaultNameResolver(ImmediateEventExecutor.INSTANCE)) :
                 new BinaryProtoLookupService((PulsarClientImpl) this.pulsarClient,
                 lookupUrl.toString(), "internal", false, this.executorService);
         TopicName topicName = TopicName.get("persistent://public/default/test");
@@ -175,7 +177,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
         @Cleanup
         HttpLookupService lookupService = new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors, null,
-                null);
+                new DefaultNameResolver(ImmediateEventExecutor.INSTANCE));
         NamespaceService namespaceService = pulsar.getNamespaceService();
 
         LookupResult lookupResult = new LookupResult(pulsar.getWebServiceAddress(), null,
