@@ -127,7 +127,7 @@ public class AbstractTopicTest extends BrokerTestBase {
 
         // Add old producer
         topic.addProducer(oldProducer, new CompletableFuture<>()).join();
-
+        
         CountDownLatch oldCnxCheckInvokedLatch = new CountDownLatch(1);
         CountDownLatch oldCnxCheckStartLatch = new CountDownLatch(1);
         doAnswer(invocation -> {
@@ -149,11 +149,17 @@ public class AbstractTopicTest extends BrokerTestBase {
         CompletableFuture<Optional<Long>> producerEpoch =
                 topic.addProducer(newProducer, new CompletableFuture<>());
 
+        // Wait until new producer entered `AbstractTopic#tryOverwriteOldProducer`
         oldCnxCheckInvokedLatch.await();
+        
         topic.close(true);
         // Run pending tasks to remove old producer from topic.
         ((EmbeddedChannel) oldCnx.ctx().channel()).runPendingTasks();
+        
+        // Unblock ServerCnx#checkConnectionLiveness to resume `AbstractTopic#tryOverwriteOldProducer`
         oldCnxCheckStartLatch.countDown();
+        
+        // As topic is fenced, adding new producer should fail.
         try {
             producerEpoch.join();
             fail("TopicFencedException expected");
