@@ -57,6 +57,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -354,6 +355,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastEvictOffloadedLedgers;
     private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
 
+    // Semaphore to limit concurrent ledger deletion
+    private Semaphore deleteLedgerSemaphore = null;
+    // Executor service for executing ledger deletion tasks
+    private ExecutorService deleteLedgerExecutor = null;
+
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name) {
@@ -402,6 +408,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.minBacklogEntriesForCaching = config.getMinimumBacklogEntriesForCaching();
         this.maxBacklogBetweenCursorsForCaching = config.getMaxBacklogBetweenCursorsForCaching();
         this.managedLedgerAttributes = new ManagedLedgerAttributes(this);
+        if (config.getLedgerDeletionSemaphore() != null) {
+            this.deleteLedgerSemaphore = config.getLedgerDeletionSemaphore();
+            this.deleteLedgerExecutor = config.getLedgerDeleteExecutor();
+        }
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -569,7 +579,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(Void v, Stat stat) {
                 ledgersStat = stat;
                 emptyLedgersToBeDeleted.forEach(ledgerId -> {
-                    bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+                    asyncDeleteLedgerWithConcurrencyLimit(ledgerId, (rc, ctx) -> {
                         log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, ledgerId, rc);
                     }, null);
                 });
@@ -1763,7 +1773,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.warn("[{}] Error updating meta data with the new list of ledgers: {}", name, e.getMessage());
                     handleBadVersion(e);
                     mbean.startDataLedgerDeleteOp();
-                    bookKeeper.asyncDeleteLedger(lh.getId(), (rc1, ctx1) -> {
+                    asyncDeleteLedgerWithConcurrencyLimit(lh.getId(), (rc1, ctx1) -> {
                         mbean.endDataLedgerDeleteOp();
                         if (rc1 != BKException.Code.OK) {
                             log.warn("[{}] Failed to delete ledger {}: {}", name, lh.getId(),
@@ -1846,7 +1856,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         STATE_UPDATER.set(this, State.LedgerOpened);
         // Delete original "currentLedger" if it has been removed from "ledgers".
         if (originalCurrentLedger != null && !ledgers.containsKey(originalCurrentLedger.getId())){
-            bookKeeper.asyncDeleteLedger(originalCurrentLedger.getId(), (rc, ctx) -> {
+            asyncDeleteLedgerWithConcurrencyLimit(originalCurrentLedger.getId(), (rc, ctx) -> {
                 mbean.endDataLedgerDeleteOp();
                 log.info("[{}] Delete complete for empty ledger {}. rc={}", name, originalCurrentLedger.getId(), rc);
             }, null);
@@ -3385,7 +3395,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void asyncDeleteLedgerWithRetry(CompletableFuture<Void> future, long ledgerId, long retry) {
-        bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+        asyncDeleteLedgerWithConcurrencyLimit(ledgerId, (rc, ctx) -> {
             if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
                 future.complete(null);
@@ -3408,6 +3418,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, null);
     }
 
+    /**
+     * Delete a ledger asynchronously, applying a concurrency limit if configured.
+     * @param ledgerId
+     * @param cb
+     * @param ctx
+     */
+    private void asyncDeleteLedgerWithConcurrencyLimit(long ledgerId, org.apache.bookkeeper.client.AsyncCallback.DeleteCallback cb,
+                                                       Object ctx) {
+        if (deleteLedgerSemaphore != null) {
+            AsyncCallback.DeleteCallback cbWrapper = (rc, ctx1) -> {
+                deleteLedgerSemaphore.release();
+                cb.deleteComplete(rc, ctx1);
+            };
+            deleteLedgerExecutor.execute(() -> {
+                try {
+                    deleteLedgerSemaphore.acquire();
+                } catch (InterruptedException e) {
+                    log.error("[{}] Interrupted while waiting to delete ledger {}", name, ledgerId, e);
+                }
+                bookKeeper.asyncDeleteLedger(ledgerId, cbWrapper, ctx);
+            });
+        } else {
+            bookKeeper.asyncDeleteLedger(ledgerId, cb, ctx);
+        }
+    }
+
     @SuppressWarnings("checkstyle:fallthrough")
     private void deleteAllLedgers(DeleteLedgerCallback callback, Object ctx) {
         List<LedgerInfo> ledgers = Lists.newArrayList(ManagedLedgerImpl.this.ledgers.values());
@@ -3422,7 +3458,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Deleting ledger {}", name, ls);
             }
-            bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx1) -> {
+            asyncDeleteLedgerWithConcurrencyLimit(ls.getLedgerId(), (rc, ctx1) -> {
                 switch (rc) {
                 case Code.NoSuchLedgerExistsException:
                 case Code.NoSuchLedgerExistsOnMetadataServerException:
