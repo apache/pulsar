@@ -491,6 +491,32 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
+        // When the channel is closed, do not perform liveness verification, return according to the status:
+        if (channelState == Closed) {
+            switch (state) {
+                // Owned/Splitting: Directly return owner (for isOwner judgment as true)
+                case Owned:
+                case Splitting:
+                    return CompletableFuture.completedFuture(owner);
+                case Assigning:
+                case Releasing:
+                    if (owner.isPresent()) {
+                        if (isTargetBroker(owner.get())) {
+                            // This machine is the target taker,
+                            // return an unfinished future with "waiting for ownership"
+                            return dedupeGetOwnerRequest(serviceUnit).thenApply(Optional::ofNullable);
+                        } else {
+                            // The target is another broker, return directly so that the upper layer can redirect
+                            return CompletableFuture.completedFuture(owner);
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(Optional.empty());
+                    }
+                // Other status: return empty
+                default:
+                    return CompletableFuture.completedFuture(Optional.empty());
+            }
+        }
         return dedupeGetOwnerRequest(serviceUnit)
                 .thenCompose(newOwner -> {
                     if (newOwner == null) {
