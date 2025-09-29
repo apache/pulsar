@@ -3435,10 +3435,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             deleteLedgerExecutor.execute(() -> {
                 try {
                     deleteLedgerSemaphore.acquire();
+                    bookKeeper.asyncDeleteLedger(ledgerId, cbWrapper, ctx);
                 } catch (InterruptedException e) {
-                    log.error("[{}] Interrupted while waiting to delete ledger {}", name, ledgerId, e);
+                    log.error("[{}] Interrupted while waiting to delete ledger {}", name, ledgerId);
                 }
-                bookKeeper.asyncDeleteLedger(ledgerId, cbWrapper, ctx);
             });
         } else {
             bookKeeper.asyncDeleteLedger(ledgerId, cb, ctx);
