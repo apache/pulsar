@@ -835,38 +835,38 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void loadNamespace(String namespace, boolean loadTopicInBundle,
+    public void lookupNamespace(String namespace, boolean loadTopicInBundle,
                               boolean authoritative) throws PulsarAdminException {
-        sync(() -> loadNamespaceAsync(namespace, loadTopicInBundle,
+        sync(() -> lookupNamespaceAsync(namespace, loadTopicInBundle,
                 authoritative));
     }
 
     @Override
-    public CompletableFuture<Void> loadNamespaceAsync(String namespace,
+    public CompletableFuture<Void> lookupNamespaceAsync(String namespace,
                               boolean loadTopicInBundle,
                               boolean authoritative) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "load")
+        WebTarget path = namespacePath(ns, "lookup")
                 .queryParam("loadTopicInBundle", Boolean.toString(loadTopicInBundle))
                 .queryParam("authoritative", Boolean.toString(authoritative));
         return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public LookupDataInterface loadNamespaceBundle(String namespace, String bundle,
+    public LookupDataInterface lookupNamespaceBundle(String namespace, String bundle,
                                                    boolean loadTopicInBundle,
                                                    boolean authoritative) throws PulsarAdminException {
-        return sync(() -> loadNamespaceBundleAsync(namespace, bundle, loadTopicInBundle,
+        return sync(() -> lookupNamespaceBundleAsync(namespace, bundle, loadTopicInBundle,
                 authoritative));
     }
 
     @Override
-    public CompletableFuture<LookupDataInterface> loadNamespaceBundleAsync(String namespace, String bundle,
+    public CompletableFuture<LookupDataInterface> lookupNamespaceBundleAsync(String namespace, String bundle,
                                                                            boolean loadTopicInBundle,
                                                                            boolean authoritative) {
         CompletableFuture<LookupDataInterface> lookupDataFuture = new CompletableFuture<>();
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, bundle, "load")
+        WebTarget path = namespacePath(ns, bundle, "lookup")
                 .queryParam("loadTopicInBundle", Boolean.toString(loadTopicInBundle))
                 .queryParam("authoritative", Boolean.toString(authoritative));
         asyncPutRequestWithResponse(path, Entity.entity("", MediaType.APPLICATION_JSON),

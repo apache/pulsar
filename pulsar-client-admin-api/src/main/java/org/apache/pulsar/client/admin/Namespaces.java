@@ -2115,7 +2115,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void loadNamespace(String namespace, boolean loadTopicInBundle,
+    void lookupNamespace(String namespace, boolean loadTopicInBundle,
                        boolean authoritative) throws PulsarAdminException;
 
     /**
@@ -2125,7 +2125,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<Void> loadNamespaceAsync(String namespace,
+    CompletableFuture<Void> lookupNamespaceAsync(String namespace,
                                       boolean loadTopicInBundle,
                                       boolean authoritative);
 
@@ -2138,7 +2138,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    LookupDataInterface loadNamespaceBundle(String namespace, String bundle,
+    LookupDataInterface lookupNamespaceBundle(String namespace, String bundle,
                                             boolean loadTopicInBundle,
                                             boolean authoritative) throws PulsarAdminException;
 
@@ -2151,7 +2151,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<LookupDataInterface> loadNamespaceBundleAsync(String namespace, String bundle,
+    CompletableFuture<LookupDataInterface> lookupNamespaceBundleAsync(String namespace, String bundle,
                                                                     boolean loadTopicInBundle,
                                                                     boolean authoritative);
 

@@ -848,8 +848,8 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Command(description = "Load a namespace or a namespace bundle")
-    private class Load extends CliCommand {
+    @Command(description = "Lookup a namespace or a namespace bundle and load the topics in bundle/namespace if need")
+    private class Lookup extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespaceName;
 
@@ -869,10 +869,10 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(namespaceName);
 
             if (bundle == null) {
-                getAdmin().namespaces().loadNamespace(namespace, loadTopicInBundle, authoritative);
+                getAdmin().namespaces().lookupNamespace(namespace, loadTopicInBundle, authoritative);
             } else {
                 System.out.println(getAdmin().namespaces()
-                        .loadNamespaceBundle(namespace, bundle, loadTopicInBundle, authoritative).toString());
+                        .lookupNamespaceBundle(namespace, bundle, loadTopicInBundle, authoritative).toString());
             }
         }
     }
@@ -2767,7 +2767,7 @@ public class CmdNamespaces extends CmdBase {
         addCommand("get-bookie-affinity-group", new GetBookieAffinityGroup());
         addCommand("delete-bookie-affinity-group", new DeleteBookieAffinityGroup());
 
-        addCommand("load", new Load());
+        addCommand("lookup", new Lookup());
         addCommand("unload", new Unload());
 
         addCommand("split-bundle", new SplitBundle());

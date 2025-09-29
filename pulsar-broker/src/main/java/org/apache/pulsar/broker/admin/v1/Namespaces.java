@@ -871,14 +871,14 @@ public class Namespaces extends NamespacesBase {
     }
 
     @PUT
-    @Path("/{property}/{cluster}/{namespace}/load")
-    @ApiOperation(value = "Load a namespace")
+    @Path("/{property}/{cluster}/{namespace}/lookup")
+    @ApiOperation(value = "Lookup all the bundles in the namespace")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission")
     })
-    public void loadNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+    public void lookupNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
                               @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
                               @QueryParam("loadTopicInBundle") @DefaultValue("false") boolean loadTopicInBundle,
                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -888,7 +888,7 @@ public class Namespaces extends NamespacesBase {
             asyncResponse.resume(wae);
             return;
         }
-        internalLoadNamespaceAsync(loadTopicInBundle, authoritative)
+        internalLookupNamespaceAsync(loadTopicInBundle, authoritative)
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully load namespace {}",
                             clientAppId(), namespace);
@@ -905,14 +905,14 @@ public class Namespaces extends NamespacesBase {
     }
 
     @PUT
-    @Path("/{property}/{cluster}/{namespace}/{bundle}/load")
-    @ApiOperation(value = "Load a namespace bundle")
+    @Path("/{property}/{cluster}/{namespace}/{bundle}/lookup")
+    @ApiOperation(value = "Lookup a namespace bundle")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission")
     })
-    public void loadNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
+    public void lookupNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
                                     @PathParam("property") String property,
                                     @PathParam("cluster") String cluster,
                                     @PathParam("namespace") String namespace,
@@ -920,7 +920,7 @@ public class Namespaces extends NamespacesBase {
                                     @QueryParam("loadTopicInBundle") @DefaultValue("false") boolean loadTopicInBundle,
                                     @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(property, cluster, namespace);
-        internalLoadNamespaceBundleAsync(bundleRange, authoritative, loadTopicInBundle,
+        internalLookupNamespaceBundleAsync(bundleRange, authoritative, loadTopicInBundle,
                 null)
                 .thenAccept(lookupData -> {
                     log.info("[{}] Successfully load namespace bundle {}",

@@ -1088,7 +1088,7 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-    public CompletableFuture<Void> internalLoadNamespaceAsync(boolean loadTopicInBundle,
+    public CompletableFuture<Void> internalLookupNamespaceAsync(boolean loadTopicInBundle,
                                                               boolean authoritative) {
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> {
@@ -1109,7 +1109,7 @@ public abstract class NamespacesBase extends AdminResource {
                     for (int i = 0; i < boundaries.size() - 1; i++) {
                         String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
                         try {
-                            futures.add(pulsar().getAdminClient().namespaces().loadNamespaceBundleAsync(
+                            futures.add(pulsar().getAdminClient().namespaces().lookupNamespaceBundleAsync(
                                     namespaceName.toString(), bundle,
                                     loadTopicInBundle, authoritative).thenApply(ignore -> null));
                         } catch (PulsarServerException e) {
@@ -1121,7 +1121,7 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-    public CompletableFuture<LookupData> internalLoadNamespaceBundleAsync(String bundleRange,
+    public CompletableFuture<LookupData> internalLookupNamespaceBundleAsync(String bundleRange,
                                                                           boolean authoritative,
                                                                           boolean loadTopicsInBundle,
                                                                           String listenerName) {
