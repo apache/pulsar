@@ -1151,10 +1151,11 @@ public class BrokerService implements Closeable {
                     context.setProperties(properties);
                 }
                 topicFuture.exceptionally(t -> {
+                    final var now = System.nanoTime();
                     if (FutureUtil.unwrapCompletionException(t) instanceof TimeoutException) {
-                        log.warn("Failed to load {} after {}", topicName, context.latencyMs(System.nanoTime()));
+                        log.warn("Failed to load {} after {} ms", topicName, context.latencyMs(now));
                     } else {
-                        log.warn("Failed to load {} after {}", topicName, context.latencyString(System.nanoTime()), t);
+                        log.warn("Failed to load {} after {} ms", topicName, context.latencyString(now), t);
                     }
                     pulsarStats.recordTopicLoadFailed();
                     return Optional.empty();

@@ -58,7 +58,7 @@ public class TopicLoadingContext {
         builder.append(latencyMs(nowInNanos));
         builder.append(" ms");
         if (polledFromQueueNs >= 0) {
-            builder.append(" (queued: ").append(TimeUnit.NANOSECONDS.toMillis(polledFromQueueNs - startNs)).append(")");
+            builder.append(" (queued: ").append(latencyMs(polledFromQueueNs)).append(")");
         }
         return builder.toString();
     }
