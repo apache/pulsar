@@ -19,18 +19,16 @@
 
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -47,36 +45,37 @@ public class PublishRateLimiterTest {
     private AtomicLong manualClockSource;
 
     private Producer producer;
+    private ServerCnx serverCnx;
     private PublishRateLimiterImpl publishRateLimiter;
-
-    private AtomicInteger throttleCount = new AtomicInteger(0);
+    private ServerCnxThrottleTracker throttleTracker;
+    private DefaultThreadFactory threadFactory = new DefaultThreadFactory("pulsar-io");
+    private EventLoop eventLoop = new DefaultEventLoop(threadFactory);
 
     @BeforeMethod
     public void setup() throws Exception {
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        publishRateLimiter = new PublishRateLimiterImpl(() -> manualClockSource.get());
+        publishRateLimiter = new PublishRateLimiterImpl(() -> manualClockSource.get(),
+                producer -> {
+                    producer.getCnx().getThrottleTracker().markThrottled(
+                            ServerCnxThrottleTracker.ThrottleType.TopicPublishRate);
+                }, producer -> {
+            producer.getCnx().getThrottleTracker().unmarkThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.TopicPublishRate);
+        });
         publishRateLimiter.update(policies, CLUSTER_NAME);
         producer = mock(Producer.class);
-        throttleCount.set(0);
-        doAnswer(a -> {
-            throttleCount.incrementAndGet();
-            return null;
-        }).when(producer).incrementThrottleCount();
-        doAnswer(a -> {
-            throttleCount.decrementAndGet();
-            return null;
-        }).when(producer).decrementThrottleCount();
-        TransportCnx transportCnx = mock(TransportCnx.class);
-        when(producer.getCnx()).thenReturn(transportCnx);
+        serverCnx = mock(ServerCnx.class);
+        doAnswer(a -> this.serverCnx).when(producer).getCnx();
+        throttleTracker = new ServerCnxThrottleTracker(this.serverCnx);
+        doAnswer(a -> throttleTracker).when(this.serverCnx).getThrottleTracker();
+        when(producer.getCnx()).thenReturn(serverCnx);
         BrokerService brokerService = mock(BrokerService.class);
-        when(transportCnx.getBrokerService()).thenReturn(brokerService);
+        when(serverCnx.getBrokerService()).thenReturn(brokerService);
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         when(brokerService.executor()).thenReturn(eventLoopGroup);
-        EventLoop eventLoop = mock(EventLoop.class);
         when(eventLoopGroup.next()).thenReturn(eventLoop);
-        doReturn(null).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
         incrementSeconds(1);
     }
 
@@ -84,6 +83,11 @@ public class PublishRateLimiterTest {
     public void cleanup() throws Exception {
         policies.publishMaxMessageRate.clear();
         policies.publishMaxMessageRate = null;
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+        eventLoop.shutdownGracefully();
     }
 
     private void incrementSeconds(int seconds) {
@@ -94,30 +98,30 @@ public class PublishRateLimiterTest {
     public void testPublishRateLimiterImplExceed() throws Exception {
         // increment not exceed
         publishRateLimiter.handlePublishThrottling(producer, 5, 50);
-        assertEquals(throttleCount.get(), 0);
+        assertEquals(throttleTracker.throttledCount(), 0);
 
         incrementSeconds(1);
 
         // numOfMessages increment exceeded
         publishRateLimiter.handlePublishThrottling(producer, 11, 100);
-        assertEquals(throttleCount.get(), 1);
+        assertEquals(throttleTracker.throttledCount(), 1);
 
         incrementSeconds(1);
 
         // msgSizeInBytes increment exceeded
         publishRateLimiter.handlePublishThrottling(producer, 9, 110);
-        assertEquals(throttleCount.get(), 2);
+        assertEquals(throttleTracker.throttledCount(), 2);
     }
 
     @Test
     public void testPublishRateLimiterImplUpdate() {
         publishRateLimiter.handlePublishThrottling(producer, 11, 110);
-        assertEquals(throttleCount.get(), 1);
+        assertEquals(throttleTracker.throttledCount(), 1);
 
         // update
-        throttleCount.set(0);
+        throttleTracker = new ServerCnxThrottleTracker(serverCnx);
         publishRateLimiter.update(newPublishRate);
         publishRateLimiter.handlePublishThrottling(producer, 11, 110);
-        assertEquals(throttleCount.get(), 0);
+        assertEquals(throttleTracker.throttledCount(), 0);
     }
 }
