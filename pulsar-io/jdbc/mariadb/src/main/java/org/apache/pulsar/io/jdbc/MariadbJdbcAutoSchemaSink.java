@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.io.jdbc;
 
+import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
-import java.sql.Timestamp;
-import java.sql.Date;
-import java.sql.Time;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 

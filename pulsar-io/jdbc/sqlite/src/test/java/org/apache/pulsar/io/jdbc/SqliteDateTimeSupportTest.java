@@ -20,11 +20,10 @@ package org.apache.pulsar.io.jdbc;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
-
-import java.sql.PreparedStatement;
-import java.sql.Timestamp;
 import java.sql.Date;
+import java.sql.PreparedStatement;
 import java.sql.Time;
+import java.sql.Timestamp;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 

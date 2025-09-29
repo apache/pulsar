@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.io.jdbc;
 
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
-import java.sql.Date;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
