@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.SchemaIdUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -83,7 +84,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 EncodeData encodeData = schema.encode(getTopic(), value);
                 content = ByteBuffer.wrap(encodeData.data());
                 if (encodeData.hasSchemaId()) {
-                    msgMetadata.setSchemaId(encodeData.schemaId());
+                    msgMetadata.setSchemaId(SchemaIdUtil.addMagicHeader(encodeData.schemaId(), false));
                 }
                 return this;
             });
@@ -334,7 +335,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 keyEncoded != null && keyEncoded.hasSchemaId() ? keyEncoded.schemaId() : null,
                 valueEncoded != null && valueEncoded.hasSchemaId() ? valueEncoded.schemaId() : null);
         if (isValidSchemaId(schemaId)) {
-            msgMetadata.setSchemaId(schemaId);
+            msgMetadata.setSchemaId(SchemaIdUtil.addMagicHeader(schemaId, true));
         }
     }
 
