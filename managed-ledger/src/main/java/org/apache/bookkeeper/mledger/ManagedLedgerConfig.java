@@ -26,8 +26,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.util.concurrent.RateLimiter;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;

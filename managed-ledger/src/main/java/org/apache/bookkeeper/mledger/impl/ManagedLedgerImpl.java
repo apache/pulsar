@@ -3424,7 +3424,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @param cb
      * @param ctx
      */
-    private void asyncDeleteLedgerWithConcurrencyLimit(long ledgerId, org.apache.bookkeeper.client.AsyncCallback.DeleteCallback cb,
+    private void asyncDeleteLedgerWithConcurrencyLimit(long ledgerId,
+                                                       org.apache.bookkeeper.client.AsyncCallback.DeleteCallback cb,
                                                        Object ctx) {
         if (deleteLedgerSemaphore != null) {
             AsyncCallback.DeleteCallback cbWrapper = (rc, ctx1) -> {

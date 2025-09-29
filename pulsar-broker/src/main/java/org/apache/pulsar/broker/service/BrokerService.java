@@ -2078,8 +2078,8 @@ public class BrokerService implements Closeable {
                     ? persistencePolicies.getManagedLedgerMaxMarkDeleteRate()
                     : serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
             managedLedgerConfig.setLedgerDeletionSemaphore(this.ledgerDeletionSemaphore);
-            managedLedgerConfig.setLedgerDeleteExecutor(this.ledgerDeletionExecutorProvider != null ?
-                    this.ledgerDeletionExecutorProvider.getExecutor() : null);
+            managedLedgerConfig.setLedgerDeleteExecutor(this.ledgerDeletionExecutorProvider != null
+                    ? this.ledgerDeletionExecutorProvider.getExecutor() : null);
             managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
             managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
 
