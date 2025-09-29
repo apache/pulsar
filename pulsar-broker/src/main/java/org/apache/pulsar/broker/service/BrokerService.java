@@ -841,7 +841,10 @@ public class BrokerService implements Closeable {
             log.info("Shutting down Pulsar Broker service");
 
             // shutdown executor for ledger deletion
-            ledgerDeletionExecutorProvider.shutdownNow();
+            if (ledgerDeletionExecutorProvider != null) {
+                log.info("Shutting down executor for ledger deletion...");
+                ledgerDeletionExecutorProvider.shutdownNow();
+            }
 
             // unregister non-static metrics collectors
             pendingTopicLoadRequests.unregister();

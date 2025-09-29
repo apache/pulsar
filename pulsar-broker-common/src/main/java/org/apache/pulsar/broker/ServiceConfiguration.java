@@ -2209,9 +2209,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerDeleteMaxConcurrentRequests = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
-            doc = "Number of threads to be used for deleting ledgers at broker level"
+            doc = "Number of threads to be used for deleting ledgers at broker level, default is the number of CPU cores"
     )
-    private int managedLedgerDeleteThreadPoolSize = 5;
+    private int managedLedgerDeleteThreadPoolSize = Runtime.getRuntime().availableProcessors();
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
