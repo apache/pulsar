@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
 import org.testng.annotations.Test;
 
 public class SchemaIdUtilTest {
