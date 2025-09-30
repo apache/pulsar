@@ -475,14 +475,11 @@ public class BrokerService implements Closeable {
 
         this.bundlesQuotas = new BundlesQuotas(pulsar);
         if (pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests() > 0) {
-            log.info("Setting managed ledger deletion max concurrent requests to {} and executor pool size to {}",
-                    pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests(),
-                    pulsar.getConfiguration().getManagedLedgerDeleteThreadPoolSize());
+            log.info("Setting managed ledger deletion max concurrent requests to {}",
+                    pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests());
             this.ledgerDeletionSemaphore = new Semaphore(
                     pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests());
-            this.ledgerDeletionExecutorProvider = new ExecutorProvider(
-                    pulsar.getConfiguration().getManagedLedgerDeleteThreadPoolSize(),
-                    "pulsar-ledger-deletion");
+            this.ledgerDeletionExecutorProvider = new ExecutorProvider(1, "pulsar-ledger-deletion");
         } else {
             this.ledgerDeletionSemaphore = null;
             this.ledgerDeletionExecutorProvider = null;
