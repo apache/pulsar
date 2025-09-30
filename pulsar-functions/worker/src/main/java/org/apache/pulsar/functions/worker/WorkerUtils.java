@@ -274,8 +274,18 @@ public final class WorkerUtils {
                 allowTlsInsecureConnection, enableTlsHostnameVerificationEnable, null);
     }
 
+    @Deprecated
     public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
                                                Boolean useTls, String tlsTrustCertsFilePath,
+                                               Boolean allowTlsInsecureConnection,
+                                               Boolean enableTlsHostnameVerificationEnable,
+                                               WorkerConfig workerConfig) {
+        return getPulsarClient(pulsarServiceUrl, authPlugin, authParams, tlsTrustCertsFilePath,
+                allowTlsInsecureConnection, enableTlsHostnameVerificationEnable, workerConfig);
+    }
+
+    public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
+                                               String tlsTrustCertsFilePath,
                                                Boolean allowTlsInsecureConnection,
                                                Boolean enableTlsHostnameVerificationEnable,
                                                WorkerConfig workerConfig) {
@@ -295,9 +305,6 @@ public final class WorkerUtils {
             if (isNotBlank(authPlugin)
                     && isNotBlank(authParams)) {
                 clientBuilder.authentication(authPlugin, authParams);
-            }
-            if (useTls != null) {
-                clientBuilder.enableTls(useTls);
             }
             if (allowTlsInsecureConnection != null) {
                 clientBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
