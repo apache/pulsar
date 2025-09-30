@@ -23,7 +23,7 @@ import com.google.common.base.MoreObjects;
 /**
  * This class encapsulates lookup data.
  */
-public class LookupData {
+public class LookupData implements LookupDataInterface {
     private String brokerUrl;
     private String brokerUrlTls;
     private String httpUrl; // Web service HTTP address
@@ -41,18 +41,22 @@ public class LookupData {
         this.nativeUrl = brokerUrl;
     }
 
+    @Override
     public String getBrokerUrl() {
         return brokerUrl;
     }
 
+    @Override
     public String getBrokerUrlTls() {
         return brokerUrlTls;
     }
 
+    @Override
     public String getHttpUrl() {
         return httpUrl;
     }
 
+    @Override
     public String getHttpUrlTls() {
         return httpUrlTls;
     }
@@ -65,6 +69,7 @@ public class LookupData {
      * Legacy name, but client libraries are still using it so it needs to be included in Json.
      */
     @Deprecated
+    @Override
     public String getNativeUrl() {
         return nativeUrl;
     }
@@ -76,6 +81,7 @@ public class LookupData {
      * even though it's not used
      */
     @Deprecated
+    @Override
     public String getBrokerUrlSsl() {
         return "";
     }
