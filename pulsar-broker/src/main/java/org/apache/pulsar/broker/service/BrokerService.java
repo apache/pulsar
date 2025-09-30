@@ -2697,8 +2697,8 @@ public class BrokerService implements Closeable {
                                     pulsar().getAdminClient().namespaces().unloadNamespaceBundle(namespace.toString(),
                                             bundle.getBundleRange());
                                 } catch (Exception e) {
-                                    log.error("Failed to unload namespace-bundle {}-{} that not owned by {}, {}",
-                                            namespace.toString(), bundle.toString(), localCluster, e.getMessage());
+                                    log.error("Failed to unload namespace-bundle {} that not owned by {}, {}",
+                                            bundle.toString(), localCluster, e.getMessage());
                                 }
                             });
                         }
