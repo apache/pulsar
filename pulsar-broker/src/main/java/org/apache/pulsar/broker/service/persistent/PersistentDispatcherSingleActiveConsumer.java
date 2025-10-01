@@ -305,6 +305,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
     }
 
+    @Override
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions, long delayAtTime) {
+        redeliverUnacknowledgedMessages(consumer, positions);
+    }
+
     @VisibleForTesting
     void readMoreEntries(Consumer consumer) {
         if (cursor.isClosed()) {
