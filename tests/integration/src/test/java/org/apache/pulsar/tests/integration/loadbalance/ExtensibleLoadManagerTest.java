@@ -141,28 +141,37 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                     brokerContainer.start();
                 }
             });
-            String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
-            Awaitility.await().atMost(120, TimeUnit.SECONDS).ignoreExceptions().until(
-                    () -> {
-                        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-                            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(
-                                    brokerContainer.getHttpServiceUrl()).build()) {
+
+            Awaitility.await()
+                    .atMost(4, TimeUnit.MINUTES) 
+                    .ignoreExceptions()
+                    .until(() -> {
+                        for (BrokerContainer broker : pulsarCluster.getBrokers()) {
+                            try (PulsarAdmin admin = PulsarAdmin.builder()
+                                    .serviceHttpUrl(broker.getHttpServiceUrl()).build()) {
                                 if (admin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
                                     return false;
                                 }
-                                try {
-                                    admin.topics().createPartitionedTopic(topicName, 10);
-                                } catch (PulsarAdminException.ConflictException e) {
-                                    // expected
-                                }
-                                admin.lookups().lookupPartitionedTopic(topicName);
                             }
                         }
                         return true;
+                    });
+
+            String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
+            for (BrokerContainer broker : pulsarCluster.getBrokers()) {
+                try (PulsarAdmin admin = PulsarAdmin.builder()
+                        .serviceHttpUrl(broker.getHttpServiceUrl()).build()) {
+                    try {
+                        admin.topics().createPartitionedTopic(topicName, 10);
+                    } catch (PulsarAdminException.ConflictException e) {
+                        // expected
                     }
-            );
+                    admin.lookups().lookupPartitionedTopic(topicName);
+                }
+            }
         }
     }
+    
 
     @Test(timeOut = 40 * 1000)
     public void testConcurrentLookups() throws Exception {
