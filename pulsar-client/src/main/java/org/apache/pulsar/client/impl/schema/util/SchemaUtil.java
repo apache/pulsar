@@ -33,7 +33,16 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 public class SchemaUtil {
 
+    private static Boolean globalJsr310ConversionEnabled = null;
+
+    public static void setGlobalJsr310ConversionEnabled(Boolean globalJsr310ConversionEnabled) {
+        SchemaUtil.globalJsr310ConversionEnabled = globalJsr310ConversionEnabled;
+    }
+
     public static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
+        if (globalJsr310ConversionEnabled != null) {
+            return globalJsr310ConversionEnabled;
+        }
         if (schemaInfo != null) {
             return Boolean.parseBoolean(schemaInfo.getProperties()
                     .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
