@@ -33,6 +33,8 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -99,8 +101,12 @@ public class ElasticSearchExtractTest {
                 "keyIgnore", "true"), null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getLeft(), "1");
-        assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,"
-                + "\"f\":1.0,\"i\":1,\"l\":10}}");
+        JSONAssert.assertEquals(
+                pair.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,"
+                + "\"f\":1.0,\"i\":1,\"l\":10}}",
+                JSONCompareMode.STRICT
+        );
         elasticSearchSink.close();
 
         // two fields PK
@@ -112,9 +118,20 @@ public class ElasticSearchExtractTest {
                 "schemaEnable", "true",
                 "keyIgnore", "true"), null);
         Pair<String, String> pair2 = elasticSearchSink2.extractIdAndDocument(genericObjectRecord);
-        assertEquals(pair2.getLeft(), "[\"1\",1]");
-        assertEquals(pair2.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,"
-                + "\"f\":1.0,\"i\":1,\"l\":10}}");
+
+        // NON_EXTENSIBLE is NOT extensible and does NOT have strict ordering so both
+        // possibilities ["1",1] and [1,"1"] will pass
+        JSONAssert.assertEquals(
+                pair2.getLeft(),
+                "[\"1\",1]",
+                JSONCompareMode.NON_EXTENSIBLE
+        );
+        JSONAssert.assertEquals(
+                pair2.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,"
+                + "\"f\":1.0,\"i\":1,\"l\":10}}",
+                JSONCompareMode.STRICT
+        );
         elasticSearchSink2.close();
 
         // default config with null PK => indexed with auto generated _id
@@ -124,8 +141,12 @@ public class ElasticSearchExtractTest {
                 "compatibilityMode", "ELASTICSEARCH"), null);
         Pair<String, String> pair3 = elasticSearchSink3.extractIdAndDocument(genericObjectRecord);
         assertNull(pair3.getLeft());
-        assertEquals(pair3.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,"
-                + "\"f\":1.0,\"i\":1,\"l\":10}}");
+        JSONAssert.assertEquals(
+                pair3.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,"
+                + "\"f\":1.0,\"i\":1,\"l\":10}}",
+                JSONCompareMode.STRICT
+        );
         elasticSearchSink3.close();
 
         // default config with null PK + null value
