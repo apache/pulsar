@@ -752,6 +752,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             throw new PulsarClientException("Getting consumer is not supported");
         }
 
+        if ((partition != 0) && (!TopicName.get(topic).isPartitioned())) {
+            throw new PulsarClientException("No Partioned topic present");
+        }
+
         Consumer<?> consumer = tryGetConsumer(topic, partition);
         if (consumer == null) {
             // MultiTopicsConsumer's list of consumers could change
