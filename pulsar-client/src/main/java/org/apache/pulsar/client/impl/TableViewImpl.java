@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
+
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -32,19 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageIdAdv;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.client.api.TopicMessageId;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.topics.TopicCompactionStrategy;
+
+import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 
 @Slf4j
 public class TableViewImpl<T> implements TableView<T> {
@@ -212,58 +200,68 @@ public class TableViewImpl<T> implements TableView<T> {
 
     private void handleMessage(Message<T> msg) {
         lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
+
+        if (!msg.hasKey()) {
+            log.warn("Received message with no key, releasing.");
+            msg.release();
+            checkAllFreshTask(msg);
+            return;
+        }
+
+        String key = msg.getKey();
+        T cur = msg.size() > 0 ? msg.getValue() : null;
+        if (log.isDebugEnabled()) {
+            log.debug("Applying message from topic {}. key={} value={}",
+                    conf.getTopicName(),
+                    key,
+                    cur);
+        }
+
+        boolean update = true;
+        if (compactionStrategy != null) {
+            T prev = data.get(key);
+            update = !compactionStrategy.shouldKeepLeft(prev, cur);
+            if (!update) {
+                log.info("Skipped the message from topic {}. key={} value={} prev={}",
+                        conf.getTopicName(),
+                        key,
+                        cur,
+                        prev);
+                compactionStrategy.handleSkippedMessage(key, cur);
+                msg.release();
+                checkAllFreshTask(msg);
+                return;
+            }
+        }
+
         try {
-            if (msg.hasKey()) {
-                String key = msg.getKey();
-                T cur = msg.size() > 0 ? msg.getValue() : null;
-                if (log.isDebugEnabled()) {
-                    log.debug("Applying message from topic {}. key={} value={}",
-                            conf.getTopicName(),
-                            key,
-                            cur);
-                }
+            listenersMutex.lock();
+            Message<?> oldRawMessage;
+            if (null == cur) {
+                data.remove(key);
+                oldRawMessage = rawMessages.remove(key);
+                msg.release();
+            } else {
+                data.put(key, cur);
+                oldRawMessage = rawMessages.put(key, msg);
+            }
 
-                boolean update = true;
-                if (compactionStrategy != null) {
-                    T prev = data.get(key);
-                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
-                    if (!update) {
-                        log.info("Skipped the message from topic {}. key={} value={} prev={}",
-                                conf.getTopicName(),
-                                key,
-                                cur,
-                                prev);
-                        compactionStrategy.handleSkippedMessage(key, cur);
-                    }
-                }
+            if (oldRawMessage != null) {
+                oldRawMessage.release();
+            }
 
-                if (update) {
-                    try {
-                        listenersMutex.lock();
-                        if (null == cur) {
-                            data.remove(key);
-                            rawMessages.remove(key);
-                        } else {
-                            data.put(key, cur);
-                            rawMessages.put(key, msg);
-                        }
-
-                        for (BiConsumer<String, T> listener : listeners) {
-                            try {
-                                listener.accept(key, cur);
-                            } catch (Throwable t) {
-                                log.error("Table view listener raised an exception", t);
-                            }
-                        }
-                    } finally {
-                        listenersMutex.unlock();
-                    }
+            for (BiConsumer<String, T> listener : listeners) {
+                try {
+                    listener.accept(key, cur);
+                } catch (Throwable t) {
+                    log.error("Table view listener raised an exception", t);
                 }
             }
-            checkAllFreshTask(msg);
         } finally {
-            msg.release();
+            listenersMutex.unlock();
         }
+
+        checkAllFreshTask(msg);
     }
 
     @Override
