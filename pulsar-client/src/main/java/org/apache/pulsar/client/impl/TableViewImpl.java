@@ -52,6 +52,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, T> data;
+    private final ConcurrentMap<String, Message<?>> rawMessages;
     private final Map<String, T> immutableData;
 
     private final CompletableFuture<Reader<T>> reader;
@@ -85,6 +86,7 @@ public class TableViewImpl<T> implements TableView<T> {
         this.conf = conf;
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();
+        this.rawMessages = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
@@ -142,6 +144,11 @@ public class TableViewImpl<T> implements TableView<T> {
     @Override
     public T get(String key) {
        return data.get(key);
+    }
+
+    @Override
+    public Message<?> getRawMessage(String key) {
+        return rawMessages.get(key);
     }
 
     @Override
@@ -235,8 +242,10 @@ public class TableViewImpl<T> implements TableView<T> {
                         listenersMutex.lock();
                         if (null == cur) {
                             data.remove(key);
+                            rawMessages.remove(key);
                         } else {
                             data.put(key, cur);
+                            rawMessages.put(key, msg);
                         }
 
                         for (BiConsumer<String, T> listener : listeners) {

@@ -624,4 +624,38 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         future.get(3, TimeUnit.SECONDS);
         assertTrue(index.get() <= 0);
     }
+
+    @Test
+    public void testGetRawMessage() throws Exception {
+        String topic = "persistent://public/default/testGetRawMessage";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        String testKey = "key1";
+        String testValue = "value1";
+        producer.newMessage()
+                .key(testKey)
+                .value(testValue)
+                .property("myProp", "myValue")
+                .send();
+
+        @Cleanup
+        TableView<String> tableView = pulsarClient.newTableView(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
+
+        Message<?> rawMessage = tableView.getRawMessage(testKey);
+        assertTrue(rawMessage != null, "Raw message should not be null for key: " + testKey);
+        assertEquals(rawMessage.getKey(), testKey);
+        assertEquals(new String(rawMessage.getData()), testValue);
+        assertEquals(rawMessage.getProperty("myProp"), "myValue");
+
+        Message<?> missingMessage = tableView.getRawMessage("missingKey");
+        assertTrue(missingMessage == null, "Raw message should be null for missing key");
+    }
+
 }
