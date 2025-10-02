@@ -18,18 +18,22 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.client.Counter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionCreateStatus;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionStatus;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 /**
  */
@@ -53,6 +57,19 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     public static final String CONNECTION_CREATE_COUNTER_METRIC_NAME =
             "pulsar.broker.connection.create.operation.count";
     private final ObservableLongCounter connectionCreateCounter;
+
+    public static final String TOPIC_PUBLISH_LATENCY_METRIC_NAME = "pulsar.broker.topic.publish.latency";
+    private final DoubleHistogram topicPublishLatencyHistogram;
+    @PulsarDeprecatedMetric(newMetricName = TOPIC_PUBLISH_LATENCY_METRIC_NAME)
+    private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(0.9999)
+            .quantile(1.0)
+            .register();
 
     public BrokerOperabilityMetrics(PulsarService pulsar) {
         this.metricsList = new ArrayList<>();
@@ -87,6 +104,14 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
                     measurement.record(connectionCreateSuccessCount.sum(), ConnectionCreateStatus.SUCCESS.attributes);
                     measurement.record(connectionCreateFailCount.sum(), ConnectionCreateStatus.FAILURE.attributes);
                 });
+
+        this.topicPublishLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
+                .histogramBuilder(TOPIC_PUBLISH_LATENCY_METRIC_NAME)
+                .setUnit("s")
+                .setDescription("The latency in seconds for publishing messages")
+                .setExplicitBucketBoundariesAdvice(Arrays.asList(0.001, 0.005, 0.01, 0.02, 0.05, 0.1,
+                        0.2, 0.5, 1.0, 5.0, 30.0))
+                .build();
     }
 
     @Override
@@ -194,5 +219,10 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
     public void recordHealthCheckStatusFail() {
         this.healthCheckStatus = 0;
+    }
+
+    public void recordPublishLatency(long latency, TimeUnit unit) {
+        this.topicPublishLatencyHistogram.record(unit.toMillis(latency) / 1000.0);
+        PUBLISH_LATENCY.observe(latency, unit);
     }
 }
