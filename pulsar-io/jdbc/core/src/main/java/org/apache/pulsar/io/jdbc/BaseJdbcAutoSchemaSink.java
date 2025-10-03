@@ -526,7 +526,6 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                                 + logicalTypeName + " for value field schema " + schema.getName());
                     }
                 }
-                break;
             case LONG:
                 if (schema.getLogicalType() != null) {
                     String logicalTypeName = schema.getLogicalType().getName();
@@ -543,7 +542,6 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                                 + logicalTypeName + " for value field schema " + schema.getName());
                     }
                 }
-                break;
             case DOUBLE:
             case FLOAT:
             case BOOLEAN:
