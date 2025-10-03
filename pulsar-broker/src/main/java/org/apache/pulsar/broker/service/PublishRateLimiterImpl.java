@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.qos.MonotonicClock;
@@ -42,9 +43,14 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private final AtomicInteger throttledProducersCount = new AtomicInteger(0);
     private final AtomicBoolean processingQueuedProducers = new AtomicBoolean(false);
+    private final Consumer<Producer> throttleAction;
+    private final Consumer<Producer> unthrottleAction;
 
-    public PublishRateLimiterImpl(MonotonicClock monotonicClock) {
+    public PublishRateLimiterImpl(MonotonicClock monotonicClock, Consumer<Producer> throttleAction,
+                                  Consumer<Producer> unthrottleAction) {
         this.monotonicClock = monotonicClock;
+        this.throttleAction = throttleAction;
+        this.unthrottleAction = unthrottleAction;
     }
 
     /**
@@ -68,7 +74,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         }
         if (shouldThrottle) {
             // throttle the producer by incrementing the throttle count
-            producer.incrementThrottleCount();
+            throttleAction.accept(producer);
             // schedule decrementing the throttle count to possibly unthrottle the producer after the
             // throttling period
             scheduleDecrementThrottleCount(producer);
@@ -136,7 +142,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             while ((throttlingDuration = calculateThrottlingDurationNanos()) == 0L
                     && (producer = unthrottlingQueue.poll()) != null) {
                 try {
-                    producer.decrementThrottleCount();
+                    final Producer producerFinal = producer;
+                    producer.getCnx().execute(() -> unthrottleAction.accept(producerFinal));
                 } catch (Exception e) {
                     log.error("Failed to unthrottle producer {}", producer, e);
                 }
