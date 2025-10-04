@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.common.schema.SchemaIdUtil;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -474,9 +475,10 @@ public class MessageImpl<T> implements Message<T> {
     public T getValue() {
         SchemaInfo schemaInfo = getSchemaInfo();
         var schemaIdOp = getSchemaId();
+        var schemaId = schemaIdOp.map(SchemaIdUtil::removeMagicHeader).orElse(null);
         if (schemaInfo != null && SchemaType.KEY_VALUE == schemaInfo.getType()) {
             if (schemaIdOp.isPresent()) {
-                return getKeyValueBySchemaId(schemaIdOp.get());
+                return getKeyValueBySchemaId(schemaId);
             }
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
@@ -488,7 +490,7 @@ public class MessageImpl<T> implements Message<T> {
                 return null;
             }
             if (schemaIdOp.isPresent()) {
-                return decodeBySchemaId(schemaIdOp.get());
+                return decodeBySchemaId(schemaId);
             }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
@@ -532,7 +534,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private T decodeBySchemaId(byte[] schemaId) {
         try {
-            return schema.decode(topic, getByteBuffer(), schemaId);
+            return schema.decode(topic, getByteBuffer(), SchemaIdUtil.removeMagicHeader(schemaId));
         } catch (Exception e) {
             throw new SchemaSerializationException("Failed to decode message from topic " + topic
                     + " with schemaId " + Base64.getEncoder().encodeToString(schemaId), e);
