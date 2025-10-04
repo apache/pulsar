@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import lombok.Getter;
@@ -279,5 +280,9 @@ public class PulsarStats implements Closeable {
 
     public void recordConnectionCreateFail() {
         brokerOperabilityMetrics.recordConnectionCreateFail();
+    }
+
+    public void recordPublishLatency(long latency, TimeUnit unit) {
+        brokerOperabilityMetrics.recordPublishLatency(latency, unit);
     }
 }
