@@ -489,7 +489,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ctx.channel().config().setAutoRead(true);
                     pausedDueToRateLimitation = false;
                 }
-            }, 1, TimeUnit.SECONDS);
+            }, requestRateLimiter.getPeriodAtMs(), TimeUnit.MILLISECONDS);
         }
     }
 
