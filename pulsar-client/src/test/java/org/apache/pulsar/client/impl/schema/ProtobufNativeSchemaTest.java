@@ -20,14 +20,24 @@ package org.apache.pulsar.client.impl.schema;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -46,6 +56,28 @@ public class ProtobufNativeSchemaTest {
             + "gBQjUKJW9yZy5hcGFjaGUucHVsc2FyLmNsaWVudC5zY2hlbWEucHJvdG9CDEV4dGVybmFsVGVzdGIGcHJvdG8z\",\"rootMessageT"
             + "ypeName\":\"proto.TestMessage\",\"rootFileDescriptorName\":\"Test.proto\"}";
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /**
+     * Decode a base64-encoded Protobuf FileDescriptorSet into a canonical JSON tree.
+     * @param b64 a base64 string
+     * @return a normalized JSON tree that can be compared with JSONAssert, ensuring deterministic
+     * equality checks regardless of field ordering.
+     * @throws IllegalArgumentException if b64 isn't valid Base64
+     * @throws InvalidProtocolBufferException if the decoded bytes are not a valid FileDescriptorSet
+     * @throws JsonProcessingException if the JSON string is invalid
+     */
+    private static JsonNode fdsToJson(String b64)
+            throws IllegalArgumentException, InvalidProtocolBufferException, JsonProcessingException {
+        DescriptorProtos.FileDescriptorSet fds =
+            DescriptorProtos.FileDescriptorSet.parseFrom(Base64.getDecoder().decode(b64));
+        String json = JsonFormat.printer()
+            .includingDefaultValueFields()
+            .omittingInsignificantWhitespace()
+            .print(fds);
+        return MAPPER.readTree(json);
+    }
+
     @Test
     public void testEncodeAndDecode() {
         final String stringFieldValue = "StringFieldValue";
@@ -61,15 +93,34 @@ public class ProtobufNativeSchemaTest {
     }
 
     @Test
-    public void testSchema() {
+    public void testSchema() throws Exception {
         ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =
                 ProtobufNativeSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
         assertEquals(protobufSchema.getSchemaInfo().getType(), SchemaType.PROTOBUF_NATIVE);
 
         assertNotNull(ProtobufNativeSchemaUtils.deserialize(protobufSchema.getSchemaInfo().getSchema()));
-        assertEquals(new String(protobufSchema.getSchemaInfo().getSchema(),
-                StandardCharsets.UTF_8), EXPECTED_SCHEMA_JSON);
+
+        // Parse the produced/expected JSON into trees
+        String actualJson   = new String(protobufSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8);
+        JsonNode actualRoot   = MAPPER.readTree(actualJson);
+        JsonNode expectedRoot = MAPPER.readTree(EXPECTED_SCHEMA_JSON);
+
+        // Normalize the base64-encoded "fileDescriptorSet" field to remove order-dependent differences.
+        // When decoded, Protobuf descriptors can serialize fields in varying orders, which causes
+        // string-based comparisons to fail. By parsing into JsonNodes, we allow for re-ordering.
+        String fdSetField = "fileDescriptorSet";
+        JsonNode actualFdsNode   = fdsToJson(actualRoot.path(fdSetField).asText());
+        JsonNode expectedFdsNode = fdsToJson(expectedRoot.path(fdSetField).asText());
+        ((ObjectNode) actualRoot).set(fdSetField, actualFdsNode);
+        ((ObjectNode) expectedRoot).set(fdSetField, expectedFdsNode);
+
+        // Ensure the fields and values are the same, order does not matter
+        JSONAssert.assertEquals(
+                MAPPER.writeValueAsString(expectedRoot),
+                MAPPER.writeValueAsString(actualRoot),
+                JSONCompareMode.NON_EXTENSIBLE
+        );
     }
 
     @Test
