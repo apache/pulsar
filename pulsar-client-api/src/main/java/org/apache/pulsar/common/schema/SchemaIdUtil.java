@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema;
+package org.apache.pulsar.common.schema;
 
 import java.nio.ByteBuffer;
 
@@ -25,8 +25,8 @@ import java.nio.ByteBuffer;
  */
 public class SchemaIdUtil {
 
-    private static final byte MAGIC_BYTE_VALUE = -1;
-    private static final byte MAGIC_BYTE_KEY_VALUE = -2;
+    public static final byte MAGIC_BYTE_VALUE = -1;
+    public static final byte MAGIC_BYTE_KEY_VALUE = -2;
 
     public static byte[] addMagicHeader(byte[] data, boolean isKeyValue) {
         if (data == null || data.length == 0) {
