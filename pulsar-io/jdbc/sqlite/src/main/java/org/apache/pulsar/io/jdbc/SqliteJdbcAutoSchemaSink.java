@@ -82,4 +82,30 @@ public class SqliteJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
         throw new UnsupportedOperationException("Array types are not supported by SQLite JDBC sink. "
                 + "Consider using PostgreSQL JDBC sink for array support.");
     }
+
+    /**
+     * SQLite does not support native datetime types.
+     * <p>
+     * SQLite does not have native datetime data types like PostgreSQL. These should be stored as strings or
+     * their default numeric types.
+     * </p>
+     * <p>
+     * <strong>Alternatives:</strong>
+     * <ul>
+     * <li>Use PostgreSQL JDBC sink for native datetime support</li>
+     * </ul>
+     * </p>
+     *
+     * @param statement     the PreparedStatement (not used)
+     * @param index         the parameter index (not used)
+     * @param value         the value (not used)
+     * @param targetSqlType the target SQL type (not used)
+     * @return false as SQLite doesn't support datetime
+     * @throws Exception if conversion or binding fails
+     */
+    @Override
+    protected boolean handleDateTime(PreparedStatement statement, int index, Object value, String targetSqlType)
+            throws Exception {
+        return false;
+    }
 }
