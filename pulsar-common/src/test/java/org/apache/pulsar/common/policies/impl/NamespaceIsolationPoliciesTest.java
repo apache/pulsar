@@ -40,6 +40,8 @@ import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationPoliciesTest {
@@ -67,7 +69,11 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(new String(secondaryBrokersJson), "[\"prod1-broker.*.use.example.com\"]");
 
         byte[] outJson = jsonMapperForWriter.writeValueAsBytes(policies.getPolicies());
-        assertEquals(new String(outJson), this.defaultJson);
+        JSONAssert.assertEquals(
+                new String(outJson),
+                this.defaultJson,
+                JSONCompareMode.STRICT
+        );
 
         Map<String, String> parameters = new HashMap<>();
         parameters.put("min_limit", "1");
