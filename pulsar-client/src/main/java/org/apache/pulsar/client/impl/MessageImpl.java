@@ -47,7 +47,6 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
-import org.apache.pulsar.common.schema.SchemaIdUtil;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -57,6 +56,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaIdUtil;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -534,7 +534,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private T decodeBySchemaId(byte[] schemaId) {
         try {
-            return schema.decode(topic, getByteBuffer(), SchemaIdUtil.removeMagicHeader(schemaId));
+            return schema.decode(topic, getByteBuffer(), schemaId);
         } catch (Exception e) {
             throw new SchemaSerializationException("Failed to decode message from topic " + topic
                     + " with schemaId " + Base64.getEncoder().encodeToString(schemaId), e);
