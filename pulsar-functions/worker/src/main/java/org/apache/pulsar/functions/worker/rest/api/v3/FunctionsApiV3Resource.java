@@ -35,6 +35,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -428,5 +429,25 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
 
         functions().updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
                 delete, uri.getRequestUri(), authParams());
+    }
+
+    @GET
+    @Path("/healthz")
+    @ApiOperation(value = "Run a healthCheck against the function worker")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 503, message = "Service not available")
+    })
+    public Response healthCheck() {
+        boolean isAlive = functions().checkLiveliness();
+        if (!isAlive) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("There is IllegalStateException, Service is not running. Need to restart.")
+                    .build();
+        } else {
+            return Response.status(Response.Status.OK)
+                    .entity("There is no IllegalStateException, Service is running.")
+                    .build();
+        }
     }
 }
