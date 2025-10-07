@@ -20,14 +20,14 @@ package org.apache.pulsar.metadata.impl.oxia;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.oxia.client.api.AsyncOxiaClient;
-import io.oxia.client.api.DeleteOption;
 import io.oxia.client.api.Notification;
 import io.oxia.client.api.OxiaClientBuilder;
-import io.oxia.client.api.PutOption;
 import io.oxia.client.api.PutResult;
 import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
+import io.oxia.client.api.options.DeleteOption;
+import io.oxia.client.api.options.PutOption;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -133,7 +133,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         return Optional.of(result)
                 .map(
                         oxiaResult ->
-                                new GetResult(oxiaResult.getValue(), convertStat(path, oxiaResult.getVersion())));
+                                new GetResult(oxiaResult.value(), convertStat(path, oxiaResult.version())));
     }
 
     Stat convertStat(String path, Version version) {
