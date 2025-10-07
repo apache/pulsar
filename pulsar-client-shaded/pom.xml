@@ -145,7 +145,6 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>commons-*:*</include>
                   <include>commons-codec:commons-codec</include>
-                  <include>org.apache.commons:commons-collections4</include>
                   <include>io.airlift:*</include>
                   <include>io.netty.incubator:*</include>
                   <include>io.netty:*</include>
@@ -160,7 +159,6 @@
                   <include>javax.ws.rs:*</include>
                   <include>net.jcip:jcip-annotations</include>
                   <include>org.apache.avro:*</include>
-                  <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->

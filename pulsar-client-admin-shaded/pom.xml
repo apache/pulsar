@@ -128,7 +128,6 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>commons-*:*</include>
                   <include>commons-codec:commons-codec</include>
-                  <include>org.apache.commons:commons-collections4</include>
                   <include>io.airlift:*</include>
                   <include>io.grpc:*</include>
                   <include>io.netty.incubator:*</include>
@@ -143,7 +142,6 @@
                   <include>javax.ws.rs:*</include>
                   <include>javax.xml.bind:jaxb-api</include>
                   <include>net.jcip:jcip-annotations</include>
-                  <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
