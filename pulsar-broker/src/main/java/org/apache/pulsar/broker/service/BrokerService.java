@@ -1190,7 +1190,12 @@ public class BrokerService implements Closeable {
                         }
                     }).exceptionally(e -> {
                         pulsar.getExecutor().execute(() -> topics.remove(topicName.toString(), topicFuture));
-                        topicFuture.completeExceptionally(e);
+                        final Throwable rc = FutureUtil.unwrapCompletionException(e);
+                        final String errorInfo = String.format("Topic creation encountered an exception by initialize"
+                                        + " topic policies service. topic_name=%s error_message=%s", topicName,
+                                rc.getMessage());
+                        log.error(errorInfo, rc);
+                        topicFuture.completeExceptionally(rc);
                         return null;
                     });
                 });
