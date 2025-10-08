@@ -1168,14 +1168,7 @@ public class BrokerService implements Closeable {
                     // The topic level policies are not needed now, but the meaning of calling
                     // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
                     getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
-                            .exceptionally(ex -> {
-                        final Throwable rc = FutureUtil.unwrapCompletionException(ex);
-                        final String errorInfo = String.format("Topic creation encountered an exception by initialize"
-                                + " topic policies service. topic_name=%s error_message=%s", topicName,
-                                rc.getMessage());
-                        log.error(errorInfo, rc);
-                        throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
-                    }).thenRun(() -> {
+                            .thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
                         final var cachedFuture = topics.computeIfAbsent(topicName.toString(), ___ -> {
                             inserted.setTrue();
@@ -1195,6 +1188,10 @@ public class BrokerService implements Closeable {
                                 }
                             });
                         }
+                    }).exceptionally(e -> {
+                        pulsar.getExecutor().execute(() -> topics.remove(topicName.toString(), topicFuture));
+                        topicFuture.completeExceptionally(e);
+                        return null;
                     });
                 });
                 return topicFuture;
