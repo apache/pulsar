@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>docker-images</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>java-test-image</artifactId>
@@ -38,18 +38,15 @@
           <name>integrationTests</name>
         </property>
       </activation>
+      <properties>
+        <docker.install.asyncprofiler>false</docker.install.asyncprofiler>
+      </properties>
       <dependencies>
         <dependency>
-          <groupId>org.apache.pulsar.tests</groupId>
-          <artifactId>java-test-functions</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
           <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-server-distribution</artifactId>
+          <artifactId>pulsar-docker-image</artifactId>
           <version>${project.parent.version}</version>
-          <classifier>bin</classifier>
-          <type>tar.gz</type>
+          <type>pom</type>
           <scope>provided</scope>
           <exclusions>
             <exclusion>
@@ -57,6 +54,11 @@
               <artifactId>*</artifactId>
             </exclusion>
           </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.pulsar.tests</groupId>
+          <artifactId>java-test-functions</artifactId>
+          <version>${project.parent.version}</version>
         </dependency>
       </dependencies>
       <build>
@@ -90,6 +92,15 @@
                       <overWrite>true</overWrite>
                       <outputDirectory>${project.build.directory}</outputDirectory>
                       <destFileName>pulsar-server-distribution-bin.tar.gz</destFileName>
+                    </artifactItem>
+                    <artifactItem>
+                      <groupId>org.apache.pulsar</groupId>
+                      <artifactId>buildtools</artifactId>
+                      <version>${project.parent.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${project.build.directory}</outputDirectory>
+                      <destFileName>buildtools.jar</destFileName>
                     </artifactItem>
                   </artifactItems>
                 </configuration>
@@ -148,16 +159,13 @@
                 <configuration>
                   <images>
                     <image>
-                      <name>${docker.organization}/java-test-image</name>
+                      <name>${docker.organization}/java-test-image:${docker.tag}</name>
                       <build>
                         <args>
                           <PULSAR_IMAGE>${docker.organization}/${docker.image}:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
+                          <INSTALL_ASYNC_PROFILER>${docker.install.asyncprofiler}</INSTALL_ASYNC_PROFILER>
                         </args>
                         <contextDir>${project.basedir}</contextDir>
-                        <tags>
-                          <tag>${docker.tag}</tag>
-                          <tag>${project.version}</tag>
-                        </tags>
                         <noCache>true</noCache>
                       </build>
                     </image>

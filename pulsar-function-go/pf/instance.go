@@ -77,6 +77,15 @@ func newGoInstance() *goInstance {
 		return producer
 	}
 
+	goInstance.context.outputMessageWithError = func(topic string) (pulsar.Producer, error) {
+		producer, err := goInstance.getProducer(topic)
+		if err != nil {
+			log.Errorf("getting producer failed, error is:%v", err)
+			return nil, err
+		}
+		return producer, nil
+	}
+
 	goInstance.lastHealthCheckTS = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
@@ -242,13 +251,12 @@ func (gi *goInstance) setupProducer() error {
 		log.Debugf("Setting up producer for topic %s", gi.context.instanceConf.funcDetails.Sink.Topic)
 		producer, err := gi.getProducer(gi.context.instanceConf.funcDetails.Sink.Topic)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Failed to create producer: %v", err)
+			return fmt.Errorf("failed to create producer: %w", err)
 		}
 
 		gi.producer = producer
-		return nil
 	}
-
 	return nil
 }
 

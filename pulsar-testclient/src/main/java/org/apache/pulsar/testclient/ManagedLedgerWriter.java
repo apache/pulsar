@@ -69,9 +69,6 @@ import picocli.CommandLine.Spec;
 @Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
 public class ManagedLedgerWriter extends CmdBase{
 
-    private static final ExecutorService executor = Executors
-            .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
-
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
     private static final LongAdder totalMessagesSent = new LongAdder();
@@ -220,10 +217,13 @@ public class ManagedLedgerWriter extends CmdBase{
         log.info("Created {} managed ledgers", managedLedgers.size());
 
         long start = System.nanoTime();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        ExecutorService executor = Executors
+                .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
+        Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
+            executor.shutdownNow();
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
+        });
 
         Collections.shuffle(managedLedgers);
         AtomicBoolean isDone = new AtomicBoolean();
@@ -274,7 +274,7 @@ public class ManagedLedgerWriter extends CmdBase{
 
                     // Send messages on all topics/producers
                     long totalSent = 0;
-                    while (true) {
+                    while (!Thread.currentThread().isInterrupted()) {
                         for (int j = 0; j < nunManagedLedgersForThisThread; j++) {
                             if (this.testTime > 0) {
                                 if (System.nanoTime() > testEndTime) {
@@ -304,7 +304,11 @@ public class ManagedLedgerWriter extends CmdBase{
                         }
                     }
                 } catch (Throwable t) {
-                    log.error("Got error", t);
+                    if (PerfClientUtils.hasInterruptedException(t)) {
+                        Thread.currentThread().interrupt();
+                    } else {
+                        log.error("Got error", t);
+                    }
                 }
             });
         }
@@ -314,10 +318,11 @@ public class ManagedLedgerWriter extends CmdBase{
 
         Histogram reportHistogram = null;
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -354,8 +359,9 @@ public class ManagedLedgerWriter extends CmdBase{
         }
 
         factory.shutdown();
-    }
 
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
+    }
 
     public static <T> Map<Integer, List<T>> allocateToThreads(List<T> managedLedgers, int numThreads) {
 

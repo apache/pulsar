@@ -357,7 +357,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     @Override
     public long getStoredMessagesSize() {
-        return managedLedger.getTotalSize() * managedLedger.getConfig().getWriteQuorumSize();
+        long totalSize = managedLedger.getTotalSize();
+        long offloadedSize = managedLedger.getOffloadedSize();
+        long bookieSize = totalSize - offloadedSize;
+        return bookieSize * managedLedger.getConfig().getWriteQuorumSize() + offloadedSize;
     }
 
     @Override

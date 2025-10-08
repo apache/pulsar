@@ -45,11 +45,12 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
         // store the entryId, it's not able to pass a Long.max() as entryId. In this case there's no point to require
         // both ledgerId and entryId to be Long.max()
-        if (startCursorPosition == null || startCursorPosition.compareTo(ledger.lastConfirmedEntry) > 0) {
+        Pair<Position, Long> lastPositionCounter = ledger.getLastPositionAndCounter();
+        if (startCursorPosition == null || startCursorPosition.compareTo(lastPositionCounter.getLeft()) > 0) {
             // Start from last entry
             switch (initialPosition) {
                 case Latest:
-                    initializeCursorPosition(ledger.getLastPositionAndCounter());
+                    initializeCursorPosition(lastPositionCounter);
                     break;
                 case Earliest:
                     initializeCursorPosition(ledger.getFirstPositionAndCounter());
@@ -71,6 +72,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     private void recoverCursor(Position mdPosition) {
         Pair<Position, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
         this.readPosition = isReadCompacted() ? mdPosition.getNext() : ledger.getNextValidPosition(mdPosition);
+        ledger.onCursorReadPositionUpdated(this, readPosition);
         markDeletePosition = ledger.getPreviousPosition(this.readPosition);
 
         // Initialize the counter such that the difference between the messages written on the ML and the
@@ -113,6 +115,8 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     @Override
     public void asyncClose(CloseCallback callback, Object ctx) {
         STATE_UPDATER.set(this, State.Closed);
+        closeWaitingCursor();
+        setInactive();
         callback.closeComplete(ctx);
     }
 
@@ -134,6 +138,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             super.rewind();
         } else {
             readPosition = markDeletePosition.getNext();
+            ledger.onCursorReadPositionUpdated(this, readPosition);
         }
     }
 

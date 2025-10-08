@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -66,18 +67,18 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
-    public MetadataCacheImpl(MetadataStore store, TypeReference<T> typeRef, MetadataCacheConfig<T> cacheConfig,
-                             ScheduledExecutorService executor) {
-        this(store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig, executor);
+    public MetadataCacheImpl(String cacheName, MetadataStore store, TypeReference<T> typeRef,
+                             MetadataCacheConfig<T> cacheConfig, ScheduledExecutorService executor) {
+        this(cacheName, store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig, executor);
     }
 
-    public MetadataCacheImpl(MetadataStore store, JavaType type, MetadataCacheConfig<T> cacheConfig,
+    public MetadataCacheImpl(String cacheName, MetadataStore store, JavaType type, MetadataCacheConfig<T> cacheConfig,
                              ScheduledExecutorService executor) {
-        this(store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig, executor);
+        this(cacheName, store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig, executor);
     }
 
-    public MetadataCacheImpl(MetadataStore store, MetadataSerde<T> serde, MetadataCacheConfig<T> cacheConfig,
-                             ScheduledExecutorService executor) {
+    public MetadataCacheImpl(String cacheName, MetadataStore store, MetadataSerde<T> serde,
+                             MetadataCacheConfig<T> cacheConfig, ScheduledExecutorService executor) {
         this.store = store;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
@@ -96,6 +97,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             cacheBuilder.expireAfterWrite(cacheConfig.getExpireAfterWriteMillis(), TimeUnit.MILLISECONDS);
         }
         this.objCache = cacheBuilder
+                .recordStats()
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
@@ -121,6 +123,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         }
                     }
                 });
+
+        CacheMetricsCollector.CAFFEINE.addCache(cacheName, objCache);
     }
 
     private CompletableFuture<Optional<CacheGetResult<T>>> readValueFromStore(String path) {
@@ -339,8 +343,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 objCache.synchronous().invalidate(key);
                 long elapsed = System.currentTimeMillis() - backoff.getFirstBackoffTimeInMillis();
                 if (backoff.isMandatoryStopMade()) {
-                    result.completeExceptionally(new TimeoutException(
-                            String.format("Timeout to update key %s. Elapsed time: %d ms", key, elapsed)));
+                    if (backoff.getFirstBackoffTimeInMillis() == 0) {
+                        result.completeExceptionally(ex.getCause());
+                    } else {
+                        result.completeExceptionally(new TimeoutException(
+                                String.format("Timeout to update key %s. Elapsed time: %d ms", key, elapsed)));
+                    }
                     return null;
                 }
                 final var next = backoff.next();

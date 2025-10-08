@@ -53,7 +53,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.compaction.Compactor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
@@ -70,6 +70,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private final LongAdder filterAcceptedMsgs = new LongAdder();
     private final LongAdder filterRejectedMsgs = new LongAdder();
     private final LongAdder filterRescheduledMsgs = new LongAdder();
+
+    private final LongAdder dispatchThrottledMsgEventsBySubscriptionLimit = new LongAdder();
+    private final LongAdder dispatchThrottledMsgEventsByTopicLimit = new LongAdder();
+    private final LongAdder dispatchThrottledMsgEventsByBrokerLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsBySubscriptionLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsByTopicLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsByBrokerLimit = new LongAdder();
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
@@ -142,6 +149,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 msgMetadata = metadataArray[metadataIndex];
             } else if (entry instanceof EntryAndMetadata) {
                 msgMetadata = ((EntryAndMetadata) entry).getMetadata();
+            } else if (entry.getMessageMetadata() != null) {
+                msgMetadata = entry.getMessageMetadata();
             } else {
                 msgMetadata = Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1);
             }
@@ -405,6 +414,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private boolean applyDispatchRateLimitsToReadLimits(DispatchRateLimiter rateLimiter,
                                                         MutablePair<Integer, Long> readLimits,
                                                         DispatchRateLimiter.Type limiterType) {
+        int originalMessagesToRead = readLimits.getLeft();
+        long originalBytesToRead = readLimits.getRight();
         // update messagesToRead according to available dispatch rate limit.
         int availablePermitsOnMsg = (int) rateLimiter.getAvailableDispatchRateLimitOnMsg();
         if (availablePermitsOnMsg >= 0) {
@@ -413,6 +424,22 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
         if (availablePermitsOnByte >= 0) {
             readLimits.setRight(Math.min(readLimits.getRight(), availablePermitsOnByte));
+        }
+        if (readLimits.getLeft() < originalMessagesToRead) {
+            switch (limiterType) {
+                case BROKER -> dispatchThrottledMsgEventsByBrokerLimit.increment();
+                case TOPIC -> dispatchThrottledMsgEventsByTopicLimit.increment();
+                case SUBSCRIPTION -> dispatchThrottledMsgEventsBySubscriptionLimit.increment();
+                default -> {}
+            }
+        }
+        if (readLimits.getRight() < originalBytesToRead) {
+            switch (limiterType) {
+                case BROKER -> dispatchThrottledBytesEventsByBrokerLimit.increment();
+                case TOPIC -> dispatchThrottledBytesEventsByTopicLimit.increment();
+                case SUBSCRIPTION -> dispatchThrottledBytesEventsBySubscriptionLimit.increment();
+                default -> {}
+            }
         }
         if (readLimits.getLeft() == 0 || readLimits.getRight() == 0) {
             if (log.isDebugEnabled()) {
@@ -429,8 +456,18 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return true;
     }
 
-    protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
+    protected byte[] peekStickyKey(Entry entry) {
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata.getStickyKey();
+        }
+        MessageMetadata metadata = entry.getMessageMetadata();
+        if (metadata == null) {
+            metadata = Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+        }
+        if (metadata == null) {
+            return Commands.NONE_KEY;
+        }
+        return Commands.resolveStickyKey(metadata);
     }
 
     protected String getSubscriptionName() {
@@ -470,7 +507,49 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return this.filterRescheduledMsgs.longValue();
     }
 
+    @Override
+    public long getDispatchThrottledMsgEventsBySubscriptionLimit() {
+        return dispatchThrottledMsgEventsBySubscriptionLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledBytesBySubscriptionLimit() {
+        return dispatchThrottledBytesEventsBySubscriptionLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledMsgEventsByTopicLimit() {
+        return dispatchThrottledMsgEventsByTopicLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledBytesEventsByTopicLimit() {
+        return dispatchThrottledBytesEventsByTopicLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledMsgEventsByBrokerLimit() {
+        return dispatchThrottledMsgEventsByBrokerLimit.longValue();
+    }
+
+    @Override
+    public long getDispatchThrottledBytesEventsByBrokerLimit() {
+        return dispatchThrottledBytesEventsByBrokerLimit.longValue();
+    }
+
     protected final void updatePendingBytesToDispatch(long size) {
         PENDING_BYTES_TO_DISPATCH.inc(size);
+    }
+
+    protected int getNumberOfMessagesInBatch(Entry entry) {
+        MessageMetadata msgMetadata = entry.getMessageMetadata();
+        if (msgMetadata == null) {
+            msgMetadata = Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+        }
+        if (msgMetadata == null) {
+            return -1;
+        } else {
+            return msgMetadata.getNumMessagesInBatch();
+        }
     }
 }

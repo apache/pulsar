@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -62,6 +63,7 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 @Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
@@ -99,7 +101,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public Consumer<T> subscribe() throws PulsarClientException {
         try {
-            return subscribeAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(subscribeAsync(), Consumer::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -165,10 +167,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
-                            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-                            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+                            String retryLetterTopic = RetryMessageUtil.getRetryTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
+                            String deadLetterTopic = RetryMessageUtil.getDLQTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
                             if (retryLetterTopicMetadata.join()) {
                                 retryLetterTopic = oldRetryLetterTopic;
                             }

@@ -35,12 +35,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import org.jspecify.annotations.NonNull;
 
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -284,7 +285,7 @@ public class FutureUtil {
      * @throws RejectedExecutionException if this task cannot be accepted for execution
      * @throws NullPointerException if one of params is null
      */
-    public static <T> @Nonnull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
+    public static <T> @NonNull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
                                                                  Executor executor) {
         Objects.requireNonNull(futureSupplier);
         Objects.requireNonNull(executor);
@@ -380,5 +381,33 @@ public class FutureUtil {
                     completableFuture.completeExceptionally(throwable);
                     return null;
                 });
+    }
+
+    /**
+     * Blocks to get the result of a CompletableFuture, while ensuring resources are cleaned up
+     * if the wait is interrupted.
+     * <p>
+     * If the current thread is interrupted while waiting, this method registers a cleanup action
+     * to be executed when the future eventually completes. This prevents resource leaks that
+     * could otherwise occur when an interruption happens but the underlying asynchronous task
+     * finishes successfully later. After registering the action, it re-throws the
+     * {@link InterruptedException}.
+     *
+     * @param future         The CompletableFuture to wait for.
+     * @param cleanupAction  A consumer that performs a cleanup action (e.g., closing a resource)
+     * on the result if the wait is interrupted.
+     * @param <T>            The type of the future's result.
+     * @return The computed result from the future.
+     * @throws InterruptedException if the current thread was interrupted while waiting.
+     * @throws ExecutionException   if the future completed exceptionally.
+     */
+    public static <T> T getAndCleanupOnInterrupt(CompletableFuture<T> future, Consumer<T> cleanupAction)
+            throws InterruptedException, ExecutionException {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            future.thenAccept(cleanupAction);
+            throw e;
+        }
     }
 }

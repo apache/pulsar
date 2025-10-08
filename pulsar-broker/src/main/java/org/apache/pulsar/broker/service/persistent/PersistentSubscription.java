@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopi
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -244,6 +243,16 @@ public class PersistentSubscription extends AbstractSubscription {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
                 cursor.updateLastActive();
+                if (!cursor.isActive()
+                        && (topic.getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()
+                        // set the cursor active when it connects, if the backlog size is less than the threshold.
+                        // this is configured with the managedLedgerCursorBackloggedThreshold setting
+                        || topic.getBackloggedCursorThresholdEntries() < 0
+                        || cursor.getNumberOfEntries() <= topic.getBackloggedCursorThresholdEntries())) {
+                    // If the cursor is not active, we need to set it active
+                    cursor.setActive();
+                }
+
                 if (IS_FENCED_UPDATER.get(this) == TRUE) {
                     log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
                     return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
@@ -354,6 +363,16 @@ public class PersistentSubscription extends AbstractSubscription {
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
+            // Remove the cursor from the waiting cursors list.
+            // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.
+            // This is because internally, in the dispatcher implementations, there is a "havePendingRead" flag
+            // that is not reset. If the pending read is cancelled, the dispatcher will not continue reading from
+            // the managed ledger when a new consumer is added to the dispatcher since based on the "havePendingRead"
+            // state, it will continue to expect that a read is pending and will not submit a new read.
+            // For non-durable cursors, there's no difference since the cursor is not expected to be used again.
+
+            // remove waiting cursor from the managed ledger, this applies to both durable and non-durable cursors.
+            topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
@@ -383,15 +402,12 @@ public class PersistentSubscription extends AbstractSubscription {
                         if (!isResetCursor) {
                             try {
                                 topic.getManagedLedger().deleteCursor(cursor.getName());
-                                topic.getManagedLedger().removeWaitingCursor(cursor);
                             } catch (InterruptedException | ManagedLedgerException e) {
                                 log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                             }
                         }
                     }, topic.getBrokerService().pulsar().getExecutor());
                 });
-            } else {
-                topic.getManagedLedger().removeWaitingCursor(cursor);
             }
         }
 
@@ -627,7 +643,12 @@ public class PersistentSubscription extends AbstractSubscription {
             firstPosition.compareAndSet(null, entryPosition);
             lastPosition.set(entryPosition);
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            MessageMetadata messageMetadata;
+            if (entry.getMessageMetadata() != null) {
+                messageMetadata = entry.getMessageMetadata();
+            } else {
+                messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            }
             int numMessages = 1;
             if (messageMetadata.hasNumMessagesInBatch()) {
                 numMessages = messageMetadata.getNumMessagesInBatch();
@@ -1230,6 +1251,26 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        long backlog = getNumberOfEntriesInBacklog(false);
+        if (backlog == 0) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (dispatcher != null && dispatcher.isConsumerConnected() && backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds)
+                .thenCompose(oldestMsgExpired -> {
+                    if (oldestMsgExpired) {
+                        this.lastExpireTimestamp = System.currentTimeMillis();
+                        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+                    } else {
+                        return CompletableFuture.completedFuture(false);
+                    }
+            });
+        }
+        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+    }
+
+    @Override
     public boolean expireMessages(Position position) {
         this.lastExpireTimestamp = System.currentTimeMillis();
         return expiryMonitor.expireMessages(position);
@@ -1298,6 +1339,18 @@ public class PersistentSubscription extends AbstractSubscription {
             subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
             subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
             subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
+            subStats.dispatchThrottledMsgEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit();
+            subStats.dispatchThrottledBytesEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit();
+            subStats.dispatchThrottledMsgEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit();
+            subStats.dispatchThrottledBytesEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit();
+            subStats.dispatchThrottledMsgEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByTopicLimit();
+            subStats.dispatchThrottledBytesEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit();
         }
 
         SubType subType = getType();
@@ -1336,6 +1389,7 @@ public class PersistentSubscription extends AbstractSubscription {
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
+        subStats.msgExpired = expiryMonitor.getMessageExpiryCount();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
         subStats.isReplicated = isReplicated();
         subStats.subscriptionProperties = subscriptionProperties;
@@ -1388,9 +1442,9 @@ public class PersistentSubscription extends AbstractSubscription {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = entry.getEntryTimestamp();
                     future.complete(entryTimestamp);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.error("Error deserializing message for message position {}", nextPos, e);
                     future.completeExceptionally(e);
                 } finally {

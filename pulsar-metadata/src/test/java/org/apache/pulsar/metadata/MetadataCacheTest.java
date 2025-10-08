@@ -569,8 +569,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         String key1 = newKey();
 
         MyClass value1 = new MyClass("a", 1);
-        Stat stat1 = store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L))
-                .join();
+        Stat stat1 = store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1),
+                        Optional.of(-1L)).join();
 
         CacheGetResult<MyClass> res = objCache.getWithStats(key1).join().get();
         assertEquals(res.getValue(), value1);
@@ -635,8 +635,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         CustomClass value1 = new CustomClass();
         value1.a = 1;
         value1.b = 2;
-        Stat stat = store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L))
-                .join();
+        Stat stat = store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1),
+                        Optional.of(-1L)).join();
 
         CacheGetResult<CustomClass> res = objCache.getWithStats(key1).join().get();
         assertEquals(res.getStat().getVersion(), stat.getVersion());
@@ -701,5 +701,42 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(backoff.getInitial(), 5);
         assertEquals(backoff.getMax(), 3000);
         assertEquals(backoff.getMandatoryStop(), 30_000);
+    }
+
+    @Test
+    public void testNoBackoffMetadataCacheConfig() {
+        final var config = MetadataCacheConfig.builder().retryBackoff(
+                MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER).build();
+
+        final var backoff = config.getRetryBackoff().create();
+
+        assertEquals(backoff.getInitial(), 0);
+        assertEquals(backoff.getMax(), 0);
+        assertEquals(backoff.getMandatoryStop(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+
+        backoff.reduceToHalf();
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+
+        backoff.reset();
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
     }
 }

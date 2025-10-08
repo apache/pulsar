@@ -57,8 +57,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-        setUpBase(1, NUM_PARTITIONS, NAMESPACE1 +"/test", 0);
+        setUpBase(1, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -76,7 +75,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 .topic(normalTopic)
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(2, TimeUnit.SECONDS)
                 .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
@@ -124,7 +122,8 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 .getSubscription(subscriptionName);
                         var field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
                         field.setAccessible(true);
-                        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
+                        PendingAckHandleImpl pendingAckHandle =
+                                (PendingAckHandleImpl) field.get(persistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
                         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
@@ -155,7 +154,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -251,7 +249,8 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             assertEquals(batchDeletedIndexes.size(), 1);
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
 
-                            // the messages has been produced were all acked, the memory in broker for the messages has been cleared.
+                            // the messages has been produced were all acked,
+                            // the memory in broker for the messages has been cleared.
                             commitTwice.commit().get();
                             assertEquals(batchDeletedIndexes.size(), 0);
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
@@ -273,7 +272,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 

@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
@@ -43,7 +44,9 @@ import org.apache.pulsar.common.tls.InetAddressUtils;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
+    private static final long serialVersionUID = 1L;
     ClientConfigurationData conf;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
 
     public ClientBuilderImpl() {
         this(new ClientConfigurationData());
@@ -68,12 +71,19 @@ public class ClientBuilderImpl implements ClientBuilder {
         if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
             setAuthenticationFromPropsIfAvailable(conf);
         }
-        return new PulsarClientImpl(conf);
+        PulsarClientImpl.PulsarClientImplBuilder instanceBuilder = PulsarClientImpl.builder();
+        instanceBuilder.conf(conf);
+        if (sharedResources != null) {
+            sharedResources.applyTo(instanceBuilder);
+        }
+        return instanceBuilder.build();
     }
 
     @Override
     public ClientBuilder clone() {
-        return new ClientBuilderImpl(conf.clone());
+        ClientBuilderImpl clientBuilder = new ClientBuilderImpl(conf.clone());
+        clientBuilder.sharedResources = sharedResources;
+        return clientBuilder;
     }
 
     @Override
@@ -97,6 +107,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
         checkArgument(serviceUrlProvider != null, "Param serviceUrlProvider must not be null.");
         conf.setServiceUrlProvider(serviceUrlProvider);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration,
+                                                          TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineInitDuration >= 0,
+                "serviceUrlQuarantineInitDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineInitDurationMs(unit.toMillis(serviceUrlQuarantineInitDuration));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration,
+                                                         TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineMaxDuration >= 0,
+                "serviceUrlQuarantineMaxDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineMaxDurationMs(unit.toMillis(serviceUrlQuarantineMaxDuration));
         return this;
     }
 
@@ -146,6 +174,11 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setAuthParamMap(authParams);
         conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
+        return this;
+    }
+
+    public ClientBuilderImpl originalPrincipal(String originalPrincipal) {
+        conf.setOriginalPrincipal(originalPrincipal);
         return this;
     }
 
@@ -454,26 +487,18 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
-    /**
-     * Set the description.
-     *
-     * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
-     * carried and saved by the broker. The client version string could be queried from the topic stats.
-     *
-     * <p> This method provides a way to add more description to a specific PulsarClient instance. If it's configured,
-     * the description will be appended to the original client version string, with '-' as the separator.
-     *
-     * <p>For example, if the client version is 3.0.0, and the description is "forked", the final client version string
-     * will be "Pulsar-Java-v3.0.0-forked".
-     *
-     * @param description the description of the current PulsarClient instance
-     * @throws IllegalArgumentException if the length of description exceeds 64
-     */
+    @Override
     public ClientBuilder description(String description) {
         if (description != null && description.length() > 64) {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sharedResources(PulsarClientSharedResources sharedResources) {
+        this.sharedResources = (PulsarClientSharedResourcesImpl) sharedResources;
         return this;
     }
 

@@ -47,9 +47,11 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.ReferenceCountUtil;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -127,7 +129,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
@@ -141,7 +142,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -172,6 +173,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private EventLoopGroup eventLoopGroup;
     private ManagedLedgerFactory managedLedgerFactory;
+    private ChannelHandlerContext ctx;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -209,7 +211,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
 
         eventLoopGroup = new DefaultEventLoopGroup();
@@ -222,9 +224,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         NamespaceBundle bundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(bundle)).when(nsSvc).getBundleAsync(any());
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
-        doReturn(true).when(nsSvc).isServiceUnitActive(any());
-        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isServiceUnitActiveAsync(any());
-        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any());
+        doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
 
         setupMLAsyncCallbackMocks();
     }
@@ -1464,8 +1465,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(CompletableFuture.completedFuture(null)).when(ledgerMock).asyncTruncate();
 
         // create topic
-        brokerService.pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .createPartitionedTopic(TopicName.get(successTopicName), new PartitionedTopicMetadata(2));
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
 
         Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
@@ -1477,8 +1476,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse((boolean) isClosingOrDeletingField.get(topic));
 
         metadataStore.failConditional(new MetadataStoreException("injected error"), (op, path) ->
-                op == FaultInjectionMetadataStore.OperationType.PUT &&
-                        path.equals("/admin/partitioned-topics/prop/use/ns-abc/persistent/successTopic"));
+                op == OperationType.EXISTS && path.equals("/admin/flags/policies-readonly"));
         try {
             topic.delete().get();
             fail();
@@ -1686,7 +1684,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                             new ProducerBuilderImpl(pulsarClientMock, invocation.getArgument(0)) {
                                 @Override
                                 public CompletableFuture<org.apache.pulsar.client.api.Producer> createAsync() {
-                                    return CompletableFuture.completedFuture(mock(org.apache.pulsar.client.api.Producer.class));
+                                    return CompletableFuture.completedFuture(
+                                            mock(org.apache.pulsar.client.api.Producer.class));
                                 }
                             };
                     return producerBuilder;
@@ -1812,22 +1811,26 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
                         policies);
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = Mockito.spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         topic.initialize().get();
+        doAnswer(invocationOnMock -> {
+            topic.triggerCompaction();
+            return CompletableFuture.completedFuture(null);
+        }).when(topic).triggerCompactionWithCheckHasMoreMessages();
 
         topic.checkCompaction();
 
-        verify(compactor, times(0)).compact(anyString());
+        verify(topic, times(0)).triggerCompactionWithCheckHasMoreMessages();
 
         doReturn(10L).when(ledgerMock).getTotalSize();
         doReturn(10L).when(ledgerMock).getEstimatedBacklogSize();
 
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
 
         // run a second time, shouldn't run again because already running
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
     }
 
     @Test
@@ -1848,21 +1851,25 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
                         policies);
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = Mockito.spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         topic.initialize().get();
+        doAnswer(invocationOnMock -> {
+            topic.triggerCompaction();
+            return CompletableFuture.completedFuture(null);
+        }).when(topic).triggerCompactionWithCheckHasMoreMessages();
 
         topic.checkCompaction();
 
-        verify(compactor, times(0)).compact(anyString());
+        verify(topic, times(0)).triggerCompactionWithCheckHasMoreMessages();
 
         doReturn(10L).when(subCursor).getEstimatedSizeSinceMarkDeletePosition();
 
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
 
         // run a second time, shouldn't run again because already running
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(topic, times(1)).triggerCompactionWithCheckHasMoreMessages();
     }
 
     @Test
@@ -2217,7 +2224,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
+        CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(
+                new GetStatsOptions(false, false, false, false, false));
         assertThat(stats3Async).succeedsWithin(Duration.ofSeconds(3))
                 .matches(stats3 -> {
                     assertEquals(stats3.keySharedMode, "STICKY");
@@ -2278,16 +2286,26 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testSendProducerTxnPrechecks() throws Exception {
         PersistentTopic topic = mock(PersistentTopic.class);
+        CountDownLatch latch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            Object msg = invocation.getArgument(0);
+            ReferenceCountUtil.safeRelease(msg);
+            latch.countDown();
+            return mock(ChannelFuture.class);
+        }).when(ctx).writeAndFlush(any(), any());
         String role = "appid1";
         Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest, 0, true,
                 ProducerAccessMode.Shared, Optional.empty(), true);
         producer1.close(false).get();
+        ByteBuf headersAndPayload = Unpooled.wrappedBuffer("test".getBytes());
         producer1.publishTxnMessage(
                 new TxnID(1L, 0L),
-                1, 1, 1, null, 1, false, false
+                1, 1, 1, headersAndPayload, 1, false, false
         );
         verify(topic, times(0)).publishTxnMessage(any(), any(), any());
+        // wait for the writeAndFlush to be called so that ByteBuf leak isn't reported
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.re2j.Pattern;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +32,8 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.slf4j.Logger;
@@ -48,13 +49,13 @@ public class TopicListService {
         private final TopicListService topicListService;
         private final long id;
         /** The regexp for the topic name(not contains partition suffix). **/
-        private final Pattern topicsPattern;
+        private final TopicsPattern topicsPattern;
 
         /***
          * @param topicsPattern The regexp for the topic name(not contains partition suffix).
          */
         public TopicListWatcher(TopicListService topicListService, long id,
-                                Pattern topicsPattern, List<String> topics) {
+                                TopicsPattern topicsPattern, List<String> topics) {
             this.topicListService = topicListService;
             this.id = id;
             this.topicsPattern = topicsPattern;
@@ -70,7 +71,10 @@ public class TopicListService {
          */
         @Override
         public void accept(String topicName, NotificationType notificationType) {
-            if (topicsPattern.matcher(TopicName.get(topicName).getPartitionedTopicName()).matches()) {
+            String partitionedTopicName = TopicName.get(topicName).getPartitionedTopicName();
+            String domainLessTopicName = TopicList.removeTopicDomainScheme(partitionedTopicName);
+
+            if (topicsPattern.matches(domainLessTopicName)) {
                 List<String> newTopics;
                 List<String> deletedTopics;
                 if (notificationType == NotificationType.Deleted) {
@@ -119,12 +123,17 @@ public class TopicListService {
     }
 
     /***
-     * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+     * @param topicsPatternString The regexp for the topic name
      */
-    public void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId, Pattern topicsPattern,
-                                     String topicsHash, Semaphore lookupSemaphore) {
+    public void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId,
+                                     String topicsPatternString,
+                                     TopicsPattern.RegexImplementation topicsPatternRegexImplementation,
+                                     String topicsHash,
+                                     Semaphore lookupSemaphore) {
+        // remove the domain scheme from the topic pattern
+        topicsPatternString = TopicList.removeTopicDomainScheme(topicsPatternString);
 
-        if (!enableSubscriptionPatternEvaluation || topicsPattern.pattern().length() > maxSubscriptionPatternLength) {
+        if (!enableSubscriptionPatternEvaluation || topicsPatternString.length() > maxSubscriptionPatternLength) {
             String msg = "Unable to create topic list watcher: ";
             if (!enableSubscriptionPatternEvaluation) {
                 msg += "Evaluating subscription patterns is disabled.";
@@ -136,6 +145,19 @@ public class TopicListService {
             lookupSemaphore.release();
             return;
         }
+
+        TopicsPattern topicsPattern;
+        try {
+            topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
+        } catch (Exception e) {
+            log.warn("[{}] Unable to create topic list watcher: Invalid pattern: {} on namespace {}",
+                    connection.toString(), topicsPatternString, namespaceName);
+            connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
+                    "Invalid topics pattern: " + e.getMessage());
+            lookupSemaphore.release();
+            return;
+        }
+
         CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
         CompletableFuture<TopicListWatcher> existingWatcherFuture = watchers.putIfAbsent(watcherId, watcherFuture);
 
@@ -200,7 +222,7 @@ public class TopicListService {
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
      */
     public void initializeTopicsListWatcher(CompletableFuture<TopicListWatcher> watcherFuture,
-            NamespaceName namespace, long watcherId, Pattern topicsPattern) {
+            NamespaceName namespace, long watcherId, TopicsPattern topicsPattern) {
         namespaceService.getListOfPersistentTopics(namespace).
                 thenApply(topics -> {
                     TopicListWatcher watcher = new TopicListWatcher(this, watcherId, topicsPattern, topics);

@@ -27,6 +27,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -39,9 +40,11 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.MockedStatic;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -52,11 +55,16 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class ProducerMemoryLeakTest extends ProducerConsumerBase {
 
+    private static final String NAMESPACE_NEVER_COMPATIBLE = "public/schema-never-compatible";
+
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        admin.namespaces().createNamespace(NAMESPACE_NEVER_COMPATIBLE);
+        admin.namespaces().setSchemaCompatibilityStrategy(NAMESPACE_NEVER_COMPATIBLE,
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
     }
 
     @AfterClass(alwaysRun = true)
@@ -81,7 +89,7 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         for (MsgPayloadTouchableMessageBuilder<String> msgBuilder: msgBuilderList) {
             latestSendFuture = msgBuilder.value("msg-1").sendAsync();
         }
-        try{
+        try {
             latestSendFuture.join();
         } catch (Exception ex) {
             // Ignore the error PulsarClientException$ProducerQueueIsFullError.
@@ -154,9 +162,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
             });
             // Verify: ByteBufPair generated for Pulsar Command.
             if (maxMessageSize == 1) {
-                assertEquals(generatedByteBufPairs.size(),0);
+                assertEquals(generatedByteBufPairs.size(), 0);
             } else {
-                assertEquals(generatedByteBufPairs.size(),1);
+                assertEquals(generatedByteBufPairs.size(), 1);
                 if (compressionType == CompressionType.NONE) {
                     assertEquals(msgBuilder.payload.refCnt(), 2);
                 } else {
@@ -268,6 +276,50 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         admin.topics().delete(topicName);
     }
 
+    @Test
+    public void testBrokenSchema() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + NAMESPACE_NEVER_COMPATIBLE
+                + "/tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        ProducerImpl producer =
+                (ProducerImpl) pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        // Publish after the producer was closed.
+        MsgPayloadTouchableMessageBuilder<String> msgBuilder1 = newMessage(producer, Schema.STRING);
+        msgBuilder1.value("msg-1").send();
+        MsgPayloadTouchableMessageBuilder<Boolean> msgBuilder2 = newMessage(producer, Schema.BOOL);
+        try {
+            msgBuilder2.value(false).send();
+            fail("expected schema broken error");
+        } catch (Exception ex) {
+            assertTrue(FutureUtil.unwrapCompletionException(ex)
+                    instanceof PulsarClientException.IncompatibleSchemaException);
+        }
+        MsgPayloadTouchableMessageBuilder<String> msgBuilder3 = newMessage(producer, Schema.STRING);
+        msgBuilder3.value("msg-3").send();
+
+        // Verify: message payload has been released.
+        Awaitility.await().untilAsserted(() -> {
+            ProducerImpl.OpSendMsgQueue pendingMessages =
+                    WhiteboxImpl.getInternalState(producer, "pendingMessages");
+            Queue<ProducerImpl.OpSendMsg> pendingMessagesInternal =
+                    WhiteboxImpl.getInternalState(pendingMessages, "delegate");
+            assertEquals(pendingMessagesInternal.size(), 0);
+        });
+        assertEquals(msgBuilder1.payload.refCnt(), 1);
+        assertEquals(msgBuilder2.payload.refCnt(), 1);
+        assertEquals(msgBuilder3.payload.refCnt(), 1);
+
+        // cleanup.
+        msgBuilder1.release();
+        msgBuilder2.release();
+        msgBuilder3.release();
+        assertEquals(msgBuilder1.payload.refCnt(), 0);
+        assertEquals(msgBuilder2.payload.refCnt(), 0);
+        assertEquals(msgBuilder3.payload.refCnt(), 0);
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
     @DataProvider
     public Object[][] failedInterceptAt() {
         return new Object[][]{
@@ -338,7 +390,11 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     }
 
     private <T> MsgPayloadTouchableMessageBuilder<T> newMessage(ProducerImpl<T> producer){
-        return new MsgPayloadTouchableMessageBuilder<T>(producer, producer.schema);
+        return newMessage(producer, producer.schema);
+    }
+
+    private <T> MsgPayloadTouchableMessageBuilder<T> newMessage(ProducerImpl<T> producer, Schema<T> schema){
+        return new MsgPayloadTouchableMessageBuilder<T>(producer, schema);
     }
 
     private static class MsgPayloadTouchableMessageBuilder<T> extends TypedMessageBuilderImpl {

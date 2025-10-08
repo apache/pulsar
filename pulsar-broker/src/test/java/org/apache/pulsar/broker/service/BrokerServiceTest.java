@@ -85,9 +85,11 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -106,6 +108,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -176,10 +179,11 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(bundlesData.getNumBundles(), bundleNum);
         List<String> list = admin.brokers().getActiveBrokers("test");
         assertEquals(list.size(), 1);
+        BrokerService brokerService = pulsar.getBrokerService();
         admin.brokers().shutDownBrokerGracefully(1, false);
         //We can only unload one bundle per second, so it takes at least 2 seconds.
         Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertEquals(pulsar.getBrokerService().getTopics().size(), 0);
+            assertEquals(brokerService.getTopics().size(), 0);
         });
         Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
             assertNull(pulsar.getBrokerService());
@@ -421,7 +425,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-    private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder) throws PulsarClientException {
+    private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder)
+            throws PulsarClientException {
         PulsarClient client1 = clientBuilder.build();
         try {
             client1.newProducer().topic(topicName).create().close();
@@ -589,7 +594,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                     topicLoadTimesDimensionFound = true;
                 }
             } catch (Exception e) {
-                /* it's possible there's no dimensions */ }
+                /* it's possible there's no dimensions */
+            }
         }
 
         assertTrue(namespaceDimensionFound && topicLoadTimesDimensionFound);
@@ -1089,8 +1095,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                 while (rootCause instanceof ExecutionException) {
                     rootCause = rootCause.getCause();
                 }
-                if (!(rootCause instanceof
-                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                if (!(rootCause
+                        instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                     throw e;
                 }
             }
@@ -1148,8 +1154,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                 while (rootCause instanceof ExecutionException) {
                     rootCause = rootCause.getCause();
                 }
-                if (!(rootCause instanceof
-                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                if (!(rootCause
+                        instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                     throw e;
                 }
             }
@@ -1178,7 +1184,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true, null, null);
+                .loadOrCreatePersistentTopic(new TopicLoadingContext(topic, true,
+                        new CompletableFuture<>()));
 
         try {
             futureResult.get();
@@ -1221,8 +1228,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             ArrayList<CompletableFuture<Optional<Topic>>> loadFutures = new ArrayList<>();
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
-                CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null, null);
+                CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService().loadOrCreatePersistentTopic(
+                        new TopicLoadingContext(TopicName.get(topicName + "_" + i), false, new CompletableFuture<>()));
                 loadFutures.add(futureResult);
             }
 
@@ -1290,7 +1297,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Field currentCompaction = PersistentTopic.class.getDeclaredField("currentCompaction");
         currentCompaction.setAccessible(true);
-        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>)currentCompaction.get(topic);
+        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) currentCompaction.get(topic);
 
         compactionFuture.get();
 
@@ -1408,7 +1415,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null))
+                    .exceptionally(e -> {
                 topicCreation.completeExceptionally(e.getCause());
                 return null;
             });
@@ -1451,7 +1459,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         Field ledgerField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         ledgerField.setAccessible(true);
         @SuppressWarnings("unchecked")
-        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgerField
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgerField
                 .get(pulsar.getDefaultManagedLedgerFactory());
         CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
         future.completeExceptionally(new ManagedLedgerException("ledger opening failed"));
@@ -1459,7 +1468,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null))
+                    .exceptionally(e -> {
                 topicCreation.completeExceptionally(e.getCause());
                 return null;
             });
@@ -1478,7 +1488,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     /**
-     * It verifies that policiesCache() copies global-policy data into local-policy data and returns combined result
+     * It verifies that policiesCache() copies global-policy data into local-policy data and returns combined result.
      *
      * @throws Exception
      */
@@ -1521,11 +1531,12 @@ public class BrokerServiceTest extends BrokerTestBase {
         ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
-        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
-                .get(mlFactory);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField.get(mlFactory);
         assertNotNull(ledgers.get(topicMlName));
 
-        org.apache.pulsar.broker.service.Producer prod = (org.apache.pulsar.broker.service.Producer) spy(topic.producers.values().toArray()[0]);
+        org.apache.pulsar.broker.service.Producer prod =
+                (org.apache.pulsar.broker.service.Producer) spy(topic.producers.values().toArray()[0]);
         topic.producers.clear();
         topic.producers.put(prod.getProducerName(), prod);
         CompletableFuture<Void> waitFuture = new CompletableFuture<Void>();
@@ -1549,12 +1560,14 @@ public class BrokerServiceTest extends BrokerTestBase {
         CloseableHttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+        assertEquals(response.getEntity().getContentType().getValue(),
+                PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
         InputStream inputStream = response.getEntity().getContent();
         InputStreamReader isReader = new InputStreamReader(inputStream);
         BufferedReader reader = new BufferedReader(isReader);
         StringBuffer sb = new StringBuffer();
         String str;
-        while((str = reader.readLine()) != null){
+        while ((str = reader.readLine()) != null){
             sb.append(str);
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
@@ -1628,7 +1641,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(String.format("persistent://%s", topicName));
         Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
         producer1.close();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName.toString(), false).get().get();
         persistentTopic.close().join();
         List<String> topics = new ArrayList<>(pulsar.getBrokerService().getTopics().keySet());
         topics.removeIf(item -> item.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME));
@@ -1677,8 +1691,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Inject an error that makes the topic load fails.
         AtomicBoolean failMarker = new AtomicBoolean(true);
         mockZooKeeper.failConditional(KeeperException.Code.NODEEXISTS, (op, path) -> {
-            if (failMarker.get() && op.equals(MockZooKeeper.Op.SET) &&
-                    path.endsWith(TopicName.get(topic).getPersistenceNamingEncoding())) {
+            if (failMarker.get() && op.equals(MockZooKeeper.Op.SET)
+                    && path.endsWith(TopicName.get(topic).getPersistenceNamingEncoding())) {
                 return true;
             }
             return false;
@@ -1694,11 +1708,11 @@ public class BrokerServiceTest extends BrokerTestBase {
             if (!metricMap.containsKey("pulsar_topic_load_failed_count")) {
                 return false;
             }
-            double topic_load_failed_count = 0;
+            double topicLoadFailedCount = 0;
             for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_topic_load_failed_count")) {
-                topic_load_failed_count += metric.value;
+                topicLoadFailedCount += metric.value;
             }
-            return topic_load_failed_count >= 1D;
+            return topicLoadFailedCount >= 1D;
         });
 
         // Remove the injection.
@@ -1738,11 +1752,11 @@ public class BrokerServiceTest extends BrokerTestBase {
             if (!metricMap.containsKey("pulsar_topic_load_failed_count")) {
                 return false;
             }
-            double topic_load_failed_count = 0;
+            double topicLoadFailedCount = 0;
             for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_topic_load_failed_count")) {
-                topic_load_failed_count += metric.value;
+                topicLoadFailedCount += metric.value;
             }
-            return topic_load_failed_count >= 1D;
+            return topicLoadFailedCount >= 1D;
         });
 
         // Remove the injection.
@@ -1902,12 +1916,14 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
 
             @Override
-            public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
+            public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid,
+                                                               Map<String, String> offloadDriverMetadata) {
                 return CompletableFuture.completedFuture(null);
             }
 
             @Override
-            public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
+            public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
+                                                           Map<String, String> offloadDriverMetadata) {
                 return CompletableFuture.completedFuture(null);
             }
 
@@ -2002,5 +2018,23 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testPulsarMetadataEventSyncProducerCreation() throws Exception {
+        final String topicName = "persistent://prop/usw/my-ns/syncTopic";
+        pulsar.getConfiguration().setMetadataSyncEventTopic(topicName);
+        PulsarMetadataEventSynchronizer sync = new PulsarMetadataEventSynchronizer(pulsar, topicName);
+        // set invalid client for retry
+        @Cleanup
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl("http://invalidhost:8080")
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+        sync.client = client;
+        sync.STATE_UPDATER.set(sync, State.Starting_Producer);
+        sync.startProducer();
+        assertNull(sync.getProducer());
+        // update valid client which will set the producer
+        sync.client = (PulsarClientImpl) pulsarClient;
+        retryStrategically((test) -> sync.getProducer() != null, 1000, 10);
+        assertNotNull(sync.getProducer());
+    }
 }
 

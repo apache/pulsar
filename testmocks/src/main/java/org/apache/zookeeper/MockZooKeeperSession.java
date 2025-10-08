@@ -27,6 +27,7 @@ import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.AsyncCallback.VoidCallback;
+import org.apache.zookeeper.client.ZKClientConfig;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.objenesis.Objenesis;
@@ -48,6 +49,10 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private boolean closeMockZooKeeperOnClose;
 
+    private int sessionTimeout = -1;
+
+    private ZKClientConfig zkClientConfig = new ZKClientConfig();
+
     public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper) {
         return newInstance(mockZooKeeper, true);
     }
@@ -59,6 +64,7 @@ public class MockZooKeeperSession extends ZooKeeper {
         mockZooKeeperSession.mockZooKeeper = mockZooKeeper;
         mockZooKeeperSession.sessionId = sessionIdGenerator.getAndIncrement();
         mockZooKeeperSession.closeMockZooKeeperOnClose = closeMockZooKeeperOnClose;
+        mockZooKeeperSession.zkClientConfig = new ZKClientConfig();
         if (closeMockZooKeeperOnClose) {
             mockZooKeeper.increaseRefCount();
         }
@@ -73,8 +79,21 @@ public class MockZooKeeperSession extends ZooKeeper {
     }
 
     @Override
+    public ZKClientConfig getClientConfig() {
+        return zkClientConfig;
+    }
+
+    @Override
     public int getSessionTimeout() {
-        return mockZooKeeper.getSessionTimeout();
+        if (sessionTimeout > 0) {
+            return sessionTimeout;
+        } else {
+            return mockZooKeeper.getSessionTimeout();
+        }
+    }
+
+    public void setSessionTimeout(int sessionTimeout) {
+        this.sessionTimeout = sessionTimeout;
     }
 
     @Override

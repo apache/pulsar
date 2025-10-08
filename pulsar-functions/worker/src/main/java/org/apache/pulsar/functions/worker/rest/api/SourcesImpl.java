@@ -636,7 +636,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
         List<ConnectorDefinition> retval = new ArrayList<>();
         for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
-            if (!org.apache.commons.lang.StringUtils.isEmpty(connectorDefinition.getSourceClass())) {
+            if (!org.apache.commons.lang3.StringUtils.isEmpty(connectorDefinition.getSourceClass())) {
                 retval.add(connectorDefinition);
             }
         }

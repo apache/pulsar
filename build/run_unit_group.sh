@@ -171,16 +171,19 @@ function test_group_proxy() {
 
 function test_group_other() {
   mvn_test --clean --install \
-           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution,!org.apache.pulsar:pulsar-all-docker-image' \
+           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution,!org.apache.pulsar:pulsar-docker-image,!org.apache.pulsar:pulsar-all-docker-image' \
            -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true -DskipIntegrationTests \
            -Dexclude='**/ManagedLedgerTest.java,
                    **/OffloadersCacheTest.java
                   **/PrimitiveSchemaTest.java,
                   **/BlobStoreManagedLedgerOffloaderTest.java,
-                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java'
+                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java,
+                  **/DnsResolverTest.java'
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
+  # DnsResolverTest needs to be run separately since it relies on static field values
+  mvn_test -pl pulsar-common -Dinclude='**/DnsResolverTest.java'
 
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderStreamingTest.java'

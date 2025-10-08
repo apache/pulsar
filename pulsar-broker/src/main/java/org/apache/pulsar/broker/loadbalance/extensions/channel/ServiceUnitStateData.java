@@ -75,19 +75,4 @@ public record ServiceUnitStateData(
     public static ServiceUnitState state(ServiceUnitStateData data) {
         return data == null ? ServiceUnitState.Init : data.state();
     }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        ServiceUnitStateData that = (ServiceUnitStateData) o;
-
-        return versionId == that.versionId;
-    }
 }

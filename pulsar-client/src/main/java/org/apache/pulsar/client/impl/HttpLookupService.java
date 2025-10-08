@@ -19,7 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
 import io.opentelemetry.api.common.Attributes;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -65,10 +68,17 @@ public class HttpLookupService implements LookupService {
     private final LatencyHistogram histoGetSchema;
     private final LatencyHistogram histoListTopics;
 
+    @Deprecated
     public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
-                             EventLoopGroup eventLoopGroup)
+                             EventLoopGroup eventLoopGroup) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, null, null);
+    }
+
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup, Timer timer,
+                             NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf, eventLoopGroup);
+        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 

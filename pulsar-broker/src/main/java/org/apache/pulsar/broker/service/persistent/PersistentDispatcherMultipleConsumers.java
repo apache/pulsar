@@ -72,7 +72,6 @@ import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferEx
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -798,10 +797,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             if (entry instanceof EntryAndMetadata) {
                 metadata = ((EntryAndMetadata) entry).getMetadata();
             } else {
-                metadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
                 // cache the metadata in the entry with EntryAndMetadata for later use to avoid re-parsing the metadata
                 // and to carry the metadata and calculated stickyKeyHash with the entry
-                entries.set(i, EntryAndMetadata.create(entry, metadata));
+                EntryAndMetadata entryAndMetadata = EntryAndMetadata.create(entry);
+                metadata = entryAndMetadata.getMetadata();
+                entries.set(i, entryAndMetadata);
             }
             if (metadata != null) {
                 remainingMessages += metadata.getNumMessagesInBatch();
@@ -834,7 +834,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
                 return false;
             }
-
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
             if (log.isDebugEnabled() && !c.isWritable()) {
@@ -843,20 +842,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         c, c.getAvailablePermits());
             }
 
-            int maxMessagesInThisBatch =
-                    Math.max(remainingMessages, serviceConfig.getDispatcherMaxRoundRobinBatchSize());
-            if (c.getMaxUnackedMessages() > 0) {
-                // Calculate the maximum number of additional unacked messages allowed
-                int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
-                maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
-            }
-            int maxEntriesInThisBatch = Math.min(availablePermits,
-                            // use the average batch size per message to calculate the number of entries to
-                            // dispatch. round up to the next integer without using floating point arithmetic.
-                            (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
-            // pick at least one entry to dispatch
-            maxEntriesInThisBatch = Math.max(maxEntriesInThisBatch, 1);
-
+            int maxEntriesInThisBatch = getMaxEntriesInThisBatch(
+                    remainingMessages, c.getMaxUnackedMessages(), c.getUnackedMessages(), avgBatchSizePerMsg,
+                    availablePermits, serviceConfig.getDispatcherMaxRoundRobinBatchSize()
+            );
             int end = Math.min(start + maxEntriesInThisBatch, entries.size());
             List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
@@ -907,6 +896,29 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
 
         return true;
+    }
+
+
+    @VisibleForTesting
+    static int getMaxEntriesInThisBatch(int remainingMessages,
+                                        int maxUnackedMessages,
+                                        int unackedMessages,
+                                        int avgBatchSizePerMsg,
+                                        int availablePermits,
+                                        int dispatcherMaxRoundRobinBatchSize) {
+        int maxMessagesInThisBatch = Math.min(remainingMessages, availablePermits);
+        if (maxUnackedMessages > 0) {
+            // Calculate the maximum number of additional unacked messages allowed
+            int maxAdditionalUnackedMessages = Math.max(maxUnackedMessages - unackedMessages, 0);
+            maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
+        }
+        int maxEntriesInThisBatch = Math.min(dispatcherMaxRoundRobinBatchSize,
+                // use the average batch size per message to calculate the number of entries to
+                // dispatch. round up to the next integer without using floating point arithmetic.
+                (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
+        // pick at least one entry to dispatch
+        maxEntriesInThisBatch = Math.max(maxEntriesInThisBatch, 1);
+        return maxEntriesInThisBatch;
     }
 
     protected boolean addEntryToReplay(Entry entry) {

@@ -233,8 +233,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                     entries.forEach(LedgerEntry::close);
                 }
 
-                promise.complete(LedgerEntriesImpl.create(entries));
             }
+            promise.complete(LedgerEntriesImpl.create(entries));
         });
         return promise;
     }

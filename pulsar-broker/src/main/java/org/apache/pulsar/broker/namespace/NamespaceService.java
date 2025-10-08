@@ -43,16 +43,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
@@ -114,6 +111,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1225,35 +1223,6 @@ public class NamespaceService implements AutoCloseable {
                 new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName()));
     }
 
-    /**
-     * @deprecated This method is only used in test now.
-     */
-    @Deprecated
-    public boolean isServiceUnitActive(TopicName topicName) {
-        try {
-            return isServiceUnitActiveAsync(topicName).get(pulsar.getConfig()
-                    .getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            LOG.warn("Unable to find OwnedBundle for topic in time - [{}]", topicName, e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
-        // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-            return getBundleAsync(topicName)
-                    .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
-        }
-        return getBundleAsync(topicName).thenCompose(bundle -> {
-            Optional<CompletableFuture<OwnedBundle>> optionalFuture = ownershipCache.getOwnedBundleAsync(bundle);
-            if (optionalFuture.isEmpty()) {
-                return CompletableFuture.completedFuture(false);
-            }
-            return optionalFuture.get().thenApply(ob -> ob != null && ob.isActive());
-        });
-    }
-
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
         // TODO: Add unit tests cover it.
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
@@ -1274,13 +1243,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
-        // TODO: Add unit tests cover it.
+        return getBundleAsync(topicName).thenCompose(bundle -> checkBundleOwnership(topicName, bundle));
+    }
+
+    public CompletableFuture<Boolean> checkBundleOwnership(TopicName topicName, NamespaceBundle bundle) {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-            return getBundleAsync(topicName)
-                    .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
+            // TODO: Add unit tests cover it.
+            return loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle);
+        } else {
+            return ownershipCache.checkOwnershipAsync(bundle);
         }
-        return getBundleAsync(topicName)
-                .thenCompose(ownershipCache::checkOwnershipAsync);
     }
 
     public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceBundle nsBundle) {
@@ -1409,20 +1381,50 @@ public class NamespaceService implements AutoCloseable {
     }
 
     /***
-     * Check topic exists( partitioned or non-partitioned ).
+     * Checks whether the topic exists( partitioned or non-partitioned ).
      */
+    public CompletableFuture<TopicExistsInfo> checkTopicExistsAsync(TopicName topic) {
+        return checkTopicExists(topic);
+    }
+
+    /**
+     * Checks whether the topic exists( partitioned or non-partitioned ).
+     *
+     * @deprecated This method uses a misleading synchronous name for an asynchronous operation.
+     *             Use {@link #checkTopicExistsAsync(TopicName topic)} instead.
+     *
+     * @see #checkTopicExistsAsync(TopicName topic)
+     */
+    @Deprecated
     public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
-        return pulsar.getBrokerService()
-            .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.toString()))
-            .thenCompose(metadata -> {
-                if (metadata.partitions > 0) {
-                    return CompletableFuture.completedFuture(
-                            TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
-                }
-                return checkNonPartitionedTopicExists(topic)
-                    .thenApply(b -> b ? TopicExistsInfo.newNonPartitionedTopicExists()
-                            : TopicExistsInfo.newTopicNotExists());
-            });
+        // Exclude the heartbeat topic.
+        if (isHeartbeatNamespace(topic)) {
+            return CompletableFuture.completedFuture(TopicExistsInfo.newNonPartitionedTopicExists());
+        }
+        // For non-persistent/persistent partitioned topic, which has metadata.
+        return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
+                        topic.isPartitioned() ? TopicName.get(topic.getPartitionedTopicName()) : topic)
+                .thenCompose(metadata -> {
+                    // When the topic has metadata:
+                    // - The topic name is non-partitioned, which means that the topic exists.
+                    // - The topic name is partitioned, please check the specific partition.
+                    if (metadata.partitions > 0) {
+                        if (!topic.isPartitioned()) {
+                            return CompletableFuture.completedFuture(
+                                    TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
+                        }
+                        if (!topic.isPersistent()) {
+                            // A non-persistent partitioned topic contains only metadata.
+                            // Since no actual partitions are created, there's no need to check under /managed-ledgers.
+                            return CompletableFuture.completedFuture(topic.getPartitionIndex() < metadata.partitions
+                                    ? TopicExistsInfo.newNonPartitionedTopicExists()
+                                    : TopicExistsInfo.newTopicNotExists());
+                        }
+                    }
+                    return checkNonPartitionedTopicExists(topic).thenApply(
+                            b -> b ? TopicExistsInfo.newNonPartitionedTopicExists() :
+                                    TopicExistsInfo.newTopicNotExists());
+                });
     }
 
     /***
@@ -1443,12 +1445,12 @@ public class NamespaceService implements AutoCloseable {
      */
     public CompletableFuture<Boolean> checkNonPersistentNonPartitionedTopicExists(String topic) {
         TopicName topicName = TopicName.get(topic);
-        // "non-partitioned & non-persistent" topics only exist on the owner broker.
+        // "non-partitioned & non-persistent" topics only exist on the cache of the owner broker.
         return checkTopicOwnership(TopicName.get(topic)).thenCompose(isOwned -> {
             // The current broker is the owner.
             if (isOwned) {
                CompletableFuture<Optional<Topic>> nonPersistentTopicFuture = pulsar.getBrokerService()
-                       .getTopic(topic, false);
+                       .getTopics().get(topic);
                if (nonPersistentTopicFuture != null) {
                    return nonPersistentTopicFuture.thenApply(Optional::isPresent);
                } else {

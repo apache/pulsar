@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -26,20 +27,18 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Triple;
@@ -53,6 +52,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Group the acknowledgements for a certain time and then sends them out in a single protobuf command.
@@ -82,7 +82,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * broker.
      */
     private final ConcurrentSkipListSet<MessageIdAdv> pendingIndividualAcks;
-    private final ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
+    @VisibleForTesting
+    final ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
 
     private final ScheduledFuture<?> scheduledTask;
     private final boolean batchIndexAckEnabled;
@@ -92,7 +93,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                     EventLoopGroup eventLoopGroup) {
         this.consumer = consumer;
         this.pendingIndividualAcks = new ConcurrentSkipListSet<>();
-        this.pendingIndividualBatchIndexAcks = new ConcurrentHashMap<>();
+        this.pendingIndividualBatchIndexAcks = new ConcurrentSkipListMap<>();
         this.acknowledgementGroupTimeMicros = conf.getAcknowledgementsGroupTimeMicros();
         this.maxAckGroupSize = conf.getMaxAcknowledgmentGroupSize();
         this.batchIndexAckEnabled = conf.isBatchIndexAckEnabled();
@@ -324,7 +325,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> doIndividualBatchAckAsync(MessageIdAdv msgId) {
+    @VisibleForTesting
+    CompletableFuture<Void> doIndividualBatchAckAsync(MessageIdAdv msgId) {
         ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
                 MessageIdAdvUtils.discardBatch(msgId), __ -> {
                     final BitSet ackSet = msgId.getAckSet();
@@ -484,16 +486,15 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
         }
 
-        if (!pendingIndividualBatchIndexAcks.isEmpty()) {
-            Iterator<Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable>> iterator =
-                    pendingIndividualBatchIndexAcks.entrySet().iterator();
-
-            while (iterator.hasNext()) {
-                Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable> entry = iterator.next();
-                entriesToAck.add(Triple.of(
-                        entry.getKey().getLedgerId(), entry.getKey().getEntryId(), entry.getValue()));
-                iterator.remove();
+        while (true) {
+            Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable> entry =
+                    pendingIndividualBatchIndexAcks.pollFirstEntry();
+            if (entry == null) {
+                // The entry has been removed in a different thread
+                break;
             }
+            entriesToAck.add(Triple.of(
+                    entry.getKey().getLedgerId(), entry.getKey().getEntryId(), entry.getValue()));
         }
 
         if (entriesToAck.size() > 0) {
