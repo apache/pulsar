@@ -483,6 +483,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             }
         } finally {
             buffer.release();
+            cmd.clear();
         }
     }
 
