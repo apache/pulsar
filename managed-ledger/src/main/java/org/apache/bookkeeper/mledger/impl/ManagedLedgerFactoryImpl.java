@@ -138,6 +138,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetadataStore metadataStore;
 
     private final OpenTelemetryManagedLedgerCacheStats openTelemetryCacheStats;
+    @Getter
     private final OpenTelemetryManagedLedgerStats openTelemetryManagedLedgerStats;
     private final OpenTelemetryManagedCursorStats openTelemetryManagedCursorStats;
 
