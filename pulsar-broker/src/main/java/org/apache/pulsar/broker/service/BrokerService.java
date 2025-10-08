@@ -1104,14 +1104,7 @@ public class BrokerService implements Closeable {
                     // The topic level policies are not needed now, but the meaning of calling
                     // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
                     getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
-                            .exceptionally(ex -> {
-                        final Throwable rc = FutureUtil.unwrapCompletionException(ex);
-                        final String errorInfo = String.format("Topic creation encountered an exception by initialize"
-                                + " topic policies service. topic_name=%s error_message=%s", topicName,
-                                rc.getMessage());
-                        log.error(errorInfo, rc);
-                        throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
-                    }).thenCompose(optionalTopicPolicies -> {
+                            .thenCompose(optionalTopicPolicies -> {
                         if (topicName.isPartitioned()) {
                             final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
                             return fetchPartitionedTopicMetadataAsync(topicNameEntity)
@@ -1155,7 +1148,20 @@ public class BrokerService implements Closeable {
                                 }
                             });
                         }
+                    }).exceptionally(e -> {
+                        pulsar.getExecutor().execute(() -> topics.remove(topicName.toString(), topicFuture));
+                        final Throwable rc = FutureUtil.unwrapCompletionException(e);
+                        final String errorInfo = String.format("Topic creation encountered an exception by initialize"
+                                        + " topic policies service. topic_name=%s error_message=%s", topicName,
+                                rc.getMessage());
+                        log.error(errorInfo, rc);
+                        topicFuture.completeExceptionally(rc);
+                        return null;
                     });
+                }).exceptionally(e -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topicName.toString(), topicFuture));
+                    topicFuture.completeExceptionally(e.getCause());
+                    return null;
                 });
                 return topicFuture;
             } else {
