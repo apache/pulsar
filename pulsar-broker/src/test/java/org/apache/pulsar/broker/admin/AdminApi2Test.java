@@ -4185,6 +4185,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().truncate(topic);
         admin.topics().truncate(partitionedTopic);
 
+        assertTrue(statsAfterReload.getLastPublishTimeStamp() > 0);
+        assertTrue(partitionedStatsAfterReload.getLastPublishTimeStamp() > 0);
+
+        admin.topics().unload(topic);
+        admin.topics().unload(partitionedTopic);
+
         statsAfterReload = admin.topics().getStats(topic);
         partitionedStatsAfterReload = admin.topics().getPartitionedStats(partitionedTopic, true);
         assertTrue(statsAfterReload.getTopicCreationTimeStamp() > 0);
