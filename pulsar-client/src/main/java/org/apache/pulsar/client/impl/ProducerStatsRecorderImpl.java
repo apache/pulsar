@@ -332,7 +332,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
     @Override
     public int getPendingQueueSize() {
-        return producer.getPendingQueueSize();
+        return producer != null ? producer.getPendingQueueSize() : -1;
     }
 
     public void cancelStatsTimeout() {
