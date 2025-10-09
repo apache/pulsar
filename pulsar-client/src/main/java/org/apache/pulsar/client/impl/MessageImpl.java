@@ -56,6 +56,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaIdUtil;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -474,9 +475,10 @@ public class MessageImpl<T> implements Message<T> {
     public T getValue() {
         SchemaInfo schemaInfo = getSchemaInfo();
         var schemaIdOp = getSchemaId();
+        var schemaId = schemaIdOp.map(SchemaIdUtil::removeMagicHeader).orElse(null);
         if (schemaInfo != null && SchemaType.KEY_VALUE == schemaInfo.getType()) {
             if (schemaIdOp.isPresent()) {
-                return getKeyValueBySchemaId(schemaIdOp.get());
+                return getKeyValueBySchemaId(schemaId);
             }
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
@@ -488,7 +490,7 @@ public class MessageImpl<T> implements Message<T> {
                 return null;
             }
             if (schemaIdOp.isPresent()) {
-                return decodeBySchemaId(schemaIdOp.get());
+                return decodeBySchemaId(schemaId);
             }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
