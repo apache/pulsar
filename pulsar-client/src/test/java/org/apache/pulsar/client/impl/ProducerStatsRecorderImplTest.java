@@ -103,7 +103,7 @@ public class ProducerStatsRecorderImplTest {
     @Test
     public void testProducerStatsPendingQueueSizeDoesntNPE() {
         ProducerStatsRecorderImpl recorder = new ProducerStatsRecorderImpl();
-        assertEquals(recorder.getPendingQueueSize(), -1);
+        assertEquals(recorder.getPendingQueueSize(), 0);
     }
 
     @Test
