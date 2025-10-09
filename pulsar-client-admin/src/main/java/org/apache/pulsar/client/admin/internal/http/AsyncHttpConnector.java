@@ -130,7 +130,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                         autoCertRefreshTimeSeconds);
         httpClient = createAsyncHttpClient(asyncHttpClientConfig);
         this.requestTimeout = requestTimeoutMs > 0 ? Duration.ofMillis(requestTimeoutMs) : null;
-        this.maxRetries = conf.getMaxRetryRequestTimes();
+        this.maxRetries = conf.getMaxRetryTimes();
     }
 
     private AsyncHttpClientConfig createAsyncHttpClientConfig(ClientConfigurationData conf, int connectTimeoutMs,
