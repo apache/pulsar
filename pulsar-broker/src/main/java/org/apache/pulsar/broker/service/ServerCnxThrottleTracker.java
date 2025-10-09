@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
@@ -93,6 +94,7 @@ public final class ServerCnxThrottleTracker {
      * while others are non-reentrant (single activation only).
      */
     public static enum ThrottleType {
+
         /**
          * Throttling due to excessive pending publish requests on the connection.
          *
@@ -103,7 +105,7 @@ public final class ServerCnxThrottleTracker {
          * <p><b>Type:</b> Non-reentrant
          * <p><b>Configuration:</b> {@link ServiceConfiguration#getMaxPendingPublishRequestsPerConnection()}
          */
-        ConnectionMaxQuantityOfInFlightPublishing,
+        ConnectionMaxQuantityOfInFlightPublishing(false),
 
         /**
          * Throttling due to excessive memory usage by in-flight publish operations on the IO thread.
@@ -115,7 +117,7 @@ public final class ServerCnxThrottleTracker {
          * <p><b>Type:</b> Non-reentrant
          * <p><b>Configuration:</b> {@link ServiceConfiguration#getMaxMessagePublishBufferSizeInMB()}
          */
-        IOThreadMaxBytesOfInFlightPublishing,
+        IOThreadMaxBytesOfInFlightPublishing(false),
 
         /**
          * Throttling due to topic-level publish rate limiting.
@@ -132,7 +134,7 @@ public final class ServerCnxThrottleTracker {
          *
          * <p><b>Configuration:</b> Topic-level publish rate policies
          */
-        TopicPublishRate,
+        TopicPublishRate(true),
 
         /**
          * Throttling due to resource group-level publish rate limiting.
@@ -149,7 +151,7 @@ public final class ServerCnxThrottleTracker {
          *
          * <p><b>Configuration:</b> Resource group publish rate policies
          */
-        ResourceGroupPublishRate,
+        ResourceGroupPublishRate(true),
 
         /**
          * Throttling due to broker-level publish rate limiting.
@@ -162,7 +164,7 @@ public final class ServerCnxThrottleTracker {
          * <p><b>Configuration:</b> {@link ServiceConfiguration#getBrokerPublisherThrottlingMaxMessageRate()}
          * and {@link ServiceConfiguration#getBrokerPublisherThrottlingMaxByteRate()}
          */
-        BrokerPublishRate,
+        BrokerPublishRate(false),
 
         /**
          * Throttling due to channel outbound buffer being full.
@@ -175,7 +177,7 @@ public final class ServerCnxThrottleTracker {
          * <p><b>Type:</b> Non-reentrant
          * <p><b>Reference:</b> PIP-434: Expose Netty channel configuration WRITE_BUFFER_WATER_MARK
          */
-        ConnectionOutboundBufferFull,
+        ConnectionOutboundBufferFull(false),
 
         /**
          * Throttling due to connection pause/resume cooldown rate limiting.
@@ -186,7 +188,14 @@ public final class ServerCnxThrottleTracker {
          *
          * <p><b>Type:</b> Non-reentrant
          */
-        ConnectionPauseReceivingCooldownRateLimit
+        ConnectionPauseReceivingCooldownRateLimit(false);
+
+        @Getter
+        final boolean reentrant;
+
+        ThrottleType(boolean reentrant) {
+            this.reentrant = reentrant;
+        }
     }
 
     /**
@@ -356,20 +365,15 @@ public final class ServerCnxThrottleTracker {
         // Two reentrant type: "TopicPublishRate" and "ResourceGroupPublishRate".
         boolean throttled = hasThrottled();
         int value = states[throttleType.ordinal()];
-        switch (throttleType) {
-            case TopicPublishRate: {}
-            case ResourceGroupPublishRate: {
-                states[throttleType.ordinal()] = value + 1;
-                return throttled ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
-            }
-            default: {
-                states[throttleType.ordinal()] = 1;
-                if (value != 0) {
-                    return ThrottleRes.Dropped;
-                }
-                return throttled ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
+        if (throttleType.isReentrant()) {
+            states[throttleType.ordinal()] = value + 1;
+        } else {
+            states[throttleType.ordinal()] = 1;
+            if (value != 0) {
+                return ThrottleRes.Dropped;
             }
         }
+        return throttled ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
     }
 
     /**
@@ -390,20 +394,15 @@ public final class ServerCnxThrottleTracker {
      */
     private ThrottleRes doUnmarkThrottled(ThrottleType throttleType) {
         int value = states[throttleType.ordinal()];
-        switch (throttleType) {
-            case TopicPublishRate: {}
-            case ResourceGroupPublishRate: {
-                states[throttleType.ordinal()] = value - 1;
-                return hasThrottled() ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
+        if (throttleType.isReentrant()) {
+            states[throttleType.ordinal()] = value - 1;
+        } else {
+            if (value != 1) {
+                return ThrottleRes.Dropped;
             }
-            default: {
-                if (value != 1) {
-                    return ThrottleRes.Dropped;
-                }
-                states[throttleType.ordinal()] = 0;
-                return hasThrottled() ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
-            }
+            states[throttleType.ordinal()] = 0;
         }
+        return hasThrottled() ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
     }
     
     /**
