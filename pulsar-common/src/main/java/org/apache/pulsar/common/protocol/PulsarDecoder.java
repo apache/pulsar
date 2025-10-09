@@ -482,6 +482,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             }
         } finally {
             buffer.release();
+            // Clear the fields in cmd to release memory.
+            // The clear() call below also helps prevent misuse of holding references to command objects after
+            // handle* methods complete, as per the class javadoc requirement.
+            // While this doesn't completely prevent such misuse, it makes tests more likely to catch violations.
+            cmd.clear();
         }
     }
 

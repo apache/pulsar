@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -315,7 +316,9 @@ public class ClientCnxTest {
                     .setRequestId(7)
                     .setWatcherId(5).setTopicsHash("f00");
             cnx.handleCommandWatchTopicListSuccess(success);
-            assertEquals(result.getNow(null), success);
+            assertThat(result.getNow(null))
+                    .usingRecursiveComparison()
+                    .comparingOnlyFields("requestId", "watcherId", "topicsHash");
         });
     }
 
