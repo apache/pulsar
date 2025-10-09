@@ -734,4 +734,18 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @throws IllegalArgumentException if the length of description exceeds 64
      */
     ClientBuilder description(String description);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (such as IO/event loops, timers, executors, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the client builder instance
+     * @see PulsarClientSharedResources
+     * @see PulsarClientSharedResourcesBuilder
+     */
+    ClientBuilder sharedResources(PulsarClientSharedResources sharedResources);
 }

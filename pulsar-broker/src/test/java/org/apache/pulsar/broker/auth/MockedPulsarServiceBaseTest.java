@@ -182,7 +182,15 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     private URI resolveLookupUrl() {
-        if (isTcpLookup) {
+        return resolveLookupUrl(isTcpLookup);
+    }
+
+    protected String brokerServiceUrl(boolean usePulsarBinaryProtocol) {
+        return resolveLookupUrl(usePulsarBinaryProtocol).toString();
+    }
+
+    private URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
+        if (usePulsarBinaryProtocol) {
             return URI.create(pulsar.getBrokerServiceUrl());
         } else {
             return URI.create(brokerUrl != null
@@ -799,6 +807,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void logTopicStats(String topic) {
         BrokerTestUtil.logTopicStats(log, admin, topic);
+    }
+
+    @DataProvider(name = "trueFalse")
+    public static Object[][] trueFalse() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

@@ -263,7 +263,7 @@ The Apache Software License, Version 2.0
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.51.0.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.59.2.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
     - com.google.code.gson-gson-2.8.9.jar
@@ -431,26 +431,26 @@ The Apache Software License, Version 2.0
      - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
-    - io.grpc-grpc-all-1.72.0.jar
-    - io.grpc-grpc-auth-1.72.0.jar
-    - io.grpc-grpc-context-1.72.0.jar
-    - io.grpc-grpc-core-1.72.0.jar
-    - io.grpc-grpc-protobuf-1.72.0.jar
-    - io.grpc-grpc-protobuf-lite-1.72.0.jar
-    - io.grpc-grpc-stub-1.72.0.jar
-    - io.grpc-grpc-alts-1.72.0.jar
-    - io.grpc-grpc-api-1.72.0.jar
-    - io.grpc-grpc-grpclb-1.72.0.jar
-    - io.grpc-grpc-netty-shaded-1.72.0.jar
-    - io.grpc-grpc-services-1.72.0.jar
-    - io.grpc-grpc-xds-1.72.0.jar
-    - io.grpc-grpc-rls-1.72.0.jar
-    - io.grpc-grpc-servlet-1.72.0.jar
-    - io.grpc-grpc-servlet-jakarta-1.72.0.jar
+    - io.grpc-grpc-all-1.75.0.jar
+    - io.grpc-grpc-auth-1.75.0.jar
+    - io.grpc-grpc-context-1.75.0.jar
+    - io.grpc-grpc-core-1.75.0.jar
+    - io.grpc-grpc-protobuf-1.75.0.jar
+    - io.grpc-grpc-protobuf-lite-1.75.0.jar
+    - io.grpc-grpc-stub-1.75.0.jar
+    - io.grpc-grpc-alts-1.75.0.jar
+    - io.grpc-grpc-api-1.75.0.jar
+    - io.grpc-grpc-grpclb-1.75.0.jar
+    - io.grpc-grpc-netty-shaded-1.75.0.jar
+    - io.grpc-grpc-services-1.75.0.jar
+    - io.grpc-grpc-xds-1.75.0.jar
+    - io.grpc-grpc-rls-1.75.0.jar
+    - io.grpc-grpc-servlet-1.75.0.jar
+    - io.grpc-grpc-servlet-jakarta-1.75.0.jar
     - io.grpc-grpc-util-1.60.0.jar
-    - io.grpc-grpc-opentelemetry-1.72.0.jar
-    - io.grpc-grpc-gcp-csm-observability-1.72.0.jar
-    - io.grpc-grpc-inprocess-1.72.0.jar
+    - io.grpc-grpc-opentelemetry-1.75.0.jar
+    - io.grpc-grpc-gcp-csm-observability-1.75.0.jar
+    - io.grpc-grpc-inprocess-1.75.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.26.0.jar
   * OpenCensus
@@ -484,8 +484,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.6.2.jar
-    - io.github.oxia-db-oxia-client-0.6.2.jar
+    - io.github.oxia-db-oxia-client-api-0.7.0.jar
+    - io.github.oxia-db-oxia-client-0.7.0.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
@@ -501,9 +501,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-4.5.10.jar
     - io.vertx-vertx-web-common-4.5.10.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.9.3.jar
-    - org.apache.zookeeper-zookeeper-jute-3.9.3.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.3.jar
+    - org.apache.zookeeper-zookeeper-3.9.4.jar
+    - org.apache.zookeeper-zookeeper-jute-3.9.4.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.4.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
@@ -541,7 +541,7 @@ The Apache Software License, Version 2.0
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.6-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.29.0-alpha.jar
     - com.google.cloud.opentelemetry-detector-resources-support-0.33.0.jar
-    - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.43.0-alpha.jar
+    - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.48.0-alpha.jar
   * Spotify completable-futures
     - com.spotify-completable-futures-0.3.6.jar
   * JSpecify

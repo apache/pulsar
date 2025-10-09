@@ -183,7 +183,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.27.1</commons-compress.version>
 
     <bookkeeper.version>4.17.2</bookkeeper.version>
-    <zookeeper.version>3.9.3</zookeeper.version>
+    <zookeeper.version>3.9.4</zookeeper.version>
     <commons-cli.version>1.9.0</commons-cli.version>
     <commons-text.version>1.13.1</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
@@ -221,7 +221,7 @@ flexible messaging model and an intuitive client API.</description>
     <zt-zip.version>1.17</zt-zip.version>
     <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.72.0</grpc.version>
+    <grpc.version>1.75.0</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.26.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
@@ -296,7 +296,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
-    <oxia.version>0.6.2</oxia.version>
+    <oxia.version>0.7.0</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
