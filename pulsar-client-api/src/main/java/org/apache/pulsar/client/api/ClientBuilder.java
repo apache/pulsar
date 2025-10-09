@@ -725,6 +725,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder maxRetryTimes(int maxRetryTimes);
+    /**
      * Set the description.
      *
      * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
