@@ -33,10 +33,10 @@ public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicClock monotonicClock) {
         super(monotonicClock, producer -> {
             producer.getCnx().getThrottleTracker().markThrottled(
-                ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+                ServerCnxThrottleTracker.ThrottleType.ResourceGroupPublishRate);
         }, producer -> {
             producer.getCnx().getThrottleTracker().unmarkThrottled(
-                ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+                ServerCnxThrottleTracker.ThrottleType.ResourceGroupPublishRate);
         });
         update(resourceGroup);
     }
