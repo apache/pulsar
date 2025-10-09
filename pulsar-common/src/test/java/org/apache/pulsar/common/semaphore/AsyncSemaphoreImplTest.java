@@ -183,13 +183,6 @@ public class AsyncSemaphoreImplTest {
         semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
 
         try {
-            semaphore.acquire(0, () -> false);
-            fail("Should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("Invalid permits value"));
-        }
-
-        try {
             semaphore.acquire(-1, () -> false);
             fail("Should have thrown exception");
         } catch (IllegalArgumentException e) {
@@ -279,13 +272,6 @@ public class AsyncSemaphoreImplTest {
         AsyncSemaphorePermit permit = future.get(1, TimeUnit.SECONDS);
 
         try {
-            semaphore.update(permit, 0, () -> false);
-            fail("Should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("Invalid permits value"));
-        }
-
-        try {
             semaphore.update(permit, -1, () -> false);
             fail("Should have thrown exception");
         } catch (IllegalArgumentException e) {
@@ -293,6 +279,21 @@ public class AsyncSemaphoreImplTest {
         }
 
         semaphore.release(permit);
+    }
+
+    @Test
+    public void testUpdateWithZeroPermitsShouldReleasePermits() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
+
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(5, () -> false);
+        AsyncSemaphorePermit permit = future.get(1, TimeUnit.SECONDS);
+
+        AsyncSemaphorePermit updatedPermit = semaphore.update(permit, 0, () -> false).get(1, TimeUnit.SECONDS);
+
+        AsyncSemaphorePermit permit2 = semaphore.acquire(10, () -> false).get(1, TimeUnit.SECONDS);
+
+        semaphore.release(updatedPermit);
+        semaphore.release(permit2);
     }
 
     @Test
