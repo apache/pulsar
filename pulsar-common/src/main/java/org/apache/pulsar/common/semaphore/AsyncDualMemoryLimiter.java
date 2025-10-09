@@ -34,8 +34,8 @@ public interface AsyncDualMemoryLimiter {
     /**
      * Acquire permits for the specified memory size.
      * Returned future completes when memory permits are available.
-     * It will complete exceptionally with AsyncDualMemoryLimiterPermitAcquireTimeoutException on timeout
-     * and exceptionally with AsyncDualMemoryLimiterPermitAcquireQueueFullException when queue full
+     * It will complete exceptionally with AsyncSemaphore.PermitAcquireTimeoutException on timeout
+     * and exceptionally with AsyncSemaphore.PermitAcquireQueueFullException when queue full
      * @return CompletableFuture that completes with permit when available
      */
     CompletableFuture<AsyncDualMemoryLimiterPermit> acquire(long memorySize, LimitType limitType,
@@ -44,8 +44,8 @@ public interface AsyncDualMemoryLimiter {
     /**
      * Acquire or release permits for previously acquired permits by updating the requested memory size.
      * Returns a future that completes when permits are available.
-     * It will complete exceptionally with AsyncDualMemoryLimiterPermitAcquireTimeoutException on timeout
-     * and exceptionally with AsyncDualMemoryLimiterPermitAcquireQueueFullException when queue full
+     * It will complete exceptionally with AsyncSemaphore.PermitAcquireTimeoutException on timeout
+     * and exceptionally with AsyncSemaphore.PermitAcquireQueueFullException when queue full
      * The provided permit is released when the permits are successfully acquired and the returned updated
      * permit replaces the old instance.
      * @return CompletableFuture that completes with permit when available
