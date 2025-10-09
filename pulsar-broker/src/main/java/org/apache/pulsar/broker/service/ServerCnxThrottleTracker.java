@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
@@ -262,6 +263,7 @@ public final class ServerCnxThrottleTracker {
      *
      * @return the total number of active throttling conditions
      */
+    @VisibleForTesting
     public int throttledCount() {
         int i = 0;
         for (int stat : states) {
@@ -291,6 +293,7 @@ public final class ServerCnxThrottleTracker {
      * @see ThrottleType
      */
     public void markThrottled(ThrottleType type) {
+        assert serverCnx.ctx().executor().inEventLoop() : "This method should be called in serverCnx.ctx().executor()";
         ThrottleRes res = doMarkThrottled(type);
         recordMetricsAfterThrottling(type, res);
         if (res == ThrottleRes.ConnectionStateChanged && isChannelActive()) {
@@ -322,6 +325,7 @@ public final class ServerCnxThrottleTracker {
      * @see ThrottleType
      */
     public void unmarkThrottled(ThrottleType type) {
+        assert serverCnx.ctx().executor().inEventLoop() : "This method should be called in serverCnx.ctx().executor()";
         ThrottleRes res = doUnmarkThrottled(type);
         recordMetricsAfterUnthrottling(type, res);
         if (res == ThrottleRes.ConnectionStateChanged && isChannelActive()) {
