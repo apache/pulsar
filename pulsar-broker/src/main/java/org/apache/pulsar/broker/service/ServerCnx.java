@@ -481,8 +481,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handleLookup(CommandLookupTopic lookup) {
+    protected void handleLookup(CommandLookupTopic lookupParam) {
         checkArgument(state == State.Connected);
+
+        // Make a copy since the command is handled asynchronously
+        CommandLookupTopic lookup = new CommandLookupTopic().copyFrom(lookupParam);
+
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.isAuthoritative();
 
@@ -558,8 +562,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
+    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadataParam) {
         checkArgument(state == State.Connected);
+
+        // Make a copy since the command is handled asynchronously
+        CommandPartitionedTopicMetadata partitionMetadata =
+                new CommandPartitionedTopicMetadata().copyFrom(partitionMetadataParam);
+
         final long requestId = partitionMetadata.getRequestId();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received PartitionMetadataLookup from {} for {}", partitionMetadata.getTopic(),
@@ -3034,8 +3043,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handleCommandWatchTopicList(CommandWatchTopicList commandWatchTopicList) {
+    protected void handleCommandWatchTopicList(CommandWatchTopicList commandWatchTopicListParam) {
         checkArgument(state == State.Connected);
+
+        // make a copy since command is handled asynchronously
+        CommandWatchTopicList commandWatchTopicList = new CommandWatchTopicList().copyFrom(commandWatchTopicListParam);
+
         final long requestId = commandWatchTopicList.getRequestId();
         final long watcherId = commandWatchTopicList.getWatcherId();
         final NamespaceName namespaceName = NamespaceName.get(commandWatchTopicList.getNamespace());
