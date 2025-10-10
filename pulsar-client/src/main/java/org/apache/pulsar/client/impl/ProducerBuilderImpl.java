@@ -106,9 +106,20 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             return FutureUtil.failedFuture(pce);
         }
 
-        return interceptorList == null || interceptorList.size() == 0
+        // Automatically add tracing interceptor if tracing is enabled
+        List<ProducerInterceptor> effectiveInterceptors = interceptorList;
+        if (client.getConfiguration().isTracingEnabled()) {
+            if (effectiveInterceptors == null) {
+                effectiveInterceptors = new ArrayList<>();
+            } else {
+                effectiveInterceptors = new ArrayList<>(effectiveInterceptors);
+            }
+            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor());
+        }
+
+        return effectiveInterceptors == null || effectiveInterceptors.size() == 0
                 ? client.createProducerAsync(conf, schema, null)
-                : client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
+                : client.createProducerAsync(conf, schema, new ProducerInterceptors(effectiveInterceptors));
     }
 
     @Override

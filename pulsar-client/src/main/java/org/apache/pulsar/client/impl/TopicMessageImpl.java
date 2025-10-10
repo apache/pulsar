@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TraceableMessage;
 import org.apache.pulsar.common.api.EncryptionContext;
 
-public class TopicMessageImpl<T> implements Message<T> {
+public class TopicMessageImpl<T> implements TraceableMessage, Message<T> {
 
     /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
     private final String topicPartitionName;
@@ -65,6 +67,7 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "messageId is immutable")
     public MessageId getMessageId() {
         return messageId;
     }
@@ -224,6 +227,24 @@ public class TopicMessageImpl<T> implements Message<T> {
     @Override
     public Optional<Long> getIndex() {
         return msg.getIndex();
+    }
+
+    // TraceableMessage implementation for OpenTelemetry support
+    // Delegates to the wrapped message if it implements TraceableMessage
+
+    @Override
+    public void setTracingSpan(io.opentelemetry.api.trace.Span span) {
+        if (msg instanceof TraceableMessage) {
+            ((TraceableMessage) msg).setTracingSpan(span);
+        }
+    }
+
+    @Override
+    public io.opentelemetry.api.trace.Span getTracingSpan() {
+        if (msg instanceof TraceableMessage) {
+            return ((TraceableMessage) msg).getTracingSpan();
+        }
+        return null;
     }
 
 }
