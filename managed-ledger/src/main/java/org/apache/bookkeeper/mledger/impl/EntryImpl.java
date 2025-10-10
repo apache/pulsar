@@ -58,7 +58,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     private EntryReadCountHandler readCountHandler;
     private boolean decreaseReadCountOnRelease = true;
     @Getter @Setter
-    private MessageMetadata messageMetadata;
+    private volatile MessageMetadata messageMetadata;
 
     private Runnable onDeallocate;
 
@@ -305,11 +305,11 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         decreaseReadCountOnRelease = enabled;
     }
 
-    public void initializeMessageMetadataIfNeeded(String managedLedgerName) {
+    public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {
         if (messageMetadata == null) {
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
-                Commands.peekMessageMetadata(data, msgMetadata);
+                Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
                 log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,
