@@ -136,7 +136,7 @@ class RangeCacheEntryWrapper {
                 if (wrapper.key != key && (requireSameKeyInstance || wrapper.key == null || !wrapper.key.equals(key))) {
                     return null;
                 }
-                if (wrapper.value instanceof EntryImpl entry) {
+                if (wrapper.value instanceof EntryImpl entry && entry.getMessageMetadata() == null) {
                     entry.initializeMessageMetadataIfNeeded(managedLedgerName);
                 }
                 return wrapper.value;
