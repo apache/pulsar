@@ -176,7 +176,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
 
         this.directQueueMaxSize = register(Gauge.build(prometheusPrefix + "topic_list_direct_queue_max_size",
                         "Maximum direct memory limiter queue size")
-                .create().register(collectorRegistry));
+                .create());
         this.directQueueMaxSize.set(maxDirectQueueSize);
         LongGauge otelDirectQueueMaxSize = openTelemetryMeter
                 .gaugeBuilder("topic.list.direct.queue.max.size")
