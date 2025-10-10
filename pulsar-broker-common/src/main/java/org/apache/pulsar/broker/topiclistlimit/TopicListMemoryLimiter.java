@@ -31,12 +31,14 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 
 /**
  * Topic list memory limiter that exposes both Prometheus metrics and OpenTelemetry metrics.
  */
+@Slf4j
 public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
     private final CollectorRegistry collectorRegistry;
     private final Gauge heapMemoryUsedBytes;
@@ -230,6 +232,9 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
             collectorRegistry.register(collector);
         } catch (Exception e) {
             // ignore exception when registering a collector that is already registered
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to register Prometheus collector {}", collector, e);
+            }
         }
         return collector;
     }
@@ -239,6 +244,9 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
             collectorRegistry.unregister(collector);
         } catch (Exception e) {
             // ignore exception when unregistering a collector that is not registered
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to unregister Prometheus collector {}", collector, e);
+            }
         }
     }
 
