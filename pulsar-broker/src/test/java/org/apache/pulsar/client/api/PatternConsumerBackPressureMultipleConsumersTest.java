@@ -81,7 +81,7 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
         admin.topics().createPartitionedTopic(topicName, topicCount);
 
         // reduce available direct memory to reproduce issues with less concurrency
-        long directMemoryRequired = 175 * 1024 * 1024;
+        long directMemoryRequired = getDirectMemoryRequiredMB() * 1024 * 1024;
         List<ByteBuf> buffers = allocateDirectMemory(directMemoryRequired);
         @Cleanup
         Closeable releaseBuffers = () -> {
@@ -110,7 +110,7 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
         };
         for (int i = 0; i < numberOfClients; i++) {
             PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
-                    .serviceUrl(pulsar.getBrokerServiceUrl())
+                    .serviceUrl(getClientServiceUrl())
                     .sharedResources(sharedResources)
                     .build();
             clients.add(client);
@@ -147,6 +147,14 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
         }
         latch.await();
         Assert.assertEquals(success.get(), requests);
+    }
+
+    protected int getDirectMemoryRequiredMB() {
+        return 175;
+    }
+
+    protected String getClientServiceUrl() {
+        return pulsar.getBrokerServiceUrl();
     }
 
     /**
