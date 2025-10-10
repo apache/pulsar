@@ -58,7 +58,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     private EntryReadCountHandler readCountHandler;
     private boolean decreaseReadCountOnRelease = true;
     @Getter @Setter
-    private volatile MessageMetadata messageMetadata;
+    private MessageMetadata messageMetadata;
 
     private Runnable onDeallocate;
 
