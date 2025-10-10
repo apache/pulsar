@@ -719,9 +719,13 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder lookupProperties(Map<String, String> properties);
 
     /**
-     * Set the max retry times for a request.
+     * Set the maximum number of retry attempts for HTTP requests made by the admin client.
+     * <p>By default, this value is 5.
      *
-     * @param maxHttpRequestRetries
+     * <p>The retry logic is handled by AsyncHttpConnector. The internal retry
+     * mechanism of DefaultAsyncHttpClient is disabled to avoid duplicated retries.
+     *
+     * @param maxHttpRequestRetries the maximum number of HTTP request retries to attempt
      * @return the client builder instance
      */
     ClientBuilder MaxHttpRequestRetries(int maxHttpRequestRetries);
