@@ -42,6 +42,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import java.io.Closeable;
@@ -138,6 +139,7 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -378,7 +380,8 @@ public class BrokerService implements Closeable {
         this.lookupRequestSemaphore = new AtomicReference<>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         // Initialize topic list memory limiter
-        this.maxTopicListInFlightLimiter = new AsyncDualMemoryLimiterImpl(
+        this.maxTopicListInFlightLimiter = new TopicListMemoryLimiter(
+                CollectorRegistry.defaultRegistry, "pulsar_broker_", pulsar.getOpenTelemetry().getMeter(),
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),

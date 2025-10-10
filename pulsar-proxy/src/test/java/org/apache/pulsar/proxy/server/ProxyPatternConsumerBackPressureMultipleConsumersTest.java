@@ -84,4 +84,9 @@ public class ProxyPatternConsumerBackPressureMultipleConsumersTest extends
     protected int getDirectMemoryRequiredMB() {
         return 225;
     }
+
+    @Override
+    protected String getMetricsPrefix() {
+        return "pulsar_proxy_topic_list_";
+    }
 }

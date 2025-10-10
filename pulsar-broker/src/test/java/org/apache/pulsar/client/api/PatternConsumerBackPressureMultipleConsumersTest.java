@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 import java.io.Closeable;
 import java.io.IOException;
@@ -32,7 +33,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -40,7 +43,6 @@ import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -146,7 +148,27 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
             });
         }
         latch.await();
-        Assert.assertEquals(success.get(), requests);
+        assertEquals(success.get(), requests);
+
+        validateTopiclistPrometheusMetrics();
+    }
+
+    private void validateTopiclistPrometheusMetrics() {
+        MutableInt metricsCount = new MutableInt(0);
+        PrometheusMetricsClient metricsClient =
+                new PrometheusMetricsClient("localhost", pulsar.getListenPortHTTP().get());
+        PrometheusMetricsClient.Metrics metrics = metricsClient.getMetrics();
+        metrics.getNameToDataPoints().entries().forEach(entry -> {
+            if (entry.getKey().startsWith(getMetricsPrefix())) {
+                metricsCount.increment();
+                System.out.println(entry.getKey() + " -> " + entry.getValue());
+            }
+        });
+        assertEquals(metricsCount.intValue(), 26);
+    }
+
+    protected String getMetricsPrefix() {
+        return "pulsar_broker_topic_list_";
     }
 
     protected int getDirectMemoryRequiredMB() {

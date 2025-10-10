@@ -49,6 +49,21 @@ public interface AsyncSemaphore {
      */
     void release(AsyncSemaphorePermit permit);
 
+    /**
+     * Get the number of available permits.
+     */
+    long getAvailablePermits();
+
+    /**
+     * Get the number of acquired permits.
+     */
+    long getAcquiredPermits();
+
+    /**
+     * Get the current size of queued requests.
+     */
+    int getQueueSize();
+
     abstract class PermitAcquireException extends RuntimeException {
         public PermitAcquireException(String message) {
             super(message);

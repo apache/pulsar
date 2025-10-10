@@ -55,8 +55,10 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
                                ScheduledExecutorService executor, boolean shutdownExecutor) {
         this.executor = executor;
         this.shutdownExecutor = shutdownExecutor;
-        this.heapLimiter = new AsyncSemaphoreImpl(maxHeapMemory, maxHeapQueueSize, heapTimeoutMillis, executor);
-        this.directLimiter = new AsyncSemaphoreImpl(maxDirectMemory, maxDirectQueueSize, directTimeoutMillis, executor);
+        this.heapLimiter = new AsyncSemaphoreImpl(maxHeapMemory, maxHeapQueueSize, heapTimeoutMillis, executor,
+                this::recordHeapWaitTime);
+        this.directLimiter = new AsyncSemaphoreImpl(maxDirectMemory, maxDirectQueueSize, directTimeoutMillis, executor,
+                this::recordDirectWaitTime);
     }
 
     private static ScheduledExecutorService createExecutor() {
@@ -72,7 +74,7 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
                 new DualMemoryLimiterPermit(limitType, result));
     }
 
-    private AsyncSemaphore getLimiter(LimitType limitType) {
+    protected AsyncSemaphore getLimiter(LimitType limitType) {
         switch (limitType) {
         case HEAP_MEMORY:
             return heapLimiter;
@@ -103,6 +105,22 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
         } else {
             throw new IllegalArgumentException("Invalid permit type");
         }
+    }
+
+    /**
+     * Record the wait time for a heap memory allocation permit.
+     * @param waitTimeNanos wait time in nanoseconds, or Long.MAX_VALUE if the allocation timed out
+     */
+    protected void recordHeapWaitTime(long waitTimeNanos) {
+
+    }
+
+    /**
+     * Record the wait time for a direct memory allocation permit.
+     * @param waitTimeNanos wait time in nanoseconds, or Long.MAX_VALUE if the allocation timed out
+     */
+    protected void recordDirectWaitTime(long waitTimeNanos) {
+
     }
 
     @Override

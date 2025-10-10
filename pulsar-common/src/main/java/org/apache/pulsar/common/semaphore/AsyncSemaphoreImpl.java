@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BooleanSupplier;
+import java.util.function.LongConsumer;
 import org.apache.pulsar.common.util.Runnables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,29 +42,33 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     private final AtomicLong availablePermits;
     private final ConcurrentLinkedQueue<PendingRequest> queue = new ConcurrentLinkedQueue<>();
+    private final long maxPermits;
     private final int maxQueueSize;
     private final long timeoutMillis;
     private final ScheduledExecutorService executor;
     private final boolean shutdownExecutor;
+    private final LongConsumer queueLatencyRecorder;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Runnable processQueueRunnable = Runnables.catchingAndLoggingThrowables(this::internalProcessQueue);
 
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis) {
-        this(maxPermits, maxQueueSize, timeoutMillis, createExecutor(), true);
+        this(maxPermits, maxQueueSize, timeoutMillis, createExecutor(), true, null);
     }
 
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis,
-                              ScheduledExecutorService executor) {
-        this(maxPermits, maxQueueSize, timeoutMillis, executor, false);
+                              ScheduledExecutorService executor, LongConsumer queueLatencyRecorder) {
+        this(maxPermits, maxQueueSize, timeoutMillis, executor, false, queueLatencyRecorder);
     }
 
     AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis, ScheduledExecutorService executor,
-                       boolean shutdownExecutor) {
+                       boolean shutdownExecutor, LongConsumer queueLatencyRecorder) {
         this.availablePermits = new AtomicLong(maxPermits);
+        this.maxPermits = maxPermits;
         this.maxQueueSize = maxQueueSize;
         this.timeoutMillis = timeoutMillis;
         this.executor = executor;
         this.shutdownExecutor = shutdownExecutor;
+        this.queueLatencyRecorder = queueLatencyRecorder;
     }
 
     private static ScheduledExecutorService createExecutor() {
@@ -100,6 +105,10 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         // Schedule timeout
         ScheduledFuture<?> timeoutTask = executor.schedule(() -> {
             if (!request.future.isDone() && queue.remove(request)) {
+                // timeout is recorded with Long.MAX_VALUE as the age
+                recordQueueLatency(Long.MAX_VALUE);
+                // also record the time in the queue
+                recordQueueLatency(request.getAgeNanos());
                 future.completeExceptionally(new PermitAcquireTimeoutException(
                         "Permit acquisition timed out"));
                 // the next request might have smaller permits and that might be processed
@@ -110,6 +119,12 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
         processQueue();
         return future;
+    }
+
+    private void recordQueueLatency(long ageNanos) {
+        if (queueLatencyRecorder != null) {
+            queueLatencyRecorder.accept(ageNanos);
+        }
     }
 
     @Override
@@ -137,6 +152,21 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     public void release(AsyncSemaphorePermit permit) {
         availablePermits.addAndGet(castToImplementation(permit).releasePermits());
         processQueue();
+    }
+
+    @Override
+    public long getAvailablePermits() {
+        return availablePermits.get();
+    }
+
+    @Override
+    public long getAcquiredPermits() {
+        return maxPermits - availablePermits.get();
+    }
+
+    @Override
+    public int getQueueSize() {
+        return queue.size();
     }
 
     private SemaphorePermit castToImplementation(AsyncSemaphorePermit permit) {
@@ -179,6 +209,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                 request.cancelTimeoutTask();
                 queue.remove(request);
                 SemaphorePermit permit = new SemaphorePermit(request.permits);
+                recordQueueLatency(request.getAgeNanos());
                 boolean futureCompleted = request.future.complete(permit);
                 if (!futureCompleted){
                     // request was already cancelled, return permits
@@ -210,6 +241,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         final CompletableFuture<AsyncSemaphorePermit> future;
         private final BooleanSupplier isCancelled;
         private volatile ScheduledFuture<?> timeoutTask;
+        private final long requestCreatedNanos = System.nanoTime();
 
         PendingRequest(long permits, long acquirePermits, CompletableFuture<AsyncSemaphorePermit> future,
                        BooleanSupplier isCancelled) {
@@ -228,6 +260,10 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                 timeoutTask.cancel(false);
                 timeoutTask = null;
             }
+        }
+
+        long getAgeNanos() {
+            return System.nanoTime() - requestCreatedNanos;
         }
     }
 
