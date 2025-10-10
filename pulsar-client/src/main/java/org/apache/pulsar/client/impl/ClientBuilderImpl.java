@@ -509,7 +509,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder MaxHttpRequestRetries(int maxHttpRequestRetries) {
+    public ClientBuilder maxHttpRequestRetries(int maxHttpRequestRetries) {
         conf.setMaxHttpRequestRetries(maxHttpRequestRetries);
         return this;
     }
