@@ -398,7 +398,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "The Pulsar admin client max retry request times, default value is 5. "
                     + "This value is system-managed and cannot be modified externally."
     )
-    private int maxRetryTimes = 5;
+    private int maxHttpRequestRetries = 5;
 
     @ApiModelProperty(
             name = "dnsLookupBindPort",

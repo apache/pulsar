@@ -721,10 +721,10 @@ public interface ClientBuilder extends Serializable, Cloneable {
     /**
      * Set the max retry times for a request.
      *
-     * @param maxRetryTimes
+     * @param maxHttpRequestRetries
      * @return the client builder instance
      */
-    ClientBuilder maxRetryTimes(int maxRetryTimes);
+    ClientBuilder MaxHttpRequestRetries(int maxHttpRequestRetries);
     /**
      * Set the description.
      *

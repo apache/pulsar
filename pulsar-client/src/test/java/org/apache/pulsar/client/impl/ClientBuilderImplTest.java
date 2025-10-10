@@ -174,7 +174,7 @@ public class ClientBuilderImplTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testClientBuilderWithMaxRetryTime() throws PulsarClientException {
-        PulsarClient.builder().maxRetryTimes(5).build();
+        PulsarClient.builder().MaxHttpRequestRetries(5).build();
     }
 
     @Test

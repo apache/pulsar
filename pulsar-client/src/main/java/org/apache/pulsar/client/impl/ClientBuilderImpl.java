@@ -509,8 +509,8 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder maxRetryTimes(int maxRetryTimes) {
-        conf.setMaxRetryTimes(maxRetryTimes);
+    public ClientBuilder MaxHttpRequestRetries(int maxHttpRequestRetries) {
+        conf.setMaxHttpRequestRetries(maxHttpRequestRetries);
         return this;
     }
 }
