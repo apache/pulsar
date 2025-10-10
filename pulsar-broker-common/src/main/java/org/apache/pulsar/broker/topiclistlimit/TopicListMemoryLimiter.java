@@ -126,7 +126,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
                 .setUnit("By")
                 .setDescription("Configured direct memory limit")
                 .build();
-        this.otelDirectMemoryLimitGauge.set(maxHeapMemory);
+        this.otelDirectMemoryLimitGauge.set(maxDirectMemory);
 
         this.heapQueueSize = register(Gauge.build(prometheusPrefix + "topic_list_heap_queue_size",
                         "Current heap memory limiter queue size")
