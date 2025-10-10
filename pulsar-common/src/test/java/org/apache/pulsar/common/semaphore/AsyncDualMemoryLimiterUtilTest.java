@@ -27,7 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -44,6 +43,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireCancelledException;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -388,7 +388,7 @@ public class AsyncDualMemoryLimiterUtilTest {
 
         limiter.release(permits);
 
-        assertFalse(errorHandlerCalled.get());
+        Awaitility.await().untilAsserted(() -> assertTrue(errorHandlerCalled.get()));
         verify(ctx, never()).writeAndFlush(any(ByteBuf.class));
         assertTrue(result.isCompletedExceptionally());
         assertThatThrownBy(() -> result.get()).hasCauseInstanceOf(PermitAcquireCancelledException.class);
