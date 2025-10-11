@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.service;
 import io.netty.util.concurrent.Future;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -51,8 +52,8 @@ public interface PulsarCommandSender {
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
-    void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
-                                          boolean changed, long requestId);
+    void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered, boolean changed,
+                                          long requestId, Consumer<Throwable> permitAcquireErrorHandler);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
@@ -93,8 +94,10 @@ public interface PulsarCommandSender {
 
     void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
 
-    void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics);
+    void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics,
+                                   Consumer<Throwable> permitAcquireErrorHandler);
 
     void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash);
+                                  List<String> newTopics, List<String> deletedTopics, String topicsHash,
+                                  Consumer<Throwable> permitAcquireErrorHandler);
 }

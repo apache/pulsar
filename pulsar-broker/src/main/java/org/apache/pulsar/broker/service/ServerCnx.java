@@ -60,6 +60,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
@@ -171,6 +172,8 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -194,6 +197,8 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
+    // 1KB initial estimate for topic list heap permits size
+    private static final long INITIAL_TOPIC_LIST_HEAP_PERMITS_SIZE = 1024;
     private static final Logger PAUSE_RECEIVING_LOG = LoggerFactory.getLogger(ServerCnx.class.getName()
             + ".pauseReceiving");
     private final BrokerService service;
@@ -259,6 +264,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final TimedSingleThreadRateLimiter requestRateLimiter;
     private final int pauseReceivingCooldownMilliSeconds;
     private boolean pausedDueToRateLimitation = false;
+    private AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
 
     // Tracks and limits number of bytes pending to be published from a single specific IO thread.
     static final class PendingBytesPerThreadTracker {
@@ -363,6 +369,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.connectionController = new ConnectionController.DefaultConnectionController(
                 conf.getBrokerMaxConnections(),
                 conf.getBrokerMaxConnectionsPerIp());
+        this.maxTopicListInFlightLimiter = pulsar.getBrokerService().getMaxTopicListInFlightLimiter();
         this.enableSubscriptionPatternEvaluation = conf.isEnableBrokerSideSubscriptionPatternEvaluation();
         this.maxSubscriptionPatternLength = conf.getSubscriptionPatternMaxLength();
         this.topicListService = new TopicListService(pulsar, this,
@@ -391,7 +398,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("New connection from {}", remoteAddress);
         }
         this.ctx = ctx;
-        this.commandSender = new PulsarCommandSenderImpl(brokerInterceptor, this);
+        this.commandSender =
+                new PulsarCommandSenderImpl(brokerInterceptor, this, this.service.getMaxTopicListInFlightLimiter());
         this.service.getPulsarStats().recordConnectionCreate();
         cnxsPerThread.get().add(this);
         service.getPulsar().runWhenReadyForIncomingRequests(() -> {
@@ -2542,45 +2550,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (lookupSemaphore.tryAcquire()) {
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
-                    getBrokerService().pulsar().getNamespaceService().getListOfUserTopics(namespaceName, mode)
-                        .thenAccept(topics -> {
-                            boolean filterTopics = false;
-                            // filter system topic
-                            List<String> filteredTopics = topics;
-
-                            if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
-                                if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
-                                    filterTopics = true;
-                                    filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get(),
-                                            topicsPatternImplementation);
-                                } else {
-                                    log.info("[{}] Subscription pattern provided [{}] was longer than maximum {}.",
-                                            remoteAddress, topicsPattern.get(), maxSubscriptionPatternLength);
-                                }
-                            }
-                            String hash = TopicList.calculateHash(filteredTopics);
-                            boolean hashUnchanged = topicsHash.isPresent() && topicsHash.get().equals(hash);
-                            if (hashUnchanged) {
-                                filteredTopics = Collections.emptyList();
-                            }
-                            if (log.isDebugEnabled()) {
-                                log.debug(
-                                        "[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
-                                        remoteAddress, namespace, requestId, topics.size());
-                            }
-                            commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics, hash, filterTopics,
-                                    !hashUnchanged, requestId);
-                            lookupSemaphore.release();
-                        })
-                        .exceptionally(ex -> {
-                            log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
-                                    remoteAddress, namespace, requestId);
-                            commandSender.sendErrorResponse(requestId,
-                                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
-                                    ex.getMessage());
-                            lookupSemaphore.release();
-                            return null;
-                        });
+                    internalHandleGetTopicsOfNamespace(namespace, namespaceName, requestId, mode, topicsPattern,
+                            topicsHash, lookupSemaphore);
                 } else {
                     final String msg = "Client is not authorized to GetTopicsOfNamespace";
                     log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
@@ -2606,6 +2577,77 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
+    private void internalHandleGetTopicsOfNamespace(String namespace, NamespaceName namespaceName, long requestId,
+                                                    CommandGetTopicsOfNamespace.Mode mode,
+                                                    Optional<String> topicsPattern, Optional<String> topicsHash,
+                                                    Semaphore lookupSemaphore) {
+        BooleanSupplier isPermitRequestCancelled = () -> !ctx().channel().isActive();
+        maxTopicListInFlightLimiter.withAcquiredPermits(INITIAL_TOPIC_LIST_HEAP_PERMITS_SIZE,
+                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                    return getBrokerService().pulsar().getNamespaceService().getListOfUserTopics(namespaceName, mode)
+                            .thenAccept(topics -> {
+                                long actualSize = topics.stream().mapToInt(String::length).sum();
+                                maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                        isPermitRequestCancelled, permits -> {
+                                    boolean filterTopics = false;
+                                    // filter system topic
+                                    List<String> filteredTopics = topics;
+
+                                    if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
+                                        if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
+                                            filterTopics = true;
+                                            filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get(),
+                                                    topicsPatternImplementation);
+                                        } else {
+                                            log.info("[{}] Subscription pattern provided [{}] was longer than "
+                                                            + "maximum {}.", remoteAddress, topicsPattern.get(),
+                                                    maxSubscriptionPatternLength);
+                                        }
+                                    }
+                                    String hash = TopicList.calculateHash(filteredTopics);
+                                    boolean hashUnchanged = topicsHash.isPresent() && topicsHash.get().equals(hash);
+                                    if (hashUnchanged) {
+                                        filteredTopics = Collections.emptyList();
+                                    }
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace "
+                                                        + "[//{}] by {}, size:{}", remoteAddress, namespace,
+                                                requestId,
+                                                topics.size());
+                                    }
+                                    commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics, hash, filterTopics,
+                                            !hashUnchanged, requestId, ex -> {
+                                                log.warn("[{}] Failed to acquire direct memory permits for "
+                                                        + "GetTopicsOfNamespace: {}", remoteAddress, ex.getMessage());
+                                                commandSender.sendErrorResponse(requestId, ServerError.TooManyRequests,
+                                                        "Cannot acquire permits for direct memory");
+                                            });
+                                    return CompletableFuture.completedFuture(null);
+                                }, t -> {
+                                    log.warn("[{}] Failed to acquire heap memory permits for "
+                                            + "GetTopicsOfNamespace: {}", remoteAddress, t.getMessage());
+                                    writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
+                                            "Failed due to heap memory limit exceeded"));
+                                    return CompletableFuture.completedFuture(null);
+                                });
+                            }).whenComplete((__, ___) -> {
+                                lookupSemaphore.release();
+                            }).exceptionally(ex -> {
+                                log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}", remoteAddress,
+                                        namespace, requestId);
+                                commandSender.sendErrorResponse(requestId,
+                                        BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
+                                        ex.getMessage());
+                                return null;
+                            });
+                }, t -> {
+                    log.warn("[{}] Failed to acquire initial heap memory permits for GetTopicsOfNamespace: {}",
+                            remoteAddress, t.getMessage());
+                    writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
+                            "Failed due to heap memory limit exceeded"));
+                    return CompletableFuture.completedFuture(null);
+                });
+    }
 
 
     @Override

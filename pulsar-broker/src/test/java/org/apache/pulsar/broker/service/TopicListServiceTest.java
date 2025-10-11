@@ -91,7 +91,7 @@ public class TopicListServiceTest {
         Assert.assertEquals(1, lookupSemaphore.availablePermits());
         verify(topicResources).registerPersistentTopicListener(
                 eq(NamespaceName.get("tenant/ns")), any(TopicListService.TopicListWatcher.class));
-        verify(connection.getCommandSender()).sendWatchTopicListSuccess(7, 13, hash, topics);
+        verify(connection.getCommandSender()).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(topics), any());
     }
 
     @Test

@@ -32,6 +32,7 @@ public class InvalidProxyConfigForAuthorizationTest {
         ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
         proxyConfiguration.setAuthorizationEnabled(true);
         proxyConfiguration.setAuthenticationEnabled(false);
+        proxyConfiguration.setClusterName("test");
         try (ProxyService proxyService = new ProxyService(proxyConfiguration,
                 Mockito.mock(AuthenticationService.class), Mockito.mock(Authentication.class))) {
             proxyService.start();
