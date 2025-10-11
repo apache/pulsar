@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -521,12 +522,14 @@ public class SimpleLoadManagerImplTest {
         AtomicReference<LoadManager> atomicLoadManager = new AtomicReference<>(loadManager);
         ManagedLedgerFactoryImpl factory = mock(ManagedLedgerFactoryImpl.class);
         doReturn(false).when(factory).isMetadataServiceAvailable();
-        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager, null, null, factory);
+        LoadSheddingTask task2 = spy(new LoadSheddingTask(atomicLoadManager, null, null, factory));
         task2.run();
         verify(loadManager, times(0)).doLoadShedding();
+        verify(task2, times(1)).start();
         doReturn(true).when(factory).isMetadataServiceAvailable();
         task2.run();
         verify(loadManager, times(1)).doLoadShedding();
+        verify(task2, times(2)).start();
     }
 
     @Test
