@@ -217,6 +217,12 @@ public class BaseJdbcAutoSchemaSinkTest {
                                             String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
+
+            @Override
+            protected boolean handleDateTime(PreparedStatement statement, int index, Object value,
+                                           String targetSqlType) throws Exception {
+                return false;
+            }
         };
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(org.apache.pulsar.client.api.Schema.STRING);
@@ -243,6 +249,12 @@ public class BaseJdbcAutoSchemaSinkTest {
             protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
                                             String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
+            }
+
+            @Override
+            protected boolean handleDateTime(PreparedStatement statement, int index, Object value,
+                                           String targetSqlType) throws Exception {
+                return false;
             }
         };
 
@@ -293,6 +305,12 @@ public class BaseJdbcAutoSchemaSinkTest {
                                             String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
+
+            @Override
+            protected boolean handleDateTime(PreparedStatement statement, int index, Object value,
+                                           String targetSqlType) throws Exception {
+                return false;
+            }
         };
 
         // Test all primitive type conversions still work
@@ -337,6 +355,12 @@ public class BaseJdbcAutoSchemaSinkTest {
                                             String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
             }
+
+            @Override
+            protected boolean handleDateTime(PreparedStatement statement, int index, Object value,
+                                           String targetSqlType) throws Exception {
+                return false;
+            }
         };
 
         PreparedStatement mockStatement = mock(PreparedStatement.class);
@@ -362,6 +386,12 @@ public class BaseJdbcAutoSchemaSinkTest {
             protected void handleArrayValue(PreparedStatement statement, int index, Object arrayValue,
                                             String targetSqlType) throws Exception {
                 throw new UnsupportedOperationException("Array handling not implemented in test");
+            }
+
+            @Override
+            protected boolean handleDateTime(PreparedStatement statement, int index, Object value,
+                                           String targetSqlType) throws Exception {
+                return false;
             }
         };
 
