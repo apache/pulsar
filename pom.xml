@@ -369,6 +369,7 @@ flexible messaging model and an intuitive client API.</description>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
+    <opentelemetry-proto.version>1.3.2-alpha</opentelemetry-proto.version>
   </properties>
 
   <dependencyManagement>
@@ -1735,6 +1736,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.opentelemetry.semconv</groupId>
         <artifactId>opentelemetry-semconv</artifactId>
         <version>${opentelemetry.semconv.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.proto</groupId>
+        <artifactId>opentelemetry-proto</artifactId>
+        <version>${opentelemetry-proto.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
