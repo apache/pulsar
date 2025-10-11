@@ -900,6 +900,70 @@ public class Namespaces extends NamespacesBase {
     }
 
     @PUT
+    @Path("/{tenant}/{namespace}/lookup")
+    @ApiOperation(value = "Lookup all the bundle in the namespace")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")
+    })
+    public void lookupNamespace(@Suspended final AsyncResponse asyncResponse,
+                                    @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    @QueryParam("loadTopicInBundle")
+                                    @DefaultValue("false") boolean loadTopicInBundle,
+                                    @QueryParam("authoritative")
+                                    @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        internalLookupNamespaceAsync(loadTopicInBundle, authoritative)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully load namespace {}",
+                            clientAppId(), namespace);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to load namespace {}",
+                                clientAppId(), namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{bundle}/lookup")
+    @ApiOperation(value = "Lookup a namespace bundle")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")
+    })
+    public void lookupNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
+                                      @PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace,
+                                      @PathParam("bundle") String bundleRange,
+                                      @QueryParam("loadTopicInBundle") @DefaultValue("false") boolean loadTopicInBundle,
+                                      @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        internalLookupNamespaceBundleAsync(bundleRange, authoritative, loadTopicInBundle,
+                null)
+                .thenAccept(lookupData -> {
+                    log.info("[{}] Successfully load namespace bundle {}",
+                            clientAppId(), bundleRange);
+                    asyncResponse.resume(lookupData);
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to load namespace bundle {}/{}",
+                                clientAppId(), namespaceName, bundleRange, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @PUT
     @Path("/{tenant}/{namespace}/{bundle}/unload")
     @ApiOperation(value = "Unload a namespace bundle")
     @ApiResponses(value = {
