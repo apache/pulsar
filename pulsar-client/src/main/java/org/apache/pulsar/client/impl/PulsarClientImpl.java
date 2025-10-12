@@ -24,9 +24,11 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
-import io.netty.util.HashedWheelTimer;
+import io.netty.resolver.AddressResolver;
+import io.netty.resolver.NameResolver;
 import io.netty.util.Timer;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.time.Duration;
@@ -43,7 +45,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -96,7 +97,7 @@ import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,6 +130,9 @@ public class PulsarClientImpl implements PulsarClient {
     private final ScheduledExecutorProvider scheduledExecutorProvider;
     private final boolean createdEventLoopGroup;
     private final boolean createdCnxPool;
+    private final DnsResolverGroupImpl dnsResolverGroupLocalInstance;
+    @Getter
+    private final AddressResolver<InetSocketAddress> addressResolver;
 
     public enum State {
         Open, Closing, Closed
@@ -168,22 +172,22 @@ public class PulsarClientImpl implements PulsarClient {
     private TransactionCoordinatorClientImpl tcClient;
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
-        this(conf, null, null, null, null, null, null, null);
+        this(conf, null, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, null, null, null, null, null, null);
+        this(conf, eventLoopGroup, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, null, null, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                             Timer timer)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
@@ -192,15 +196,16 @@ public class PulsarClientImpl implements PulsarClient {
                             ScheduledExecutorProvider scheduledExecutorProvider)
             throws PulsarClientException {
         this(conf, eventLoopGroup, connectionPool, timer, externalExecutorProvider, internalExecutorProvider,
-                scheduledExecutorProvider, null);
+                scheduledExecutorProvider, null, null);
     }
 
     @Builder(builderClassName = "PulsarClientImplBuilder")
-    private PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
-                             Timer timer, ExecutorProvider externalExecutorProvider,
-                             ExecutorProvider internalExecutorProvider,
-                             ScheduledExecutorProvider scheduledExecutorProvider,
-                             ExecutorProvider lookupExecutorProvider) throws PulsarClientException {
+    PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
+                     Timer timer, ExecutorProvider externalExecutorProvider,
+                     ExecutorProvider internalExecutorProvider,
+                     ScheduledExecutorProvider scheduledExecutorProvider,
+                     ExecutorProvider lookupExecutorProvider,
+                     DnsResolverGroupImpl dnsResolverGroup) throws PulsarClientException {
 
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
@@ -218,36 +223,60 @@ public class PulsarClientImpl implements PulsarClient {
             this.createdExecutorProviders = externalExecutorProvider == null;
             this.createdScheduledProviders = scheduledExecutorProvider == null;
             this.createdLookupProviders = lookupExecutorProvider == null;
-            eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
+            eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup :
+                    PulsarClientResourcesConfigurer.createEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
-                    new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
-            connectionPoolReference =
-                    connectionPool != null ? connectionPool :
-                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup,
-                                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor());
+                    PulsarClientResourcesConfigurer.createScheduledExecutorProvider(conf);
+            if (connectionPool != null) {
+                connectionPoolReference = connectionPool;
+                dnsResolverGroupLocalInstance = null;
+                addressResolver = dnsResolverGroup != null
+                        ? dnsResolverGroup.createAddressResolver(eventLoopGroupReference) : null;
+            } else {
+                DnsResolverGroupImpl dnsResolverGroupReference;
+                if (dnsResolverGroup == null) {
+                    dnsResolverGroupReference =
+                            dnsResolverGroupLocalInstance =
+                                    PulsarClientResourcesConfigurer.createDnsResolverGroup(conf
+                                    );
+                } else {
+                    dnsResolverGroupReference = dnsResolverGroup;
+                    dnsResolverGroupLocalInstance = null;
+                }
+                addressResolver = dnsResolverGroupReference.createAddressResolver(eventLoopGroupReference);
+                connectionPoolReference = ConnectionPool.builder()
+                        .instrumentProvider(instrumentProvider)
+                        .conf(conf)
+                        .eventLoopGroup(eventLoopGroupReference)
+                        .addressResolverSupplier(Optional.of(() -> addressResolver))
+                        .scheduledExecutorService(
+                                (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor())
+                        .build();
+            }
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
-                    new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
+                    PulsarClientResourcesConfigurer.createExternalExecutorProvider(conf);
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
-                    new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
+                    PulsarClientResourcesConfigurer.createInternalExecutorProvider(conf);
             this.lookupExecutorProvider = lookupExecutorProvider != null ? lookupExecutorProvider :
-                    new ExecutorProvider(1, "pulsar-client-lookup");
+                    PulsarClientResourcesConfigurer.createLookupExecutorProvider();
+            if (timer == null) {
+                this.timer = PulsarClientResourcesConfigurer.createTimer();
+                needStopTimer = true;
+            } else {
+                this.timer = timer;
+            }
             if (conf.getServiceUrl().startsWith("http")) {
-                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
+                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup, this.timer,
+                        getNameResolver());
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
                         conf.isUseTls(), this.scheduledExecutorProvider.getExecutor(),
                         this.lookupExecutorProvider.getExecutor());
-            }
-            if (timer == null) {
-                this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
-                needStopTimer = true;
-            } else {
-                this.timer = timer;
             }
 
             if (conf.getServiceUrlProvider() != null) {
@@ -919,6 +948,14 @@ public class PulsarClientImpl implements PulsarClient {
                 conf.getServiceUrlProvider().close();
             }
 
+            if (addressResolver != null) {
+                addressResolver.close();
+            }
+
+            if (dnsResolverGroupLocalInstance != null) {
+                dnsResolverGroupLocalInstance.close();
+            }
+
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
@@ -1180,7 +1217,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService createLookup(String url) throws PulsarClientException {
         if (url.startsWith("http")) {
-            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup);
+            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup, timer, getNameResolver());
         } else {
             return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
@@ -1254,7 +1291,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<List<String>> getPartitionsForTopic(String topic, boolean metadataAutoCreationEnabled) {
-        return getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled, false).thenApply(metadata -> {
+        return getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled, true).thenApply(metadata -> {
             if (metadata.partitions > 0) {
                 TopicName topicName = TopicName.get(topic);
                 List<String> partitions = new ArrayList<>(metadata.partitions);
@@ -1266,15 +1303,6 @@ public class PulsarClientImpl implements PulsarClient {
                 return Collections.singletonList(topic);
             }
         });
-    }
-
-    private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
-        ThreadFactory threadFactory = getThreadFactory("pulsar-client-io");
-        return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
-    }
-
-    private static ThreadFactory getThreadFactory(String poolName) {
-        return new ExecutorProvider.ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
     void cleanupProducer(ProducerBase<?> producer) {
@@ -1383,5 +1411,9 @@ public class PulsarClientImpl implements PulsarClient {
     // @Override
     public TransactionBuilder newTransaction() {
         return new TransactionBuilderImpl(this, tcClient);
+    }
+
+    NameResolver<InetAddress> getNameResolver() {
+        return DnsResolverUtil.adaptToNameResolver(addressResolver);
     }
 }

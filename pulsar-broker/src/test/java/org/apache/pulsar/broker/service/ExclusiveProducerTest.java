@@ -49,6 +49,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
     @BeforeClass
     protected void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         baseSetup();
     }
 

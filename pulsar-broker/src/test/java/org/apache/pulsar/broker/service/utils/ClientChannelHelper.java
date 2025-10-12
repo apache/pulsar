@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.util.Queue;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
@@ -71,7 +72,7 @@ public class ClientChannelHelper {
     private final PulsarDecoder decoder = new PulsarDecoder() {
 
         @Override
-        protected void messageReceived() {
+        protected void messageReceived(BaseCommand cmd) {
         }
 
         @Override
