@@ -58,7 +58,7 @@ jobs:
       matrix:
         include:
           - name: all modules
-            runs-on: ubuntu-22.04
+            runs-on: ubuntu-24.04
             cache_name: 'm2-dependencies-all'
             mvn_arguments: ''
 
@@ -67,7 +67,7 @@ jobs:
             cache_name: 'm2-dependencies-all'
 
           - name: core-modules
-            runs-on: ubuntu-22.04
+            runs-on: ubuntu-24.04
             cache_name: 'm2-dependencies-core-modules'
             mvn_arguments: '-Pcore-modules,-main'
 
