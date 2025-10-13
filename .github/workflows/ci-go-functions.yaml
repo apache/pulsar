@@ -38,7 +38,7 @@ env:
 jobs:
   preconditions:
     name: Preconditions
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
     steps:
@@ -73,7 +73,7 @@ jobs:
     needs: preconditions
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     name: Go ${{ matrix.go-version }} Functions style check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         go-version: ['1.23']
