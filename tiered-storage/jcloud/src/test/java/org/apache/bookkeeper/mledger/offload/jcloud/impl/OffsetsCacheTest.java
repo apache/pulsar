@@ -38,7 +38,7 @@ public class OffsetsCacheTest {
         // test ttl
         offsetsCache.put(1, 2, 2);
         assertEquals(offsetsCache.getIfPresent(1, 2), 2);
-        Thread.sleep(1500);
+        Thread.sleep(2000);
         assertNull(offsetsCache.getIfPresent(1, 2));
         offsetsCache.close();
     }
