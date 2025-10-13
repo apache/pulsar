@@ -46,7 +46,7 @@ env:
 jobs:
   preconditions:
     name: Preconditions
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: (github.event_name != 'schedule') || (github.repository == 'apache/pulsar')
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
@@ -96,7 +96,7 @@ jobs:
       JOB_NAME: Flaky tests suite
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 100
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
