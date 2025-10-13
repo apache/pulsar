@@ -36,6 +36,10 @@ public interface AsyncDualMemoryLimiter {
      * Returned future completes when memory permits are available.
      * It will complete exceptionally with AsyncSemaphore.PermitAcquireTimeoutException on timeout
      * and exceptionally with AsyncSemaphore.PermitAcquireQueueFullException when queue full
+     *
+     * @param memorySize  the size of memory to acquire permits for
+     * @param limitType   the type of memory limit (HEAP_MEMORY or DIRECT_MEMORY)
+     * @param isCancelled supplier that returns true if acquisition should be cancelled
      * @return CompletableFuture that completes with permit when available
      */
     CompletableFuture<AsyncDualMemoryLimiterPermit> acquire(long memorySize, LimitType limitType,
@@ -48,16 +52,22 @@ public interface AsyncDualMemoryLimiter {
      * and exceptionally with AsyncSemaphore.PermitAcquireQueueFullException when queue full
      * The provided permit is released when the permits are successfully acquired and the returned updated
      * permit replaces the old instance.
+     *
+     * @param permit        the previously acquired permit to update
+     * @param newMemorySize the new memory size to update to
+     * @param isCancelled   supplier that returns true if update should be cancelled
      * @return CompletableFuture that completes with permit when available
      */
     CompletableFuture<AsyncDualMemoryLimiterPermit> update(AsyncDualMemoryLimiterPermit permit, long newMemorySize,
                                                            BooleanSupplier isCancelled);
+
     /**
      * Release previously acquired permit.
      * Must be called to prevent memory permit leaks.
+     *
+     * @param permit the permit to release
      */
     void release(AsyncDualMemoryLimiterPermit permit);
-
     /**
      * Execute the specified function with acquired permits and release the permits after the returned future completes.
      * @param memorySize memory size to acquire permits for
@@ -95,7 +105,7 @@ public interface AsyncDualMemoryLimiter {
     }
 
     /**
-     * Represents a permit for memory limiting that can be updated or released.
+     * Represents an acquired permit for memory limiting that can be updated or released.
      */
     interface AsyncDualMemoryLimiterPermit {
         long getPermits();

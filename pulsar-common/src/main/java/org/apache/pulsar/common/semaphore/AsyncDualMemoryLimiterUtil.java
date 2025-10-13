@@ -33,6 +33,17 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemory
 @UtilityClass
 public class AsyncDualMemoryLimiterUtil {
 
+    /**
+     * Execute a function with acquired permits and ensure permits are released after completion.
+     * This method handles the lifecycle of permits - acquisition, usage, and release, including error cases.
+     *
+     * @param permitsFuture             Future that will complete with the required permits
+     * @param function                  Function to execute once permits are acquired that returns a CompletableFuture
+     * @param permitAcquireErrorHandler Handler for permit acquisition errors that returns a CompletableFuture
+     * @param releaser                  Consumer that handles releasing the permits
+     * @param <T>                       The type of result returned by the function
+     * @return CompletableFuture that completes with the result of the function execution
+     */
     public static <T> CompletableFuture<T> withPermitsFuture(
             CompletableFuture<AsyncDualMemoryLimiterPermit>
                     permitsFuture,
@@ -67,13 +78,15 @@ public class AsyncDualMemoryLimiterUtil {
     }
 
     /**
-     * Acquire permits and write the command as the response to the channel.
-     * Releases the permits after the response has been written to the socket or the write fails.
+     * Acquires permits and writes the command as a response to the channel.
+     * Releases the permits after the response has been written to the socket or if the write fails.
      *
-     * @param ctx               the channel handler context.
-     * @param dualMemoryLimiter the memory limiter to acquire permits from.
-     * @param command           the command to write to the channel.
-     * @return a future that completes when the command has been written to the channel's outbound buffer.
+     * @param ctx the channel handler context used for writing the response
+     * @param dualMemoryLimiter the memory limiter used to acquire and release memory permits
+     * @param isCancelled supplier that indicates if the permit acquisition should be cancelled
+     * @param command the base command to serialize and write to the channel
+     * @param permitAcquireErrorHandler handler for errors that occur during permit acquisition
+     * @return a future that completes when the command has been written to the channel's outbound buffer
      */
     public static CompletableFuture<Void> acquireDirectMemoryPermitsAndWriteAndFlush(ChannelHandlerContext ctx,
                                                                                      AsyncDualMemoryLimiter
@@ -105,7 +118,6 @@ public class AsyncDualMemoryLimiterUtil {
                         dualMemoryLimiter.release(permits);
                         throw e;
                     }
-                }).thenAccept(__ -> {
-                });
+                }).thenApply(__ -> null);
     }
 }

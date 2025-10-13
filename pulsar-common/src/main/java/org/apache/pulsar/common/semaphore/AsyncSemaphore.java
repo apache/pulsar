@@ -30,6 +30,9 @@ public interface AsyncSemaphore {
      * Returned future completes when permits are available.
      * It will complete exceptionally with AsyncSemaphorePermitAcquireTimeoutException on timeout
      * and exceptionally with AsyncSemaphorePermitAcquireQueueFullException when queue full
+     *
+     * @param permits     number of permits to acquire
+     * @param isCancelled supplier that returns true if acquisition should be cancelled
      * @return CompletableFuture that completes with permit when available
      */
     CompletableFuture<AsyncSemaphorePermit> acquire(long permits, BooleanSupplier isCancelled);
@@ -39,16 +42,22 @@ public interface AsyncSemaphore {
      * Returns a future that completes when permits are available.
      * It will complete exceptionally with AsyncSemaphorePermitAcquireTimeoutException on timeout
      * and exceptionally with AsyncSemaphorePermitAcquireQueueFullException when queue full
+     *
+     * @param permit      previously acquired permit to update
+     * @param newPermits  new number of permits to update to
+     * @param isCancelled supplier that returns true if update should be cancelled
      * @return CompletableFuture that completes with permit when available
      */
     CompletableFuture<AsyncSemaphorePermit> update(AsyncSemaphorePermit permit, long newPermits,
                                                    BooleanSupplier isCancelled);
+
     /**
      * Release previously acquired permit.
      * Must be called to prevent permit leaks.
+     *
+     * @param permit permit to release
      */
     void release(AsyncSemaphorePermit permit);
-
     /**
      * Get the number of available permits.
      */
@@ -64,6 +73,9 @@ public interface AsyncSemaphore {
      */
     int getQueueSize();
 
+    /**
+     * Abstract base class for all exceptions thrown by acquire or update.
+     */
     abstract class PermitAcquireException extends RuntimeException {
         public PermitAcquireException(String message) {
             super(message);
@@ -88,12 +100,18 @@ public interface AsyncSemaphore {
         }
     }
 
+    /**
+     * Exception thrown when permit acquisition is attempted on a closed semaphore.
+     */
     class PermitAcquireAlreadyClosedException extends PermitAcquireException {
         public PermitAcquireAlreadyClosedException(String message) {
             super(message);
         }
     }
 
+    /**
+     * Exception thrown when permit acquisition is cancelled.
+     */
     class PermitAcquireCancelledException extends PermitAcquireException {
         public PermitAcquireCancelledException(String message) {
             super(message);
@@ -101,7 +119,7 @@ public interface AsyncSemaphore {
     }
 
     /**
-     * Represents a permit that can be updated or released.
+     * Represents an acquired permit that can be updated or released.
      */
     interface AsyncSemaphorePermit {
         long getPermits();
