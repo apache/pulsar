@@ -174,7 +174,8 @@ function test_group_other() {
            -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution,!org.apache.pulsar:pulsar-docker-image,!org.apache.pulsar:pulsar-all-docker-image' \
            -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true -DskipIntegrationTests \
            -Dexclude='**/ManagedLedgerTest.java,
-                   **/OffloadersCacheTest.java
+                   **/OffloadersCacheTest.java,
+                   **/OffsetsCacheTest.java,
                   **/PrimitiveSchemaTest.java,
                   **/BlobStoreManagedLedgerOffloaderTest.java,
                   **/BlobStoreManagedLedgerOffloaderStreamingTest.java'
@@ -184,6 +185,7 @@ function test_group_other() {
 
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderStreamingTest.java'
+  mvn_test -pl tiered-storage/jcloud -Dinclude='**/OffsetsCacheTest.java'
 
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \
