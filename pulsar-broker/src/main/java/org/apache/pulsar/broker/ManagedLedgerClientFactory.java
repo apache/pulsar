@@ -113,6 +113,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 conf.getManagedLedgerInfoCompressionThresholdInBytes());
         managedLedgerFactoryConfig.setStatsPeriodSeconds(conf.getManagedLedgerStatsPeriodSeconds());
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
+        managedLedgerFactoryConfig.setNumManagedLedgerOffloadSchedulerThreads(
+                conf.getManagedLedgerNumOffloadSchedulerThreads());
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionThresholdInBytes(
                 conf.getManagedCursorInfoCompressionThresholdInBytes());
 

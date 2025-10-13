@@ -122,6 +122,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Getter
     private final ScheduledExecutorService cacheEvictionExecutor;
 
+    // Dedicated thread pool for offload operations to isolate from core services
+    @Getter
+    private final OrderedScheduler offloadScheduler;
+
     @Getter
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
@@ -234,6 +238,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .build();
         cacheEvictionExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
+
+        // Create dedicated scheduler for offload operations to prevent blocking core services
+        // Use a conservative thread count to minimize resource overhead while ensuring adequate capacity
+        int offloadThreads = config.getNumManagedLedgerOffloadSchedulerThreads();
+        offloadScheduler = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(offloadThreads)
+                .statsLogger(statsLogger)
+                .traceTaskExecution(config.isTraceTaskExecution())
+                .name("bookkeeper-ml-offload-scheduler")
+                .build();
+        log.info("Created offload scheduler with {} threads for ML operations isolation", offloadThreads);
         this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
@@ -647,6 +662,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         flushCursorsTask.cancel(true);
         cacheEvictionExecutor.shutdownNow();
 
+        // Shutdown offload scheduler
+        if (offloadScheduler != null) {
+            offloadScheduler.shutdownNow();
+        }
+
         List<String> ledgerNames = new ArrayList<>(this.ledgers.keySet());
         List<CompletableFuture<Void>> futures = new ArrayList<>(ledgerNames.size());
         int numLedgers = ledgerNames.size();
@@ -1037,7 +1057,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                 return OffloadUtils.cleanupOffloaded(li.ledgerId, uuid, mlConfig,
                                         OffloadUtils.getOffloadDriverMetadata(ls,
                                                 mlConfig.getLedgerOffloader().getOffloadDriverMetadata()),
-                                        "Deletion", managedLedgerName, scheduledExecutor);
+                                        "Deletion", managedLedgerName, offloadScheduler);
                             }
 
                             return CompletableFuture.completedFuture(null);
