@@ -2645,6 +2645,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             remoteAddress, t.getMessage());
                     writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
                             "Failed due to heap memory limit exceeded"));
+                    lookupSemaphore.release();
                     return CompletableFuture.completedFuture(null);
                 });
     }
