@@ -78,7 +78,12 @@ public class ServiceConfigurationTest {
         assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
         assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
         assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
-        assertEquals(config.isCreateTopicToRemoteClusterForReplication(), false);
+        assertEquals(config.getPulsarChannelWriteBufferHighWaterMark(), 60000);
+        assertEquals(config.getPulsarChannelWriteBufferLowWaterMark(), 120000);
+        assertEquals(config.isPulsarChannelPauseReceivingRequestsIfUnwritable(), true);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownMs(), 10_000);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownRateLimitPermits(), 100);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownRateLimitPeriodMs(), 200);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }

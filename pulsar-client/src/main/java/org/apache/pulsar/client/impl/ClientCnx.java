@@ -1242,7 +1242,7 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<CommandWatchTopicListSuccess> requestFuture =
                 (CompletableFuture<CommandWatchTopicListSuccess>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(commandWatchTopicListSuccess);
+            requestFuture.complete(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
         } else {
             duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}",

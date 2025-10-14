@@ -35,6 +35,7 @@ public class PartitionedTopicProducerStatsRecorderImpl extends ProducerStatsReco
     private final DoubleAdder sendMsgsRateAggregate;
     private final DoubleAdder sendBytesRateAggregate;
     private int partitions = 0;
+    private int pendingQueueSize;
 
     public PartitionedTopicProducerStatsRecorderImpl() {
         super();
@@ -46,6 +47,7 @@ public class PartitionedTopicProducerStatsRecorderImpl extends ProducerStatsReco
     void reset() {
         super.reset();
         partitions = 0;
+        pendingQueueSize = 0;
     }
 
     void updateCumulativeStats(String partition, ProducerStats stats) {
@@ -58,6 +60,7 @@ public class PartitionedTopicProducerStatsRecorderImpl extends ProducerStatsReco
         sendMsgsRateAggregate.add(stats.getSendMsgsRate());
         sendBytesRateAggregate.add(stats.getSendBytesRate());
         partitions++;
+        pendingQueueSize += stats.getPendingQueueSize();
     }
 
     @Override
@@ -73,6 +76,11 @@ public class PartitionedTopicProducerStatsRecorderImpl extends ProducerStatsReco
     @Override
     public Map<String, ProducerStats> getPartitionStats() {
         return partitionStats;
+    }
+
+    @Override
+    public int getPendingQueueSize() {
+        return pendingQueueSize;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedTopicProducerStatsRecorderImpl.class);

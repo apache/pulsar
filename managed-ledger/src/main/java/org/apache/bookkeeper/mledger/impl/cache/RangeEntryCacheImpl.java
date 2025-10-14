@@ -152,7 +152,8 @@ public class RangeEntryCacheImpl implements EntryCache {
 
         Position position = entry.getPosition();
         ReferenceCountedEntry cacheEntry =
-                EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler());
+                EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
+                            entry.getMessageMetadata());
         cachedData.release();
         if (entries.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);

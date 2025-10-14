@@ -48,6 +48,7 @@ class RangeCacheEntryWrapper {
     long size;
     long timestampNanos;
     int requeueCount;
+    boolean messageMetadataInitialized;
     volatile boolean accessed;
 
     private RangeCacheEntryWrapper(Recycler.Handle<RangeCacheEntryWrapper> recyclerHandle) {
@@ -114,12 +115,12 @@ class RangeCacheEntryWrapper {
         long stamp = lock.tryOptimisticRead();
         Position localKey = this.key;
         ReferenceCountedEntry localValue = this.value;
-        boolean messageMetadataInitialized = localValue != null && localValue.getMessageMetadata() != null;
+        boolean messageMetadataInitialized = this.messageMetadataInitialized;
         if (!lock.validate(stamp)) {
             stamp = lock.readLock();
             localKey = this.key;
             localValue = this.value;
-            messageMetadataInitialized = localValue != null && localValue.getMessageMetadata() != null;
+            messageMetadataInitialized = this.messageMetadataInitialized;
             lock.unlockRead(stamp);
         }
         // check that the given key matches the key associated with the value in the entry
@@ -136,8 +137,9 @@ class RangeCacheEntryWrapper {
                 if (wrapper.key != key && (requireSameKeyInstance || wrapper.key == null || !wrapper.key.equals(key))) {
                     return null;
                 }
-                if (wrapper.value instanceof EntryImpl entry) {
+                if (wrapper.value instanceof EntryImpl entry && !this.messageMetadataInitialized) {
                     entry.initializeMessageMetadataIfNeeded(managedLedgerName);
+                    this.messageMetadataInitialized = true;
                 }
                 return wrapper.value;
             });

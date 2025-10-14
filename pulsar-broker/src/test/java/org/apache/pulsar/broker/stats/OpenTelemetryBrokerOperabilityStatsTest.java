@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricHistogramValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.opentelemetry.api.common.Attributes;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -100,5 +103,28 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
                 ConnectionCreateStatus.SUCCESS.attributes, 1);
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_CREATE_COUNTER_METRIC_NAME,
                 ConnectionCreateStatus.FAILURE.attributes, 1);
+    }
+
+    @Test
+    public void testPublishLatency() throws Exception {
+        final var topicName = BrokerTestUtil.newUniqueName("persistent://my-namespace/use/my-ns/testPublishLatency");
+        @Cleanup
+        final var producer = pulsarClient.newProducer().topic(topicName).create();
+
+        producer.send(("msg").getBytes());
+
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricHistogramValue(metrics, BrokerOperabilityMetrics.TOPIC_PUBLISH_LATENCY_METRIC_NAME,
+                Attributes.empty(), count -> assertThat(count).isEqualTo(1L),
+                sum -> assertThat(sum).isGreaterThan(0.0));
+
+        for (int i = 0; i < 9; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricHistogramValue(metrics, BrokerOperabilityMetrics.TOPIC_PUBLISH_LATENCY_METRIC_NAME,
+                Attributes.empty(), count -> assertThat(count).isEqualTo(10L),
+                sum -> assertThat(sum).isGreaterThan(0.0));
     }
 }

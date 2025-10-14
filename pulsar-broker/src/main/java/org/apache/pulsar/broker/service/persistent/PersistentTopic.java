@@ -323,6 +323,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     // The last position that can be dispatched to consumers
     private volatile Position lastDispatchablePosition;
 
+    // Cache the latest publish timestamp for idle topics to avoid repeated storage reads.
+    // This cache is only used when the ledger doesn't have the timestamp (ledgerLastAddTime <= 0),
+    // which typically happens for topics with no recent write activity.
+    // For active topics, the ledger provides the timestamp directly, so this cache is cleared.
+    private volatile long cachedLastPublishTimestamp;
+
     /***
      * We use 3 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
      * the in-progress one when it is called the second time.
@@ -2857,21 +2863,33 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ? null
             : oldestPositionInfo.getCursorName();
 
-        // Set the last publish timestamp using a hybrid approach:
-        // 1. First try ledger.getLastAddEntryTime() if available
-        // 2. If needed, read the last message to get actual publish time
+        // Set the last publish timestamp using a hybrid approach to minimize storage reads:
+        // 1. If ledger has the timestamp (ledgerLastAddTime > 0), use it directly - this means
+        //    the topic has recent write activity and the ledger's cached value is fresh
+        // 2. If ledger doesn't have it (topic is idle), try to use our cached value first
+        // 3. If no cache available, read from storage and cache the result for future calls
         long ledgerLastAddTime = ledger.getLastAddEntryTime();
         CompletableFuture<Long> lastPublishTimeFuture;
 
+        boolean usedLedgerValue = false;
         if (ledgerLastAddTime > 0) {
-            // Use ledger's last add time as a good approximation
+            // Topic has recent activity - use ledger's value and clear the cache since
+            // we don't need it for active topics (ledger will keep providing the value)
+            cachedLastPublishTimestamp = 0;
             stats.lastPublishTimeStamp = ledgerLastAddTime;
             lastPublishTimeFuture = CompletableFuture.completedFuture(ledgerLastAddTime);
+            usedLedgerValue = true;
         } else {
-            // Fallback to reading the last message to get actual publish time
-            stats.lastPublishTimeStamp = 0; // Will be updated below if we can read the message
-            lastPublishTimeFuture = getLastMessagePublishTime();
+            // Topic is idle - try to use cached value to avoid storage read
+            if (cachedLastPublishTimestamp > 0) {
+                lastPublishTimeFuture = CompletableFuture.completedFuture(cachedLastPublishTimestamp);
+            } else {
+                // No cache available - read from storage and cache the result
+                stats.lastPublishTimeStamp = 0; // Will be updated below if we can read the message
+                lastPublishTimeFuture = getLastMessagePublishTime();
+            }
         }
+        boolean finalUsedLedgerValue = usedLedgerValue;
 
         // Set the topic creation timestamp - get it directly since it's synchronous
         stats.topicCreationTimeStamp = getTopicCreationTimeStamp();
@@ -2893,7 +2911,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // Combine all async operations: last publish time and subscription stats
         CompletableFuture<Void> combinedFutures = CompletableFuture.allOf(
-            lastPublishTimeFuture.thenAccept(time -> stats.lastPublishTimeStamp = time)
+            lastPublishTimeFuture.thenAccept(time -> {
+                // Only update the cache if we didn't use the ledger value
+                // (i.e., we used the cached value or read from storage)
+                if (!finalUsedLedgerValue) {
+                    cachedLastPublishTimestamp = time;
+                }
+                stats.lastPublishTimeStamp = time;
+            })
         );
 
         return combinedFutures.thenCompose(ignore ->

@@ -140,11 +140,11 @@ public interface Schema<T> extends Cloneable {
     }
 
     default T decode(String topic, ByteBuffer data, byte[] schemaId) {
-        return decode(data, schemaId);
+        throw new UnsupportedOperationException("Not implemented");
     }
 
     default T decode(String topic, byte[] data, byte[] schemaId) {
-        return decode(data, schemaId);
+        throw new UnsupportedOperationException("Not implemented");
     }
 
     /**

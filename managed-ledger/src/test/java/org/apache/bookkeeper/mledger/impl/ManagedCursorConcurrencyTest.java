@@ -309,10 +309,10 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), addedEntries.get(addedEntries.size() - 1));
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 30000, invocationCount = 10)
     public void testConcurrentReadOfSameEntry() throws Exception {
         ManagedLedger ledger = factory.open("testConcurrentReadOfSameEntry", new ManagedLedgerConfig());
-        final int numCursors = 5;
+        final int numCursors = 20;
         final List<ManagedCursor> cursors = new ArrayList();
         for (int i = 0; i < numCursors; i++) {
             final ManagedCursor cursor = ledger.openCursor("c" + i);

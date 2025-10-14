@@ -96,7 +96,7 @@ public class SupportVersioningKeyValueSchemaTest {
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl) keyValueSchema).decode(
-                null, fooSchema.encode(foo), encodeBytes, new byte[10]);
+                fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
                 KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
@@ -157,7 +157,7 @@ public class SupportVersioningKeyValueSchemaTest {
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl) keyValueSchema).decode(
-                null, fooSchema.encode(foo), encodeBytes, new byte[10]);
+                fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
                 KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),

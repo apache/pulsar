@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabled;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -49,7 +49,7 @@ public class MultiVersionAvroReader<T> extends AbstractMultiVersionAvroBaseReade
                         SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                         schemaInfo.getSchemaDefinition(), schemaInfo);
             }
-            boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
+            boolean jsr310ConversionEnabled = getJsr310ConversionEnabled(schemaInfo);
             return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()),
                     readerSchema, pojoClassLoader, jsr310ConversionEnabled);
         } else {
