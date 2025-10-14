@@ -28,8 +28,8 @@ public interface AsyncSemaphore {
     /**
      * Acquire permits from the semaphore.
      * Returned future completes when permits are available.
-     * It will complete exceptionally with AsyncSemaphorePermitAcquireTimeoutException on timeout
-     * and exceptionally with AsyncSemaphorePermitAcquireQueueFullException when queue full
+     * It will complete exceptionally with AsyncSemaphore.PermitAcquireTimeoutException on timeout
+     * and exceptionally with AsyncSemaphore.PermitAcquireQueueFullException when queue full
      *
      * @param permits     number of permits to acquire
      * @param isCancelled supplier that returns true if acquisition should be cancelled
@@ -40,8 +40,8 @@ public interface AsyncSemaphore {
     /**
      * Acquire or release permits for previously acquired permits by updating the permits.
      * Returns a future that completes when permits are available.
-     * It will complete exceptionally with AsyncSemaphorePermitAcquireTimeoutException on timeout
-     * and exceptionally with AsyncSemaphorePermitAcquireQueueFullException when queue full
+     * It will complete exceptionally with AsyncSemaphore.PermitAcquireTimeoutException on timeout
+     * and exceptionally with AsyncSemaphore.PermitAcquireQueueFullException when queue full
      *
      * @param permit      previously acquired permit to update
      * @param newPermits  new number of permits to update to
