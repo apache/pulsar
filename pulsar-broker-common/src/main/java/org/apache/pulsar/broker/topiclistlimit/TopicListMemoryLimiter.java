@@ -193,7 +193,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
                 .quantile(0.99, 0.01)
                 .quantile(1, 0.01)
                 .create());
-        this.otelHeapWaitTime = openTelemetryMeter.histogramBuilder("topic.list.heap.wait.time.ms")
+        this.otelHeapWaitTime = openTelemetryMeter.histogramBuilder("topic.list.heap.wait.time")
                 .setUnit("s")
                 .setDescription("Wait time for heap memory permits")
                 .build();
@@ -205,7 +205,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
                 .quantile(0.99, 0.01)
                 .quantile(1, 0.01)
                 .create());
-        this.otelDirectWaitTime = openTelemetryMeter.histogramBuilder("topic.list.direct.wait.time.ms")
+        this.otelDirectWaitTime = openTelemetryMeter.histogramBuilder("topic.list.direct.wait.time")
                 .setUnit("s")
                 .setDescription("Wait time for direct memory permits")
                 .build();
