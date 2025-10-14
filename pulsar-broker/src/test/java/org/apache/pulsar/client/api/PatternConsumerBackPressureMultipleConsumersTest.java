@@ -144,6 +144,8 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
                             });
                 } catch (Exception e) {
                     semaphore.release();
+                    latch.countDown();
+                    log.error("Failed to execute getTopicsUnderNamespace request.", e);
                 }
             });
         }
