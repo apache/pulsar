@@ -105,7 +105,7 @@ public final class ServerCnxThrottleTracker {
          * <p><b>Type:</b> Non-reentrant
          * <p><b>Configuration:</b> {@link ServiceConfiguration#getMaxPendingPublishRequestsPerConnection()}
          */
-        ConnectionMaxQuantityOfInFlightPublishing(false),
+        ConnectionMaxPendingPublishRequestsExceeded(false),
 
         /**
          * Throttling due to excessive memory usage by in-flight publish operations on the IO thread.
@@ -117,7 +117,7 @@ public final class ServerCnxThrottleTracker {
          * <p><b>Type:</b> Non-reentrant
          * <p><b>Configuration:</b> {@link ServiceConfiguration#getMaxMessagePublishBufferSizeInMB()}
          */
-        IOThreadMaxBytesOfInFlightPublishing(false),
+        IOThreadMaxPendingPublishBytesExceeded(false),
 
         /**
          * Throttling due to topic-level publish rate limiting.
@@ -419,7 +419,7 @@ public final class ServerCnxThrottleTracker {
      * @param res the result of the throttling operation
      */
     private void recordMetricsAfterThrottling(ThrottleType type, ThrottleRes res) {
-        if (type == ThrottleType.ConnectionMaxQuantityOfInFlightPublishing && res != ThrottleRes.Dropped) {
+        if (type == ThrottleType.ConnectionMaxPendingPublishRequestsExceeded && res != ThrottleRes.Dropped) {
             serverCnx.getBrokerService().recordConnectionThrottled();
         }
         if (res == ThrottleRes.ConnectionStateChanged && isChannelActive()) {
@@ -441,7 +441,7 @@ public final class ServerCnxThrottleTracker {
      * @param res the result of the unthrottling operation
      */
     private void recordMetricsAfterUnthrottling(ThrottleType type, ThrottleRes res) {
-        if (type == ThrottleType.ConnectionMaxQuantityOfInFlightPublishing && res != ThrottleRes.Dropped) {
+        if (type == ThrottleType.ConnectionMaxPendingPublishRequestsExceeded && res != ThrottleRes.Dropped) {
             serverCnx.getBrokerService().recordConnectionUnthrottled();
         }
         if (res == ThrottleRes.ConnectionStateChanged && isChannelActive()) {

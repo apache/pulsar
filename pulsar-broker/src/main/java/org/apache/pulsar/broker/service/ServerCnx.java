@@ -285,7 +285,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     && !limitExceeded) {
                 limitExceeded = true;
                 cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.markThrottled(
-                        ThrottleType.IOThreadMaxBytesOfInFlightPublishing));
+                        ThrottleType.IOThreadMaxPendingPublishBytesExceeded));
             }
         }
 
@@ -296,7 +296,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (limitExceeded && pendingBytes <= resumeThresholdPendingBytesPerThread) {
                 limitExceeded = false;
                 cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.unmarkThrottled(
-                        ThrottleType.IOThreadMaxBytesOfInFlightPublishing));
+                        ThrottleType.IOThreadMaxPendingPublishBytesExceeded));
             }
         }
     }
@@ -3404,7 +3404,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // or the pending publish bytes
     private void increasePendingSendRequestsAndPublishBytes(int msgSize) {
         if (++pendingSendRequest == maxPendingSendRequests) {
-            throttleTracker.markThrottled(ThrottleType.ConnectionMaxQuantityOfInFlightPublishing);
+            throttleTracker.markThrottled(ThrottleType.ConnectionMaxPendingPublishRequestsExceeded);
         }
         PendingBytesPerThreadTracker.getInstance().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
@@ -3429,7 +3429,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         PendingBytesPerThreadTracker.getInstance().decrementPublishBytes(msgSize, resumeThresholdPendingBytesPerThread);
 
         if (--pendingSendRequest == resumeReadsThreshold) {
-            throttleTracker.unmarkThrottled(ThrottleType.ConnectionMaxQuantityOfInFlightPublishing);
+            throttleTracker.unmarkThrottled(ThrottleType.ConnectionMaxPendingPublishRequestsExceeded);
         }
 
         if (isNonPersistentTopic) {
