@@ -19,8 +19,9 @@
 package org.apache.pulsar.common.semaphore;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -41,9 +42,8 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(AsyncSemaphoreImpl.class);
 
     private final AtomicLong availablePermits;
-    private final ConcurrentLinkedQueue<PendingRequest> queue = new ConcurrentLinkedQueue<>();
+    private final Queue<PendingRequest> queue;
     private final long maxPermits;
-    private final int maxQueueSize;
     private final long timeoutMillis;
     private final ScheduledExecutorService executor;
     private final boolean shutdownExecutor;
@@ -64,7 +64,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                        boolean shutdownExecutor, LongConsumer queueLatencyRecorder) {
         this.availablePermits = new AtomicLong(maxPermits);
         this.maxPermits = maxPermits;
-        this.maxQueueSize = maxQueueSize;
+        this.queue = new ArrayBlockingQueue<>(maxQueueSize);
         this.timeoutMillis = timeoutMillis;
         this.executor = executor;
         this.shutdownExecutor = shutdownExecutor;
@@ -94,14 +94,12 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
             return future;
         }
 
-        if (queue.size() >= maxQueueSize) {
+        PendingRequest request = new PendingRequest(permits, acquirePermits, future, isCancelled);
+        if (!queue.offer(request)) {
             future.completeExceptionally(new PermitAcquireQueueFullException(
                     "Semaphore queue is full"));
             return future;
         }
-
-        PendingRequest request = new PendingRequest(permits, acquirePermits, future, isCancelled);
-        queue.add(request);
         // Schedule timeout
         ScheduledFuture<?> timeoutTask = executor.schedule(() -> {
             if (!request.future.isDone() && queue.remove(request)) {
