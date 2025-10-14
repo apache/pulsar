@@ -59,18 +59,6 @@ public interface TableView<T> extends Closeable {
      */
     T get(String key);
 
-    /**
-     * Returns the raw Pulsar {@link Message} object associated with the specified key.
-     *
-     * <p>This method allows access to the original Pulsar message containing raw payload bytes,
-     * message properties, message ID, and other metadata. It is useful for scenarios where
-     * clients require access to the entire message beyond the deserialized value {@code T}
-     * provided by {@link #get(String)}.
-     *
-     * @param key the key whose associated raw message is to be returned
-     * @return the raw {@link Message} object associated with the key, or {@code null} if no mapping exists
-     */
-    Message<?> getRawMessage(String key);
 
     /**
      * Returns a Set view of the mappings contained in this map.

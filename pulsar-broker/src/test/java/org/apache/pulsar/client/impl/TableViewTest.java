@@ -626,8 +626,8 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetRawMessage() throws Exception {
-        String topic = "persistent://public/default/testGetRawMessage";
+    public void testCreateForMessages() throws Exception {
+        String topic = "persistent://public/default/testCreateForMessages";
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
@@ -642,20 +642,20 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .send();
 
         @Cleanup
-        TableView<String> tableView = pulsarClient.newTableView(Schema.STRING)
+        TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
-                .create();
+                .createForMessages();
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
 
-        Message<?> rawMessage = tableView.getRawMessage(testKey);
-        assertTrue(rawMessage != null, "Raw message should not be null for key: " + testKey);
-        assertEquals(rawMessage.getKey(), testKey);
-        assertEquals(new String(rawMessage.getData()), testValue);
-        assertEquals(rawMessage.getProperty("myProp"), "myValue");
+        Message<String> message = tableView.get(testKey);
+        Assert.assertNotNull(message, "Message should not be null for key: " + testKey);
+        assertEquals(message.getKey(), testKey);
+        assertEquals(message.getValue(), testValue);
+        assertEquals(message.getProperty("myProp"), "myValue");
 
-        Message<?> missingMessage = tableView.getRawMessage("missingKey");
-        assertTrue(missingMessage == null, "Raw message should be null for missing key");
+        Message<String> missingMessage = tableView.get("missingKey");
+        Assert.assertNull(missingMessage, "Message should be null for missing key");
     }
 
 }

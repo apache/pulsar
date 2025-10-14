@@ -24,12 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.client.api.TableViewBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
@@ -63,6 +58,20 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     @Override
     public CompletableFuture<TableView<T>> createAsync() {
        return new TableViewImpl<>(client, schema, conf).start();
+    }
+
+    @Override
+    public TableView<Message<T>> createForMessages() throws PulsarClientException {
+        try {
+            return createForMessagesAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TableView<Message<T>>> createForMessagesAsync() {
+        return new MessageTableViewImpl<>(client, schema, conf).start();
     }
 
     @Override
