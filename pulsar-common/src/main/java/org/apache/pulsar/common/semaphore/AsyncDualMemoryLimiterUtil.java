@@ -113,7 +113,7 @@ public class AsyncDualMemoryLimiterUtil {
                             // Release permits after the response has been written to the socket
                             dualMemoryLimiter.release(permits);
                         });
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         // Return permits if an exception occurs before writeAndFlush is called successfully
                         dualMemoryLimiter.release(permits);
                         throw e;
