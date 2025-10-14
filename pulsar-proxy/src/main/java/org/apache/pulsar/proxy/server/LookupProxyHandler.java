@@ -406,7 +406,7 @@ public class LookupProxyHandler {
                     log.warn("[{}] Failed to acquire actual direct memory permits for GetTopicsOfNamespace: {}",
                             clientAddress, t.getMessage());
                     writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
-                            "Failed due to heap memory limit exceeded"));
+                            "Failed due to direct memory limit exceeded"));
                 });
     }
 
