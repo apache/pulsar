@@ -26,6 +26,7 @@ import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
@@ -365,26 +366,29 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     /***
      * @param topics topic names which are matching, the topic name contains the partition suffix.
+     * @return
      */
     @Override
-    public void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics,
-                                          Consumer<Throwable> permitAcquireErrorHandler) {
+    public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                             List<String> topics,
+                                                             Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
         safeIntercept(command, cnx);
-        acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
                 command, permitAcquireErrorHandler);
     }
 
     /***
      * {@inheritDoc}
+     * @return
      */
     @Override
-    public void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash,
-                                         Consumer<Throwable> permitAcquireErrorHandler) {
+    public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
+                                                            List<String> deletedTopics, String topicsHash,
+                                                            Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
         safeIntercept(command, cnx);
-        acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
                 command, permitAcquireErrorHandler);
     }
 

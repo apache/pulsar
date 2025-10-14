@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.service;
 import io.netty.util.concurrent.Future;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -94,10 +95,11 @@ public interface PulsarCommandSender {
 
     void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
 
-    void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics,
-                                   Consumer<Throwable> permitAcquireErrorHandler);
+    CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                      List<String> topics,
+                                                      Consumer<Throwable> permitAcquireErrorHandler);
 
-    void sendWatchTopicListUpdate(long watcherId,
+    CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId,
                                   List<String> newTopics, List<String> deletedTopics, String topicsHash,
                                   Consumer<Throwable> permitAcquireErrorHandler);
 }
