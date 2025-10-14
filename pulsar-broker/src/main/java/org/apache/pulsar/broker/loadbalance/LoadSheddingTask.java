@@ -59,11 +59,11 @@ public class LoadSheddingTask implements Runnable {
         if (isCancel) {
             return;
         }
-        if (factory instanceof ManagedLedgerFactoryImpl
-                && !((ManagedLedgerFactoryImpl) factory).isMetadataServiceAvailable()) {
-            return;
-        }
         try {
+            if (factory instanceof ManagedLedgerFactoryImpl
+                    && !((ManagedLedgerFactoryImpl) factory).isMetadataServiceAvailable()) {
+                return;
+            }
             loadManager.get().doLoadShedding();
         } catch (Exception e) {
             LOG.warn("Error during the load shedding", e);
