@@ -34,6 +34,7 @@ import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -2586,7 +2587,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
                     return getBrokerService().pulsar().getNamespaceService().getListOfUserTopics(namespaceName, mode)
                             .thenAccept(topics -> {
-                                long actualSize = topics.stream().mapToInt(String::length).sum();
+                                long actualSize = topics.stream()
+                                        .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
+                                        .map(n -> n + 32) // add 32 bytes overhead for each entry
+                                        .sum();
                                 maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                         isPermitRequestCancelled, permits -> {
                                     boolean filterTopics = false;

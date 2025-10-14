@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.prometheus.client.Counter;
 import java.net.InetSocketAddress;
@@ -369,7 +370,10 @@ public class LookupProxyHandler {
                             writeAndFlush(Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
                         } else {
                             long actualSize =
-                                    r.getNonPartitionedOrPartitionTopics().stream().mapToInt(String::length).sum();
+                                    r.getNonPartitionedOrPartitionTopics().stream()
+                                            .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
+                                            .map(n -> n + 32) // add 32 bytes overhead for each entry
+                                            .sum();
                             maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                     isPermitRequestCancelled, permits -> {
                                 return handleWritingGetTopicsResponse(clientRequestId, r, isPermitRequestCancelled);
