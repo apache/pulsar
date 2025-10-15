@@ -198,8 +198,6 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
-    // 1KB initial estimate for topic list heap permits size
-    private static final long INITIAL_TOPIC_LIST_HEAP_PERMITS_SIZE = 1024;
     private static final Logger PAUSE_RECEIVING_LOG = LoggerFactory.getLogger(ServerCnx.class.getName()
             + ".pauseReceiving");
     private final BrokerService service;
@@ -2583,7 +2581,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     Optional<String> topicsPattern, Optional<String> topicsHash,
                                                     Semaphore lookupSemaphore) {
         BooleanSupplier isPermitRequestCancelled = () -> !ctx().channel().isActive();
-        maxTopicListInFlightLimiter.withAcquiredPermits(INITIAL_TOPIC_LIST_HEAP_PERMITS_SIZE,
+        long initialSize = service.getTopicListSizeResultCache().getTopicListSize(namespaceName.toString(), mode);
+        maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                 AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
                     return getBrokerService().pulsar().getNamespaceService().getListOfUserTopics(namespaceName, mode)
                             .thenAccept(topics -> {
@@ -2591,6 +2590,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
                                         .map(n -> n + 32) // add 32 bytes overhead for each entry
                                         .sum();
+                                // update the cached size if there's a difference larger than 1
+                                if (Math.abs(initialSize - actualSize) > 1) {
+                                    service.getTopicListSizeResultCache()
+                                            .updateTopicListSize(namespaceName.toString(), mode, actualSize);
+                                }
                                 maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                         isPermitRequestCancelled, permits -> {
                                     boolean filterTopics = false;

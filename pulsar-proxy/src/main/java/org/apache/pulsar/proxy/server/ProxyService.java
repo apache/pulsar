@@ -64,6 +64,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -159,6 +160,9 @@ public class ProxyService implements Closeable {
 
     @Getter
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
+
+    @Getter
+    private final TopicListSizeResultCache topicListSizeResultCache = new TopicListSizeResultCache();
 
     private boolean gracefulShutdown = true;
 

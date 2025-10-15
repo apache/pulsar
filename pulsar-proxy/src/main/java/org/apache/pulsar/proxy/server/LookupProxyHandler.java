@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.function.BooleanSupplier;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -55,8 +56,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LookupProxyHandler {
-    // 1KB initial estimate for topic list heap permits size
-    private static final long INITIAL_TOPIC_LIST_HEAP_PERMITS_SIZE = 1024;
     private final String throttlingErrorMessage = "Too many concurrent lookup and partitionsMetadata requests";
     private final ProxyConnection proxyConnection;
     private final BrokerDiscoveryProvider discoveryProvider;
@@ -96,6 +95,7 @@ public class LookupProxyHandler {
             .create().register();
     private final Semaphore lookupRequestSemaphore;
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
+    private final TopicListSizeResultCache topicListSizeResultCache;
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
         this.discoveryProvider = proxy.getDiscoveryProvider();
@@ -106,6 +106,7 @@ public class LookupProxyHandler {
         this.brokerServiceURL = this.connectWithTLS ? proxy.getConfiguration().getBrokerServiceURLTLS()
                 : proxy.getConfiguration().getBrokerServiceURL();
         this.maxTopicListInFlightLimiter = proxy.getMaxTopicListInFlightLimiter();
+        this.topicListSizeResultCache = proxy.getTopicListSizeResultCache();
     }
 
     public void handleLookup(CommandLookupTopic lookup) {
@@ -348,7 +349,7 @@ public class LookupProxyHandler {
             command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
                     topicsPattern, topicsHash);
 
-            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, clientCnx, command, requestId);
+            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, clientCnx, command, requestId);
             proxyConnection.getConnectionPool().releaseConnection(clientCnx);
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
@@ -358,10 +359,12 @@ public class LookupProxyHandler {
         });
     }
 
-    private void internalPerformGetTopicsOfNamespace(long clientRequestId, String namespaceName, ClientCnx clientCnx,
+    private void internalPerformGetTopicsOfNamespace(long clientRequestId, String namespaceName,
+                                                     CommandGetTopicsOfNamespace.Mode mode, ClientCnx clientCnx,
                                                      ByteBuf command, long requestId) {
         BooleanSupplier isPermitRequestCancelled = () -> !proxyConnection.ctx().channel().isActive();
-        maxTopicListInFlightLimiter.withAcquiredPermits(INITIAL_TOPIC_LIST_HEAP_PERMITS_SIZE,
+        long initialSize = topicListSizeResultCache.getTopicListSize(namespaceName, mode);
+        maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                 AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
                     return clientCnx.newGetTopicsOfNamespace(command, requestId).whenComplete((r, t) -> {
                         if (t != null) {
@@ -374,6 +377,10 @@ public class LookupProxyHandler {
                                             .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
                                             .map(n -> n + 32) // add 32 bytes overhead for each entry
                                             .sum();
+                            // update the cached size if there's a difference larger than 1
+                            if (Math.abs(initialSize - actualSize) > 1) {
+                                topicListSizeResultCache.updateTopicListSize(namespaceName, mode, actualSize);
+                            }
                             maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                     isPermitRequestCancelled, permits -> {
                                 return handleWritingGetTopicsResponse(clientRequestId, r, isPermitRequestCancelled);
