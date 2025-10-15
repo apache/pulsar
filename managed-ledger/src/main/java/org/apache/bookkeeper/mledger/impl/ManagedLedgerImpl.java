@@ -2593,7 +2593,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void maybeUpdateCursorBeforeTrimmingConsumedLedger() {
         for (ManagedCursor cursor : cursors) {
-            Position lastAckedPosition = cursor.getMarkDeletedPosition();
+            Position lastAckedPosition = cursor.getPersistentMarkDeletedPosition() != null
+                    ? cursor.getPersistentMarkDeletedPosition() : cursor.getMarkDeletedPosition();
             LedgerInfo currPointedLedger = ledgers.get(lastAckedPosition.getLedgerId());
             LedgerInfo nextPointedLedger = Optional.ofNullable(ledgers.higherEntry(lastAckedPosition.getLedgerId()))
                     .map(Map.Entry::getValue).orElse(null);
