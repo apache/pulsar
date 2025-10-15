@@ -501,7 +501,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         if (pauseReceivingRequestsIfUnwritable && ctx.channel().isWritable()) {
             log.info("[{}] is writable, turn on channel auto-read", this);
-            getThrottleTracker().markThrottled(ThrottleType.ConnectionOutboundBufferFull);
+            getThrottleTracker().unmarkThrottled(ThrottleType.ConnectionOutboundBufferFull);
             requestRateLimiter.timingOpen(pauseReceivingCooldownMilliSeconds, TimeUnit.MILLISECONDS);
         } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
             final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
@@ -515,8 +515,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read", this);
                 }
             }
-            getThrottleTracker().unmarkThrottled(ThrottleType.ConnectionOutboundBufferFull);
-            ctx.channel().config().setAutoRead(false);
+            getThrottleTracker().markThrottled(ThrottleType.ConnectionOutboundBufferFull);
         }
         ctx.fireChannelWritabilityChanged();
     }
