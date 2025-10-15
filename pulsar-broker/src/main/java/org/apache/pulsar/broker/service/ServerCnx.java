@@ -25,6 +25,7 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
@@ -286,7 +287,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (maxPendingBytesPerThread > 0 && pendingBytes > maxPendingBytesPerThread
                     && !limitExceeded) {
                 limitExceeded = true;
-                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.setPublishBufferLimiting(true));
+                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.markThrottled(
+                        ThrottleType.IOThreadMaxPendingPublishBytesExceeded));
             }
         }
 
@@ -296,7 +298,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // we resume all connections sharing the same thread
             if (limitExceeded && pendingBytes <= resumeThresholdPendingBytesPerThread) {
                 limitExceeded = false;
-                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.setPublishBufferLimiting(false));
+                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.unmarkThrottled(
+                        ThrottleType.IOThreadMaxPendingPublishBytesExceeded));
             }
         }
     }
@@ -314,6 +317,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Start, Connected, Failed, Connecting
     }
 
+    @Getter
     private final ServerCnxThrottleTracker throttleTracker;
 
     public ServerCnx(PulsarService pulsar) {
@@ -482,12 +486,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.warn("[{}] Reached rate limitation", this);
             // Stop receiving requests.
             pausedDueToRateLimitation = true;
-            ctx.channel().config().setAutoRead(false);
+            getThrottleTracker().markThrottled(ThrottleType.ConnectionPauseReceivingCooldownRateLimit);
             // Resume after 1 second.
             ctx.channel().eventLoop().schedule(() -> {
                 if (pausedDueToRateLimitation) {
                     log.info("[{}] Resuming connection after rate limitation", this);
-                    ctx.channel().config().setAutoRead(true);
+                    getThrottleTracker().unmarkThrottled(ThrottleType.ConnectionPauseReceivingCooldownRateLimit);
                     pausedDueToRateLimitation = false;
                 }
             }, requestRateLimiter.getPeriodAtMs(), TimeUnit.MILLISECONDS);
@@ -498,7 +502,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         if (pauseReceivingRequestsIfUnwritable && ctx.channel().isWritable()) {
             log.info("[{}] is writable, turn on channel auto-read", this);
-            ctx.channel().config().setAutoRead(true);
+            getThrottleTracker().unmarkThrottled(ThrottleType.ConnectionOutboundBufferFull);
             requestRateLimiter.timingOpen(pauseReceivingCooldownMilliSeconds, TimeUnit.MILLISECONDS);
         } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
             final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
@@ -512,7 +516,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read", this);
                 }
             }
-            ctx.channel().config().setAutoRead(false);
+            getThrottleTracker().markThrottled(ThrottleType.ConnectionOutboundBufferFull);
         }
         ctx.fireChannelWritabilityChanged();
     }
@@ -3450,7 +3454,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // or the pending publish bytes
     private void increasePendingSendRequestsAndPublishBytes(int msgSize) {
         if (++pendingSendRequest == maxPendingSendRequests) {
-            throttleTracker.setPendingSendRequestsExceeded(true);
+            throttleTracker.markThrottled(ThrottleType.ConnectionMaxPendingPublishRequestsExceeded);
         }
         PendingBytesPerThreadTracker.getInstance().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
@@ -3475,7 +3479,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         PendingBytesPerThreadTracker.getInstance().decrementPublishBytes(msgSize, resumeThresholdPendingBytesPerThread);
 
         if (--pendingSendRequest == resumeReadsThreshold) {
-            throttleTracker.setPendingSendRequestsExceeded(false);
+            throttleTracker.unmarkThrottled(ThrottleType.ConnectionMaxPendingPublishRequestsExceeded);
         }
 
         if (isNonPersistentTopic) {
@@ -3852,22 +3856,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @VisibleForTesting
     protected void setAuthRole(String authRole) {
         this.authRole = authRole;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void incrementThrottleCount() {
-        throttleTracker.incrementThrottleCount();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void decrementThrottleCount() {
-        throttleTracker.decrementThrottleCount();
     }
 
     @VisibleForTesting

@@ -333,7 +333,13 @@ public class BrokerService implements Closeable {
         this.pulsar = pulsar;
         this.clock = pulsar.getClock();
         this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
-        this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock());
+        this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock(), producer -> {
+            producer.getCnx().getThrottleTracker().markThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+        }, producer -> {
+            producer.getCnx().getThrottleTracker().unmarkThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+        });
         this.dispatchRateLimiterFactory = createDispatchRateLimiterFactory(pulsar.getConfig());
         this.managedLedgerStorage = pulsar.getManagedLedgerStorage();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
