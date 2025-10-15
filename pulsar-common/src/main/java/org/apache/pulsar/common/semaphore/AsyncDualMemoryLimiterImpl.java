@@ -37,6 +37,16 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
     private final AsyncSemaphoreImpl heapLimiter;
     private final AsyncSemaphoreImpl directLimiter;
 
+    /**
+     * Creates an AsyncDualMemoryLimiterImpl with the given parameters.
+     * @param maxHeapMemory max heap memory available for allocation
+     * @param maxHeapQueueSize max number of requests that can be queued for heap memory allocation
+     * @param heapTimeoutMillis timeout in milliseconds for heap memory allocation
+     * @param maxDirectMemory max direct memory available for allocation
+     * @param maxDirectQueueSize max number of requests that can be queued for direct memory allocation
+     * @param directTimeoutMillis timeout in milliseconds for direct memory allocation
+     * @param executor executor service to use for scheduling timeouts, it is expected to be single threaded
+     */
     public AsyncDualMemoryLimiterImpl(long maxHeapMemory, int maxHeapQueueSize, long heapTimeoutMillis,
                                long maxDirectMemory, int maxDirectQueueSize, long directTimeoutMillis,
                                ScheduledExecutorService executor) {
@@ -44,6 +54,15 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
                 directTimeoutMillis, executor, false);
     }
 
+    /**
+     * Creates an AsyncDualMemoryLimiterImpl with the given parameters.
+     * @param maxHeapMemory max heap memory available for allocation
+     * @param maxHeapQueueSize max number of requests that can be queued for heap memory allocation
+     * @param heapTimeoutMillis timeout in milliseconds for heap memory allocation
+     * @param maxDirectMemory max direct memory available for allocation
+     * @param maxDirectQueueSize max number of requests that can be queued for direct memory allocation
+     * @param directTimeoutMillis timeout in milliseconds for direct memory allocation
+     */
     public AsyncDualMemoryLimiterImpl(long maxHeapMemory, int maxHeapQueueSize, long heapTimeoutMillis,
                                       long maxDirectMemory, int maxDirectQueueSize, long directTimeoutMillis) {
         this(maxHeapMemory, maxHeapQueueSize, heapTimeoutMillis, maxDirectMemory, maxDirectQueueSize,
