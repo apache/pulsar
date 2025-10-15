@@ -51,10 +51,24 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Runnable processQueueRunnable = Runnables.catchingAndLoggingThrowables(this::internalProcessQueue);
 
+    /**
+     * Creates an AsyncSemaphoreImpl with the given parameters.
+     * @param maxPermits max number of permits available for acquisition
+     * @param maxQueueSize max number of requests that can be queued
+     * @param timeoutMillis timeout in milliseconds for acquiring permits
+     */
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis) {
         this(maxPermits, maxQueueSize, timeoutMillis, createExecutor(), true, null);
     }
 
+    /**
+     * Creates an AsyncSemaphoreImpl with the given parameters.
+     * @param maxPermits max number of permits available for acquisition
+     * @param maxQueueSize max number of requests that can be queued
+     * @param timeoutMillis timeout in milliseconds for acquiring permits
+     * @param executor executor service to use for scheduling timeouts, it is expected to be single threaded
+     * @param queueLatencyRecorder consumer to record queue latency, Long.MAX_VALUE is used for requests that timed out
+     */
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis,
                               ScheduledExecutorService executor, LongConsumer queueLatencyRecorder) {
         this(maxPermits, maxQueueSize, timeoutMillis, executor, false, queueLatencyRecorder);
@@ -182,7 +196,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         executor.execute(processQueueRunnable);
     }
 
-    private void internalProcessQueue() {
+    private synchronized void internalProcessQueue() {
         while (!closed.get()) {
             long current = availablePermits.get();
             if (current <= 0) {
