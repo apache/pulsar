@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -64,6 +65,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.NoOpLock;
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -82,6 +84,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final String consumerName;
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
+    protected final DecryptFailListener<T> decryptFailListener;
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
     protected final MessageListenerExecutor messageListenerExecutor;
@@ -137,6 +140,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 conf.getConsumerName() == null ? RandomStringUtils.randomAlphanumeric(5) : conf.getConsumerName();
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
+        this.decryptFailListener = conf.getDecryptFailListener();
         this.consumerEventListener = conf.getConsumerEventListener();
         // Always use growable queue since items can exceed the advertised size
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
@@ -1190,7 +1194,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             unAckedMessageTracker.add(id, msg.getRedeliveryCount());
             beforeConsume(msg);
-            listener.received(ConsumerBase.this, msg);
+            Optional<EncryptionContext> encryptionCtx = msg.getEncryptionCtx();
+            if (decryptFailListener != null && encryptionCtx.isPresent() && encryptionCtx.get().isEncrypted()) {
+                decryptFailListener.received(ConsumerBase.this, msg);
+            } else {
+                listener.received(ConsumerBase.this, msg);
+            }
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
                     msg.getMessageId(), t);

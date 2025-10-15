@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
+import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -193,7 +194,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         updateTopicPolicyByBrokerConfig();
 
         this.lastActive = System.nanoTime();
-        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock());
+        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock(),
+            producer -> {
+                producer.getCnx().getThrottleTracker().markThrottled(ThrottleType.TopicPublishRate);
+            }, producer -> {
+                producer.getCnx().getThrottleTracker().unmarkThrottled(ThrottleType.TopicPublishRate);
+            });
         updateActiveRateLimiters();
 
         additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
