@@ -191,6 +191,18 @@ public class AsyncSemaphoreImplTest {
     }
 
     @Test
+    public void testInvalidPermitsExceedingMaxPermits() {
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
+
+        try {
+            semaphore.acquire(11, () -> false);
+            fail("Should have thrown exception");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Invalid permits value"));
+        }
+    }
+
+    @Test
     public void testClose() throws Exception {
         semaphore = new AsyncSemaphoreImpl(5, 10, 5000);
 
@@ -273,6 +285,23 @@ public class AsyncSemaphoreImplTest {
 
         try {
             semaphore.update(permit, -1, () -> false);
+            fail("Should have thrown exception");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Invalid permits value"));
+        }
+
+        semaphore.release(permit);
+    }
+
+    @Test
+    public void testUpdateWithInvalidPermitsExceedingMaxPermits() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
+
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(5, () -> false);
+        AsyncSemaphorePermit permit = future.get(1, TimeUnit.SECONDS);
+
+        try {
+            semaphore.update(permit, 11, () -> false);
             fail("Should have thrown exception");
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("Invalid permits value"));
