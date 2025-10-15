@@ -82,7 +82,7 @@ public class ProxyPatternConsumerBackPressureMultipleConsumersTest extends
 
     @Override
     protected int getDirectMemoryRequiredMB() {
-        return 225;
+        return 2 * super.getDirectMemoryRequiredMB();
     }
 
     @Override

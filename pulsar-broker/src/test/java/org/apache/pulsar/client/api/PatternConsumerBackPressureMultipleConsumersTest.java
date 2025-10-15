@@ -77,7 +77,7 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
         // number of topics to create
         final int topicCount = 8192;
         // maximum number of requests in flight at any given time
-        final int maxRequestsInFlight = 200;
+        final int maxRequestsInFlight = 500;
 
         // create a single topic with multiple partitions
         admin.topics().createPartitionedTopic(topicName, topicCount);
