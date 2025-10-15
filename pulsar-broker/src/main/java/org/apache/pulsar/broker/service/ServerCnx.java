@@ -2623,14 +2623,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 requestId,
                                                 topics.size());
                                     }
-                                    commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics, hash, filterTopics,
-                                            !hashUnchanged, requestId, ex -> {
+                                    return commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics, hash,
+                                            filterTopics, !hashUnchanged, requestId, ex -> {
                                                 log.warn("[{}] Failed to acquire direct memory permits for "
-                                                        + "GetTopicsOfNamespace: {}", remoteAddress, ex.getMessage());
-                                                commandSender.sendErrorResponse(requestId, ServerError.TooManyRequests,
+                                                                + "GetTopicsOfNamespace: {}", remoteAddress,
+                                                        ex.getMessage());
+                                                commandSender.sendErrorResponse(requestId,
+                                                        ServerError.TooManyRequests,
                                                         "Cannot acquire permits for direct memory");
                                             });
-                                    return CompletableFuture.completedFuture(null);
                                 }, t -> {
                                     log.warn("[{}] Failed to acquire heap memory permits for "
                                             + "GetTopicsOfNamespace: {}", remoteAddress, t.getMessage());

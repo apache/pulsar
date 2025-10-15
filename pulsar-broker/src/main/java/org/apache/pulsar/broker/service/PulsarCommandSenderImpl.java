@@ -127,13 +127,13 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
-                                                 boolean filtered, boolean changed, long requestId,
-                                                 Consumer<Throwable> permitAcquireErrorHandler) {
+    public CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
+                                                                    boolean filtered, boolean changed, long requestId,
+                                                                    Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash,
                 filtered, changed, requestId);
         safeIntercept(command, cnx);
-        acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
                 command, permitAcquireErrorHandler);
     }
 
