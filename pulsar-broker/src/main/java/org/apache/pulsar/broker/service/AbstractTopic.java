@@ -194,11 +194,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         updateTopicPolicyByBrokerConfig();
 
         this.lastActive = System.nanoTime();
-        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock(), producer -> {
-            producer.getCnx().getThrottleTracker().markThrottled(ThrottleType.TopicPublishRate);
-        }, producer -> {
-            producer.getCnx().getThrottleTracker().unmarkThrottled(ThrottleType.TopicPublishRate);
-        });
+        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock(),
+            producer -> {
+                producer.getCnx().getThrottleTracker().markThrottled(ThrottleType.TopicPublishRate);
+            }, producer -> {
+                producer.getCnx().getThrottleTracker().unmarkThrottled(ThrottleType.TopicPublishRate);
+            });
         updateActiveRateLimiters();
 
         additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();

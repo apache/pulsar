@@ -93,7 +93,7 @@ public final class ServerCnxThrottleTracker {
      * <p>Some types support reentrant behavior (can be activated multiple times concurrently),
      * while others are non-reentrant (single activation only).
      */
-    public static enum ThrottleType {
+    public enum ThrottleType {
 
         /**
          * Throttling due to excessive pending publish requests on the connection.
@@ -404,7 +404,7 @@ public final class ServerCnxThrottleTracker {
         }
         return hasThrottled() ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
     }
-    
+
     /**
      * Records metrics after a throttling operation.
      *
