@@ -25,6 +25,17 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 
+/**
+ * A cache for storing and managing topic list size estimates in namespaces.
+ * This class provides functionality to:
+ * - Cache and retrieve topic list size estimates for different namespaces and modes
+ * - Handle concurrent requests for topic list sizes efficiently
+ * - Maintain and update size estimates based on actual topic list sizes
+ * - Prevent thundering herd problems when multiple concurrent requests for a namespace are made without
+ *   a previous size estimate
+ * The cache uses namespace name and topic list mode (PERSISTENT/NON_PERSISTENT/ALL) as keys
+ * and maintains size estimates that are refined with actual usage.
+ */
 public class TopicListSizeResultCache {
     // 10kB initial estimate for topic list heap size
     private static final long INITIAL_TOPIC_LIST_HEAP_SIZE = 10 * 1024;
@@ -36,11 +47,24 @@ public class TopicListSizeResultCache {
     record CacheKey(String namespaceName, CommandGetTopicsOfNamespace.Mode mode) {
     }
 
+    /**
+     * Holds the topic list size estimate and future for the topic list size.
+     * The size is returned by calling {@link #getSizeAsync()} method which is asynchronous.
+     * The estimate is updated by calling {@link #updateSize(long)} method.
+     */
     public static class ResultHolder {
         private final AtomicReference<CompletableFuture<Long>> topicListSizeFuture =
                 new AtomicReference<>(null);
         private final AtomicLong existingSizeRef = new AtomicLong(-1L);
 
+        /**
+         * Get the topic list size estimate. The first request will return the initial estimate
+         * and update the estimate based on the returned size of the topic list. Other concurrent requests
+         * will wait for the first request to complete and use the estimate of the first request.
+         * Subsequent requests will use estimate which gets updated based on the returned size of the topic list
+         * of each request.
+         * @return a future that will return the topic list size estimate
+         */
         public CompletableFuture<Long> getSizeAsync() {
             if (topicListSizeFuture.compareAndSet(null, new CompletableFuture<>())) {
                 // let the first request proceed with the initial estimate
@@ -51,6 +75,12 @@ public class TopicListSizeResultCache {
             }
         }
 
+        /**
+         * Update the topic list size estimate. The new estimated size will be updated by calculating the average
+         * of the existing and the new size. If the difference between the new and the existing size is less than 1,
+         * no update will be done.
+         * @param actualSize the actual size of the topic list
+         */
         public void updateSize(long actualSize) {
             long existingSizeValue = existingSizeRef.updateAndGet(existingSize -> {
                 if (existingSize > 0) {
@@ -74,6 +104,10 @@ public class TopicListSizeResultCache {
             }
         }
 
+        /**
+         * After errors, it's necessary to call this method to ensure that the instance isn't left in a state
+         * where concurrent requests are waiting for the first request to complete the future by calling updateSize.
+         */
         public void resetIfInitializing() {
             CompletableFuture<Long> currentFuture = topicListSizeFuture.getAndUpdate(value -> {
                 if (value != null && !value.isDone()) {
@@ -89,6 +123,12 @@ public class TopicListSizeResultCache {
         }
     }
 
+    /**
+     * Get the topic list size result holder for the given namespace and mode.
+     * @param namespaceName the namespace name in the format of "tenant/namespace"
+     * @param mode the mode of the topic list request (PERSISTENT, NON_PERSISTENT, ALL)
+     * @return the topic list size result holder
+     */
     public ResultHolder getTopicListSize(String namespaceName,
                                          CommandGetTopicsOfNamespace.Mode mode) {
         return topicListSizeCache.asMap()
