@@ -53,8 +53,9 @@ public interface PulsarCommandSender {
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
-    CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered, boolean changed,
-                                                             long requestId, Consumer<Throwable> permitAcquireErrorHandler);
+    CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
+                                                             boolean changed, long requestId,
+                                                             Consumer<Throwable> permitAcquireErrorHandler);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
