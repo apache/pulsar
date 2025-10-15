@@ -23,11 +23,13 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -67,6 +69,9 @@ public class PublishRateLimiterTest {
         publishRateLimiter.update(policies, CLUSTER_NAME);
         producer = mock(Producer.class);
         serverCnx = mock(ServerCnx.class);
+        ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+        doAnswer(a -> eventLoop).when(channelHandlerContext).executor();
+        doAnswer(a -> channelHandlerContext).when(serverCnx).ctx();
         doAnswer(a -> this.serverCnx).when(producer).getCnx();
         throttleTracker = new ServerCnxThrottleTracker(this.serverCnx);
         doAnswer(a -> throttleTracker).when(this.serverCnx).getThrottleTracker();
@@ -96,32 +101,52 @@ public class PublishRateLimiterTest {
 
     @Test
     public void testPublishRateLimiterImplExceed() throws Exception {
-        // increment not exceed
-        publishRateLimiter.handlePublishThrottling(producer, 5, 50);
-        assertEquals(throttleTracker.throttledCount(), 0);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        eventLoop.execute(() -> {
+            try {
+                // increment not exceed
+                publishRateLimiter.handlePublishThrottling(producer, 5, 50);
+                assertEquals(throttleTracker.throttledCount(), 0);
 
-        incrementSeconds(1);
+                incrementSeconds(1);
 
-        // numOfMessages increment exceeded
-        publishRateLimiter.handlePublishThrottling(producer, 11, 100);
-        assertEquals(throttleTracker.throttledCount(), 1);
+                // numOfMessages increment exceeded
+                publishRateLimiter.handlePublishThrottling(producer, 11, 100);
+                assertEquals(throttleTracker.throttledCount(), 1);
 
-        incrementSeconds(1);
+                incrementSeconds(1);
 
-        // msgSizeInBytes increment exceeded
-        publishRateLimiter.handlePublishThrottling(producer, 9, 110);
-        assertEquals(throttleTracker.throttledCount(), 2);
+                // msgSizeInBytes increment exceeded
+                publishRateLimiter.handlePublishThrottling(producer, 9, 110);
+                assertEquals(throttleTracker.throttledCount(), 2);
+
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        future.get(5, TimeUnit.SECONDS);
     }
 
     @Test
-    public void testPublishRateLimiterImplUpdate() {
-        publishRateLimiter.handlePublishThrottling(producer, 11, 110);
-        assertEquals(throttleTracker.throttledCount(), 1);
+    public void testPublishRateLimiterImplUpdate() throws Exception {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        eventLoop.execute(() -> {
+            try {
+                publishRateLimiter.handlePublishThrottling(producer, 11, 110);
+                assertEquals(throttleTracker.throttledCount(), 1);
 
-        // update
-        throttleTracker = new ServerCnxThrottleTracker(serverCnx);
-        publishRateLimiter.update(newPublishRate);
-        publishRateLimiter.handlePublishThrottling(producer, 11, 110);
-        assertEquals(throttleTracker.throttledCount(), 0);
+                // update
+                throttleTracker = new ServerCnxThrottleTracker(serverCnx);
+                publishRateLimiter.update(newPublishRate);
+                publishRateLimiter.handlePublishThrottling(producer, 11, 110);
+                assertEquals(throttleTracker.throttledCount(), 0);
+
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        future.get(5, TimeUnit.SECONDS);
     }
 }
