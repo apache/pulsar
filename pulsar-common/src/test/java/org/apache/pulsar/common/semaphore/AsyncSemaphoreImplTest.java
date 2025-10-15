@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.semaphore;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -356,14 +357,14 @@ public class AsyncSemaphoreImplTest {
 
     @Test
     public void testTimeoutProcessesNextRequest() throws Exception {
-        semaphore = new AsyncSemaphoreImpl(5, 10, 500);
+        semaphore = new AsyncSemaphoreImpl(5, 10, 250);
 
         // Acquire all permits
         CompletableFuture<AsyncSemaphorePermit> future1 = semaphore.acquire(5, () -> false);
         AsyncSemaphorePermit permit1 = future1.get(1, TimeUnit.SECONDS);
 
         // Request that will timeout (needs more permits than available)
-        CompletableFuture<AsyncSemaphorePermit> future2 = semaphore.acquire(10, () -> false);
+        CompletableFuture<AsyncSemaphorePermit> future2 = semaphore.acquire(5, () -> false);
 
         // make requests 250ms apart
         Thread.sleep(250);
@@ -374,15 +375,17 @@ public class AsyncSemaphoreImplTest {
         // Release permits
         semaphore.release(permit1);
 
-        // The smaller request should succeed
-        AsyncSemaphorePermit permit3 = future3.get(1, TimeUnit.SECONDS);
+        // Expect the second request to timeout
+        Throwable throwable = future2.handle((permit, t) -> t).join();
+        assertThat(throwable).isInstanceOf(PermitAcquireTimeoutException.class);
+
+        // The third request should have succeeded now
+        AsyncSemaphorePermit permit3 = future3.join();
         assertNotNull(permit3);
         assertEquals(permit3.getPermits(), 3);
 
-        // Verify the first timed out
-        assertTrue(future2.isCompletedExceptionally());
-
         semaphore.release(permit3);
+
     }
 
     @Test
