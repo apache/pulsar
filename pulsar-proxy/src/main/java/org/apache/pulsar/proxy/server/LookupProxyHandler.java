@@ -363,47 +363,55 @@ public class LookupProxyHandler {
                                                      CommandGetTopicsOfNamespace.Mode mode, ClientCnx clientCnx,
                                                      ByteBuf command, long requestId) {
         BooleanSupplier isPermitRequestCancelled = () -> !proxyConnection.ctx().channel().isActive();
-        long initialSize = topicListSizeResultCache.getTopicListSize(namespaceName, mode);
-        maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
-                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
-                    return clientCnx.newGetTopicsOfNamespace(command, requestId).whenComplete((r, t) -> {
-                        if (t != null) {
-                            log.warn("[{}] Failed to get TopicsOfNamespace {}: {}", clientAddress, namespaceName,
-                                    t.getMessage());
-                            writeAndFlush(Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
-                        } else {
-                            long actualSize =
-                                    r.getNonPartitionedOrPartitionTopics().stream()
-                                            .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
-                                            .map(n -> n + 32) // add 32 bytes overhead for each entry
-                                            .sum();
-                            // update the cached size if there's a difference larger than 1
-                            if (Math.abs(initialSize - actualSize) > 1) {
-                                topicListSizeResultCache.updateTopicListSize(namespaceName, mode, actualSize);
+        TopicListSizeResultCache.ResultHolder
+                listSizeHolder = topicListSizeResultCache.getTopicListSize(namespaceName, mode);
+        listSizeHolder.getSizeAsync().thenAccept(initialSize -> {
+            maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
+                    AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                        return clientCnx.newGetTopicsOfNamespace(command, requestId).whenComplete((r, t) -> {
+                            if (t != null) {
+                                log.warn("[{}] Failed to get TopicsOfNamespace {}: {}", clientAddress, namespaceName,
+                                        t.getMessage());
+                                listSizeHolder.resetIfInitializing();
+                                writeAndFlush(Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
+                            } else {
+                                long actualSize =
+                                        r.getNonPartitionedOrPartitionTopics().stream()
+                                                .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
+                                                .map(n -> n + 32) // add 32 bytes overhead for each entry
+                                                .sum();
+                                // update the cached size if there's a difference larger than 1
+                                if (Math.abs(initialSize - actualSize) > 1) {
+                                    listSizeHolder.updateSize(actualSize);
+                                }
+                                maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                        isPermitRequestCancelled, permits -> {
+                                            return handleWritingGetTopicsResponse(clientRequestId, r,
+                                                    isPermitRequestCancelled);
+                                        }, t2 -> {
+                                            log.warn("[{}] Failed to acquire actual heap memory permits for "
+                                                    + "GetTopicsOfNamespace: {}", clientAddress, t2.getMessage());
+                                            writeAndFlush(
+                                                    Commands.newError(clientRequestId, ServerError.TooManyRequests,
+                                                            "Failed due to heap memory limit exceeded"));
+
+                                            return CompletableFuture.completedFuture(null);
+                                        });
                             }
-                            maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
-                                    isPermitRequestCancelled, permits -> {
-                                return handleWritingGetTopicsResponse(clientRequestId, r, isPermitRequestCancelled);
-                            }, t2 -> {
-                                log.warn("[{}] Failed to acquire actual heap memory permits for "
-                                        + "GetTopicsOfNamespace: {}", clientAddress, t2.getMessage());
-                                writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
-                                        "Failed due to heap memory limit exceeded"));
+                        }).thenApply(__ -> null);
+                    }, t -> {
+                        log.warn("[{}] Failed to acquire initial heap memory permits for GetTopicsOfNamespace: {}",
+                                clientAddress, t.getMessage());
+                        listSizeHolder.resetIfInitializing();
+                        writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
+                                "Failed due to heap memory limit exceeded"));
 
-                                return CompletableFuture.completedFuture(null);
-                            });
-                        }
-                    }).thenApply(__ -> null);
-                }, t -> {
-                    log.warn("[{}] Failed to acquire initial heap memory permits for GetTopicsOfNamespace: {}",
-                            clientAddress, t.getMessage());
-                    writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
-                            "Failed due to heap memory limit exceeded"));
-
-                    return CompletableFuture.completedFuture(null);
-                }).exceptionally(ex -> {
-            writeAndFlush(Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
-            return null;
+                        return CompletableFuture.completedFuture(null);
+                    }).exceptionally(ex -> {
+                listSizeHolder.resetIfInitializing();
+                writeAndFlush(Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
+                return null;
+            });
         });
     }
 
