@@ -24,11 +24,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -40,6 +42,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -594,5 +597,30 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p.close();
         admin1.clusters().deleteNamespaceIsolationPolicy(cluster1, policyName);
         admin1.topics().delete(topic);
+    }
+
+    @Test
+    public void testDeleteNamespaceIfTwoClustersAllowed() throws Exception {
+        // Create a namespace and allow both clusters to access.
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns1);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> clusters = admin1.namespaces().getNamespaceReplicationClusters(ns1);
+            assertEquals(clusters.size(), 1);
+            assertTrue(clusters.contains(cluster1));
+        });
+        admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        Awaitility.await().untilAsserted(() -> {
+            List<String> clusters = admin1.namespaces().getNamespaceAllowedClusters(ns1);
+            assertEquals(clusters.size(), 2);
+            assertTrue(clusters.contains(cluster1));
+            assertTrue(clusters.contains(cluster2));
+        });
+        try {
+            admin1.namespaces().deleteNamespace(ns1);
+            fail("namespace deletion should not be allowed if more than one cluster to access");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // expected.
+        }
     }
 }
