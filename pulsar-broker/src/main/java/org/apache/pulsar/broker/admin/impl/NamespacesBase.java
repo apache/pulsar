@@ -786,7 +786,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                                 + "list of allowed clusters list for namespace "
                                                                 + "[%s]", clusterId, namespaceName.toString());
                                                         log.info(msg);
-                                                        throw new RestException(Status.FORBIDDEN, msg);
+                                                        throw new RestException(Status.BAD_REQUEST, msg);
                                                     }
                                                     return validateClusterForTenantAsync(
                                                             namespaceName.getTenant(), clusterId);

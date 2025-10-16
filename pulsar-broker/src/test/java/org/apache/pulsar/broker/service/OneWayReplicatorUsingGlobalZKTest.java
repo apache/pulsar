@@ -53,6 +53,7 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -599,6 +600,9 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         admin1.topics().delete(topic);
     }
 
+    /**
+     * Namespace deletion should not be allowed if more than one cluster is allowed to access.
+     */
     @Test
     public void testDeleteNamespaceIfTwoClustersAllowed() throws Exception {
         // Create a namespace and allow both clusters to access.
@@ -622,5 +626,61 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         } catch (PulsarAdminException.PreconditionFailedException e) {
             // expected.
         }
+    }
+
+    @Test
+    public void testSetClustersAndAllowedClusters() throws Exception {
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns1);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> clusters = admin1.namespaces().getNamespaceReplicationClusters(ns1);
+            assertEquals(clusters.size(), 1);
+            assertTrue(clusters.contains(cluster1));
+        });
+
+        // New allowed clusters should include all replication clusters
+        try {
+            admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+            fail("New allowed clusters should include all replication clusters.");
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getMessage().contains("do not contain the replication cluster"));
+        }
+
+        admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1)));
+
+        // New replication clusters should be included in allowed clusters.
+        try {
+            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+            fail("New replication clusters should be included in allowed clusters.");
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getMessage().contains("is not in the list of allowed clusters list"));
+        }
+    }
+
+    @Test
+    public void testUpdateNamespacePolicies() throws Exception {
+        // Create a namespace and allow both clusters to access.
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp");
+        admin2.namespaces().createNamespace(ns1);
+        admin2.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic, false)
+                .join().get();
+
+        admin1.namespaces().setRetention(ns1, new RetentionPolicies(10, 10));
+        Awaitility.await().untilAsserted(() -> {
+           assertEquals(admin1.namespaces().getRetention(ns1), new RetentionPolicies(10, 10));
+        });
+
+        // Verify: the namespace will not be unloaded.
+        assertFalse(persistentTopic.isClosingOrDeleting());
+        // Verify: the producer still works.
+        p.send("msg-1");
+
+        // cleanup.
+        p.close();
+        admin1.topics().delete(topic);
     }
 }
