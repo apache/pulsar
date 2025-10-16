@@ -23,6 +23,7 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +79,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                        boolean shutdownExecutor, LongConsumer queueLatencyRecorder) {
         this.availablePermits = new AtomicLong(maxPermits);
         this.maxPermits = maxPermits;
-        this.queue = new ArrayBlockingQueue<>(maxQueueSize);
+        this.queue = maxQueueSize > 0 ? new ArrayBlockingQueue<>(maxQueueSize) : new LinkedBlockingQueue<>();
         this.timeoutMillis = timeoutMillis;
         this.executor = executor;
         this.shutdownExecutor = shutdownExecutor;
