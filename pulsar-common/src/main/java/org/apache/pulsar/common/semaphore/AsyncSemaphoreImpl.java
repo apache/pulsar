@@ -54,8 +54,9 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     /**
      * Creates an AsyncSemaphoreImpl with the given parameters.
-     * @param maxPermits max number of permits available for acquisition
-     * @param maxQueueSize max number of requests that can be queued
+     * @param maxPermits max number of permits available for acquisition, set to <= 0 for unbounded semaphore (not
+     *                   recommended)
+     * @param maxQueueSize max number of requests that can be queued, set to <= 0 for unbounded queue (not recommended)
      * @param timeoutMillis timeout in milliseconds for acquiring permits
      */
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis) {
@@ -64,8 +65,9 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     /**
      * Creates an AsyncSemaphoreImpl with the given parameters.
-     * @param maxPermits max number of permits available for acquisition
-     * @param maxQueueSize max number of requests that can be queued
+     * @param maxPermits max number of permits available for acquisition, set to <= 0 for unbounded semaphore (not
+     *                   recommended)
+     * @param maxQueueSize max number of requests that can be queued, set to <= 0 for unbounded queue (not recommended)
      * @param timeoutMillis timeout in milliseconds for acquiring permits
      * @param executor executor service to use for scheduling timeouts, it is expected to be single threaded
      * @param queueLatencyRecorder consumer to record queue latency, Long.MAX_VALUE is used for requests that timed out
