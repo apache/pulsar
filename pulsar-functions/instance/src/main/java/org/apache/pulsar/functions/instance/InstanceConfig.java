@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import lombok.Data;
 import lombok.Getter;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
@@ -49,7 +50,7 @@ public class InstanceConfig {
     private int metricsPort;
     private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
     private boolean ignoreUnknownConfigFields;
-
+    private MemoryLimit pulsarClientMemoryLimit;
     /**
      * Get the string representation of {@link #getInstanceId()}.
      *
