@@ -26,6 +26,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -37,11 +39,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -544,5 +550,49 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Test
     public void testPartitionedTopicWithTopicPolicyAndNoReplicationClusters() throws Exception {
         super.testPartitionedTopicWithTopicPolicyAndNoReplicationClusters();
+    }
+
+    @Test
+    public void testUpdateNamespaceIsolationPolicy() throws Exception {
+        // Create a namespace and allow both clusters to access.
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp");
+        admin2.namespaces().createNamespace(ns1);
+        admin2.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic, false)
+                .join().get();
+
+        // Set namespace isolation policy.
+        // It will trigger a namespace unloading.
+        String policyName = "policy-1";
+        String namespaceRegex = ns1;
+        String brokerName = pulsar1.getAdvertisedAddress();
+        Map<String, String> parameters1 = new HashMap<>();
+        parameters1.put("min_limit", "1");
+        parameters1.put("usage_threshold", "100");
+        NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList(namespaceRegex))
+                .primary(Collections.singletonList(brokerName))
+                .secondary(Collections.singletonList(brokerName + ".*"))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters1)
+                        .build())
+                .build();
+        admin1.clusters().createNamespaceIsolationPolicy(cluster1, policyName, nsPolicyData1);
+
+        // Verify: the namespace was unloaded.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(persistentTopic.isClosingOrDeleting());
+        });
+        // Verify: the producer still works.
+        p.send("msg-1");
+
+        // cleanup.
+        p.close();
+        admin1.clusters().deleteNamespaceIsolationPolicy(cluster1, policyName);
+        admin1.topics().delete(topic);
     }
 }
