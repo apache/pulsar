@@ -4032,14 +4032,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 1) Test receiveAsync is interrupted
         CountDownLatch countDownLatch = new CountDownLatch(1);
         new Thread(() -> {
+            CountDownLatch subCoundDownLatch = new CountDownLatch(1);
             try {
                 new Thread(() -> {
                     try {
+                        subCoundDownLatch.await();
                         consumer.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                consumer.receiveAsync().get();
+                CompletableFuture<Message<String>> futhre = consumer.receiveAsync();
+                subCoundDownLatch.countDown();
+                futhre.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -4056,13 +4060,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                CountDownLatch subCoundDownLatch = new CountDownLatch(1);
                 new Thread(() -> {
                     try {
+                        subCoundDownLatch.await();
                         consumer2.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                consumer2.batchReceiveAsync().get();
+                CompletableFuture<Messages<String>> future = consumer2.batchReceiveAsync();
+                subCoundDownLatch.countDown();
+                future.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -4079,13 +4087,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                CountDownLatch subCoundDownLatch = new CountDownLatch(1);
                 new Thread(() -> {
                     try {
+                        subCoundDownLatch.await();
                         partitionedTopicConsumer.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                partitionedTopicConsumer.batchReceiveAsync().get();
+                CompletableFuture<Messages<String>> future =
+                        partitionedTopicConsumer.batchReceiveAsync();
+                subCoundDownLatch.countDown();
+                future.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
