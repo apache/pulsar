@@ -768,10 +768,11 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     private void initialize() {
-        // Record current period but DO NOT schedule yet, We want the service completely idle until it's actually used.
+        // Store the configured interval. Do not start periodic tasks unconditionally here.
+        // Schedulers are started by maybeStartSchedulers() when the first tenant/namespace attachment is registered.
         final long periodInSecs = pulsar.getConfiguration().getResourceUsageTransportPublishIntervalInSecs();
         this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
-        // If configuration listeners loaded attachments during bootstrap, start now.
+        // if any tenant/namespace registrations already exist, maybeStartSchedulers() will start the schedulers now.
         maybeStartSchedulers();
     }
 
