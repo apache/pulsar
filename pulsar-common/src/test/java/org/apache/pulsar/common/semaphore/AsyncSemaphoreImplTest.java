@@ -434,4 +434,161 @@ public class AsyncSemaphoreImplTest {
         Thread.sleep(100);
         assertTrue(queued3.isDone());
     }
+
+    @Test
+    public void testUnboundedSemaphoreAcquireSinglePermit() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(1, () -> false);
+        AsyncSemaphorePermit permit = future.get(100, TimeUnit.MILLISECONDS);
+
+        assertNotNull(permit);
+        assertEquals(permit.getPermits(), 1);
+        assertTrue(future.isDone());
+    }
+
+    @Test
+    public void testUnboundedSemaphoreAcquireMultiplePermits() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(100, () -> false);
+        AsyncSemaphorePermit permit = future.get(100, TimeUnit.MILLISECONDS);
+
+        assertNotNull(permit);
+        assertEquals(permit.getPermits(), 100);
+        assertTrue(future.isDone());
+    }
+
+    @Test
+    public void testUnboundedSemaphoreNoQueueing() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        List<CompletableFuture<AsyncSemaphorePermit>> futures = new ArrayList<>();
+
+        // Acquire many permits concurrently - all should complete immediately
+        for (int i = 0; i < 100; i++) {
+            futures.add(semaphore.acquire(10, () -> false));
+        }
+
+        // All futures should complete immediately without queueing
+        for (CompletableFuture<AsyncSemaphorePermit> future : futures) {
+            AsyncSemaphorePermit permit = future.get(100, TimeUnit.MILLISECONDS);
+            assertNotNull(permit);
+            assertEquals(permit.getPermits(), 10);
+            assertTrue(future.isDone());
+        }
+    }
+
+    @Test
+    public void testUnboundedSemaphoreReleaseIsNoop() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(50, () -> false);
+        AsyncSemaphorePermit permit = future.get(100, TimeUnit.MILLISECONDS);
+
+        // Release should not throw exception but is a no-op
+        semaphore.release(permit);
+
+        // Should still be able to acquire more permits
+        CompletableFuture<AsyncSemaphorePermit> future2 = semaphore.acquire(100, () -> false);
+        AsyncSemaphorePermit permit2 = future2.get(100, TimeUnit.MILLISECONDS);
+        assertNotNull(permit2);
+    }
+
+    @Test
+    public void testUnboundedSemaphoreAvailablePermits() {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        assertEquals(semaphore.getAvailablePermits(), Long.MAX_VALUE);
+    }
+
+    @Test
+    public void testUnboundedSemaphoreAcquiredPermits() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        // Acquire some permits
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(100, () -> false);
+        future.get(100, TimeUnit.MILLISECONDS);
+
+        // Acquired permits should always be 0 for unbounded semaphore
+        assertEquals(semaphore.getAcquiredPermits(), 0);
+    }
+
+    @Test
+    public void testUnboundedSemaphoreQueueSize() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        // Acquire multiple permits
+        for (int i = 0; i < 10; i++) {
+            semaphore.acquire(1, () -> false).get(100, TimeUnit.MILLISECONDS);
+        }
+
+        // Queue size should always be 0 since requests complete immediately
+        assertEquals(semaphore.getQueueSize(), 0);
+    }
+
+    @Test
+    public void testUnboundedSemaphoreUpdate() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(10, () -> false);
+        AsyncSemaphorePermit permit = future.get(100, TimeUnit.MILLISECONDS);
+
+        // Update should complete immediately
+        CompletableFuture<AsyncSemaphorePermit> future2 = semaphore.update(permit, 50, () -> false);
+        AsyncSemaphorePermit permit2 = future2.get(100, TimeUnit.MILLISECONDS);
+
+        assertNotNull(permit2);
+        assertEquals(permit2.getPermits(), 50);
+        assertTrue(future2.isDone());
+    }
+
+    @Test
+    public void testUnboundedSemaphoreUpdateToZero() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(100, () -> false);
+        AsyncSemaphorePermit permit = future.get(100, TimeUnit.MILLISECONDS);
+
+        // Update to zero should complete immediately
+        CompletableFuture<AsyncSemaphorePermit> future2 = semaphore.update(permit, 0, () -> false);
+        AsyncSemaphorePermit permit2 = future2.get(100, TimeUnit.MILLISECONDS);
+
+        assertNotNull(permit2);
+        assertEquals(permit2.getPermits(), 0);
+        assertTrue(future2.isDone());
+    }
+
+    @Test
+    public void testUnboundedSemaphoreNoTimeout() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 100); // Short timeout
+
+        // Even with short timeout, requests should complete immediately
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(1000, () -> false);
+        AsyncSemaphorePermit permit = future.get(50, TimeUnit.MILLISECONDS);
+
+        assertNotNull(permit);
+        assertEquals(permit.getPermits(), 1000);
+
+        Thread.sleep(150); // Wait longer than timeout
+
+        // Permit should still be valid
+        assertEquals(permit.getPermits(), 1000);
+    }
+
+    @Test
+    public void testUnboundedSemaphoreCancellationIgnored() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(0, 10, 5000);
+
+        AtomicBoolean cancelled = new AtomicBoolean(true);
+
+        // Even though cancelled is true, unbounded semaphore completes immediately
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(10, cancelled::get);
+        AsyncSemaphorePermit permit = future.get(100, TimeUnit.MILLISECONDS);
+
+        assertNotNull(permit);
+        assertEquals(permit.getPermits(), 10);
+        assertTrue(future.isDone());
+        assertFalse(future.isCompletedExceptionally());
+    }
 }

@@ -58,7 +58,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
      * @param timeoutMillis timeout in milliseconds for acquiring permits
      */
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis) {
-        this(maxPermits, maxQueueSize, timeoutMillis, createExecutor(), true, null);
+        this(maxPermits, maxQueueSize, timeoutMillis, maxPermits > 0 ? createExecutor() : null, maxPermits > 0, null);
     }
 
     /**
@@ -97,8 +97,13 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     private CompletableFuture<AsyncSemaphorePermit> internalAcquire(long permits, long acquirePermits,
                                                                     BooleanSupplier isCancelled) {
-        if (permits < 0 || permits > maxPermits) {
+        if (permits < 0 || (permits > maxPermits && !isUnbounded())) {
             throw new IllegalArgumentException("Invalid permits value: " + permits);
+        }
+
+        // if maximum permits is <= 0, then the semaphore is unbounded
+        if (isUnbounded()) {
+            return CompletableFuture.completedFuture(new SemaphorePermit(permits));
         }
 
         CompletableFuture<AsyncSemaphorePermit> future = new CompletableFuture<>();
@@ -133,6 +138,10 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         return future;
     }
 
+    private boolean isUnbounded() {
+        return maxPermits <= 0;
+    }
+
     private void recordQueueLatency(long ageNanos) {
         if (queueLatencyRecorder != null) {
             queueLatencyRecorder.accept(ageNanos);
@@ -142,8 +151,11 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     @Override
     public CompletableFuture<AsyncSemaphorePermit> update(AsyncSemaphorePermit permit, long newPermits,
                                                           BooleanSupplier isCancelled) {
-        if (newPermits < 0 || newPermits > maxPermits) {
+        if (newPermits < 0 || (newPermits > maxPermits && !isUnbounded())) {
             throw new IllegalArgumentException("Invalid permits value: " + newPermits);
+        }
+        if (isUnbounded()) {
+            return CompletableFuture.completedFuture(new SemaphorePermit(newPermits));
         }
         long oldPermits = permit.getPermits();
         long additionalPermits = newPermits - oldPermits;
@@ -162,17 +174,26 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     @Override
     public void release(AsyncSemaphorePermit permit) {
+        if (isUnbounded()) {
+            return;
+        }
         availablePermits.addAndGet(castToImplementation(permit).releasePermits());
         processQueue();
     }
 
     @Override
     public long getAvailablePermits() {
+        if (isUnbounded()) {
+            return Long.MAX_VALUE;
+        }
         return availablePermits.get();
     }
 
     @Override
     public long getAcquiredPermits() {
+        if (isUnbounded()) {
+            return 0;
+        }
         return maxPermits - availablePermits.get();
     }
 
