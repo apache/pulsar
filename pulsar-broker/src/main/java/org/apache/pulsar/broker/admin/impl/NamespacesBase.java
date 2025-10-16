@@ -1975,7 +1975,7 @@ public abstract class NamespacesBase extends AdminResource {
         pulsar().getBrokerService().setCurrentClusterAllowedIfNoClusterIsAllowed(ns, policies);
 
         // Validate cluster names and permissions
-        return policies.replication_clusters.stream()
+        return Stream.concat(policies.replication_clusters.stream(), policies.allowed_clusters.stream())
                     .map(cluster -> validateClusterForTenantAsync(ns.getTenant(), cluster))
                     .reduce(CompletableFuture.completedFuture(null), (a, b) -> a.thenCompose(ignore -> b))
             .thenAccept(__ -> {

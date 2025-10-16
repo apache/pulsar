@@ -674,7 +674,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
            assertEquals(admin1.namespaces().getRetention(ns1), new RetentionPolicies(10, 10));
         });
 
-        // Verify: the namespace will not be unloaded.
+        // Verify: the namespace will not be unloaded, because the topic can be updated in memory.
         assertFalse(persistentTopic.isClosingOrDeleting());
         // Verify: the producer still works.
         p.send("msg-1");
