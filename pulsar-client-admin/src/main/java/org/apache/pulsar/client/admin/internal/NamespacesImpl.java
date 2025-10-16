@@ -35,6 +35,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.common.lookup.data.LookupDataInterface;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -830,6 +832,62 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getReplicationConfigVersionAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<String>(){}, namespace, "configversion");
+    }
+
+    @Override
+    public void lookupNamespace(String namespace, boolean loadTopicInBundle,
+                              boolean authoritative) throws PulsarAdminException {
+        sync(() -> lookupNamespaceAsync(namespace, loadTopicInBundle,
+                authoritative));
+    }
+
+    @Override
+    public CompletableFuture<Void> lookupNamespaceAsync(String namespace,
+                              boolean loadTopicInBundle,
+                              boolean authoritative) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "lookup")
+                .queryParam("loadTopicInBundle", Boolean.toString(loadTopicInBundle))
+                .queryParam("authoritative", Boolean.toString(authoritative));
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public LookupDataInterface lookupNamespaceBundle(String namespace, String bundle,
+                                                   boolean loadTopicInBundle,
+                                                   boolean authoritative) throws PulsarAdminException {
+        return sync(() -> lookupNamespaceBundleAsync(namespace, bundle, loadTopicInBundle,
+                authoritative));
+    }
+
+    @Override
+    public CompletableFuture<LookupDataInterface> lookupNamespaceBundleAsync(String namespace, String bundle,
+                                                                           boolean loadTopicInBundle,
+                                                                           boolean authoritative) {
+        CompletableFuture<LookupDataInterface> lookupDataFuture = new CompletableFuture<>();
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle, "lookup")
+                .queryParam("loadTopicInBundle", Boolean.toString(loadTopicInBundle))
+                .queryParam("authoritative", Boolean.toString(authoritative));
+        asyncPutRequestWithResponse(path, Entity.entity("", MediaType.APPLICATION_JSON),
+                new InvocationCallback<LookupData>() {
+            @Override
+            public void completed(LookupData lookupData) {
+                if (lookupData == null) {
+                    lookupDataFuture.completeExceptionally(
+                            getApiException(new PulsarAdminException("Failed to load namespace bundle"
+                                    + ", lookupData is null")));
+                    return;
+                }
+                lookupDataFuture.complete(lookupData);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                lookupDataFuture.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return lookupDataFuture;
     }
 
     @Override
