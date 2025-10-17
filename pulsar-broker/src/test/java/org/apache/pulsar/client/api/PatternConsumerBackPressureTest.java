@@ -22,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -57,7 +58,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
     @Override
     protected void doInitConf() throws Exception {
         conf.setPulsarChannelPauseReceivingRequestsIfUnwritable(true);
-        // 5m.
+        // 1m.
         conf.setPulsarChannelWriteBufferHighWaterMark(1 * 1024 * 1024);
         // 32k.
         conf.setPulsarChannelWriteBufferLowWaterMark(32 * 1024);
@@ -92,7 +93,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
             });
         }
         latch.await();
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(55, TimeUnit.SECONDS).untilAsserted(() -> {
             Assert.assertEquals(success.get(), requests);
         });
     }
