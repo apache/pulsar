@@ -1110,7 +1110,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             allTopicPartitionsNumber.addAndGet(numPartitions);
 
-            int receiverQueueSize = Math.min(getSingleConsumerReceiverQueueSize(),
+            int receiverQueueSize = Math.min(getSinglePartitionReceiverQueueSize(),
                 conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
             ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
             configurationData.setReceiverQueueSize(receiverQueueSize);
@@ -1172,7 +1172,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     } else {
                         internalConfig.setStartPaused(paused);
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
-                        configurationData.setReceiverQueueSize(getSingleConsumerReceiverQueueSize());
+                        configurationData.setReceiverQueueSize(getSinglePartitionReceiverQueueSize());
                         ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
                                 -1, subscribeFuture, createIfDoesNotExist, schema);
                         if (paused) {
@@ -1219,7 +1219,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                                    int partitionIndex, CompletableFuture<Consumer<T>> subFuture,
                                                    boolean createIfDoesNotExist, Schema<T> schema) {
         BatchReceivePolicy internalBatchReceivePolicy = BatchReceivePolicy.builder()
-                .maxNumMessages(Math.max(getSingleConsumerReceiverQueueSize() / 2, 1))
+                .maxNumMessages(Math.max(getSinglePartitionReceiverQueueSize() / 2, 1))
                 .maxNumBytes(-1)
                 .timeout(1, TimeUnit.MILLISECONDS)
                 .build();
@@ -1639,10 +1639,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         });
     }
 
-    private int getSingleConsumerReceiverQueueSize() {
-        return conf.isMultiTopicsSingleConsumerReceiverQueueSizeEnabled() ?
-                conf.getMultiTopicsSingleConsumerReceiverQueueSize() :
-                conf.getReceiverQueueSize();
+    private int getSinglePartitionReceiverQueueSize() {
+        return conf.isMultiTopicsSinglePartitionReceiverQueueSizeEnable()
+                ? conf.getMultiTopicsSinglePartitionReceiverQueueSize() : conf.getReceiverQueueSize();
     }
 
     private ConsumerInterceptors<T> getInternalConsumerInterceptors(ConsumerInterceptors<T> multiTopicInterceptors) {
