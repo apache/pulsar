@@ -79,6 +79,7 @@ public class NamespaceBundleFactory {
         this.hashFunc = hashFunc;
 
         this.bundlesCache = Caffeine.newBuilder()
+                .executor(pulsar.getExecutor())
                 .recordStats()
                 .buildAsync(this::loadBundles);
 
