@@ -42,6 +42,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -2719,6 +2720,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         log.info("### ledgers {}", managedLedger.getLedgersInfo());
         long length = managedCursor.getNumberOfEntriesInStorage();
         assertEquals(length, numberOfEntries);
+    }
+
+    @Test
+    public void testGetNumberOfEntries() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        initManagedLedgerConfig(managedLedgerConfig);
+        managedLedgerConfig.setMaxEntriesPerLedger(5);
+        ManagedLedgerImpl managedLedger =
+                (ManagedLedgerImpl) factory.open("testGetNumberOfEntries", managedLedgerConfig);
+        // open cursor to prevent ledger to be deleted when ledger rollover
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) managedLedger.openCursor("cursor");
+        int numberOfEntries = 10;
+        List<Position> positions = new ArrayList<>(numberOfEntries);
+        for (int i = 0; i < numberOfEntries; i++) {
+            positions.add(managedLedger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        Position mdPos = positions.get(numberOfEntries - 1);
+        Position rdPos = PositionFactory.create(mdPos.getLedgerId(), mdPos.getEntryId() + 1);
+        managedCursor.delete(positions);
+        // trigger ledger rollover and wait for the new ledger created
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals("LedgerOpened", WhiteboxImpl.getInternalState(managedLedger, "state").toString());
+        });
+        managedLedger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getLedgersInfo().size(), 1);
+            assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.LedgerOpened);
+        });
+
+        long length = managedLedger.getNumberOfEntries(Range.closed(mdPos, rdPos));
+        assertEquals(length, 0);
     }
 
     @Test
