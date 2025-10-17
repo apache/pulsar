@@ -54,9 +54,13 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        isTcpLookup = true;
+        isTcpLookup = useTcpLookup();
         super.internalSetup();
         setupDefaultTenantAndNamespace();
+    }
+
+    protected boolean useTcpLookup() {
+        return true;
     }
 
     @Override
@@ -69,15 +73,15 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
     public void testGetTopicsWithLargeAmountOfConcurrentClientConnections()
             throws PulsarAdminException, InterruptedException, IOException {
         // number of requests to send to the broker
-        final int requests = 500;
+        final int requests = getNumberOfRequests();
         // use multiple clients so that each client has a separate connection to the broker
-        final int numberOfClients = 200;
+        final int numberOfClients = getNumberOfClients();
         // create a long topic name to consume more memory per topic
         final String topicName = StringUtils.repeat('a', 512) + UUID.randomUUID();
         // number of topics to create
         final int topicCount = 8192;
         // maximum number of requests in flight at any given time
-        final int maxRequestsInFlight = 500;
+        final int maxRequestsInFlight = getMaxRequestsInFlight();
 
         // create a single topic with multiple partitions
         admin.topics().createPartitionedTopic(topicName, topicCount);
@@ -136,10 +140,12 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
                                 } else {
                                     log.error("Failed to get topic list.", ex);
                                 }
-                                log.info("latch-count: {}, succeed: {}, available direct mem: {} MB", latch.getCount(),
-                                        success.get(),
+                                log.info(
+                                        "latch-count: {}, succeed: {}, available direct mem: {} MB, free heap mem: {}"
+                                                + " MB",
+                                        latch.getCount(), success.get(),
                                         (DirectMemoryUtils.jvmMaxDirectMemory() - JvmMetrics.getJvmDirectMemoryUsed())
-                                                / (1024 * 1024));
+                                                / (1024 * 1024), Runtime.getRuntime().freeMemory() / (1024 * 1024));
                                 latch.countDown();
                             });
                 } catch (Exception e) {
@@ -153,6 +159,18 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
         assertEquals(success.get(), requests);
 
         validateTopiclistPrometheusMetrics();
+    }
+
+    protected int getNumberOfClients() {
+        return 200;
+    }
+
+    protected int getNumberOfRequests() {
+        return 500;
+    }
+
+    protected int getMaxRequestsInFlight() {
+        return 500;
     }
 
     private void validateTopiclistPrometheusMetrics() {
@@ -178,7 +196,7 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
     }
 
     protected String getClientServiceUrl() {
-        return pulsar.getBrokerServiceUrl();
+        return lookupUrl.toString();
     }
 
     /**
@@ -187,6 +205,9 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
      * @return list of ByteBufs allocated to reduce available direct memory
      */
     private static List<ByteBuf> allocateDirectMemory(long directMemoryRequired) {
+        if (directMemoryRequired <= 0 || directMemoryRequired == Integer.MAX_VALUE) {
+            return List.of();
+        }
         long usedMemory = JvmMetrics.getJvmDirectMemoryUsed();
         long maxMemory = DirectMemoryUtils.jvmMaxDirectMemory();
         long availableMemory = maxMemory - usedMemory;
