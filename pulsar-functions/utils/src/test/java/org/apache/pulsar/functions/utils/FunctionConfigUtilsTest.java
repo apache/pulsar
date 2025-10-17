@@ -52,6 +52,9 @@ import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 /**
@@ -83,7 +86,7 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
-    public void testConvertBackFidelity() {
+    public void testConvertBackFidelity() throws JSONException {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
         functionConfig.setNamespace("test-namespace");
@@ -121,9 +124,10 @@ public class FunctionConfigUtilsTest {
         functionConfig.setResources(Resources.getDefaultResources());
         // set default cleanupSubscription config
         functionConfig.setCleanupSubscription(true);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(functionConfig),
-                new Gson().toJson(convertedConfig)
+                new Gson().toJson(convertedConfig),
+                JSONCompareMode.STRICT
         );
     }
 

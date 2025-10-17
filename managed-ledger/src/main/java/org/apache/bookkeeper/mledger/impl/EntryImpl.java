@@ -150,13 +150,15 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data,
-                                                        EntryReadCountHandler entryReadCountHandler) {
+                                                        EntryReadCountHandler entryReadCountHandler,
+                                                        MessageMetadata messageMetadata) {
         EntryImpl entry = RECYCLER.get();
         entry.position = PositionFactory.create(position);
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data.retainedDuplicate();
         entry.readCountHandler = entryReadCountHandler;
+        entry.messageMetadata = messageMetadata;
         entry.setRefCnt(1);
         return entry;
     }
@@ -305,11 +307,11 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         decreaseReadCountOnRelease = enabled;
     }
 
-    public void initializeMessageMetadataIfNeeded(String managedLedgerName) {
+    public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {
         if (messageMetadata == null) {
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
-                Commands.peekMessageMetadata(data, msgMetadata);
+                Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
                 log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,

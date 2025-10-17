@@ -329,11 +329,23 @@ public class BrokerService implements Closeable {
     private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
     private volatile boolean unloaded = false;
 
+    // semaphore for limiting the concurrency of ledger deletion at broker level,
+    // thus all managed ledgers sharing the same semaphore
+    private final Semaphore ledgerDeletionSemaphore;
+
+    private final ExecutorProvider ledgerDeletionExecutorProvider;
+
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
         this.clock = pulsar.getClock();
         this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
-        this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock());
+        this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock(), producer -> {
+            producer.getCnx().getThrottleTracker().markThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+        }, producer -> {
+            producer.getCnx().getThrottleTracker().unmarkThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+        });
         this.dispatchRateLimiterFactory = createDispatchRateLimiterFactory(pulsar.getConfig());
         this.managedLedgerStorage = pulsar.getManagedLedgerStorage();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
@@ -451,6 +463,16 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar);
+        if (pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests() > 0) {
+            log.info("Setting managed ledger deletion max concurrent requests to {}",
+                    pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests());
+            this.ledgerDeletionSemaphore = new Semaphore(
+                    pulsar.getConfiguration().getManagedLedgerDeleteMaxConcurrentRequests());
+            this.ledgerDeletionExecutorProvider = new ExecutorProvider(1, "pulsar-ledger-deletion");
+        } else {
+            this.ledgerDeletionSemaphore = null;
+            this.ledgerDeletionExecutorProvider = null;
+        }
     }
 
     protected DispatchRateLimiterFactory createDispatchRateLimiterFactory(ServiceConfiguration config)
@@ -801,6 +823,12 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Void> closeAsync() {
         try {
             log.info("Shutting down Pulsar Broker service");
+
+            // shutdown executor for ledger deletion
+            if (ledgerDeletionExecutorProvider != null) {
+                log.info("Shutting down executor for ledger deletion...");
+                ledgerDeletionExecutorProvider.shutdownNow();
+            }
 
             // unregister non-static metrics collectors
             pendingTopicLoadRequests.unregister();
@@ -1168,14 +1196,7 @@ public class BrokerService implements Closeable {
                     // The topic level policies are not needed now, but the meaning of calling
                     // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
                     getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
-                            .exceptionally(ex -> {
-                        final Throwable rc = FutureUtil.unwrapCompletionException(ex);
-                        final String errorInfo = String.format("Topic creation encountered an exception by initialize"
-                                + " topic policies service. topic_name=%s error_message=%s", topicName,
-                                rc.getMessage());
-                        log.error(errorInfo, rc);
-                        throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
-                    }).thenRun(() -> {
+                            .thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
                         final var cachedFuture = topics.computeIfAbsent(topicName.toString(), ___ -> {
                             inserted.setTrue();
@@ -1195,6 +1216,15 @@ public class BrokerService implements Closeable {
                                 }
                             });
                         }
+                    }).exceptionally(e -> {
+                        pulsar.getExecutor().execute(() -> topics.remove(topicName.toString(), topicFuture));
+                        final Throwable rc = FutureUtil.unwrapCompletionException(e);
+                        final String errorInfo = String.format("Topic creation encountered an exception by initialize"
+                                        + " topic policies service. topic_name=%s error_message=%s", topicName,
+                                rc.getMessage());
+                        log.error(errorInfo, rc);
+                        topicFuture.completeExceptionally(rc);
+                        return null;
                     });
                 });
                 return topicFuture;
@@ -2055,6 +2085,9 @@ public class BrokerService implements Closeable {
             managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate() >= 0
                     ? persistencePolicies.getManagedLedgerMaxMarkDeleteRate()
                     : serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
+            managedLedgerConfig.setLedgerDeletionSemaphore(this.ledgerDeletionSemaphore);
+            managedLedgerConfig.setLedgerDeleteExecutor(this.ledgerDeletionExecutorProvider != null
+                    ? this.ledgerDeletionExecutorProvider.getExecutor() : null);
             managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
             managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
 
