@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -71,7 +72,11 @@ public class PoliciesDataTest {
         assertNotEquals(TenantInfo.builder().build(), pa1);
         assertNotEquals(TenantInfo.builder().adminRoles(Sets.newHashSet("role1", "role3"))
                 .allowedClusters(Sets.newHashSet("usc")).build(), pa1);
-        assertEquals(pa1.getAdminRoles(), Lists.newArrayList("role1", "role2"));
+
+        // Order array results deterministically before comparison because HashSet makes no guarantees on order
+        List<String> roles = new ArrayList<>(pa1.getAdminRoles());
+        Collections.sort(roles);
+        assertEquals(roles, Lists.newArrayList("role1", "role2"));
     }
 
     @Test
