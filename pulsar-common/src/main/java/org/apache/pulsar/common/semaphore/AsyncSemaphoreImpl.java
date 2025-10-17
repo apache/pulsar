@@ -100,7 +100,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     private CompletableFuture<AsyncSemaphorePermit> internalAcquire(long permits, long acquirePermits,
                                                                     BooleanSupplier isCancelled) {
-        if (permits < 0 || (permits > maxPermits && !isUnbounded())) {
+        if (!isPermitsValidForAcquiring(permits)) {
             throw new IllegalArgumentException("Invalid permits value: " + permits);
         }
 
@@ -141,6 +141,10 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         return future;
     }
 
+    private boolean isPermitsValidForAcquiring(long permits) {
+        return permits >= 0 && (isUnbounded() || permits <= maxPermits);
+    }
+
     private boolean isUnbounded() {
         return maxPermits <= 0;
     }
@@ -154,7 +158,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     @Override
     public CompletableFuture<AsyncSemaphorePermit> update(AsyncSemaphorePermit permit, long newPermits,
                                                           BooleanSupplier isCancelled) {
-        if (newPermits < 0 || (newPermits > maxPermits && !isUnbounded())) {
+        if (!isPermitsValidForAcquiring(newPermits)) {
             throw new IllegalArgumentException("Invalid permits value: " + newPermits);
         }
         if (isUnbounded()) {
