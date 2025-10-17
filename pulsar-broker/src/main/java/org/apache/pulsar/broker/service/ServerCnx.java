@@ -35,7 +35,6 @@ import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -101,6 +100,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -2594,14 +2594,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         return getBrokerService().pulsar().getNamespaceService()
                                 .getListOfUserTopics(namespaceName, mode)
                                 .thenAccept(topics -> {
-                                    long actualSize = topics.stream()
-                                            .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
-                                            .map(n -> n + 32) // add 32 bytes overhead for each entry
-                                            .sum();
-                                    // update the cached size if there's a difference larger than 1
-                                    if (Math.abs(initialSize - actualSize) > 1) {
-                                        listSizeHolder.updateSize(actualSize);
-                                    }
+                                    long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
+                                    listSizeHolder.updateSize(actualSize);
                                     maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                             isPermitRequestCancelled, permits -> {
                                                 boolean filterTopics = false;

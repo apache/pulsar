@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.topiclistlimit;
 
+import io.netty.buffer.ByteBufUtil;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
@@ -30,6 +31,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
@@ -292,5 +294,17 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
         otelDirectMemoryUsedGauge.close();
         otelHeapQueueSize.close();
         otelDirectQueueSize.close();
+    }
+
+    /**
+     * Estimate the heap memory size of a topic list.
+     * @param topicList the topic list to estimate
+     * @return the estimated heap memory size in bytes
+     */
+    public static long estimateTopicListSize(List<String> topicList) {
+        return topicList.stream()
+                .mapToLong(ByteBufUtil::utf8Bytes) // convert character count to bytes
+                .map(n -> n + 32) // add 32 bytes overhead for each entry
+                .sum();
     }
 }

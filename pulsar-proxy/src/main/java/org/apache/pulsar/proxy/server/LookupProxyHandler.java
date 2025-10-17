@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.prometheus.client.Counter;
 import java.net.InetSocketAddress;
@@ -32,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.function.BooleanSupplier;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
@@ -375,15 +375,9 @@ public class LookupProxyHandler {
                                 listSizeHolder.resetIfInitializing();
                                 writeAndFlush(Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
                             } else {
-                                long actualSize =
-                                        r.getNonPartitionedOrPartitionTopics().stream()
-                                                .mapToInt(ByteBufUtil::utf8Bytes) // convert character count to bytes
-                                                .map(n -> n + 32) // add 32 bytes overhead for each entry
-                                                .sum();
-                                // update the cached size if there's a difference larger than 1
-                                if (Math.abs(initialSize - actualSize) > 1) {
-                                    listSizeHolder.updateSize(actualSize);
-                                }
+                                long actualSize = TopicListMemoryLimiter.estimateTopicListSize(
+                                        r.getNonPartitionedOrPartitionTopics());
+                                listSizeHolder.updateSize(actualSize);
                                 maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                         isPermitRequestCancelled, permits -> {
                                             return handleWritingGetTopicsResponse(clientRequestId, r,
