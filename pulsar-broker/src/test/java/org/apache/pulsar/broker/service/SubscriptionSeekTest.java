@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Cleanup;
@@ -1035,11 +1036,14 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         // Create a pulsar client with a subscription fenced counter.
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         AtomicInteger receivedFencedErrorCounter = new AtomicInteger();
+        // Count switch: Default off, turn on again before seek starts.
+        final AtomicBoolean countAfterSeek = new AtomicBoolean(false);
         @Cleanup
         PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
                 new ClientCnx(conf, eventLoopGroup) {
                     protected void handleError(CommandError error) {
-                        if (error.getMessage() != null && error.getMessage().contains("Subscription is fenced")) {
+                        if (error.getMessage() != null && error.getMessage().contains("Subscription is fenced")
+                                && countAfterSeek.get()) {
                             receivedFencedErrorCounter.incrementAndGet();
                         }
                         super.handleError(error);
@@ -1076,10 +1080,9 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             assertNotNull(msg);
             consumer.acknowledge(msg);
         }
+        countAfterSeek.set(true);
         consumer.seek(msgId1);
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(consumer.isConnected());
-        });
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
         assertEquals(receivedFencedErrorCounter.get(), 0);
 
         // cleanup.
