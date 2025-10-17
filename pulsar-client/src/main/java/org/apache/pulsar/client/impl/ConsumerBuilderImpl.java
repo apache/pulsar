@@ -378,6 +378,22 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> enableMultiTopicsSinglePartitionReceiverQueueSize(
+            boolean multiTopicsSinglePartitionReceiverQueueSizeEnable) {
+        conf.setMultiTopicsSinglePartitionReceiverQueueSizeEnable(multiTopicsSinglePartitionReceiverQueueSizeEnable);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> multiTopicsSinglePartitionReceiverQueueSize(
+            int multiTopicsSinglePartitionReceiverQueueSize) {
+        checkArgument(multiTopicsSinglePartitionReceiverQueueSize >= 0,
+                "multiTopicsSinglePartitionReceiverQueueSize needs to be >= 0");
+        conf.setMultiTopicsSinglePartitionReceiverQueueSize(multiTopicsSinglePartitionReceiverQueueSize);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit) {
         checkArgument(delay >= 0, "acknowledgmentGroupTime needs to be >= 0");
         conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));

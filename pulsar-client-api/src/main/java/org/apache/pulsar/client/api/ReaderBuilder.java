@@ -249,6 +249,29 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> receiverQueueSize(int receiverQueueSize);
 
     /**
+     * Sets whether to enable {@link #multiTopicsSinglePartitionReceiverQueueSize(int)} config or not.
+     *
+     * <p>See also {@link ConsumerBuilder#enableMultiTopicsSinglePartitionReceiverQueueSize(boolean)}
+     *
+     * @param multiTopicsSinglePartitionReceiverQueueSizeEnable
+     *           enable multiTopicsSinglePartitionReceiverQueueSize or not
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> enableMultiTopicsSinglePartitionReceiverQueueSize(
+            boolean multiTopicsSinglePartitionReceiverQueueSizeEnable);
+
+    /**
+     * Sets single partition consumer's receiverQueueSize in multi-topics consumer.
+     *
+     * <p>See also {@link ConsumerBuilder#multiTopicsSinglePartitionReceiverQueueSize(int)}
+     *
+     * @param multiTopicsSinglePartitionReceiverQueueSize
+     *            the receiverQueueSize of single partition consumer in multi-topics consumer
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> multiTopicsSinglePartitionReceiverQueueSize(int multiTopicsSinglePartitionReceiverQueueSize);
+
+    /**
      * Specify a reader name.
      *
      * <p>The reader name is purely informational and can used to track a particular reader in the reported stats.

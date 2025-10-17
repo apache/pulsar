@@ -1110,7 +1110,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             allTopicPartitionsNumber.addAndGet(numPartitions);
 
-            int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
+            int receiverQueueSize = Math.min(getSinglePartitionReceiverQueueSize(),
                 conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
             ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
             configurationData.setReceiverQueueSize(receiverQueueSize);
@@ -1171,6 +1171,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         return existingValue;
                     } else {
                         internalConfig.setStartPaused(paused);
+                        ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
+                        configurationData.setReceiverQueueSize(getSinglePartitionReceiverQueueSize());
                         ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
                                 -1, subscribeFuture, createIfDoesNotExist, schema);
                         if (paused) {
@@ -1217,7 +1219,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                                    int partitionIndex, CompletableFuture<Consumer<T>> subFuture,
                                                    boolean createIfDoesNotExist, Schema<T> schema) {
         BatchReceivePolicy internalBatchReceivePolicy = BatchReceivePolicy.builder()
-                .maxNumMessages(Math.max(configurationData.getReceiverQueueSize() / 2, 1))
+                .maxNumMessages(Math.max(getSinglePartitionReceiverQueueSize() / 2, 1))
                 .maxNumBytes(-1)
                 .timeout(1, TimeUnit.MILLISECONDS)
                 .build();
@@ -1448,6 +1450,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
                         configurationData.setStartPaused(paused);
+                        // It is kind of difficult to get previous configured receiverQueueSize.
+                        // So we just use getSinglePartitionReceiverQueueSize() to set new partition consumer's
+                        // receiverQueueSize, it is developer's duty to set this to a reasonable value
+                        configurationData.setReceiverQueueSize(getSinglePartitionReceiverQueueSize());
                         ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
                                 partitionIndex, subFuture, true, schema);
                         synchronized (pauseMutex) {
@@ -1635,6 +1641,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             Collections.sort(list);
             return list;
         });
+    }
+
+    protected int getSinglePartitionReceiverQueueSize() {
+        return conf.isMultiTopicsSinglePartitionReceiverQueueSizeEnable()
+                ? conf.getMultiTopicsSinglePartitionReceiverQueueSize() : conf.getReceiverQueueSize();
     }
 
     private ConsumerInterceptors<T> getInternalConsumerInterceptors(ConsumerInterceptors<T> multiTopicInterceptors) {
