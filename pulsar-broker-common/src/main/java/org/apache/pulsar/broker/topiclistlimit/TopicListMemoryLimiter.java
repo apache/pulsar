@@ -304,7 +304,9 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
     public static long estimateTopicListSize(List<String> topicList) {
         return topicList.stream()
                 .mapToLong(ByteBufUtil::utf8Bytes) // convert character count to bytes
-                .map(n -> n + 32) // add 32 bytes overhead for each entry
+                // add 32 bytes overhead for each entry
+                // 16 bytes for object header, 16 bytes for java.lang.String fields
+                .map(n -> n + 32)
                 .sum();
     }
 }
