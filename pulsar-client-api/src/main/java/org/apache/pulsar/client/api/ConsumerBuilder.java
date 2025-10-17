@@ -454,7 +454,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * multi-topics consumer.
      *
      * <p>For partitioned-topic, each partition consumer's receiverQueueSize is the min value of receiverQueueSize and
-     * (maxTotalReceiverQueueSizeAcrossPartitions() / numPartitions)
+     * (maxTotalReceiverQueueSizeAcrossPartitions / numPartitions)
      *
      * @param multiTopicsSinglePartitionReceiverQueueSize
      *            the receiverQueueSize of single partition consumer in multi-topics consumer
