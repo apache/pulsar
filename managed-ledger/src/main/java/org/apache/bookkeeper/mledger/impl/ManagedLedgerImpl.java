@@ -3845,11 +3845,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         boolean toIncluded = range.upperBoundType() == BoundType.CLOSED;
 
         if (fromPosition.getLedgerId() == toPosition.getLedgerId()) {
-            // If the 2 positions are in the same ledger
-            long count = toPosition.getEntryId() - fromPosition.getEntryId() - 1;
-            count += fromIncluded ? 1 : 0;
-            count += toIncluded ? 1 : 0;
-            return count;
+            LedgerInfo li = ledgers.get(toPosition.getLedgerId());
+            if (li != null) {
+                // If the 2 positions are in the same ledger
+                long count = toPosition.getEntryId() - fromPosition.getEntryId() - 1;
+                count += fromIncluded ? 1 : 0;
+                count += toIncluded ? 1 : 0;
+                return count;
+            } else {
+                // if the ledgerId is not in the ledgers, it means it has been deleted
+                return 0;
+            }
         } else {
             long count = 0;
             // If the from & to are pointing to different ledgers, then we need to :
