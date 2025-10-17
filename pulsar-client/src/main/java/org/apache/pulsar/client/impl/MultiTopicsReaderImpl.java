@@ -71,6 +71,8 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setSubscriptionMode(SubscriptionMode.NonDurable);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
+        consumerConfiguration.setMultiTopicsSingleConsumerReceiverQueueSizeEnabled(
+                readerConfiguration.isMultiTopicsSingleConsumerReceiverQueueSizeEnabled());
         consumerConfiguration.setMultiTopicsSingleConsumerReceiverQueueSize(
                 readerConfiguration.getMultiTopicsSingleConsumerReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());

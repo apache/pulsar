@@ -133,6 +133,14 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private int receiverQueueSize = 1000;
 
     @ApiModelProperty(
+            name = "multiTopicsSingleConsumerReceiverQueueSizeEnabled",
+            value = "Determine whether multiTopicsSingleConsumerReceiverQueueSize is effective.\n"
+                    + "\n"
+                    + "For backward compatibility, the default value is set to false."
+    )
+    private boolean multiTopicsSingleConsumerReceiverQueueSizeEnabled = false;
+
+    @ApiModelProperty(
             name = "multiTopicsSingleConsumerReceiverQueueSize",
             value = "Size of a single consumer's receiver queue in multi-topics consumer.\n"
                     + "\n"
@@ -146,7 +154,6 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "receiverQueueSize 200, and PatternMultiTopicsConsumerImpl's receiverQueueSize is 1000, so the "
                     + "max messages in memory is 1000 + 50 * 200 = 11000.\n"
                     + "\n"
-                    + "For backward compatibility, the default value is set to 1000, the same as receiverQueueSize."
     )
     private int multiTopicsSingleConsumerReceiverQueueSize = 1000;
 
