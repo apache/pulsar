@@ -77,7 +77,7 @@ public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseT
     public void testNamespaceIsolationPolicyForReplNS() throws Exception {
 
         // Verify that namespace is not present in cluster-2.
-        Set<String> replicationClusters = localAdmin.namespaces().getPolicies("prop-ig/ns1").replication_clusters;
+        Set<String> replicationClusters = localAdmin.namespaces().getPolicies("prop-ig/ns1").replication_clusters; // Nothing is needed to be changed.
         Assert.assertFalse(replicationClusters.contains("cluster-2"));
 
         // setup ns-isolation-policy in both the clusters.
