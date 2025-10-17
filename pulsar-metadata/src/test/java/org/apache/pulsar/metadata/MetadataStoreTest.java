@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -667,27 +668,15 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
         store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
 
-        List<String> subPaths = store.getChildren("/").get();
-        Set<String> ignoredRootPaths = Set.of("zookeeper");
-        Set<String> expectedSet = Set.of("a", "b");
-        for (String subPath : subPaths) {
-            if (ignoredRootPaths.contains(subPath)) {
-                continue;
-            }
-            assertThat(expectedSet).contains(subPath);
-        }
+        List<String> subPaths = new ArrayList<>(store.getChildren("/").get());
+        subPaths.remove("zookeeper"); // ignored
+        assertThat(subPaths).containsExactlyInAnyOrderElementsOf(Set.of("a", "b"));
 
         List<String> subPaths2 = store.getChildren("/a").get();
-        Set<String> expectedSet2 = Set.of("a-1", "a-2");
-        for (String subPath : subPaths2) {
-            assertThat(expectedSet2).contains(subPath);
-        }
+        assertThat(subPaths2).containsExactlyInAnyOrderElementsOf(Set.of("a-1", "a-2"));
 
         List<String> subPaths3 = store.getChildren("/b").get();
-        Set<String> expectedSet3 = Set.of("c");
-        for (String subPath : subPaths3) {
-            assertThat(expectedSet3).contains(subPath);
-        }
+        assertThat(subPaths3).containsExactlyInAnyOrderElementsOf(Set.of("c"));
     }
 
     @Test(dataProvider = "impl")
