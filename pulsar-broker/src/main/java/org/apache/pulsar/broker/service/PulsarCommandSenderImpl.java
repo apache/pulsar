@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -25,6 +26,8 @@ import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -37,6 +40,7 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 
 @Slf4j
@@ -44,10 +48,13 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     private final BrokerInterceptor interceptor;
     private final ServerCnx cnx;
+    private final AsyncDualMemoryLimiter maxTopicListInFlightLimiter;
 
-    public PulsarCommandSenderImpl(BrokerInterceptor interceptor, ServerCnx cnx) {
+    public PulsarCommandSenderImpl(BrokerInterceptor interceptor, ServerCnx cnx,
+                                   AsyncDualMemoryLimiter maxTopicListInFlightLimiter) {
         this.interceptor = interceptor;
         this.cnx = cnx;
+        this.maxTopicListInFlightLimiter = maxTopicListInFlightLimiter;
     }
 
     @Override
@@ -120,13 +127,14 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
-                                                 boolean filtered, boolean changed, long requestId) {
+    public CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
+                                                                    boolean filtered, boolean changed, long requestId,
+                                                                    Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash,
                 filtered, changed, requestId);
         safeIntercept(command, cnx);
-        ByteBuf outBuf = Commands.serializeWithSize(command);
-        writeAndFlush(outBuf);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
     }
 
     @Override
@@ -358,27 +366,30 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     /***
      * @param topics topic names which are matching, the topic name contains the partition suffix.
+     * @return
      */
     @Override
-    public void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics) {
+    public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                             List<String> topics,
+                                                             Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
-        interceptAndWriteCommand(command);
+        safeIntercept(command, cnx);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
     }
 
     /***
      * {@inheritDoc}
+     * @return
      */
     @Override
-    public void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash) {
+    public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
+                                                            List<String> deletedTopics, String topicsHash,
+                                                            Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
-        interceptAndWriteCommand(command);
-    }
-
-    private void interceptAndWriteCommand(BaseCommand command) {
         safeIntercept(command, cnx);
-        ByteBuf outBuf = Commands.serializeWithSize(command);
-        writeAndFlush(outBuf);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
     }
 
     private void writeAndFlush(ByteBuf outBuf) {

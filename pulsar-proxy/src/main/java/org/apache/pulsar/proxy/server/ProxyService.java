@@ -35,6 +35,7 @@ import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.Closeable;
@@ -62,10 +63,13 @@ import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -149,10 +153,16 @@ public class ProxyService implements Closeable {
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
     @Getter
-    private PulsarProxyOpenTelemetry openTelemetry;
+    private final PulsarProxyOpenTelemetry openTelemetry;
 
     @Getter
     private final ConnectionController connectionController;
+
+    @Getter
+    private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
+
+    @Getter
+    private final TopicListSizeResultCache topicListSizeResultCache = new TopicListSizeResultCache();
 
     private boolean gracefulShutdown = true;
 
@@ -212,6 +222,18 @@ public class ProxyService implements Closeable {
         this.connectionController = new ConnectionController.DefaultConnectionController(
                 proxyConfig.getMaxConcurrentInboundConnections(),
                 proxyConfig.getMaxConcurrentInboundConnectionsPerIp());
+
+        this.openTelemetry = new PulsarProxyOpenTelemetry(proxyConfig);
+
+        // Initialize topic list memory limiter
+        this.maxTopicListInFlightLimiter = new TopicListMemoryLimiter(
+                CollectorRegistry.defaultRegistry, "pulsar_proxy_", openTelemetry.getMeter(),
+                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
+                proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
+                proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),
+                proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
+                proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
+                proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
     }
 
     public void start() throws Exception {
@@ -287,7 +309,6 @@ public class ProxyService implements Closeable {
         }
 
         createMetricsServlet();
-        openTelemetry = new PulsarProxyOpenTelemetry(proxyConfig);
 
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
@@ -390,6 +411,8 @@ public class ProxyService implements Closeable {
         closeAllConnections();
 
         dnsAddressResolverGroup.close();
+
+        maxTopicListInFlightLimiter.close();
 
         if (discoveryProvider != null) {
             discoveryProvider.close();
