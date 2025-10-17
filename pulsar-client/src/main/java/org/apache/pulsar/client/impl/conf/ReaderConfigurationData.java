@@ -69,6 +69,24 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private int receiverQueueSize = 1000;
 
     @ApiModelProperty(
+            name = "multiTopicsSingleConsumerReceiverQueueSize",
+            value = "Size of a single consumer's receiver queue in multi-topics consumer.\n"
+                    + "\n"
+                    + "In MultiTopicsConsumerImpl, if you have a partitioned-topic with 10 partitions, set this value"
+                    + " to 200, then each non-partitioned topic consumer's receiverQueueSize 200, and "
+                    + "MultiTopicsConsumerImpl's receiverQueueSize is 1000, so the max messages in memory is 1000 + "
+                    + "200 * 10 = 3000.\n"
+                    + "\n"
+                    + "In PatternMultiTopicsConsumerImpl, if you subscribe to a regex pattern that matches 1000 "
+                    + "non-partitioned topics, set this to 50, then each non-partitioned topic consumer's "
+                    + "receiverQueueSize 200, and PatternMultiTopicsConsumerImpl's receiverQueueSize is 1000, so the "
+                    + "max messages in memory is 1000 + 50 * 200 = 11000.\n"
+                    + "\n"
+                    + "For backward compatibility, the default value is set to 1000, the same as receiverQueueSize."
+    )
+    private int multiTopicsSingleConsumerReceiverQueueSize = 1000;
+
+    @ApiModelProperty(
             name = "readerListener",
             value = "A listener that is called for message received."
     )
