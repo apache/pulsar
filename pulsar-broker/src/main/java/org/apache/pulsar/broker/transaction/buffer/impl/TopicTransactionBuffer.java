@@ -233,6 +233,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @VisibleForTesting
+    public void setPublishFuture(CompletableFuture<Position> publishFuture) {
+        this.publishFuture = publishFuture;
+    }
+
+    @VisibleForTesting
     public CompletableFuture<Position> getPublishFuture() {
         return publishFuture;
     }
@@ -298,7 +303,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         "Transaction Buffer recover failed, the current state is: " + getState()));
             }
         }).whenComplete(((position, throwable) -> buffer.release()));
-        publishFuture = future;
+        setPublishFuture(future);
         return future;
     }
 
