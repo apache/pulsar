@@ -1450,6 +1450,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
                         configurationData.setStartPaused(paused);
+                        // It is kind of difficult to get previous configured receiverQueueSize.
+                        // So we just use getSinglePartitionReceiverQueueSize() to set new partition consumer's
+                        // receiverQueueSize, it is developer's duty to set this to a reasonable value
+                        configurationData.setReceiverQueueSize(getSinglePartitionReceiverQueueSize());
                         ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
                                 partitionIndex, subFuture, true, schema);
                         synchronized (pauseMutex) {
@@ -1639,7 +1643,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         });
     }
 
-    private int getSinglePartitionReceiverQueueSize() {
+    protected int getSinglePartitionReceiverQueueSize() {
         return conf.isMultiTopicsSinglePartitionReceiverQueueSizeEnable()
                 ? conf.getMultiTopicsSinglePartitionReceiverQueueSize() : conf.getReceiverQueueSize();
     }
