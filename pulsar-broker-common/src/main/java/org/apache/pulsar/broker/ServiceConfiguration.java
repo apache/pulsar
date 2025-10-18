@@ -2313,6 +2313,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int managedLedgerNumSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
+    private int managedLedgerNumOffloadSchedulerThreads = Runtime.getRuntime().availableProcessors();
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a ledger before triggering a rollover.\n\n"
