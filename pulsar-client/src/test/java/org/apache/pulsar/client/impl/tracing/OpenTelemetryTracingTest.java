@@ -106,12 +106,13 @@ public class OpenTelemetryTracingTest {
         spanExporter.reset();
 
         String topic = "test-topic";
+        String subscription = "test-sub";
         Map<String, String> properties = new HashMap<>();
         properties.put("test-key", "test-value");
 
         Message<?> message = createTestMessage(properties);
 
-        Span span = TracingContext.createConsumerSpan(tracer, topic, message, propagator);
+        Span span = TracingContext.createConsumerSpan(tracer, topic, subscription, message, propagator);
 
         assertNotNull(span);
         assertTrue(span.isRecording());
@@ -129,6 +130,9 @@ public class OpenTelemetryTracingTest {
                 io.opentelemetry.api.common.AttributeKey.stringKey("messaging.system")), "pulsar");
         assertEquals(spanData.getAttributes().get(
                 io.opentelemetry.api.common.AttributeKey.stringKey("messaging.destination.name")), topic);
+        assertEquals(spanData.getAttributes().get(
+                io.opentelemetry.api.common.AttributeKey.stringKey("messaging.destination.subscription.name")),
+                subscription);
         assertEquals(spanData.getAttributes().get(
                 io.opentelemetry.api.common.AttributeKey.stringKey("messaging.operation.name")), "process");
     }

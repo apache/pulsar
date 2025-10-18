@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * <p>
  * <b>Multi-Topic Consumer Support:</b><br>
- * For {@link org.apache.pulsar.client.api.MultiTopicsConsumer} and pattern-based consumers, cumulative
+ * For {@link org.apache.pulsar.client.impl.MultiTopicsConsumerImpl} and pattern-based consumers, cumulative
  * acknowledgment only affects messages from the same topic partition. The interceptor uses a nested
  * map structure (topic partition → message IDs) and {@link TopicMessageId#getOwnerTopic()} to ensure
  * spans are only ended for messages from the acknowledged topic partition.
@@ -69,6 +69,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
     private Tracer tracer;
     private TextMapPropagator propagator;
     private String topic;
+    private String subscription;
     private boolean initialized = false;
 
     /**
@@ -103,8 +104,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
      * This is called lazily on the first message.
      */
     private void initializeIfNeeded(Consumer<T> consumer) {
-        if (!initialized && consumer instanceof ConsumerBase) {
-            ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
+        if (!initialized && consumer instanceof ConsumerBase<?> consumerBase) {
             PulsarClientImpl client = consumerBase.getClient();
             InstrumentProvider instrumentProvider = client.instrumentProvider();
 
@@ -153,9 +153,12 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
             if (topic == null) {
                 topic = consumer.getTopic();
             }
+            if (subscription == null) {
+                subscription = consumer.getSubscription();
+            }
 
             // Create a consumer span for this message
-            Span span = TracingContext.createConsumerSpan(tracer, topic, message, propagator);
+            Span span = TracingContext.createConsumerSpan(tracer, topic, subscription, message, propagator);
 
             if (TracingContext.isValid(span)) {
                 MessageId messageId = message.getMessageId();
@@ -216,7 +219,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
 
     @Override
     public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception) {
-        if (!(messageId instanceof MessageIdAdv)) {
+        if (!(messageId instanceof MessageIdAdv cumulativeAckPos)) {
             // Fallback to simple ack for non-adv message IDs
             if (messageId instanceof TraceableMessageId) {
                 Span span = ((TraceableMessageId) messageId).getTracingSpan();
@@ -238,7 +241,6 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
             return;
         }
 
-        MessageIdAdv cumulativeAckPos = (MessageIdAdv) messageId;
         String topicKey = getTopicKey(messageId);
 
         // Get the topic-specific map
