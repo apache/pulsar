@@ -120,11 +120,12 @@ public class TracingContext {
      *
      * @param tracer the tracer to use
      * @param topic the topic name
+     * @param subscription the subscription name
      * @param message the message being consumed
      * @param propagator the text map propagator to use for context extraction
      * @return the created span
      */
-    public static Span createConsumerSpan(Tracer tracer, String topic, Message<?> message,
+    public static Span createConsumerSpan(Tracer tracer, String topic, String subscription, Message<?> message,
                                            TextMapPropagator propagator) {
         if (tracer == null) {
             return Span.getInvalid();
@@ -137,6 +138,7 @@ public class TracingContext {
                 .setSpanKind(SpanKind.CONSUMER)
                 .setAttribute("messaging.system", "pulsar")
                 .setAttribute("messaging.destination.name", topic)
+                .setAttribute("messaging.destination.subscription.name", subscription)
                 .setAttribute("messaging.operation.name", "process")
                 .setAttribute("messaging.message.id", message.getMessageId().toString())
                 .startSpan();
