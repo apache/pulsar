@@ -61,8 +61,7 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
      * This is called lazily on the first message.
      */
     private void initializeIfNeeded(Producer producer) {
-        if (!initialized && producer instanceof ProducerBase) {
-            ProducerBase<?> producerBase = (ProducerBase<?>) producer;
+        if (!initialized && producer instanceof ProducerBase<?> producerBase) {
             PulsarClientImpl client = producerBase.getClient();
             InstrumentProvider instrumentProvider = client.instrumentProvider();
 
