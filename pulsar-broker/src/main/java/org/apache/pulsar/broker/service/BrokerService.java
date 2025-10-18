@@ -1817,7 +1817,11 @@ public class BrokerService implements Closeable {
         maxTopicsCheck.thenCompose(partitionedTopicMetadata -> validateTopicConsistency(topicName))
                 .thenCompose(__ -> isTopicAlreadyMigrated)
                 .thenCompose(__ -> getManagedLedgerConfig(topicName))
-        .thenAccept(managedLedgerConfig -> {
+                .thenCombine(pulsar().getNamespaceService().checkTopicExistsAsync(topicName).thenApply(n -> {
+                            boolean found = n.isExists();
+                            n.recycle();
+                            return found;
+                        }), (managedLedgerConfig, exists) -> {
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
@@ -1854,8 +1858,10 @@ public class BrokerService implements Closeable {
             });
 
             if (createIfMissing) {
-                topicEventsDispatcher.notify(topic, TopicEvent.CREATE, EventStage.BEFORE);
-                topicEventsDispatcher.notifyOnCompletion(topicFuture, topic, TopicEvent.CREATE);
+                if (!exists) {
+                    topicEventsDispatcher.notify(topic, TopicEvent.CREATE, EventStage.BEFORE);
+                    topicEventsDispatcher.notifyOnCompletion(topicFuture, topic, TopicEvent.CREATE);
+                }
             }
             topicEventsDispatcher.notifyOnCompletion(loadFuture, topic, TopicEvent.LOAD);
 
@@ -1945,7 +1951,7 @@ public class BrokerService implements Closeable {
                             }
                         }
                     }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
-
+            return null;
         }).exceptionally((exception) -> {
             boolean migrationFailure = exception.getCause() instanceof TopicMigratedException;
             String msg = migrationFailure ? "Topic is already migrated" :
