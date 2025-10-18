@@ -1397,7 +1397,7 @@ public class PulsarClientImpl implements PulsarClient {
         return scheduledExecutorProvider;
     }
 
-    InstrumentProvider instrumentProvider() {
+    public InstrumentProvider instrumentProvider() {
         return instrumentProvider;
     }
 

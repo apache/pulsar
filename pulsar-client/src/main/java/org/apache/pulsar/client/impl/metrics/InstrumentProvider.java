@@ -24,6 +24,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import io.opentelemetry.api.trace.Tracer;
 import java.util.function.Consumer;
 import org.apache.pulsar.PulsarVersion;
 
@@ -32,6 +33,7 @@ public class InstrumentProvider {
     public static final InstrumentProvider NOOP = new InstrumentProvider(OpenTelemetry.noop());
 
     private final Meter meter;
+    private final Tracer tracer;
 
     public InstrumentProvider(OpenTelemetry otel) {
         if (otel == null) {
@@ -41,6 +43,10 @@ public class InstrumentProvider {
         }
         this.meter = otel.getMeterProvider()
                 .meterBuilder("org.apache.pulsar.client")
+                .setInstrumentationVersion(PulsarVersion.getVersion())
+                .build();
+        this.tracer = otel.getTracerProvider()
+                .tracerBuilder("org.apache.pulsar.client")
                 .setInstrumentationVersion(PulsarVersion.getVersion())
                 .build();
     }
@@ -62,5 +68,9 @@ public class InstrumentProvider {
                                                             String topic, Attributes attributes,
                                                             Consumer<ObservableLongMeasurement> callback) {
         return new ObservableUpDownCounter(meter, name, unit, description, topic, attributes, callback);
+    }
+
+    public Tracer getTracer() {
+        return tracer;
     }
 }
