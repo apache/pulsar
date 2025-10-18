@@ -93,8 +93,6 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
             });
         }
         latch.await();
-        Awaitility.await().atMost(55, TimeUnit.SECONDS).untilAsserted(() -> {
-            Assert.assertEquals(success.get(), requests);
-        });
+        Assert.assertEquals(success.get(), requests);
     }
 }
