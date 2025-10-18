@@ -860,10 +860,9 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         ReadType readType = (ReadType) ctx;
         long waitTimeMillis = readFailureBackoff.next();
 
-        // Do not keep reading more entries if the cursor is already closed.
-        if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+        if (ManagedLedgerException.shouldNotRead(exception)) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Cursor is already closed, skipping read more entries", cursor.getName());
+                log.debug("[{}] skipping read more entries due to {}", cursor.getName(), exception.getMessage());
             }
             // Set the wait time to -1 to avoid rescheduling the read.
             waitTimeMillis = -1;

@@ -41,7 +41,6 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -255,19 +254,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     private List<Entry> readEntry(EntryCache entryCache, ReadHandle lh, long firstEntry, long lastEntry,
                                   IntSupplier expectedReadCount, Consumer<Throwable> assertion)
             throws InterruptedException {
-        final var future = new CompletableFuture<List<Entry>>();
-        entryCache.asyncReadEntry(lh, firstEntry, lastEntry, expectedReadCount,
-                new ReadEntriesCallback() {
-                    @Override
-                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                        future.complete(entries);
-                    }
-
-                    @Override
-                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                        future.completeExceptionally(exception);
-                    }
-                }, null);
+        final var future = entryCache.asyncReadEntry(lh, firstEntry, lastEntry, expectedReadCount);
         try {
             final var entries = future.get();
             assertNull(assertion);
