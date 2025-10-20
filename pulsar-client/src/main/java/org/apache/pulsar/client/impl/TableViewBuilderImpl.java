@@ -62,20 +62,6 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
-    public org.apache.pulsar.client.api.TableView<Message<T>> createForMessages() throws PulsarClientException {
-        try {
-            return createForMessagesAsync().get();
-        } catch (Exception e) {
-            throw PulsarClientException.unwrap(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<org.apache.pulsar.client.api.TableView<Message<T>>> createForMessagesAsync() {
-        return new MessageTableView<>(client, schema, conf).start();
-    }
-
-    @Override
     public <V> org.apache.pulsar.client.api.TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException {
         try {
             return createMappedAsync(mapper).get();

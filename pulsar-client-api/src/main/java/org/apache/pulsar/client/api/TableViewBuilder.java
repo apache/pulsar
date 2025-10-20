@@ -79,27 +79,6 @@ public interface TableViewBuilder<T> {
     CompletableFuture<TableView<T>> createAsync();
 
     /**
-     * Finalize the creation of the {@link TableView} instance that contains the full {@link Message}.
-     *
-     * <p>This method will block until the tableView is created successfully or an exception is thrown.
-     *
-     * @return the {@link TableView} instance
-     * @throws PulsarClientException
-     *              if the tableView creation fails
-     */
-    TableView<Message<T>> createForMessages() throws PulsarClientException;
-
-    /**
-     * Finalize the creation of the {@link TableView} instance that contains the full {@link Message}
-     * in asynchronous mode.
-     *
-     * <p>This method will return a {@link CompletableFuture} that can be used to access the instance when it's ready.
-     *
-     * @return the {@link TableView} instance
-     */
-    CompletableFuture<TableView<Message<T>>> createForMessagesAsync();
-
-    /**
      * Creates a {@link TableView} instance where the values are the result of applying a user-defined
      * `mapper` function to each message.
      *

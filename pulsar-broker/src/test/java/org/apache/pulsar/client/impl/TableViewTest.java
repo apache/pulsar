@@ -625,39 +625,6 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testCreateForMessages() throws Exception {
-        String topic = "persistent://public/default/testCreateForMessages";
-        admin.topics().createNonPartitionedTopic(topic);
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-
-        String testKey = "key1";
-        String testValue = "value1";
-        producer.newMessage()
-                .key(testKey)
-                .value(testValue)
-                .property("myProp", "myValue")
-                .send();
-
-        @Cleanup
-        org.apache.pulsar.client.api.TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
-                .topic(topic)
-                .createForMessages();
-
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
-
-        Message<String> message = tableView.get(testKey);
-        Assert.assertNotNull(message, "Message should not be null for key: " + testKey);
-        assertEquals(message.getKey(), testKey);
-        assertEquals(message.getValue(), testValue);
-        assertEquals(message.getProperty("myProp"), "myValue");
-
-        Message<String> missingMessage = tableView.get("missingKey");
-        Assert.assertNull(missingMessage, "Message should be null for missing key");
-    }
-
-    @Test
     public void testCreateMapped() throws Exception {
         String topic = "persistent://public/default/testCreateMapped";
         admin.topics().createNonPartitionedTopic(topic);
