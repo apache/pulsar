@@ -244,4 +244,8 @@ public class AuthenticationService implements Closeable {
             provider.close();
         }
     }
+
+    public static BinaryAuthSession createBinaryAuthSession(BinaryAuthContext ctx) {
+        return new BinaryAuthSession(ctx);
+    }
 }
