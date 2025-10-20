@@ -23,8 +23,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 
 @Slf4j
-public class MessageTableViewImpl<T> extends AbstractTableViewImpl<T, Message<T>> {
-    MessageTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
+public class MessageTableView<T> extends AbstractTableView<T, Message<T>> {
+    MessageTableView(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         super(client, schema, conf);
     }
 

@@ -46,7 +46,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 @Slf4j
-abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
+abstract class AbstractTableView<T, V> implements TableView<V> {
     private final TableViewConfigurationData conf;
     private final ConcurrentMap<String, V> data;
     private final Map<String, V> immutableData;
@@ -73,7 +73,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
      * </p>
      */
     private final ConcurrentHashMap<String, MessageId> lastReadPositions;
-    AbstractTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
+    AbstractTableView(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();

@@ -48,7 +48,7 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
-    public TableView<T> create() throws PulsarClientException {
+    public org.apache.pulsar.client.api.TableView<T> create() throws PulsarClientException {
        try {
            return createAsync().get();
        } catch (Exception e) {
@@ -57,12 +57,12 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
-    public CompletableFuture<TableView<T>> createAsync() {
-       return new TableViewImpl<>(client, schema, conf).start();
+    public CompletableFuture<org.apache.pulsar.client.api.TableView<T>> createAsync() {
+       return new TableView<>(client, schema, conf).start();
     }
 
     @Override
-    public TableView<Message<T>> createForMessages() throws PulsarClientException {
+    public org.apache.pulsar.client.api.TableView<Message<T>> createForMessages() throws PulsarClientException {
         try {
             return createForMessagesAsync().get();
         } catch (Exception e) {
@@ -71,12 +71,12 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
-    public CompletableFuture<TableView<Message<T>>> createForMessagesAsync() {
-        return new MessageTableViewImpl<>(client, schema, conf).start();
+    public CompletableFuture<org.apache.pulsar.client.api.TableView<Message<T>>> createForMessagesAsync() {
+        return new MessageTableView<>(client, schema, conf).start();
     }
 
     @Override
-    public <V> TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException {
+    public <V> org.apache.pulsar.client.api.TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException {
         try {
             return createMappedAsync(mapper).get();
         } catch (Exception e) {
@@ -85,8 +85,8 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
-    public <V> CompletableFuture<TableView<V>> createMappedAsync(Function<Message<T>, V> mapper) {
-        return new MessageMapperTableViewImpl<T, V>(client, schema, conf, mapper).start();
+    public <V> CompletableFuture<org.apache.pulsar.client.api.TableView<V>> createMappedAsync(Function<Message<T>, V> mapper) {
+        return new MessageMapperTableView<T, V>(client, schema, conf, mapper).start();
     }
 
     @Override

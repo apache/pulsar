@@ -18,31 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 
-@Slf4j
-public class MessageMapperTableViewImpl<T, V> extends AbstractTableViewImpl<T, V> {
+public class TableView<T> extends AbstractTableView<T, T> {
 
-    private final Function<Message<T>, V> mapper;
-
-    MessageMapperTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf,
-                               Function<Message<T>, V> mapper) {
+    TableView(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         super(client, schema, conf);
-        this.mapper = mapper;
     }
 
-    @Override
-    protected void maybeReleaseMessage(Message<T> msg) {
-        // The message is passed to the user-defined mapper function.
-        // The user is responsible for releasing the message if needed.
-        // To be safe, we don't release the message here.
-    }
-
-    @Override
-    protected V getValueIfPresent(Message<T> msg) {
-        return msg.size() > 0 ? mapper.apply(msg) : null;
-    }
 }
