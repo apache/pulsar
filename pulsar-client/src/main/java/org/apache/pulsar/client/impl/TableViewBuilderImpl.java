@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.*;
@@ -72,6 +73,20 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     @Override
     public CompletableFuture<TableView<Message<T>>> createForMessagesAsync() {
         return new MessageTableViewImpl<>(client, schema, conf).start();
+    }
+
+    @Override
+    public <V> TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException {
+        try {
+            return createMappedAsync(mapper).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public <V> CompletableFuture<TableView<V>> createMappedAsync(Function<Message<T>, V> mapper) {
+        return new MessageMapperTableViewImpl<T, V>(client, schema, conf, mapper).start();
     }
 
     @Override
