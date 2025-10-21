@@ -141,7 +141,7 @@ public class BinaryAuthSession {
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Setting original role (forwarded from proxy): {}",
-                            context.getSslSession(), originalPrincipal);
+                            context.getRemoteAddress(), originalPrincipal);
                 }
             }
 
