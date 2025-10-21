@@ -211,7 +211,7 @@ public class BinaryAuthSession {
                             log.warn("[{}] Principal cannot change during an authentication refresh expected={} got={}",
                                     context.getRemoteAddress(), authRole, newAuthRole);
                             return CompletableFuture.failedFuture(
-                                    new AuthenticationException("Auth role not match previous"));
+                                    new AuthenticationException("Auth role does not match previous role"));
                         }
                     }
                     // Refresh authentication data
