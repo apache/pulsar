@@ -1128,7 +1128,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     authData,
                     authResult.getClientProtocolVersion()));
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Authentication in progress client by method {}.", remoteAddress, authMethod);
+                log.debug("[{}] Authentication in progress client by method {}.", remoteAddress, authResult.getAuthMethod());
             }
         } else {
             authMethod = binaryAuthSession.getAuthMethod();
