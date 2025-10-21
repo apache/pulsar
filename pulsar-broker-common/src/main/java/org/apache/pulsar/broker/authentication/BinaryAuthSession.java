@@ -87,7 +87,7 @@ public class BinaryAuthSession {
             }
 
             authState =
-                    authenticationProvider.newAuthState(AuthData.of(connect.getAuthData()), context.getRemoteAddress(),
+                    authenticationProvider.newAuthState(clientData, context.getRemoteAddress(),
                             context.getSslSession());
 
             if (log.isDebugEnabled()) {
