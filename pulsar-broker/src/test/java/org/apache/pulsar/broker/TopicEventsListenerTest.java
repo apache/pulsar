@@ -266,14 +266,30 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         final String[] expectedEvents;
         if (topicDomain.equalsIgnoreCase("persistent") || topicTypePartitioned.equals("partitioned")) {
             if (topicTypePartitioned.equals("partitioned")) {
-                expectedEvents = new String[]{
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                };
+                if (topicDomain.equalsIgnoreCase("persistent")) {
+                    expectedEvents = new String[]{
+                            "CREATE__BEFORE",
+                            "CREATE__SUCCESS",
+                            "LOAD__BEFORE",
+                            "LOAD__SUCCESS"
+                    };
+                } else {
+                    // For non-persistent partitioned topic, only metadata is initially created;
+                    // partitions are created when the client connects.
+                    // PR #23680 currently records creation events at metadata creation,
+                    // and the broker records them again when partitions are loaded,
+                    // which can result in multiple events.
+                    // Ideally, #23680 should not record the event here,
+                    // because the topic is not fully created until the client connects.
+                    expectedEvents = new String[]{
+                            "CREATE__BEFORE",
+                            "CREATE__SUCCESS",
+                            "LOAD__BEFORE",
+                            "CREATE__BEFORE",
+                            "CREATE__SUCCESS",
+                            "LOAD__SUCCESS",
+                    };
+                }
             } else {
                 expectedEvents = new String[]{
                         "LOAD__BEFORE",
@@ -338,7 +354,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         Awaitility.await().during(3, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     if (topicTypePartitioned.equals("partitioned") && topicTypePersistence.equals("non-persistent")) {
-                        // For non-persistent partitioned topics, only metadata is initially created;
+                        // For non-persistent partitioned topic, only metadata is initially created;
                         // partitions are created when the client connects.
                         // PR #23680 currently records creation events at metadata creation,
                         // and the broker records them again when partitions are loaded,
