@@ -72,7 +72,7 @@ public class BinaryAuthSession {
             }
 
             defaultAuthResult = AuthResult.builder().clientProtocolVersion(connect.getProtocolVersion())
-                    .clientVersion(connect.hasClientVersion()? connect.getClientVersion() : "")
+                    .clientVersion(connect.hasClientVersion() ? connect.getClientVersion() : "")
                     .build();
 
             authenticationProvider = context.getAuthenticationService().getAuthenticationProvider(authMethod);
