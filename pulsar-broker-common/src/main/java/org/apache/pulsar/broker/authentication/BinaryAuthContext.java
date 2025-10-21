@@ -29,11 +29,42 @@ import org.apache.pulsar.common.api.proto.CommandConnect;
 @Getter
 @Builder
 public class BinaryAuthContext {
+    /**
+     * The CommandConnect object representing the client's connection request.
+     */
     private CommandConnect commandConnect;
+
+    /**
+     * The SSLSession associated with the connection, if SSL/TLS is used.
+     */
     private SSLSession sslSession;
+
+    /**
+     * The AuthenticationService used to perform authentication for this context.
+     */
     private AuthenticationService authenticationService;
+
+    /**
+     * The Executor to use for asynchronous authentication operations.
+     * Must be provided if authentication involves async tasks.
+     */
     private Executor executor;
+
+    /**
+     * The remote address of the client initiating the connection.
+     */
     private SocketAddress remoteAddress;
+
+    /**
+     * If true, authentication should be performed using the original authentication data
+     * provided by the client, rather than any intermediate or proxy data.
+     * Set to true when authenticating the initial client request.
+     */
     private boolean authenticateOriginalAuthData;
+
+    /**
+     * Supplier indicating whether the connection is currently in the process of connecting.
+     * Used to determine connection state during authentication.
+     */
     private Supplier<Boolean> isConnectingSupplier;
 }
