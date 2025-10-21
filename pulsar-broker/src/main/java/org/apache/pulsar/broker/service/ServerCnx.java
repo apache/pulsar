@@ -1112,7 +1112,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
                         }, ctx.executor());
             } else {
-                authenticationFailed(new AuthenticationException("authentication session is null"));
+                authenticationFailed(new AuthenticationException("Authentication session is null or not initialized"));
             }
         } catch (Exception e) {
             authenticationFailed(e);
