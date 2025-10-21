@@ -35,6 +35,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -101,7 +102,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.BinaryAuthContext;
+import org.apache.pulsar.broker.authentication.BinaryAuthSession;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -452,6 +454,8 @@ public class ServerCnxTest {
 
         // test server response to CONNECT
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", null);
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
         assertTrue(getResponse() instanceof CommandConnected);
@@ -477,6 +481,8 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", "");
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
         Object response1 = getResponse();
@@ -507,6 +513,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, "client", "pass.client", authMethodName);
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
         Object response1 = getResponse();
@@ -520,6 +528,24 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getOriginalPrincipal(), "pass.client");
         assertTrue(serverCnx.isActive());
         channel.finish();
+    }
+
+    private BinaryAuthSession spyBinaryAuthSession(AuthenticationService authenticationService, ByteBuf connectCommand, ServiceConfiguration serviceConfiguration) {
+        BinaryAuthContext binaryAuthContext = mock(BinaryAuthContext.class);
+        when(binaryAuthContext.getAuthenticationService()).thenReturn(authenticationService);
+        when(binaryAuthContext.isAuthenticateOriginalAuthData()).thenReturn(
+                serviceConfiguration.isAuthenticateOriginalAuthData());
+        when(binaryAuthContext.getExecutor()).thenReturn(serverCnx.ctx().executor());
+        when(binaryAuthContext.getIsConnectingSupplier()).thenReturn(() -> serverCnx.getState() != State.Connected);
+        BinaryAuthSession binaryAuthSession = spy(new BinaryAuthSession(binaryAuthContext));
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
+        ByteBuf copy = connectCommand.copy();
+        BaseCommand cmd = new BaseCommand();
+        int cmdSize = (int) copy.readUnsignedInt();
+        cmd.parseFrom(copy, cmdSize);
+        when(binaryAuthContext.getCommandConnect()).thenReturn(cmd.getConnect());
+
+        return binaryAuthSession;
     }
 
     @Test(timeOut = 30000)
@@ -545,6 +571,10 @@ public class ServerCnxTest {
         // the proxy will use anonymousUserRole to delegate the client's role when connecting.
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, anonymousUserRole, null, null);
+
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
+
         channel.writeInbound(clientCommand);
 
         Object response1 = getResponse();
@@ -575,6 +605,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, "client", "pass.client", authMethodName);
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
         Object response1 = getResponse();
@@ -605,6 +637,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, AuthData.of("pass.pass".getBytes()),
                 1, null, null, null, null, null, "my-pulsar-proxy", null);
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
         assertTrue(response instanceof CommandError);
@@ -631,6 +665,9 @@ public class ServerCnxTest {
         serverCnx.cancelKeepAliveTask();
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", "");
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
+
         channel.writeInbound(clientCommand);
 
         Object responseConnected = getResponse();
@@ -687,6 +724,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, "pass.client", "pass.client", authMethodName);
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
         Object responseConnected = getResponse();
@@ -759,6 +798,9 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, authData, 1, null,
                 null, originalPrincipal, null, null);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(brokerService.getAuthenticationService(), clientCommand.copy(), svcConfig);
+        when(brokerService.getAuthenticationService().createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
         Object response = getResponse();
@@ -832,6 +874,8 @@ public class ServerCnxTest {
 
         // Trigger connect command to result in AuthChallenge
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "challenge.client", "1");
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
         Object challenge1 = getResponse();
@@ -926,6 +970,8 @@ public class ServerCnxTest {
         // Submit a failing originalPrincipal to show that it is not used at all.
         ByteBuf connect = Commands.newConnect(authMethodName, proxyRole, "test", "localhost",
                 "fail.fail", clientRole, authMethodName);
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, connect.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(connect);
         Object connectResponse = getResponse();
         assertTrue(connectResponse instanceof CommandConnected);
@@ -1328,6 +1374,10 @@ public class ServerCnxTest {
         String clientRole = "pass.fail";
         ByteBuf connect = Commands.newConnect(authMethodName, proxyRole, "test", "localhost",
                 clientRole, null, null);
+
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, connect.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
+
         channel.writeInbound(connect);
         Object connectResponse = getResponse();
         assertTrue(connectResponse instanceof CommandConnected);
@@ -1442,6 +1492,8 @@ public class ServerCnxTest {
         // to pass authentication and fail authorization
         String clientRole = "pass.fail";
         ByteBuf connect = Commands.newConnect(authMethodName, clientRole, "test");
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, connect.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(connect);
 
         Object connectResponse = getResponse();
@@ -1512,6 +1564,8 @@ public class ServerCnxTest {
         String clientRole = "pass.client";
         ByteBuf connect = Commands.newConnect(authMethodName, proxyRole, "test", "localhost",
                 clientRole, clientRole, authMethodName);
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, connect.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(connect);
         Object connectResponse = getResponse();
         assertTrue(connectResponse instanceof CommandConnected);
@@ -1531,7 +1585,7 @@ public class ServerCnxTest {
                 AuthData.of(newClientRole.getBytes(StandardCharsets.UTF_8)), 0, "test");
         channel.writeInbound(refreshAuth);
 
-        assertEquals(serverCnx.getOriginalAuthData().getCommandData(), newClientRole);
+        assertEquals(serverCnx.getOriginalAuthData().getCommandData(), clientRole);
         assertEquals(serverCnx.getOriginalAuthState().getAuthRole(), newClientRole);
         assertEquals(serverCnx.getAuthData().getCommandData(), proxyRole);
         assertEquals(serverCnx.getAuthRole(), proxyRole);
@@ -3411,7 +3465,7 @@ public class ServerCnxTest {
 
     @Test
     public void testHandleAuthResponseWithoutClientVersion() throws Exception {
-        resetChannel();
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
         // use a dummy authentication provider
         AuthenticationProvider authenticationProvider = new AuthenticationProvider() {
             @Override
@@ -3434,18 +3488,36 @@ public class ServerCnxTest {
 
             }
         };
+
+        String authMethodName = authenticationProvider.getAuthMethodName();
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+
+        resetChannel();
+
+        ByteBuf clientCommand = Commands.newConnect(authenticationProvider.getAuthMethodName(), "", null);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
+        channel.writeInbound(clientCommand);
+
+        // verify that authChallenge is called
+        Awaitility.await().untilAsserted(() -> verify(binaryAuthSession, times(1))
+                .authChallenge(any(), anyBoolean(), anyInt(), any()));
+        Object response = getResponse();
+        assertTrue(response instanceof CommandConnected);
+
         AuthData clientData = AuthData.of(new byte[0]);
-        AuthenticationState authenticationState =
-                authenticationProvider.newAuthState(clientData, null, null);
-        // inject the AuthenticationState instance so that auth response can be processed
-        serverCnx.setAuthState(authenticationState);
         // send the auth response with no client version
         String clientVersion = null;
         ByteBuf authResponse =
-                Commands.newAuthResponse("token", clientData, Commands.getCurrentProtocolVersion(), clientVersion);
+                Commands.newAuthResponse(authenticationProvider.getAuthMethodName(), clientData,
+                        Commands.getCurrentProtocolVersion(), clientVersion);
         channel.writeInbound(authResponse);
-        CommandConnected response = (CommandConnected) getResponse();
-        assertNotNull(response);
+        // verify that authChallenge is called again
+        Awaitility.await().untilAsserted(() -> verify(binaryAuthSession, times(2))
+                .authChallenge(any(), anyBoolean(), anyInt(), any()));
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -3692,6 +3764,10 @@ public class ServerCnxTest {
 
         ByteBuf connect = Commands.newConnect(authMethodName, "pass.fail", "test", "localhost",
                 "pass.pass", "pass.pass", authMethodName);
+
+        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, connect.copy(), svcConfig);
+        when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
+
         channel.writeInbound(connect);
         Object connectResponse = getResponse();
         assertTrue(connectResponse instanceof CommandConnected);

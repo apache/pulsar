@@ -123,11 +123,12 @@ public class BinaryAuthSession {
                  * Similarly, should also set the value of authRole to anonymousUserRole on the broker side.
                  */
                 if (originalAuthenticationProvider == null) {
-                    originalPrincipal = context.getAuthenticationService().getAnonymousUserRole()
+                    authRole = context.getAuthenticationService().getAnonymousUserRole()
                             .orElseThrow(() ->
                                     new AuthenticationException("No anonymous role, and can't find "
                                             + "AuthenticationProvider for original role using auth method "
                                             + "[" + originalAuthMethod + "] is not available"));
+                    originalPrincipal = authRole;
                     return CompletableFuture.completedFuture(defaultAuthResult);
                 }
 
@@ -204,12 +205,6 @@ public class BinaryAuthSession {
                         return CompletableFuture.completedFuture(defaultAuthResult);
                     }
                 } else {
-                    // Refresh the auth data
-                    if (!useOriginalAuthState) {
-                        this.authenticationData = newAuthDataSource;
-                    } else {
-                        this.originalAuthData = newAuthDataSource;
-                    }
                     // If the connection was already ready, it means we're doing a refresh
                     if (!StringUtils.isEmpty(authRole)) {
                         if (!authRole.equals(newAuthRole)) {
@@ -217,11 +212,16 @@ public class BinaryAuthSession {
                                     context.getRemoteAddress(), authRole, newAuthRole);
                             return CompletableFuture.failedFuture(
                                     new AuthenticationException("Auth role not match previous"));
-                        } else {
-                            log.info("[{}] Refreshed authentication credentials for role {}",
-                                    context.getRemoteAddress(), authRole);
                         }
                     }
+                    // Refresh authentication data
+                    if (!useOriginalAuthState) {
+                        this.authenticationData = newAuthDataSource;
+                    } else {
+                        this.originalAuthData = newAuthDataSource;
+                    }
+                    log.info("[{}] Refreshed authentication credentials for role {}",
+                            context.getRemoteAddress(), authRole);
                 }
             } else {
                 // auth not complete, continue auth with client side.

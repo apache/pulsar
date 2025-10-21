@@ -245,7 +245,7 @@ public class AuthenticationService implements Closeable {
         }
     }
 
-    public static BinaryAuthSession createBinaryAuthSession(BinaryAuthContext ctx) {
+    public BinaryAuthSession createBinaryAuthSession(BinaryAuthContext ctx) {
         return new BinaryAuthSession(ctx);
     }
 }

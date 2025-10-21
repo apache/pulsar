@@ -81,7 +81,6 @@ import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authentication.BinaryAuthContext;
 import org.apache.pulsar.broker.authentication.BinaryAuthSession;
@@ -1065,7 +1064,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
 
-            binaryAuthSession = AuthenticationService.createBinaryAuthSession(BinaryAuthContext.builder()
+            binaryAuthSession = service.getAuthenticationService().createBinaryAuthSession(BinaryAuthContext.builder()
                     .executor(ctx.executor())
                     .remoteAddress(remoteAddress)
                     .sslSession(sslSession)
