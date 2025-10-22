@@ -323,7 +323,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalCreateNonPartitionedTopicAsync(boolean authoritative,
                                                      Map<String, String> properties) {
-        CompletableFuture<Void> ret = validateNonPartitionTopicNameAsync(topicName.getLocalName());
+        CompletableFuture<Void> ret = namespaceResources().namespaceExistsAsync(namespaceName)
+            .thenAccept(exists -> {
+                if (!exists) {
+                    throw new RestException(Status.NOT_FOUND, "V1 namespace [" + namespaceName + "] does not exist");
+                }
+            }). thenCompose(__ -> validateNonPartitionTopicNameAsync(topicName.getLocalName()));
         if (topicName.isGlobal()) {
             ret = ret.thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
         }
