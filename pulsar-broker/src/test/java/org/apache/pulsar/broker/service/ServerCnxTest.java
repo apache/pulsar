@@ -454,7 +454,8 @@ public class ServerCnxTest {
 
         // test server response to CONNECT
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", null);
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
@@ -481,7 +482,8 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", "");
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
@@ -530,7 +532,8 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    private BinaryAuthSession spyBinaryAuthSession(AuthenticationService authenticationService, ByteBuf connectCommand, ServiceConfiguration serviceConfiguration) {
+    private BinaryAuthSession spyBinaryAuthSession(AuthenticationService authenticationService, ByteBuf connectCommand,
+                                                   ServiceConfiguration serviceConfiguration) {
         BinaryAuthContext binaryAuthContext = mock(BinaryAuthContext.class);
         when(binaryAuthContext.getAuthenticationService()).thenReturn(authenticationService);
         when(binaryAuthContext.isAuthenticateOriginalAuthData()).thenReturn(
@@ -571,7 +574,8 @@ public class ServerCnxTest {
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, anonymousUserRole, null, null);
 
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
 
         channel.writeInbound(clientCommand);
@@ -604,7 +608,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, "client", "pass.client", authMethodName);
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
@@ -873,7 +878,8 @@ public class ServerCnxTest {
 
         // Trigger connect command to result in AuthChallenge
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "challenge.client", "1");
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
