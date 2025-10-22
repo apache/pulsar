@@ -515,7 +515,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, "client", "pass.client", authMethodName);
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
@@ -641,7 +642,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, AuthData.of("pass.pass".getBytes()),
                 1, null, null, null, null, null, "my-pulsar-proxy", null);
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
@@ -669,7 +671,8 @@ public class ServerCnxTest {
         serverCnx.cancelKeepAliveTask();
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", "");
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
 
         channel.writeInbound(clientCommand);
@@ -728,7 +731,8 @@ public class ServerCnxTest {
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, "pass.client", "pass.client", authMethodName);
-        BinaryAuthSession binaryAuthSession = spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
+        BinaryAuthSession binaryAuthSession =
+                spyBinaryAuthSession(authenticationService, clientCommand.copy(), svcConfig);
         when(authenticationService.createBinaryAuthSession(any())).thenReturn(binaryAuthSession);
         channel.writeInbound(clientCommand);
 
