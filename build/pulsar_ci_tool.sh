@@ -72,10 +72,10 @@ function ci_pick_ubuntu_mirror() {
       # fallback to full mirrors list
       UBUNTU_MIRROR="mirror://mirrors.ubuntu.com/mirrors.txt"
   fi
-  OLD_MIRROR=$(cat /etc/apt/sources.list | grep '^deb ' | head -1 | awk '{ print $2 }')
+  OLD_MIRROR=$(grep -v '^#' /etc/apt/apt-mirrors.txt | cut -f1 | head -1)
   echo "Picked '$UBUNTU_MIRROR'. Current mirror is '$OLD_MIRROR'."
   if [[ "$OLD_MIRROR" != "$UBUNTU_MIRROR" ]]; then
-    sudo sed -i "s|$OLD_MIRROR|$UBUNTU_MIRROR|g" /etc/apt/sources.list
+    sudo sed -i "s|$OLD_MIRROR|$UBUNTU_MIRROR|g" /etc/apt/apt-mirrors.txt
     sudo apt-get update
   fi
   # set the chosen mirror also in the UBUNTU_MIRROR and UBUNTU_SECURITY_MIRROR environment variables
