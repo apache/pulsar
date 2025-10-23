@@ -29,8 +29,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.*;
 
 @Slf4j
 public class LinuxBrokerHostUsageImplTest {
@@ -51,22 +55,30 @@ public class LinuxBrokerHostUsageImplTest {
 
     @Test
     public void checkOverrideBrokerNics() {
-        List<String> nics = new ArrayList<>();
-        nics.add("1");
-        nics.add("2");
-        nics.add("3");
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(3.0d));
-        config.setLoadBalancerOverrideBrokerNics(nics);
-        PulsarService pulsarService = new PulsarService(config);
-        LinuxBrokerHostUsageImpl linuxBrokerHostUsage = new LinuxBrokerHostUsageImpl(pulsarService);
-        double totalLimit = linuxBrokerHostUsage.getTotalNicLimitWithConfiguration(nics);
-        Assert.assertEquals(totalLimit, 3.0 * 1000 * 1000 * 3);
-        linuxBrokerHostUsage.calculateBrokerHostUsage();
-        double totalNicUsageRx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
-        double totalNicUsageTx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
-        Assert.assertEquals(totalNicUsageRx, 3.0 * 1000 * 1000 * 3);
-        Assert.assertEquals(totalNicUsageTx, 3.0 * 1000 * 1000 * 3);
+        try (MockedStatic<LinuxInfoUtils> mockedUtils = Mockito.mockStatic(LinuxInfoUtils.class)) {
+            mockedUtils.when(() -> LinuxInfoUtils.getTotalNicUsage(any(), any(), any())).thenReturn(3.0d);
+            mockedUtils.when(LinuxInfoUtils::getCpuUsageForEntireHost).thenReturn(LinuxInfoUtils.ResourceUsage.empty());
+            List<String> nics = new ArrayList<>();
+            nics.add("1");
+            nics.add("2");
+            nics.add("3");
+            ServiceConfiguration config = new ServiceConfiguration();
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(3.0d));
+            config.setLoadBalancerOverrideBrokerNics(nics);
+            PulsarService pulsarService = mock(PulsarService.class);
+            when(pulsarService.getConfiguration()).thenReturn(config);
+            @Cleanup("shutdown")
+            ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+            when(pulsarService.getLoadManagerExecutor()).thenReturn(executorService);
+            LinuxBrokerHostUsageImpl linuxBrokerHostUsage = new LinuxBrokerHostUsageImpl(pulsarService);
+            linuxBrokerHostUsage.calculateBrokerHostUsage();
+            double totalLimit = linuxBrokerHostUsage.getTotalNicLimitWithConfiguration(nics);
+            Assert.assertEquals(totalLimit, 3.0 * 1000 * 1000 * 3);
+            double totalNicLimitRx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
+            double totalNicLimitTx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
+            Assert.assertEquals(totalNicLimitRx, 3.0 * 1000 * 1000 * 3);
+            Assert.assertEquals(totalNicLimitTx, 3.0 * 1000 * 1000 * 3);
+        }
     }
 
     @Test
