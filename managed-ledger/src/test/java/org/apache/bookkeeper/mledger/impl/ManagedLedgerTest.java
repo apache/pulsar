@@ -2671,7 +2671,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetNumberOfEntries() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        initManagedLedgerConfig(managedLedgerConfig);
         managedLedgerConfig.setMaxEntriesPerLedger(5);
         ManagedLedgerImpl managedLedger =
                 (ManagedLedgerImpl) factory.open("testGetNumberOfEntries", managedLedgerConfig);
