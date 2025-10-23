@@ -26,6 +26,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -49,16 +51,22 @@ public class LinuxBrokerHostUsageImplTest {
 
     @Test
     public void checkOverrideBrokerNics() {
-        @Cleanup("shutdown")
-        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         List<String> nics = new ArrayList<>();
         nics.add("1");
         nics.add("2");
         nics.add("3");
-        LinuxBrokerHostUsageImpl linuxBrokerHostUsage =
-                new LinuxBrokerHostUsageImpl(1, Optional.of(3.0), nics, executorService);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(3.0d));
+        config.setLoadBalancerOverrideBrokerNics(nics);
+        PulsarService pulsarService = new PulsarService(config);
+        LinuxBrokerHostUsageImpl linuxBrokerHostUsage = new LinuxBrokerHostUsageImpl(pulsarService);
         double totalLimit = linuxBrokerHostUsage.getTotalNicLimitWithConfiguration(nics);
         Assert.assertEquals(totalLimit, 3.0 * 1000 * 1000 * 3);
+        linuxBrokerHostUsage.calculateBrokerHostUsage();
+        double totalNicUsageRx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
+        double totalNicUsageTx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
+        Assert.assertEquals(totalNicUsageRx, 3.0 * 1000 * 1000 * 3);
+        Assert.assertEquals(totalNicUsageTx, 3.0 * 1000 * 1000 * 3);
     }
 
     @Test

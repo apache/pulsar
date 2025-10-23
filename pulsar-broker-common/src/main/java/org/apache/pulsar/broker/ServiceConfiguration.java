@@ -2957,7 +2957,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_LOAD_BALANCER,
             doc = "Option to override the auto-detected network interfaces"
     )
-    private List<String> loadBalancerOverrideBrokerNics = Lists.newArrayList();
+    private List<String> loadBalancerOverrideBrokerNics = new ArrayList<>();
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         dynamic = true,
