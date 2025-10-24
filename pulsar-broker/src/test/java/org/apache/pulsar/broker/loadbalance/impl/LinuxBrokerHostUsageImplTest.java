@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -33,8 +36,6 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.*;
 
 @Slf4j
 public class LinuxBrokerHostUsageImplTest {
