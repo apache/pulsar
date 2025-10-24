@@ -279,6 +279,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     protected void readMoreEntries() {
+        if (state.equals(Terminated) || state.equals(Terminating)) {
+            return;
+        }
         // Acquire permits and check state of producer.
         InFlightTask newInFlightTask = acquirePermitsIfNotFetchingSchema();
         if (newInFlightTask == null) {
@@ -963,12 +966,19 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected boolean hasPendingRead() {
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
-                if (task.readPos != null && task.entries == null) {
+                // The purpose of calling "getReadPos" instead of calling "readPos" is to make the test
+                // "testReplicationTaskStoppedAfterTopicClosed" can counter the calling times of "readMoreEntries".
+                if (task.getReadPos() != null && task.entries == null) {
                     // Skip the current reading if there is a pending cursor reading.
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    @VisibleForTesting
+    String getReplicatorId() {
+        return  replicatorId;
     }
 }
