@@ -28,12 +28,15 @@ import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.SEE_OTH
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.TEMPORARY_REDIRECT_307;
 import static org.asynchttpclient.util.MiscUtils.isNonEmpty;
 import com.spotify.futures.ConcurrencyReducer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.resolver.NameResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.GeneralSecurityException;
@@ -60,13 +63,17 @@ import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.ServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.PulsarHttpAsyncSslEngineFactory;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
@@ -103,6 +110,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             new DefaultThreadFactory("delayer"));
     private ScheduledExecutorService sslRefresher;
     private final boolean acceptGzipCompression;
+    private final NameResolver<InetAddress> nameResolver;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
     private PulsarSslFactory sslFactory;
 
@@ -112,14 +120,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression);
+                conf, acceptGzipCompression, null);
     }
 
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs,
                               int autoCertRefreshTimeSeconds, ClientConfigurationData conf,
-                              boolean acceptGzipCompression) {
+                              boolean acceptGzipCompression,
+                              PulsarClientSharedResourcesImpl sharedResources) {
         Validate.notEmpty(conf.getServiceUrl(), "Service URL is not provided");
         serviceNameResolver = new PulsarServiceNameResolver();
         String serviceUrl = conf.getServiceUrl();
@@ -127,18 +136,41 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         this.acceptGzipCompression = acceptGzipCompression;
         AsyncHttpClientConfig asyncHttpClientConfig =
                 createAsyncHttpClientConfig(conf, connectTimeoutMs, readTimeoutMs, requestTimeoutMs,
-                        autoCertRefreshTimeSeconds);
+                        autoCertRefreshTimeSeconds, sharedResources);
         httpClient = createAsyncHttpClient(asyncHttpClientConfig);
         this.requestTimeout = requestTimeoutMs > 0 ? Duration.ofMillis(requestTimeoutMs) : null;
         this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
+        this.nameResolver = buildNameResolverIfConfigured(sharedResources);
+    }
+    private NameResolver<InetAddress> buildNameResolverIfConfigured(PulsarClientSharedResourcesImpl sharedResources) {
+        if (sharedResources != null && sharedResources.getDnsResolverGroup() != null) {
+            EventLoopGroup eventLoopGroupReference;
+            if (sharedResources.getIoEventLoopGroup() != null) {
+                eventLoopGroupReference = sharedResources.getIoEventLoopGroup();
+            } else {
+                // build an EventLoopGroup with default value
+                eventLoopGroupReference = EventLoopUtil.newEventLoopGroup(
+                        Runtime.getRuntime().availableProcessors(), false,
+                        new ExecutorProvider.ExtendedThreadFactory("pulsar-admin-client-io",
+                                Thread.currentThread().isDaemon()));
+            }
+            return DnsResolverUtil.adaptToNameResolver(
+                    sharedResources.getDnsResolverGroup().createAddressResolver(eventLoopGroupReference)
+            );
+        } else {
+            return null;
+        }
     }
 
     private AsyncHttpClientConfig createAsyncHttpClientConfig(ClientConfigurationData conf, int connectTimeoutMs,
                                                               int readTimeoutMs,
-                                                              int requestTimeoutMs, int autoCertRefreshTimeSeconds)
+                                                              int requestTimeoutMs,
+                                                              int autoCertRefreshTimeSeconds,
+                                                              PulsarClientSharedResourcesImpl sharedResources)
             throws GeneralSecurityException, IOException {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        configureAsyncHttpClientConfig(conf, connectTimeoutMs, readTimeoutMs, requestTimeoutMs, confBuilder);
+        configureAsyncHttpClientConfig(conf, connectTimeoutMs,
+                readTimeoutMs, requestTimeoutMs, confBuilder, sharedResources);
         if (conf.getServiceUrl().startsWith("https://")) {
             configureAsyncHttpClientSslEngineFactory(conf, autoCertRefreshTimeSeconds, confBuilder);
         }
@@ -148,7 +180,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
 
     private void configureAsyncHttpClientConfig(ClientConfigurationData conf, int connectTimeoutMs, int readTimeoutMs,
                                                 int requestTimeoutMs,
-                                                DefaultAsyncHttpClientConfig.Builder confBuilder) {
+                                                DefaultAsyncHttpClientConfig.Builder confBuilder,
+                                                PulsarClientSharedResourcesImpl sharedResources) {
         if (conf.getConnectionsPerBroker() > 0) {
             confBuilder.setMaxConnectionsPerHost(conf.getConnectionsPerBroker());
             // Use the request timeout value for acquireFreeChannelTimeout so that we don't need to add
@@ -158,6 +191,14 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         }
         if (conf.getConnectionMaxIdleSeconds() > 0) {
             confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
+        }
+        if (sharedResources != null) {
+            if (sharedResources.getIoEventLoopGroup() != null) {
+                confBuilder.setEventLoopGroup(sharedResources.getIoEventLoopGroup());
+            }
+            if (sharedResources.getTimer() != null) {
+                confBuilder.setNettyTimer(sharedResources.getTimer());
+            }
         }
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
@@ -426,6 +467,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         if (switchToGet) {
             builder.setMethod(GET);
         }
+        if (this.nameResolver != null) {
+            builder.setNameResolver(this.nameResolver);
+        }
         builder.setUri(newUri);
         if (keepBody) {
             builder.setCharset(request.getCharset());
@@ -485,6 +529,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         BoundRequestBuilder builder =
                 httpClient.prepare(currentRequest.getMethod(), currentRequest.getUri().toString());
 
+        if (this.nameResolver != null) {
+            builder.setNameResolver(this.nameResolver);
+        }
         if (currentRequest.hasEntity()) {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             currentRequest.setStreamProvider(contentLength -> outStream);

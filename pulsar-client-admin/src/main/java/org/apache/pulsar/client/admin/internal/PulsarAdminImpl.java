@@ -56,6 +56,7 @@ import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.net.ServiceURI;
@@ -106,11 +107,12 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
                            ClassLoader clientBuilderClassLoader) throws PulsarClientException {
-        this(serviceUrl, clientConfigData, clientBuilderClassLoader, true);
+        this(serviceUrl, clientConfigData, clientBuilderClassLoader, true, null);
     }
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
-                           ClassLoader clientBuilderClassLoader, boolean acceptGzipCompression)
+                           ClassLoader clientBuilderClassLoader, boolean acceptGzipCompression,
+                           PulsarClientSharedResourcesImpl sharedResources)
             throws PulsarClientException {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
 
@@ -157,7 +159,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 Math.toIntExact(clientConfigData.getConnectionTimeoutMs()),
                 Math.toIntExact(clientConfigData.getReadTimeoutMs()),
                 Math.toIntExact(clientConfigData.getRequestTimeoutMs()),
-                clientConfigData.getAutoCertRefreshSeconds());
+                clientConfigData.getAutoCertRefreshSeconds(), sharedResources);
 
         long requestTimeoutMs = clientConfigData.getRequestTimeoutMs();
         this.clusters = new ClustersImpl(root, auth, requestTimeoutMs);
