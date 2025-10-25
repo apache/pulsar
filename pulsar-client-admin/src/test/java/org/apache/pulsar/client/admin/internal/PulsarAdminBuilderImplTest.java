@@ -23,10 +23,14 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timer;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -35,6 +39,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.Assert;
@@ -186,6 +191,46 @@ public class PulsarAdminBuilderImplTest {
     public void testClientDescription() throws PulsarClientException {
         @Cleanup PulsarAdmin ignored =
                 PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").description("forked").build();
+    }
+
+    @Test
+    public void testClientBuildWithSharedResources() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                .configureEventLoop(eventLoopGroupConfig -> {
+                    eventLoopGroupConfig
+                            .name("testEventLoop")
+                            .numberOfThreads(20);
+                })
+                .configureDnsResolver(dnsResolverConfig -> {
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
+                })
+                .configureTimer(timerConfig -> {
+                    timerConfig.name("testTimer").tickDuration(100, TimeUnit.MILLISECONDS);
+                })
+                .build();
+        // create two adminClients and check if they share the same event loop group and netty timer
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl1 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl2 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+
+        EventLoopGroup eventLoopGroup1 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        EventLoopGroup eventLoopGroup2 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        boolean b1 = eventLoopGroup1 == eventLoopGroup2;
+        boolean b2 = nettyTimer1 == nettyTimer2;
+        assertThat(b1 && b2).isTrue();
     }
 
     @Test
