@@ -328,7 +328,7 @@ public class PersistentTopicsBase extends AdminResource {
                 if (!exists) {
                     throw new RestException(Status.NOT_FOUND, "V1 namespace [" + namespaceName + "] does not exist");
                 }
-            }). thenCompose(__ -> validateNonPartitionTopicNameAsync(topicName.getLocalName()));
+            }).thenCompose(__ -> validateNonPartitionTopicNameAsync(topicName.getLocalName()));
         if (topicName.isGlobal()) {
             ret = ret.thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
         }
