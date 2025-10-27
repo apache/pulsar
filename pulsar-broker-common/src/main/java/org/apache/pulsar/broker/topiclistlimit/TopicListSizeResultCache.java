@@ -98,8 +98,10 @@ public class TopicListSizeResultCache {
             });
             CompletableFuture<Long> currentFuture = topicListSizeFuture.get();
             if (currentFuture != null && !currentFuture.isDone()) {
+                // complete the future if it's not done yet
                 currentFuture.complete(existingSizeValue);
             } else if (currentFuture == null || currentFuture.join().longValue() != existingSizeValue) {
+                // only update the future if the current value is different from the existing value
                 topicListSizeFuture.compareAndSet(currentFuture, CompletableFuture.completedFuture(existingSizeValue));
             }
         }
