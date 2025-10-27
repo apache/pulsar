@@ -37,7 +37,6 @@ public class BrokerEventLoopShutdownTest {
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
-        BrokerService.GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS.setValue(3600000); // 1 hour
         bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
         bk.start();
     }
@@ -50,7 +49,6 @@ public class BrokerEventLoopShutdownTest {
     @Test(timeOut = 60000)
     public void testCloseOneBroker() throws Exception {
         final var clusterName = "test";
-        final var eventLoopShutdownTimeMs = 10000;
         final Supplier<ServiceConfiguration> configSupplier = () -> {
             final var config = new ServiceConfiguration();
             config.setClusterName(clusterName);
@@ -58,7 +56,6 @@ public class BrokerEventLoopShutdownTest {
             config.setBrokerServicePort(Optional.of(0));
             config.setWebServicePort(Optional.of(0));
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bk.getZookeeperPort());
-            config.setBrokerShutdownTimeoutMs(eventLoopShutdownTimeMs * 4);
             return config;
         };
         @Cleanup final var broker0 = new PulsarService(configSupplier.get());
@@ -69,6 +66,6 @@ public class BrokerEventLoopShutdownTest {
         final var startNs = System.nanoTime();
         broker0.close();
         final var closeTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
-        Assert.assertTrue(closeTimeMs < eventLoopShutdownTimeMs, "close time: " + closeTimeMs + " ms");
+        Assert.assertTrue(closeTimeMs < 1000, "close time: " + closeTimeMs + " ms");
     }
 }
