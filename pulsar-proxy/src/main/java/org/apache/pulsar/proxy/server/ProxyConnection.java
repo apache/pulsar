@@ -418,8 +418,9 @@ public class ProxyConnection extends PulsarHandler {
             // and we'll take care of just topics and partitions metadata lookups
             Supplier<ClientCnx> clientCnxSupplier;
             if (service.getConfiguration().isAuthenticationEnabled()) {
-                clientCnxSupplier = () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise,
-                        service.getConfiguration().isForwardAuthorizationCredentials(), this);
+                clientCnxSupplier =
+                        () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise,
+                                service.getConfiguration().isForwardAuthorizationCredentials(), this);
             } else {
                 clientCnxSupplier =
                         () -> new ClientCnx(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
