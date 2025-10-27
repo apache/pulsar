@@ -100,7 +100,7 @@ public class TopicListSizeResultCache {
             if (currentFuture != null && !currentFuture.isDone()) {
                 // complete the future if it's not done yet
                 currentFuture.complete(existingSizeValue);
-            } else if (currentFuture == null || currentFuture.join().longValue() != existingSizeValue) {
+            } else if (currentFuture == null || currentFuture.getNow(0L).longValue() != existingSizeValue) {
                 // only update the future if the current value is different from the existing value
                 topicListSizeFuture.compareAndSet(currentFuture, CompletableFuture.completedFuture(existingSizeValue));
             }
