@@ -25,7 +25,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
-import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 
 /**
  * Builder class for a {@link PulsarAdmin} instance.
