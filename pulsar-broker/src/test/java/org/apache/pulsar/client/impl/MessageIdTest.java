@@ -34,6 +34,9 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.EnumValuesDataProvider;
 import org.slf4j.Logger;
@@ -58,11 +61,27 @@ public class MessageIdTest extends BrokerTestBase {
         internalCleanup();
     }
 
+    private void createNamespaceIfAbsent(TopicName topicName) throws Exception {
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        NamespaceName namespaceName = topicName.getNamespaceObject();
+        if (!namespaceName.isV2()) {
+            tenantInfo.getAllowedClusters().add(namespaceName.getCluster());
+        }
+        if (!admin.tenants().getTenants().contains(topicName.getTenant())) {
+            admin.tenants().createTenant(topicName.getTenant(), tenantInfo);
+        }
+        try {
+            admin.namespaces().createNamespace(topicName.getNamespace());
+        } catch (Exception ex) {
+            // Namespace may already exist.
+        }
+    }
+
     @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void producerSendAsync(TopicType topicType) throws PulsarClientException, PulsarAdminException {
         // Given
         String key = "producerSendAsync-" + topicType;
-        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
+        final String topicName = "persistent://prop/" + pulsar.getConfig().getClusterName() + "/namespace/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -126,15 +145,16 @@ public class MessageIdTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
-    public void producerSend(TopicType topicType) throws PulsarClientException, PulsarAdminException {
+    public void producerSend(TopicType topicType) throws Exception {
         // Given
         String key = "producerSend-" + topicType;
-        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
+        final String topicName = "persistent://prop/" + pulsar.getConfig().getClusterName() + "/namespace/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;
         if (topicType == TopicType.PARTITIONED) {
             int numberOfPartitions = 7;
+            createNamespaceIfAbsent(TopicName.get(topicName));
             admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         }
 

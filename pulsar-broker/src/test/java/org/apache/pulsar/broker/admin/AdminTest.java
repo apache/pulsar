@@ -194,6 +194,26 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(configClusterName);
     }
 
+    private void createNamespaceIfAbsent(TopicName topicName) throws Exception {
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        NamespaceName namespaceName = topicName.getNamespaceObject();
+        if (!namespaceName.isV2()) {
+            if (!admin.clusters().getClusters().contains(namespaceName.getCluster())) {
+                admin.clusters().createCluster(namespaceName.getCluster(), ClusterData.builder()
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
+            }
+            tenantInfo.getAllowedClusters().add(namespaceName.getCluster());
+        }
+        if (!admin.tenants().getTenants().contains(topicName.getTenant())) {
+            admin.tenants().createTenant(topicName.getTenant(), tenantInfo);
+        }
+        try {
+            admin.namespaces().createNamespace(topicName.getNamespace());
+        } catch (Exception ex) {
+            // Namespace may already exist.
+        }
+    }
+
     @Test
     public void internalConfiguration() throws Exception {
         ServiceConfiguration conf = pulsar.getConfiguration();
@@ -948,7 +968,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @Test
     public void test500Error() throws Exception {
         final String property = "prop-xyz";
-        final String cluster = "use";
+        final String cluster = pulsar.getConfig().getClusterName();
         final String namespace = "ns";
         final String partitionedTopicName = "error-500-topic";
         AsyncResponse response1 = mock(AsyncResponse.class);
@@ -958,6 +978,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         NamespaceService namespaceService = pulsar.getNamespaceService();
 
         doReturn(future).when(namespaceService).checkTopicExists(any());
+        createNamespaceIfAbsent(TopicName.get("persistent", property, cluster, namespace, partitionedTopicName));
         persistentTopics.createPartitionedTopic(response1, property, cluster, namespace,
                 partitionedTopicName, 5, false);
 
