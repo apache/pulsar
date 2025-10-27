@@ -100,9 +100,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     private CompletableFuture<AsyncSemaphorePermit> internalAcquire(long permits, long acquirePermits,
                                                                     BooleanSupplier isCancelled) {
-        if (!isPermitsValidForAcquiring(permits)) {
-            throw new IllegalArgumentException("Invalid permits value: " + permits);
-        }
+        validatePermits(permits);
 
         // if maximum permits is <= 0, then the semaphore is unbounded
         if (isUnbounded()) {
@@ -141,8 +139,14 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         return future;
     }
 
-    private boolean isPermitsValidForAcquiring(long permits) {
-        return permits >= 0 && (isUnbounded() || permits <= maxPermits);
+    private void validatePermits(long permits) {
+        if (permits < 0) {
+            throw new IllegalArgumentException("Invalid negative permits value: " + permits);
+        }
+        if (!isUnbounded() && permits > maxPermits) {
+            throw new IllegalArgumentException(
+                    "Requested permits=" + permits + " is larger than maxPermits=" + maxPermits);
+        }
     }
 
     private boolean isUnbounded() {
@@ -158,9 +162,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     @Override
     public CompletableFuture<AsyncSemaphorePermit> update(AsyncSemaphorePermit permit, long newPermits,
                                                           BooleanSupplier isCancelled) {
-        if (!isPermitsValidForAcquiring(newPermits)) {
-            throw new IllegalArgumentException("Invalid permits value: " + newPermits);
-        }
+        validatePermits(newPermits);
         if (isUnbounded()) {
             return CompletableFuture.completedFuture(new SemaphorePermit(newPermits));
         }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.semaphore;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -183,24 +184,20 @@ public class AsyncSemaphoreImplTest {
     public void testInvalidPermits() {
         semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
 
-        try {
-            semaphore.acquire(-1, () -> false);
-            fail("Should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("Invalid permits value"));
-        }
+        assertThatThrownBy(() ->
+                semaphore.acquire(-1, () -> false)
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid negative permits value: -1");
     }
 
     @Test
     public void testInvalidPermitsExceedingMaxPermits() {
         semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
 
-        try {
-            semaphore.acquire(11, () -> false);
-            fail("Should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("Invalid permits value"));
-        }
+        assertThatThrownBy(() ->
+            semaphore.acquire(11, () -> false)
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Requested permits=11 is larger than maxPermits=10");
     }
 
     @Test
@@ -284,12 +281,10 @@ public class AsyncSemaphoreImplTest {
         CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(5, () -> false);
         AsyncSemaphorePermit permit = future.get(1, TimeUnit.SECONDS);
 
-        try {
-            semaphore.update(permit, -1, () -> false);
-            fail("Should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("Invalid permits value"));
-        }
+        assertThatThrownBy(() ->
+                semaphore.update(permit, -1, () -> false)
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid negative permits value: -1");
 
         semaphore.release(permit);
     }
@@ -301,12 +296,10 @@ public class AsyncSemaphoreImplTest {
         CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(5, () -> false);
         AsyncSemaphorePermit permit = future.get(1, TimeUnit.SECONDS);
 
-        try {
-            semaphore.update(permit, 11, () -> false);
-            fail("Should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("Invalid permits value"));
-        }
+        assertThatThrownBy(() ->
+                semaphore.update(permit, 11, () -> false)
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Requested permits=11 is larger than maxPermits=10");
 
         semaphore.release(permit);
     }
