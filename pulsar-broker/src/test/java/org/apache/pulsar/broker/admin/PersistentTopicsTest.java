@@ -189,6 +189,26 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(testTenant + "/" + testNamespaceLocal);
     }
 
+    private void createNamespaceIfAbsent(TopicName topicName) throws Exception {
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        NamespaceName namespaceName = topicName.getNamespaceObject();
+        if (!namespaceName.isV2()) {
+            if (!admin.clusters().getClusters().contains(namespaceName.getCluster())) {
+                admin.clusters().createCluster(namespaceName.getCluster(), ClusterData.builder()
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
+            }
+            tenantInfo.getAllowedClusters().add(namespaceName.getCluster());
+        }
+        if (!admin.tenants().getTenants().contains(topicName.getTenant())) {
+            admin.tenants().createTenant(topicName.getTenant(), tenantInfo);
+        }
+        try {
+            admin.namespaces().createNamespace(topicName.getNamespace());
+        } catch (Exception ex) {
+            // Namespace may already exist.
+        }
+    }
+
     @Override
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
@@ -715,15 +735,19 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String partitionedTopicName = "special-topic";
         pulsar.getDefaultManagedLedgerFactory()
                 .open(TopicName.get(nonPartitionTopicName2).getPersistenceNamingEncoding());
+        final TopicName topicName = TopicName.get("persistent", testTenant,
+                pulsar.getConfig().getClusterName(), testNamespace, partitionedTopicName);
+        createNamespaceIfAbsent(topicName);
         doAnswer(invocation -> {
-            persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");
-            persistentTopics.topicName = TopicName.get("persistent", "tenant", "cluster", "namespace", "topicname");
+            persistentTopics.namespaceName = NamespaceName.get(testTenant, testNamespace);
+            persistentTopics.topicName = topicName;
             return null;
         }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
 
         doNothing().when(persistentTopics).validateAdminAccessForTenant(anyString());
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5, true);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());

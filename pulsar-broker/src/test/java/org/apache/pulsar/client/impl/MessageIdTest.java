@@ -78,10 +78,11 @@ public class MessageIdTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
-    public void producerSendAsync(TopicType topicType) throws PulsarClientException, PulsarAdminException {
+    public void producerSendAsync(TopicType topicType) throws Exception {
         // Given
         String key = "producerSendAsync-" + topicType;
         final String topicName = "persistent://prop/" + pulsar.getConfig().getClusterName() + "/namespace/topic-" + key;
+        createNamespaceIfAbsent(TopicName.get(topicName));
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -149,6 +150,7 @@ public class MessageIdTest extends BrokerTestBase {
         // Given
         String key = "producerSend-" + topicType;
         final String topicName = "persistent://prop/" + pulsar.getConfig().getClusterName() + "/namespace/topic-" + key;
+        createNamespaceIfAbsent(TopicName.get(topicName));
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;
