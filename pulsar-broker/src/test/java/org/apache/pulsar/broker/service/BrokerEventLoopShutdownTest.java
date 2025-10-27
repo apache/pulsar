@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -49,19 +50,22 @@ public class BrokerEventLoopShutdownTest {
     @Test(timeOut = 60000)
     public void testCloseOneBroker() throws Exception {
         final var clusterName = "test";
-        final var config = new ServiceConfiguration();
-        config.setClusterName(clusterName);
-        config.setAdvertisedAddress("localhost");
-        config.setBrokerServicePort(Optional.of(0));
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bk.getZookeeperPort());
-        @Cleanup final var broker0 = new PulsarService(config);
-        @Cleanup final var broker1 = new PulsarService(config);
+        final var eventLoopShutdownTimeMs = 10000;
+        final Supplier<ServiceConfiguration> configSupplier = () -> {
+            final var config = new ServiceConfiguration();
+            config.setClusterName(clusterName);
+            config.setAdvertisedAddress("localhost");
+            config.setBrokerServicePort(Optional.of(0));
+            config.setWebServicePort(Optional.of(0));
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bk.getZookeeperPort());
+            config.setBrokerShutdownTimeoutMs(eventLoopShutdownTimeMs * 4);
+            return config;
+        };
+        @Cleanup final var broker0 = new PulsarService(configSupplier.get());
+        @Cleanup final var broker1 = new PulsarService(configSupplier.get());
         broker0.start();
         broker1.start();
 
-        final var eventLoopShutdownTimeMs = 10000;
-        config.setBrokerShutdownTimeoutMs(eventLoopShutdownTimeMs * 4);
         final var startNs = System.nanoTime();
         broker0.close();
         final var closeTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
