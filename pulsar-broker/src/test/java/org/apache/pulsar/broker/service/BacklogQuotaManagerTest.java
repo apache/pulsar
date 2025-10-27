@@ -95,6 +95,7 @@ public class BacklogQuotaManagerTest {
     private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManagerTest.class);
 
     public static final String CLUSTER_NAME = "usc";
+    private static final String QUOTA_CHECK_COUNT = "pulsar_storage_backlog_quota_check_duration_seconds_count";
     PulsarService pulsar;
     ServiceConfiguration config;
 
@@ -934,11 +935,31 @@ public class BacklogQuotaManagerTest {
     }
 
     private void waitForQuotaCheckToRunTwice() {
-        final long initialQuotaCheckCount = getQuotaCheckCount();
+        final long[] baselineCount = new long[1];
+        final boolean[] baselineCaptured = new boolean[1];
+
         Awaitility.await()
                 .pollInterval(1, SECONDS)
                 .atMost(TIME_TO_CHECK_BACKLOG_QUOTA * 3, SECONDS)
-                .until(() -> getQuotaCheckCount() > initialQuotaCheckCount + 1);
+                .until(() -> {
+                    final java.util.OptionalLong countOpt = getQuotaCheckCount();
+
+                    // If /metrics is not returning the metric yet, keep waiting.
+                    // Don't take the baseline until a successful scrape shows the metric.
+                    if (countOpt.isEmpty()) {
+                        return false;
+                    }
+
+                    // First successful scrape: capture baseline, then ask for two more checks.
+                    final long observedCount = countOpt.getAsLong();
+                    if (!baselineCaptured[0]) {
+                        baselineCount[0] = observedCount;
+                        baselineCaptured[0] = true;
+                        return false;
+                    }
+
+                    return observedCount > baselineCount[0] + 1;
+                });
     }
 
     /**
@@ -952,12 +973,20 @@ public class BacklogQuotaManagerTest {
             markDeletePosition -> markDeletePosition != null && !markDeletePosition.equals(previousMarkDeletePosition));
     }
 
-    private long getQuotaCheckCount() {
-        Metrics metrics = prometheusMetricsClient.getMetrics();
-        return (long) metrics.findByNameAndLabels(
-                        "pulsar_storage_backlog_quota_check_duration_seconds_count",
-                        "cluster", CLUSTER_NAME)
-                .get(0).value;
+    private java.util.OptionalLong getQuotaCheckCount() {
+        try {
+            final Metrics metrics = prometheusMetricsClient.getMetrics();
+            final java.util.List<Metric> matches =
+                    metrics.findByNameAndLabels(QUOTA_CHECK_COUNT, "cluster", CLUSTER_NAME);
+            if (matches.isEmpty()) {
+                // No metric sample for this name and labels in this scrape.
+                return java.util.OptionalLong.empty();
+            }
+            return java.util.OptionalLong.of((long) matches.get(0).value);
+        } catch (Exception e) {
+            // Scrape failed or the metrics client threw, treat as not available now.
+            return java.util.OptionalLong.empty();
+        }
     }
 
     /**
