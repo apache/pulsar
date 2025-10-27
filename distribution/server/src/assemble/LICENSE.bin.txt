@@ -382,25 +382,25 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.12.4.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.4.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-http-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-io-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-security-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-server-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-util-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.57.v20241219.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.57.v20241219.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.57.v20241219.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.57.v20241219.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.57.v20241219.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.57.v20241219.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.57.v20241219.jar
-    - org.eclipse.jetty-jetty-alpn-server-9.4.57.v20241219.jar
+    - org.eclipse.jetty-jetty-client-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-http-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-io-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-security-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-server-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-util-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-util-ajax-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-alpn-server-9.4.58.v20250814.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar

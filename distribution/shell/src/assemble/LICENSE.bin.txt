@@ -399,14 +399,14 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.4.jar
     - async-http-client-netty-utils-2.12.4.jar
  * Jetty
-    - jetty-client-9.4.57.v20241219.jar
-    - jetty-http-9.4.57.v20241219.jar
-    - jetty-io-9.4.57.v20241219.jar
-    - jetty-util-9.4.57.v20241219.jar
-    - javax-websocket-client-impl-9.4.57.v20241219.jar
-    - websocket-api-9.4.57.v20241219.jar
-    - websocket-client-9.4.57.v20241219.jar
-    - websocket-common-9.4.57.v20241219.jar
+    - jetty-client-9.4.58.v20250814.jar
+    - jetty-http-9.4.58.v20250814.jar
+    - jetty-io-9.4.58.v20250814.jar
+    - jetty-util-9.4.58.v20250814.jar
+    - javax-websocket-client-impl-9.4.58.v20250814.jar
+    - websocket-api-9.4.58.v20250814.jar
+    - websocket-client-9.4.58.v20250814.jar
+    - websocket-common-9.4.58.v20250814.jar
  * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.5.1.jar
  * Javassist -- javassist-3.25.0-GA.jar
