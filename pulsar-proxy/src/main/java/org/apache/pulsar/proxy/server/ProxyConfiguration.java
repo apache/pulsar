@@ -923,6 +923,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String clusterName;
 
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "If this flag is set then the broker authenticates the original Auth data"
+                    + " else it just accepts the originalPrincipal and authorizes it (if required)")
+    private boolean authenticateOriginalAuthData = false;
+
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;

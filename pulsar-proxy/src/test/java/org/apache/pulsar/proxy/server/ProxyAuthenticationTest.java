@@ -252,7 +252,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         // Step 4: Ensure that all client contexts share the same auth provider
         Assert.assertTrue(proxyService.getClientCnxs().size() >= 3, "expect at least 3 clients");
         proxyService.getClientCnxs().stream().forEach((cnx) -> {
-            Assert.assertSame(cnx.authenticationProvider,
+            Assert.assertSame(cnx.getBinaryAuthSession().getAuthenticationProvider(),
                     proxyService.getAuthenticationService().getAuthenticationProvider("BasicAuthentication"));
         });
     }

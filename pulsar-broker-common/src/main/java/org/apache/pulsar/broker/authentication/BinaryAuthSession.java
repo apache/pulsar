@@ -51,6 +51,7 @@ public class BinaryAuthSession {
     private final BinaryAuthContext context;
 
     private AuthResult defaultAuthResult;
+    private boolean supportsAuthRefresh;
 
     public BinaryAuthSession(@NonNull BinaryAuthContext context) {
         this.context = context;
@@ -59,6 +60,8 @@ public class BinaryAuthSession {
     public CompletableFuture<AuthResult> doAuthentication() {
         var connect = context.getCommandConnect();
         try {
+            supportsAuthRefresh = connect.getFeatureFlags().hasSupportsAuthRefresh() && connect.getFeatureFlags()
+                    .isSupportsAuthRefresh();
             var authData = connect.hasAuthData() ? connect.getAuthData() : emptyArray;
             var clientData = AuthData.of(authData);
             // init authentication
@@ -265,6 +268,47 @@ public class BinaryAuthSession {
                         }
                     }
                 }, context.getExecutor());
+    }
+
+    public boolean isExpired() {
+        if (originalAuthState != null) {
+            return originalAuthState.isExpired();
+        }
+        return authState.isExpired();
+    }
+
+    public boolean supportsAuthenticationRefresh(){
+        if (originalPrincipal != null && originalAuthState == null) {
+            // This case is only checked when the authState is expired because we've reached a point where
+            // authentication needs to be refreshed, but the protocol does not support it unless the proxy forwards
+            // the originalAuthData.
+            log.info(
+                    "[{}] Cannot revalidate user credential when using proxy and"
+                            + " not forwarding the credentials.",
+                    context.getRemoteAddress());
+            return false;
+        }
+
+        if (!supportsAuthRefresh) {
+            log.warn("[{}] Client doesn't support auth credentials refresh",
+                    context.getRemoteAddress());
+            return false;
+        }
+
+        return true;
+    }
+
+    public AuthResult refreshAuthentication() throws AuthenticationException {
+        if (originalAuthState != null) {
+            return AuthResult.builder()
+                    .authData(originalAuthState.refreshAuthentication())
+                    .authMethod(originalAuthMethod)
+                    .build();
+        }
+        return AuthResult.builder()
+                .authData(authState.refreshAuthentication())
+                .authMethod(authMethod)
+                .build();
     }
 
     @Builder

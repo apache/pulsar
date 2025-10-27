@@ -43,6 +43,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +51,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.BinaryAuthSession;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -100,9 +104,23 @@ public class DirectProxyHandler {
         this.inboundChannel = proxyConnection.ctx().channel();
         this.proxyConnection = proxyConnection;
         this.inboundChannelRequestsRate = new Rate();
-        this.originalPrincipal = proxyConnection.clientAuthRole;
-        this.clientAuthData = proxyConnection.clientAuthData;
-        this.clientAuthMethod = proxyConnection.clientAuthMethod;
+        BinaryAuthSession binaryAuthSession = proxyConnection.getBinaryAuthSession();
+        if (binaryAuthSession != null) {
+            AuthenticationState originalAuthState = binaryAuthSession.getOriginalAuthState();
+            boolean forwardOriginal =
+                    originalAuthState != null && service.getConfiguration().isForwardAuthorizationCredentials();
+            AuthenticationDataSource authDataSource = forwardOriginal ? binaryAuthSession.getOriginalAuthData() :
+                    binaryAuthSession.getAuthenticationData();
+            clientAuthData = AuthData.of(authDataSource.getCommandData().getBytes(StandardCharsets.UTF_8));
+            clientAuthMethod =
+                    forwardOriginal ? binaryAuthSession.getOriginalAuthMethod() : binaryAuthSession.getAuthMethod();
+            originalPrincipal =
+                    forwardOriginal ? binaryAuthSession.getOriginalPrincipal() : binaryAuthSession.getAuthRole();
+        } else {
+            originalPrincipal = null;
+            clientAuthData = null;
+            clientAuthMethod = null;
+        }
         this.tlsEnabledWithBroker = service.getConfiguration().isTlsEnabledWithBroker();
         this.tlsHostnameVerificationEnabled = service.getConfiguration().isTlsHostnameVerificationEnabled();
         this.onHandshakeCompleteAction = proxyConnection::cancelKeepAliveTask;
