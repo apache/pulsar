@@ -476,11 +476,11 @@ The Apache Software License, Version 2.0
   * JCTools - Java Concurrency Tools for the JVM
     - org.jctools-jctools-core-2.1.2.jar
   * Vertx
-    - io.vertx-vertx-auth-common-4.5.10.jar
-    - io.vertx-vertx-bridge-common-4.5.10.jar
-    - io.vertx-vertx-core-4.5.10.jar
-    - io.vertx-vertx-web-4.5.10.jar
-    - io.vertx-vertx-web-common-4.5.10.jar
+    - io.vertx-vertx-auth-common-4.5.22.jar
+    - io.vertx-vertx-bridge-common-4.5.22.jar
+    - io.vertx-vertx-core-4.5.22.jar
+    - io.vertx-vertx-web-4.5.22.jar
+    - io.vertx-vertx-web-common-4.5.22.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.9.4.jar
     - org.apache.zookeeper-zookeeper-jute-3.9.4.jar
