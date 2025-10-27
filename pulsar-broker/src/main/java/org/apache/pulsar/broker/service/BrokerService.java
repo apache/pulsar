@@ -96,6 +96,7 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
@@ -207,7 +208,8 @@ public class BrokerService implements Closeable {
     private static final TimeoutException FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Failed to load topic within timeout", BrokerService.class,
                     "futureWithDeadline(...)");
-    private static final long GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = 5000L;
+    @VisibleForTesting
+    static final MutableLong GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = new MutableLong(5000L);
     private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
 
@@ -966,7 +968,7 @@ public class BrokerService implements Closeable {
         long brokerShutdownTimeoutMs = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
         long quietPeriod = Math.min((long) (
                 GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs),
-                GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS);
+                GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS.longValue());
         long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
         var startNs = System.nanoTime();
         return NettyFutureUtil.toCompletableFutureVoid(eventLoopGroup.shutdownGracefully(
