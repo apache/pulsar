@@ -319,6 +319,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         });
     }
 
+    @Test(timeOut = 5000)
+    public void pulsarClientClockCheckTest() {
+        assertThatThrownBy(
+                () -> PulsarClient.builder()
+                    .serviceUrl(lookupUrl.toString())
+                    .clock(null)
+                    .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("clock must not be null");
+    }
+
     @Test(timeOut = 100000)
     public void testPublishTimestampBatchEnabled() throws Exception {
 
