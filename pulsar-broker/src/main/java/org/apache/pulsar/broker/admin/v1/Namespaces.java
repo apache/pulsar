@@ -823,7 +823,7 @@ public class Namespaces extends NamespacesBase {
                               @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validatePoliciesReadOnlyAccessAsync()
-                .thenCompose(__ -> validateNamespaceOperationAsync(NamespaceName.get(property, namespace),
+                .thenCompose(__ -> validateNamespaceOperationAsync(NamespaceName.get(property, cluster, namespace),
                         NamespaceOperation.GET_BUNDLE))
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> asyncResponse.resume(policies.bundles))

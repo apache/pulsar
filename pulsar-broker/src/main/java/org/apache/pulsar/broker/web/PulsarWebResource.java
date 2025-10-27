@@ -1077,7 +1077,7 @@ public abstract class PulsarWebResource {
         return namespaceResources().namespaceExistsAsync(namespaceName)
             .thenAccept(exists -> {
                 if (!exists) {
-                    throw new RestException(Status.NOT_FOUND, "V1 namespace [" + namespaceName + "] does not exist");
+                    throw new RestException(Status.NOT_FOUND, "Namespace [" + namespaceName + "] does not exist");
                 }
             });
     }
