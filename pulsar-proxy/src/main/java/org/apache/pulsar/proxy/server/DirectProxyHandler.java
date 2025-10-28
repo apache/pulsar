@@ -111,7 +111,12 @@ public class DirectProxyHandler {
                     originalAuthState != null && service.getConfiguration().isForwardAuthorizationCredentials();
             AuthenticationDataSource authDataSource = forwardOriginal ? binaryAuthSession.getOriginalAuthData() :
                     binaryAuthSession.getAuthenticationData();
-            clientAuthData = AuthData.of(authDataSource.getCommandData().getBytes(StandardCharsets.UTF_8));
+            String commandData = authDataSource.getCommandData();
+            if (commandData != null) {
+                clientAuthData = AuthData.of(commandData.getBytes(StandardCharsets.UTF_8));
+            } else {
+                clientAuthData = null;
+            }
             clientAuthMethod =
                     forwardOriginal ? binaryAuthSession.getOriginalAuthMethod() : binaryAuthSession.getAuthMethod();
             originalPrincipal =

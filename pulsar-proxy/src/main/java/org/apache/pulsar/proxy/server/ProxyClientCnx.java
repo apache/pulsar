@@ -69,8 +69,10 @@ public class ProxyClientCnx extends ClientCnx {
                 // refresh.
                 // Based on the current design, the best option is to configure the broker to accept slightly stale
                 // authentication data.
-                clientAuthData = AuthData.of(
-                        binaryAuthSession.getAuthenticationData().getCommandData().getBytes(StandardCharsets.UTF_8));
+                String commandData = binaryAuthSession.getAuthenticationData().getCommandData();
+                if (commandData != null) {
+                    clientAuthData = AuthData.of(commandData.getBytes(StandardCharsets.UTF_8));
+                }
             }
 
             // If original principal is null, it means the client connects the broker via proxy, else the client
@@ -80,8 +82,10 @@ public class ProxyClientCnx extends ClientCnx {
                 clientAuthMethod = binaryAuthSession.getOriginalAuthMethod();
                 AuthenticationDataSource originalAuthData = binaryAuthSession.getOriginalAuthData();
                 if (forwardClientAuthData && originalAuthData != null) {
-                    clientAuthData = AuthData.of(
-                            originalAuthData.getCommandData().getBytes(StandardCharsets.UTF_8));
+                    String commandData = originalAuthData.getCommandData();
+                    if (commandData != null) {
+                        clientAuthData = AuthData.of(commandData.getBytes(StandardCharsets.UTF_8));
+                    }
                 }
             }
         }
