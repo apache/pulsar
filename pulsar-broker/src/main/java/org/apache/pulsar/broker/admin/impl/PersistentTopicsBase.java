@@ -835,8 +835,8 @@ public class PersistentTopicsBase extends AdminResource {
             // This method is reused by non-persistent topic, which doesn't have /managed-ledgers/** path
             // Non-persistent partitioned topic gc process won't call delete partition topic admin api,
             // so it is safe to directly call admin api when topic is non-persistent partitioned.
-            CompletableFuture<Boolean> needAdminClientCall = topicName.isPersistent() ?
-                    pulsar().getPulsarResources().getTopicResources().persistentTopicExists(topicNamePartition) :
+            CompletableFuture<Boolean> needAdminClientCall = topicName.isPersistent()
+                    ? pulsar().getPulsarResources().getTopicResources().persistentTopicExists(topicNamePartition) :
                     CompletableFuture.completedFuture(true);
             needAdminClientCall.thenCompose(deleteThroughAdminClient -> {
                 if (deleteThroughAdminClient) {
