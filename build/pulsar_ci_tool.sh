@@ -46,47 +46,12 @@ function ci_print_thread_dumps() {
 
 # runs maven
 function _ci_mvn() {
-  mvn -B -ntp -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
-        "$@"
+  mvn -B -ntp "$@"
 }
 
 # runs OWASP Dependency Check for all projects
 function ci_dependency_check() {
   _ci_mvn -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl '!pulsar-client-tools-test' "$@"
-}
-
-function ci_pick_ubuntu_mirror() {
-  echo "Choosing fastest up-to-date ubuntu mirror based on download speed..."
-  UBUNTU_MIRROR=$({
-    # choose mirrors that are up-to-date by checking the Last-Modified header for
-    {
-      # randomly choose up to 10 mirrors using http:// protocol
-      # (https isn't supported in docker containers that don't have ca-certificates installed)
-      curl -s http://mirrors.ubuntu.com/mirrors.txt | grep '^http://' | shuf -n 10
-      # also consider Azure's Ubuntu mirror
-      echo http://azure.archive.ubuntu.com/ubuntu/
-    } | xargs -I {} sh -c 'echo "$(curl -m 5 -sI {}dists/$(lsb_release -c | cut -f2)-security/Contents-$(dpkg --print-architecture).gz|sed s/\\r\$//|grep Last-Modified|awk -F": " "{ print \$2 }" | LANG=C date -f- -u +%s)" "{}"' | sort -rg | awk '{ if (NR==1) TS=$1; if ($1 == TS) print $2 }'
-  } | xargs -I {} sh -c 'echo `curl -r 0-102400 -m 5 -s -w %{speed_download} -o /dev/null {}ls-lR.gz` {}' \
-    |sort -g -r |head -1| awk '{ print $2  }')
-  if [ -z "$UBUNTU_MIRROR" ]; then
-      # fallback to full mirrors list
-      UBUNTU_MIRROR="mirror://mirrors.ubuntu.com/mirrors.txt"
-  fi
-  OLD_MIRROR=$(cat /etc/apt/sources.list | grep '^deb ' | head -1 | awk '{ print $2 }')
-  echo "Picked '$UBUNTU_MIRROR'. Current mirror is '$OLD_MIRROR'."
-  if [[ "$OLD_MIRROR" != "$UBUNTU_MIRROR" ]]; then
-    sudo sed -i "s|$OLD_MIRROR|$UBUNTU_MIRROR|g" /etc/apt/sources.list
-    sudo apt-get update
-  fi
-  # set the chosen mirror also in the UBUNTU_MIRROR and UBUNTU_SECURITY_MIRROR environment variables
-  # that can be used by docker builds
-  export UBUNTU_MIRROR
-  export UBUNTU_SECURITY_MIRROR=$UBUNTU_MIRROR
-  # make environment variables available for later GitHub Actions steps
-  if [ -n "$GITHUB_ENV" ]; then
-    echo "UBUNTU_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV
-    echo "UBUNTU_SECURITY_MIRROR=$UBUNTU_SECURITY_MIRROR" >> $GITHUB_ENV
-  fi
 }
 
 # installs a tool executable if it's not found on the PATH
@@ -97,9 +62,7 @@ function ci_install_tool() {
     if [[ "$GITHUB_ACTIONS" == "true" ]]; then
       echo "::group::Installing ${tool_package}"
       sudo apt-get -y install ${tool_package} >/dev/null || {
-        echo "Installing the package failed. Switching the ubuntu mirror and retrying..."
-        ci_pick_ubuntu_mirror
-        # retry after picking the ubuntu mirror
+        echo "Installing the package failed. Retrying..."
         sudo apt-get -y install ${tool_package}
       }
       echo '::endgroup::'

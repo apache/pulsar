@@ -35,8 +35,6 @@
       <id>docker</id>
       <properties>
         <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
-        <docker.buildArg.UBUNTU_MIRROR>${UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
-        <docker.buildArg.UBUNTU_SECURITY_MIRROR>${UBUNTU_SECURITY_MIRROR}</docker.buildArg.UBUNTU_SECURITY_MIRROR>
       </properties>
       <activation>
         <property>
