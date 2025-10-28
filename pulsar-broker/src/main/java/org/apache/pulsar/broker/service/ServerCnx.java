@@ -1057,7 +1057,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .sslSession(sslSession)
                     .authenticationService(service.getAuthenticationService())
                     .commandConnect(connect)
-                    .isConnectingSupplier(() -> state != State.Connected)
+                    .isInitialConnectSupplier(() -> state != State.Connected)
                     .authenticateOriginalAuthData(service.getPulsar().getConfig().isAuthenticateOriginalAuthData())
                     .build());
             binaryAuthSession.doAuthentication()

@@ -28,35 +28,87 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.jspecify.annotations.NonNull;
 
+/**
+ * Represents a per-connection authentication session for a client using the broker's binary protocol.
+ *
+ * <p>This class manages the complete authentication lifecycle for a single client connection.
+ * It tracks the current {@code AuthenticationState}, authentication provider, method, and role,
+ * as well as the resolved {@code AuthenticationDataSource}. When a proxy is involved, it can
+ * also store the original credentials and authentication state forwarded by the proxy.
+ *
+ * <p>{@code BinaryAuthSession} handles both the initial authentication (CONNECT) and
+ * subsequent re-authentication or credential refresh flows. All asynchronous operations
+ * are executed using the {@link BinaryAuthContext#getExecutor() executor} provided by the
+ * associated {@link BinaryAuthContext}.
+ *
+ * <p>The session supports two main connection scenarios:
+ *
+ * <h3>Direct client-to-broker connections:</h3>
+ * <ul>
+ *   <li>The client and broker may exchange authentication data multiple times until
+ *       authentication is complete.</li>
+ *   <li>If credentials expire, the broker requests the client to refresh them,
+ *       ensuring that the role remains consistent across refreshes.</li>
+ * </ul>
+ *
+ * <h3>Client-to-broker connections via a proxy:</h3>
+ * <ul>
+ *   <li>The proxy may optionally forward the original client's authentication data.</li>
+ *   <li>The broker first authenticates the proxy, then optionally validates the
+ *       original client's credentials if forwarded.</li>
+ *   <li>{@code originalAuthState} is non-null when the proxy has forwarded the original
+ *       authentication data and the broker is configured to authenticate it.</li>
+ *   <li>Proxy authentication does not expire. The proxy acts as a transparent intermediary,
+ *       and subsequent client credential refreshes occur directly between the client and broker.</li>
+ * </ul>
+ */
 @Slf4j
 @Getter
 public class BinaryAuthSession {
     private static final byte[] emptyArray = new byte[0];
 
+    /// Current authentication state of the connected client.
     private AuthenticationState authState;
+    // Authentication method used by the connected client.
     private String authMethod;
+    // Role of the connected client as determined by authentication.
     private String authRole = null;
+    // Authentication data for the connected client (volatile for visibility across threads).
     private volatile AuthenticationDataSource authenticationData;
+    // Authentication provider associated with this session.
     private AuthenticationProvider authenticationProvider;
 
-    // In case of proxy, if the authentication credentials are forwardable,
-    // it will hold the credentials of the original client
+    // Original authentication method forwarded by proxy, if any.
     private String originalAuthMethod;
+    // Original principal forwarded by proxy, if any.
     private String originalPrincipal = null;
+    // Original authentication state forwarded by proxy, if any.
     private AuthenticationState originalAuthState;
+    // Original authentication data forwarded by proxy (volatile for thread visibility).
     private volatile AuthenticationDataSource originalAuthData;
     // Keep temporarily in order to verify after verifying proxy's authData
     private AuthData originalAuthDataCopy;
 
+    // Context holding connection-specific data needed for authentication.
     private final BinaryAuthContext context;
 
+    // Default authentication result returned after successful initial authentication
     private AuthResult defaultAuthResult;
+    // Indicates whether the client supports authentication refresh.
     private boolean supportsAuthRefresh;
 
     public BinaryAuthSession(@NonNull BinaryAuthContext context) {
         this.context = context;
     }
 
+    /**
+     * Performs the initial authentication process for the client connection.
+     * <p>
+     * This method handles both standard CONNECT authentication and optional original credentials
+     * forwarded by a proxy. Authentication may be asynchronous and results in a {@link AuthResult}.
+     *
+     * @return a {@link CompletableFuture} that completes with the authentication result
+     */
     public CompletableFuture<AuthResult> doAuthentication() {
         var connect = context.getCommandConnect();
         try {
@@ -156,12 +208,17 @@ public class BinaryAuthSession {
         }
     }
 
-
-    // According to auth result, send Connected, AuthChallenge, or Error command.
+    /**
+     * Processes the authentication step when the broker receives an authentication response from the client.
+     *
+     * <p>If {@code useOriginalAuthState} is {@code true}, the authentication is performed
+     * against the original credentials forwarded by a proxy. Otherwise, the primary
+     * session {@code authState} is used.
+     */
     public CompletableFuture<AuthResult> authChallenge(AuthData clientData,
                                                        boolean useOriginalAuthState,
                                                        int clientProtocolVersion,
-                                                        String clientVersion) {
+                                                       String clientVersion) {
         // The original auth state can only be set on subsequent auth attempts (and only
         // in presence of a proxy and if the proxy is forwarding the credentials).
         // In this case, the re-validation needs to be done against the original client
@@ -178,6 +235,22 @@ public class BinaryAuthSession {
                         context.getExecutor());
     }
 
+    /**
+     * Callback invoked when an authentication step completes on the {@link AuthenticationState}.
+     *
+     * <p>If {@code authChallenge} is non-null, the authentication exchange is not yet complete.
+     * An {@link AuthResult} containing the challenge bytes is returned for the broker or proxy
+     * to send to the client. This method does <b>not</b> send data itself.
+     *
+     * <p>If {@code authChallenge} is null, the authentication step is complete. In that case, this
+     * method will:
+     * <ul>
+     *     <li>For the initial connection: set the resolved authentication data and role, and
+     *         optionally authenticate original proxy-forwarded credentials.</li>
+     *     <li>For a refresh: validate that the role remains the same and update stored authentication
+     *         data accordingly.</li>
+     * </ul>
+     */
     public CompletableFuture<AuthResult> authChallengeSuccessCallback(AuthData authChallenge,
                                                                       boolean useOriginalAuthState,
                                                                       String authRole,
@@ -193,7 +266,7 @@ public class BinaryAuthSession {
                 String newAuthRole = authState.getAuthRole();
                 AuthenticationDataSource newAuthDataSource = authState.getAuthDataSource();
 
-                if (context.getIsConnectingSupplier().get()) {
+                if (context.getIsInitialConnectSupplier().get()) {
                     // Set the auth data and auth role
                     if (!useOriginalAuthState) {
                         this.authRole = newAuthRole;
@@ -242,6 +315,9 @@ public class BinaryAuthSession {
         return CompletableFuture.completedFuture(defaultAuthResult);
     }
 
+    /**
+     * Performs authentication of the original client credentials forwarded by a proxy.
+     */
     private CompletableFuture<Void> authenticateOriginalData() {
         return originalAuthState
                 .authenticateAsync(originalAuthDataCopy)
@@ -270,6 +346,12 @@ public class BinaryAuthSession {
                 }, context.getExecutor());
     }
 
+    /**
+     * Returns whether the current effective authentication state for this session has expired.
+     *
+     * <p>If the session has an {@code originalAuthState} forwarded by a proxy, that state is
+     * checked first. Otherwise, the session's primary {@code authState} is used.
+     */
     public boolean isExpired() {
         if (originalAuthState != null) {
             return originalAuthState.isExpired();
@@ -277,7 +359,17 @@ public class BinaryAuthSession {
         return authState.isExpired();
     }
 
-    public boolean supportsAuthenticationRefresh(){
+    /**
+     * Determines whether the session supports authentication refresh.
+     *
+     * <p>Refresh is not supported when:
+     * <ul>
+     *     <li>the client indicated it does not support auth refresh via feature flags</li>
+     *     <li>the session is a proxied connection with an original principal but the proxy did not forward original
+     *     credentials (so re-validation of the original user is impossible)</li>
+     * </ul>
+     */
+    public boolean supportsAuthenticationRefresh() {
         if (originalPrincipal != null && originalAuthState == null) {
             // This case is only checked when the authState is expired because we've reached a point where
             // authentication needs to be refreshed, but the protocol does not support it unless the proxy forwards
@@ -298,6 +390,16 @@ public class BinaryAuthSession {
         return true;
     }
 
+    /**
+     * Refreshes the authentication credentials for this session.
+     *
+     * <p>If the session has an {@code originalAuthState} (i.e., credentials forwarded by a proxy
+     * and broker is configured to authenticate them), the refresh is performed on that state.
+     * Otherwise, the primary {@code authState} is refreshed.
+     *
+     * <p>The returned {@link AuthResult} contains the updated authentication data and the
+     * corresponding authentication method.
+     */
     public AuthResult refreshAuthentication() throws AuthenticationException {
         if (originalAuthState != null) {
             return AuthResult.builder()
@@ -311,12 +413,42 @@ public class BinaryAuthSession {
                 .build();
     }
 
+    /**
+     * Result container for an authentication operation performed by {@link BinaryAuthSession}.
+     *
+     * <p>Holds the optional client protocol/version metadata and the authentication payload
+     * produced by the underlying authentication provider. This object is returned to the
+     * broker/proxy to indicate either a completed authentication (no authData) or a pending
+     * authentication exchange that requires sending {@code authData} back to the client.
+     */
     @Builder
     @Getter
     public static class AuthResult {
+        /**
+         * Client protocol version used to format protocol-level responses.
+         *
+         * <p>This value is used by the broker or proxy when building response frames so the
+         * client can interpret any returned authentication bytes correctly.
+         */
         int clientProtocolVersion;
+
+        /**
+         * Human-readable client version string, if provided by the client.
+         */
         String clientVersion;
+
+        /**
+         * Authentication data produced by the authentication provider.
+         *
+         * <p>When non-null, these bytes represent a challenge or credentials that must be
+         * sent to the client to continue the authentication handshake. When null, no further
+         * client exchange is required and authentication is considered complete.
+         */
         AuthData authData;
+
+        /**
+         * Identifier of the authentication method associated with {@code authData}.
+         */
         String authMethod;
     }
 }

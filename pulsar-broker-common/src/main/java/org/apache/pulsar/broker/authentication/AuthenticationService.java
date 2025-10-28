@@ -245,6 +245,15 @@ public class AuthenticationService implements Closeable {
         }
     }
 
+    /**
+     * Creates a binary authentication session for Pulsar's binary protocol.
+     * <p>
+     * This method initializes a {@link BinaryAuthSession} using the provided authentication context.
+     * Both the proxy and broker can use this method to perform binary protocol authentication.
+     *
+     * @param ctx the binary authentication context containing authentication state and credentials
+     * @return a new {@link BinaryAuthSession} instance
+     */
     public BinaryAuthSession createBinaryAuthSession(BinaryAuthContext ctx) {
         return new BinaryAuthSession(ctx);
     }

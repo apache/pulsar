@@ -605,7 +605,7 @@ public class ProxyConnection extends PulsarHandler {
                     .sslSession(sslSession)
                     .authenticationService(service.getAuthenticationService())
                     .commandConnect(connect)
-                    .isConnectingSupplier(() -> state == State.Connecting)
+                    .isInitialConnectSupplier(() -> state == State.Connecting)
                     .authenticateOriginalAuthData(service.getConfiguration().isAuthenticateOriginalAuthData())
                     .build());
             binaryAuthSession.doAuthentication()

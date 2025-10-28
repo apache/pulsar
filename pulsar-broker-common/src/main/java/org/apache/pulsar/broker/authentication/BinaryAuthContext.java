@@ -26,45 +26,78 @@ import lombok.Builder;
 import lombok.Getter;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 
+/**
+ * Context object that encapsulates all information required to perform binary protocol
+ * authentication for a client connection.
+ * <p>
+ * This context is used by {@link BinaryAuthSession} to manage authentication state,
+ * credentials, and related connection details during the authentication process.
+ */
 @Getter
 @Builder
 public class BinaryAuthContext {
     /**
-     * The CommandConnect object representing the client's connection request.
+     * The {@link CommandConnect} object representing the client's connection request.
      */
     private CommandConnect commandConnect;
 
     /**
-     * The SSLSession associated with the connection, if SSL/TLS is used.
+     * The {@link SSLSession} associated with the connection, if TLS/SSL is used.
+     *
+     * <p>May be {@code null} for non-TLS connections. When present, authenticators
+     * can use session details (peer certificates, cipher suite, etc.) as part of
+     * the authentication decision.
      */
     private SSLSession sslSession;
 
     /**
-     * The AuthenticationService used to perform authentication for this context.
+     * The {@link AuthenticationService} used to perform authentication operations.
+     *
+     * <p>This is typically the broker-level service that coordinates available
+     * authentication providers and performs lifecycle operations such as
+     * verifying credentials or initiating challenges.
      */
     private AuthenticationService authenticationService;
 
     /**
-     * The Executor to use for asynchronous authentication operations.
-     * Must be provided if authentication involves async tasks.
+     * The executor used to perform asynchronous authentication operations.
+     * <p>
+     * This should be the Netty event loop executor associated with the current connection,
+     * ensuring that authentication tasks run on the same event loop thread.
      */
     private Executor executor;
 
     /**
-     * The remote address of the client initiating the connection.
+     * The remote {@link SocketAddress} of the client initiating the connection.
+     *
+     * <p>This may be used for audit, logging, access control decisions, or for
+     * binding authentication state to the client's address.
      */
     private SocketAddress remoteAddress;
 
     /**
-     * If true, authentication should be performed using the original authentication data
-     * provided by the client, rather than any intermediate or proxy data.
-     * Set to true when authenticating the initial client request.
+     * Indicates whether to authenticate the client's original authentication data
+     * instead of simply trusting the provided principal.
+     * <p>
+     * When set to {@code true}, the session re-validates the original authentication data
+     * sent by the client. When set to {@code false}, it skips re-authentication
+     * and only authorizes the provided principal if necessary.
      */
     private boolean authenticateOriginalAuthData;
 
     /**
-     * Supplier indicating whether the connection is currently in the process of connecting.
-     * Used to determine connection state during authentication.
+     * A supplier that indicates whether the current connection is still in the
+     * initial connect phase.
+     *
+     * <p>When this supplier returns {@code true}, the connection is being
+     * established and the broker should treat the incoming data as part of the
+     * initial connect handling. When it returns {@code false}, the
+     * client is already marked connected; subsequent authentication events
+     * represent refreshes or re-authentication.
+     *
+     * <p>Using a supplier allows deferred evaluation of the initial-connect state
+     * (for example, if connection state may change between when the context is
+     * created and when authentication is executed).
      */
-    private Supplier<Boolean> isConnectingSupplier;
+    private Supplier<Boolean> isInitialConnectSupplier;
 }

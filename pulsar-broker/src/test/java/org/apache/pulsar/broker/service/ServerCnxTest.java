@@ -540,7 +540,7 @@ public class ServerCnxTest {
         when(binaryAuthContext.isAuthenticateOriginalAuthData()).thenReturn(
                 serviceConfiguration.isAuthenticateOriginalAuthData());
         when(binaryAuthContext.getExecutor()).thenReturn(serverCnx.ctx().executor());
-        when(binaryAuthContext.getIsConnectingSupplier()).thenReturn(() -> serverCnx.getState() != State.Connected);
+        when(binaryAuthContext.getIsInitialConnectSupplier()).thenReturn(() -> serverCnx.getState() != State.Connected);
         BinaryAuthSession binaryAuthSession = spy(new BinaryAuthSession(binaryAuthContext));
         ByteBuf copy = connectCommand.copy();
         BaseCommand cmd = new BaseCommand();
