@@ -50,6 +50,9 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -66,6 +69,15 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     @Override
     public void setup() throws Exception {
         baseSetup();
+        admin.clusters().createCluster("use",
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Collections.EMPTY_SET, Set.of("use"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        TenantInfo tenantInfo1 = admin.tenants().getTenantInfo("prop");
+        tenantInfo1.getAllowedClusters().add("use");
+        admin.tenants().updateTenant("prop", tenantInfo1);
+        admin.namespaces().createNamespace("prop-xyz/use/ns-abc");
+        admin.namespaces().createNamespace("prop/use/ns-abc");
     }
 
     @AfterClass(alwaysRun = true)
