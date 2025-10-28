@@ -71,7 +71,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         baseSetup();
         admin.clusters().createCluster("use",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Collections.EMPTY_SET, Set.of("use"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Collections.emptySet(), Set.of("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         TenantInfo tenantInfo1 = admin.tenants().getTenantInfo("prop");
         tenantInfo1.getAllowedClusters().add("use");
