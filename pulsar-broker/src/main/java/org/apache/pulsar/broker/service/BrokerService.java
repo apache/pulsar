@@ -97,6 +97,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -206,7 +207,6 @@ public class BrokerService implements Closeable {
     private static final TimeoutException FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Failed to load topic within timeout", BrokerService.class,
                     "futureWithDeadline(...)");
-    private static final long GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = 5000L;
     private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
 
@@ -308,7 +308,7 @@ public class BrokerService implements Closeable {
     // fallback if recover BucketDelayedDeliveryTracker failed.
     private volatile DelayedDeliveryTrackerFactory fallbackDelayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
-    private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
+    private final List<Pair<String, EventLoopGroup>> protocolHandlersWorkerGroups = new ArrayList<>();
 
     @Getter
     private final BundlesQuotas bundlesQuotas;
@@ -530,7 +530,7 @@ public class BrokerService implements Closeable {
             EventLoopGroup dedicatedWorkerGroup =
                     EventLoopUtil.newEventLoopGroup(configuration.getNumIOThreads(), false, defaultThreadFactory);
             bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
-            protocolHandlersWorkerGroups.add(dedicatedWorkerGroup);
+            protocolHandlersWorkerGroups.add(Pair.of(protocol, dedicatedWorkerGroup));
             bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
         } else {
             bootstrap = defaultServerBootstrap.clone();
@@ -841,10 +841,10 @@ public class BrokerService implements Closeable {
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
             log.info("Event loops shutting down gracefully...");
             List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
-            shutdownEventLoops.add(shutdownEventLoopGracefully(acceptorGroup));
-            shutdownEventLoops.add(shutdownEventLoopGracefully(workerGroup));
-            for (EventLoopGroup group : protocolHandlersWorkerGroups) {
-                shutdownEventLoops.add(shutdownEventLoopGracefully(group));
+            shutdownEventLoops.add(shutdownEventLoopGracefully("acceptor", acceptorGroup));
+            shutdownEventLoops.add(shutdownEventLoopGracefully("worker", workerGroup));
+            for (final var pair : protocolHandlersWorkerGroups) {
+                shutdownEventLoops.add(shutdownEventLoopGracefully(pair.getLeft(), pair.getRight()));
             }
 
             CompletableFuture<Void> shutdownFuture =
@@ -939,15 +939,21 @@ public class BrokerService implements Closeable {
         }
     }
 
-    CompletableFuture<Void> shutdownEventLoopGracefully(EventLoopGroup eventLoopGroup) {
+    CompletableFuture<Void> shutdownEventLoopGracefully(String name, EventLoopGroup eventLoopGroup) {
         long brokerShutdownTimeoutMs = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
-        long quietPeriod = Math.min((long) (
-                GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs),
-                GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS);
         long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
-        return NettyFutureUtil.toCompletableFutureVoid(
-                eventLoopGroup.shutdownGracefully(quietPeriod,
-                        timeout, MILLISECONDS));
+        long periodMs = (timeout > 0) ? 1 : 0;
+        long startNs = System.nanoTime();
+        return NettyFutureUtil.toCompletableFutureVoid(eventLoopGroup.shutdownGracefully(
+                periodMs, timeout, MILLISECONDS)
+        ).whenComplete((__, e) -> {
+            final var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
+            if (e == null) {
+                log.info("Event loop {} shut down after {} ms", name, elapsedMs);
+            } else {
+                log.warn("Failed to shut down event loop {} after {} ms: {}", name, elapsedMs, e.getMessage());
+            }
+        });
     }
 
     private CompletableFuture<Void> closeChannel(Channel channel) {
