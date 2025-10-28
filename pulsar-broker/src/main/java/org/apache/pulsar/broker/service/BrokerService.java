@@ -964,9 +964,10 @@ public class BrokerService implements Closeable {
     CompletableFuture<Void> shutdownEventLoopGracefully(String name, EventLoopGroup eventLoopGroup) {
         long brokerShutdownTimeoutMs = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
         long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
-        var startNs = System.nanoTime();
+        long periodMs = (timeout > 0) ? 1 : 0;
+        long startNs = System.nanoTime();
         return NettyFutureUtil.toCompletableFutureVoid(eventLoopGroup.shutdownGracefully(
-                1, timeout, MILLISECONDS)
+                periodMs, timeout, MILLISECONDS)
         ).whenComplete((__, e) -> {
             final var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
             if (e == null) {
