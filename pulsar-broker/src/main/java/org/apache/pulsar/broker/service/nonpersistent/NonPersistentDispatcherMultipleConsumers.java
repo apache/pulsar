@@ -101,6 +101,8 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
                     closeFuture.complete(null);
                 }
                 TOTAL_AVAILABLE_PERMITS_UPDATER.set(this, 0);
+            } else {
+                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.getAvailablePermits());
             }
         } else {
             if (log.isDebugEnabled()) {
