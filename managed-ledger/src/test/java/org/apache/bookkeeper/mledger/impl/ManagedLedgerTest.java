@@ -2663,7 +2663,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetNumberOfEntries() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        initManagedLedgerConfig(managedLedgerConfig);
         managedLedgerConfig.setMaxEntriesPerLedger(5);
         ManagedLedgerImpl managedLedger =
                 (ManagedLedgerImpl) factory.open("testGetNumberOfEntries", managedLedgerConfig);
@@ -2674,8 +2673,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < numberOfEntries; i++) {
             positions.add(managedLedger.addEntry(("entry-" + i).getBytes(Encoding)));
         }
-        Position mdPos = positions.get(numberOfEntries - 1);
-        Position rdPos = PositionFactory.create(mdPos.getLedgerId(), mdPos.getEntryId() + 1);
+        PositionImpl mdPos = (PositionImpl) positions.get(numberOfEntries - 1);
+        PositionImpl rdPos = PositionImpl.get(mdPos.getLedgerId(), mdPos.getEntryId() + 1);
         managedCursor.delete(positions);
         // trigger ledger rollover and wait for the new ledger created
         Awaitility.await().untilAsserted(() -> {
