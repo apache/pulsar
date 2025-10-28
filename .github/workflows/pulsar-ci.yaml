@@ -433,11 +433,6 @@ jobs:
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
 
-      - name: Pick ubuntu mirror for the docker image build
-        run: |
-          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
-
       - name: Build java-test-image docker image
         run: |
           # build docker image
@@ -783,17 +778,11 @@ jobs:
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
 
-      - name: Pick ubuntu mirror for the docker image build
-        run: |
-          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
-
       - name: Build latest-version-image docker image
         run: |
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
           mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
-          -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 

@@ -82,8 +82,6 @@
                         <args>
                           <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
                           <PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</PULSAR_CLIENT_PYTHON_VERSION>
-                          <UBUNTU_MIRROR>${UBUNTU_MIRROR}</UBUNTU_MIRROR>
-                          <UBUNTU_SECURITY_MIRROR>${UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
                         </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>

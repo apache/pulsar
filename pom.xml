@@ -84,9 +84,6 @@ flexible messaging model and an intuitive client API.</description>
 
     <pulsar.client.python.version>3.8.0</pulsar.client.python.version>
 
-    <UBUNTU_MIRROR>http://archive.ubuntu.com/ubuntu/</UBUNTU_MIRROR>
-    <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
-
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
@@ -2901,19 +2898,6 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
 
     <profile>
-      <id>ubuntu-mirror-set</id>
-      <activation>
-        <property>
-          <name>env.UBUNTU_MIRROR</name>
-        </property>
-      </activation>
-      <properties>
-        <!-- Override the default value with the environment variable -->
-        <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
-      </properties>
-    </profile>
-
-    <profile>
       <id>jdk21</id>
       <activation>
         <jdk>21</jdk>
@@ -2951,19 +2935,6 @@ flexible messaging model and an intuitive client API.</description>
           </plugins>
         </pluginManagement>
       </build>
-    </profile>
-
-    <profile>
-      <id>ubuntu-security-mirror-set</id>
-      <activation>
-        <property>
-          <name>env.UBUNTU_SECURITY_MIRROR</name>
-        </property>
-      </activation>
-      <properties>
-        <!-- Override the default value with the environment variable -->
-        <UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
-      </properties>
     </profile>
 
   </profiles>
