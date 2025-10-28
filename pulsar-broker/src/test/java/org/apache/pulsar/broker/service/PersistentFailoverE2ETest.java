@@ -47,7 +47,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -68,6 +71,26 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    private void createNamespaceIfAbsent(TopicName topicName) throws Exception {
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        NamespaceName namespaceName = topicName.getNamespaceObject();
+        if (!namespaceName.isV2()) {
+            if (!admin.clusters().getClusters().contains(namespaceName.getCluster())) {
+                admin.clusters().createCluster(namespaceName.getCluster(), ClusterData.builder()
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
+            }
+            tenantInfo.getAllowedClusters().add(namespaceName.getCluster());
+        }
+        if (!admin.tenants().getTenants().contains(topicName.getTenant())) {
+            admin.tenants().createTenant(topicName.getTenant(), tenantInfo);
+        }
+        try {
+            admin.namespaces().createNamespace(topicName.getNamespace());
+        } catch (Exception ex) {
+            // Namespace may already exist.
+        }
     }
 
     private static final int CONSUMER_ADD_OR_REMOVE_WAIT_TIME = 100;
@@ -169,7 +192,9 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumerEventsWithoutPartition() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/failover-topic1-" + System.currentTimeMillis();
+        final String topicName = "persistent://prop/" + pulsar.getConfig().getClusterName()
+                + "/ns-abc/failover-topic1-" + System.currentTimeMillis();
+        createNamespaceIfAbsent(TopicName.get(topicName));
         final String subName = "sub1";
         final int numMsgs = 100;
 
@@ -314,7 +339,9 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         int numPartitions = 4;
 
         final String topicName = BrokerTestUtil.newUniqueName(
-                "persistent://prop/use/ns-abc/testSimpleConsumerEventsWithPartition");
+                "persistent://prop/" + pulsar.getConfig().getClusterName()
+                        + "/ns-abc/testSimpleConsumerEventsWithPartition");
+        createNamespaceIfAbsent(TopicName.get(topicName));
         final TopicName destName = TopicName.get(topicName);
         final String subName = "sub1";
         final int numMsgs = 100;
@@ -501,7 +528,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @Test
     public void testActiveConsumerFailoverWithDelay() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/failover-topic3";
+        final String topicName = "persistent://prop/" + pulsar.getConfig().getClusterName() + "/ns-abc/failover-topic3";
+        createNamespaceIfAbsent(TopicName.get(topicName));
         final String subName = "sub1";
         final int numMsgs = 100;
         List<Message<byte[]>> receivedMessages = new ArrayList<>();
