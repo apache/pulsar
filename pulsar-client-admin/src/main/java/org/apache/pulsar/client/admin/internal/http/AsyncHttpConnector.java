@@ -56,11 +56,11 @@ import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
+import lombok.Data;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -138,11 +138,11 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         String serviceUrl = conf.getServiceUrl();
         serviceNameResolver.updateServiceUrl(serviceUrl);
         this.acceptGzipCompression = acceptGzipCompression;
-        Triple<NameResolver<InetAddress>, EventLoopGroup, Boolean> buildBySharedResourcesIfConfigured =
+        SharedResourceHolder sharedResourceHolder =
                 buildResourcesIfConfigured(sharedResources);
-        this.nameResolver = buildBySharedResourcesIfConfigured.getLeft();
-        this.eventLoopGroup = buildBySharedResourcesIfConfigured.getMiddle();
-        this.createdEventLoopGroup = buildBySharedResourcesIfConfigured.getRight();
+        this.nameResolver = sharedResourceHolder.getNameResolver();
+        this.eventLoopGroup = sharedResourceHolder.getEventLoopGroup();
+        this.createdEventLoopGroup = sharedResourceHolder.isCreateEventLoop();
         AsyncHttpClientConfig asyncHttpClientConfig =
                 createAsyncHttpClientConfig(conf, connectTimeoutMs, readTimeoutMs, requestTimeoutMs,
                         autoCertRefreshTimeSeconds, sharedResources);
@@ -151,7 +151,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
     }
 
-    private Triple<NameResolver<InetAddress>, EventLoopGroup, Boolean> buildResourcesIfConfigured(
+    private SharedResourceHolder buildResourcesIfConfigured(
             PulsarClientSharedResourcesImpl sharedResources) {
         EventLoopGroup eventLoopGroup = null;
         NameResolver<InetAddress> nameResolver = null;
@@ -169,8 +169,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             }
             nameResolver = DnsResolverUtil.adaptToNameResolver(
                     sharedResources.getDnsResolverGroup().createAddressResolver(eventLoopGroup));
+        } else {
+            return SharedResourceHolder.EMPTY;
         }
-        return Triple.of(nameResolver, eventLoopGroup, createdEventLoopGroup);
+        return new SharedResourceHolder(nameResolver, eventLoopGroup, createdEventLoopGroup);
     }
 
     private AsyncHttpClientConfig createAsyncHttpClientConfig(ClientConfigurationData conf, int connectTimeoutMs,
@@ -614,6 +616,23 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             this.sslFactory.update();
         } catch (Exception e) {
             log.error("Failed to refresh SSL context", e);
+        }
+    }
+
+    @Data
+    private static class SharedResourceHolder {
+        static final SharedResourceHolder EMPTY = new SharedResourceHolder(null, null, false);
+
+        final NameResolver<InetAddress> nameResolver;
+        final EventLoopGroup eventLoopGroup;
+        final boolean createEventLoop;
+
+        SharedResourceHolder(NameResolver<InetAddress> nameResolver,
+                             EventLoopGroup eventLoopGroup,
+                             boolean createEventLoop) {
+            this.nameResolver = nameResolver;
+            this.eventLoopGroup = eventLoopGroup;
+            this.createEventLoop = createEventLoop;
         }
     }
 
