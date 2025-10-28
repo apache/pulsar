@@ -60,6 +60,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -110,7 +111,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             new DefaultThreadFactory("delayer"));
     private ScheduledExecutorService sslRefresher;
     private final boolean acceptGzipCompression;
+    @Getter
     private final NameResolver<InetAddress> nameResolver;
+    private final EventLoopGroup eventLoopGroup;
+    private final boolean createdEventLoopGroup;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
     private PulsarSslFactory sslFactory;
 
@@ -134,32 +138,39 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         String serviceUrl = conf.getServiceUrl();
         serviceNameResolver.updateServiceUrl(serviceUrl);
         this.acceptGzipCompression = acceptGzipCompression;
+        Triple<NameResolver<InetAddress>, EventLoopGroup, Boolean> buildBySharedResourcesIfConfigured =
+                buildResourcesIfConfigured(sharedResources);
+        this.nameResolver = buildBySharedResourcesIfConfigured.getLeft();
+        this.eventLoopGroup = buildBySharedResourcesIfConfigured.getMiddle();
+        this.createdEventLoopGroup = buildBySharedResourcesIfConfigured.getRight();
         AsyncHttpClientConfig asyncHttpClientConfig =
                 createAsyncHttpClientConfig(conf, connectTimeoutMs, readTimeoutMs, requestTimeoutMs,
                         autoCertRefreshTimeSeconds, sharedResources);
         httpClient = createAsyncHttpClient(asyncHttpClientConfig);
         this.requestTimeout = requestTimeoutMs > 0 ? Duration.ofMillis(requestTimeoutMs) : null;
         this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
-        this.nameResolver = buildNameResolverIfConfigured(sharedResources);
     }
-    private NameResolver<InetAddress> buildNameResolverIfConfigured(PulsarClientSharedResourcesImpl sharedResources) {
+
+    private Triple<NameResolver<InetAddress>, EventLoopGroup, Boolean> buildResourcesIfConfigured(
+            PulsarClientSharedResourcesImpl sharedResources) {
+        EventLoopGroup eventLoopGroup = null;
+        NameResolver<InetAddress> nameResolver = null;
+        boolean createdEventLoopGroup = false;
         if (sharedResources != null && sharedResources.getDnsResolverGroup() != null) {
-            EventLoopGroup eventLoopGroupReference;
             if (sharedResources.getIoEventLoopGroup() != null) {
-                eventLoopGroupReference = sharedResources.getIoEventLoopGroup();
+                eventLoopGroup = sharedResources.getIoEventLoopGroup();
             } else {
                 // build an EventLoopGroup with default value
-                eventLoopGroupReference = EventLoopUtil.newEventLoopGroup(
+                eventLoopGroup = EventLoopUtil.newEventLoopGroup(
                         Runtime.getRuntime().availableProcessors(), false,
                         new ExecutorProvider.ExtendedThreadFactory("pulsar-admin-client-io",
                                 Thread.currentThread().isDaemon()));
+                createdEventLoopGroup = true;
             }
-            return DnsResolverUtil.adaptToNameResolver(
-                    sharedResources.getDnsResolverGroup().createAddressResolver(eventLoopGroupReference)
-            );
-        } else {
-            return null;
+            nameResolver = DnsResolverUtil.adaptToNameResolver(
+                    sharedResources.getDnsResolverGroup().createAddressResolver(eventLoopGroup));
         }
+        return Triple.of(nameResolver, eventLoopGroup, createdEventLoopGroup);
     }
 
     private AsyncHttpClientConfig createAsyncHttpClientConfig(ClientConfigurationData conf, int connectTimeoutMs,
@@ -193,8 +204,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
         }
         if (sharedResources != null) {
-            if (sharedResources.getIoEventLoopGroup() != null) {
-                confBuilder.setEventLoopGroup(sharedResources.getIoEventLoopGroup());
+            if (this.eventLoopGroup != null) {
+                confBuilder.setEventLoopGroup(this.eventLoopGroup);
             }
             if (sharedResources.getTimer() != null) {
                 confBuilder.setNettyTimer(sharedResources.getTimer());
@@ -218,7 +229,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                      HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
                 return (response.status().code() / 100 != 5)
-                       && super.keepAlive(remoteAddress, ahcRequest, request, response);
+                        && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
@@ -372,9 +383,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                                 throwable);
                                     }
                                     resultFuture.completeExceptionally(
-                                        new RetryException("Could not complete the operation. Number of retries "
-                                            + "has been exhausted. Failed reason: " + throwable.getMessage(),
-                                            throwable));
+                                            new RetryException("Could not complete the operation. Number of retries "
+                                                    + "has been exhausted. Failed reason: " + throwable.getMessage(),
+                                                    throwable));
                                 }
                             }
                         } else {
@@ -417,7 +428,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     }
 
     public CompletableFuture<Response> executeRequest(Request request,
-                                                       Supplier<AsyncHandler<Response>> handlerSupplier) {
+                                                      Supplier<AsyncHandler<Response>> handlerSupplier) {
         return executeRequest(request, handlerSupplier, 0);
     }
 
@@ -477,7 +488,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 builder.setFormParams(request.getFormParams());
             } else if (request.getStringData() != null) {
                 builder.setBody(request.getStringData());
-            } else if (request.getByteData() != null){
+            } else if (request.getByteData() != null) {
                 builder.setBody(request.getByteData());
             } else if (request.getByteBufferData() != null) {
                 builder.setBody(request.getByteBufferData());
@@ -564,6 +575,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             delayer.shutdownNow();
             if (sslRefresher != null) {
                 sslRefresher.shutdownNow();
+            }
+            if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
+                eventLoopGroup.shutdownGracefully();
             }
         } catch (IOException e) {
             log.warn("Failed to close http client", e);

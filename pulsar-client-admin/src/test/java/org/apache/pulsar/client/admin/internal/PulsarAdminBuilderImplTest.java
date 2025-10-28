@@ -24,8 +24,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.NameResolver;
 import io.netty.util.Timer;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
@@ -225,12 +227,62 @@ public class PulsarAdminBuilderImplTest {
         EventLoopGroup eventLoopGroup1 =
                 pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
         EventLoopGroup eventLoopGroup2 =
-                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+                pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
         Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
         Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
         boolean b1 = eventLoopGroup1 == eventLoopGroup2;
         boolean b2 = nettyTimer1 == nettyTimer2;
         assertThat(b1 && b2).isTrue();
+        sharedResources.close();
+    }
+
+    @Test
+    public void testClientBuildWithSharedDnsResolverOnly() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                .shareConfigured()
+                .configureDnsResolver(dnsResolverConfig -> {
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
+                })
+                .build();
+
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl1 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl2 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+
+        EventLoopGroup eventLoopGroup1 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        EventLoopGroup eventLoopGroup2 =
+                pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        NameResolver<InetAddress> nameResolver1 = pulsarAdminImpl1.getAsyncHttpConnector().getNameResolver();
+        NameResolver<InetAddress> nameResolver2 = pulsarAdminImpl2.getAsyncHttpConnector().getNameResolver();
+
+        // test eventLoop will be created when dnsResolver is configured
+        assertThat(eventLoopGroup1).isNotNull();
+        assertThat(eventLoopGroup2).isNotNull();
+        assertThat(eventLoopGroup2).isNotSameAs(eventLoopGroup1);
+
+        // timer will not be created when timer is not configured
+        assertThat(nettyTimer1).isSameAs(nettyTimer2).isNull();
+
+        assertThat(nameResolver1).isNotNull();
+        assertThat(nameResolver2).isNotNull();
+
+        // test eventLoop will shut down when AsyncHttpConnector is closed
+        pulsarAdminImpl1.getAsyncHttpConnector().close();
+        assertThat(eventLoopGroup1.isShuttingDown()).isTrue();
+
+        sharedResources.close();
     }
 
     @Test
