@@ -231,33 +231,33 @@ The Apache Software License, Version 2.0
     - commons-compress-1.26.0.jar
     - commons-lang3-3.18.0.jar
  * Netty
-    - netty-buffer-4.1.127.Final.jar
-    - netty-codec-4.1.127.Final.jar
-    - netty-codec-dns-4.1.127.Final.jar
-    - netty-codec-http-4.1.127.Final.jar
-    - netty-codec-haproxy-4.1.127.Final.jar
-    - netty-codec-socks-4.1.127.Final.jar
-    - netty-handler-proxy-4.1.127.Final.jar
-    - netty-common-4.1.127.Final.jar
-    - netty-handler-4.1.127.Final.jar
+    - netty-buffer-4.1.128.Final.jar
+    - netty-codec-4.1.128.Final.jar
+    - netty-codec-dns-4.1.128.Final.jar
+    - netty-codec-http-4.1.128.Final.jar
+    - netty-codec-haproxy-4.1.128.Final.jar
+    - netty-codec-socks-4.1.128.Final.jar
+    - netty-handler-proxy-4.1.128.Final.jar
+    - netty-common-4.1.128.Final.jar
+    - netty-handler-4.1.128.Final.jar
     - netty-reactive-streams-2.0.6.jar
-    - netty-resolver-4.1.127.Final.jar
-    - netty-resolver-dns-4.1.127.Final.jar
-    - netty-resolver-dns-classes-macos-4.1.127.Final.jar
-    - netty-resolver-dns-native-macos-4.1.127.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.127.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.73.Final.jar
-    - netty-tcnative-boringssl-static-2.0.73.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.73.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.73.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.73.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.73.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.73.Final.jar
-    - netty-transport-4.1.127.Final.jar
-    - netty-transport-classes-epoll-4.1.127.Final.jar
-    - netty-transport-native-epoll-4.1.127.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.1.127.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.127.Final.jar
+    - netty-resolver-4.1.128.Final.jar
+    - netty-resolver-dns-4.1.128.Final.jar
+    - netty-resolver-dns-classes-macos-4.1.128.Final.jar
+    - netty-resolver-dns-native-macos-4.1.128.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.128.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.74.Final.jar
+    - netty-tcnative-boringssl-static-2.0.74.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.74.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.74.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.74.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.74.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.74.Final.jar
+    - netty-transport-4.1.128.Final.jar
+    - netty-transport-classes-epoll-4.1.128.Final.jar
+    - netty-transport-native-epoll-4.1.128.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.1.128.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.128.Final.jar
     - netty-incubator-transport-classes-io_uring-0.0.26.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-x86_64.jar
     - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-aarch_64.jar
