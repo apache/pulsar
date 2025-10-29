@@ -1979,7 +1979,7 @@ public abstract class NamespacesBase extends AdminResource {
                     + " Repl clusters: %s, allowed clusters: %s",
                     ns.toString(), policies.replication_clusters, policies.allowed_clusters);
             log.info(msg);
-            throw new RestException(Status.FORBIDDEN, msg);
+            throw new RestException(Status.BAD_REQUEST, msg);
         }
         pulsar().getBrokerService().setCurrentClusterAllowedIfNoClusterIsAllowed(ns, policies);
 
