@@ -868,6 +868,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                     "Cluster [r3] is not in the list of allowed clusters list for tenant [my-tenant]");
         }
         // 3. Clean up
+        admin.namespaces().setNamespaceAllowedClusters(namespace, Set.of(pulsar.getConfig().getClusterName()));
         admin.namespaces().deleteNamespace(namespace, true);
         admin.tenants().deleteTenant(tenant, true);
         for (String cluster : clusters) {
