@@ -46,7 +46,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBase {
 
     private final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
