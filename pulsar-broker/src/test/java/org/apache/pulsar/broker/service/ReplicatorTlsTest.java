@@ -30,7 +30,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Override
