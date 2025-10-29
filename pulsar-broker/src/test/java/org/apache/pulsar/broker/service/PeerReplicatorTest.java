@@ -187,7 +187,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(groups = "broker")
+    @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters
