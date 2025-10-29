@@ -214,7 +214,7 @@ public class ResourceGroupService implements AutoCloseable{
         this.tenantToRGsMap.put(tenantName, rg);
         rgTenantRegisters.labels(resourceGroupName).inc();
 
-        // First attachment may have just appeared, ensure schedulers start.
+        // Ensure schedulers are started if this is the first registration.
         maybeStartSchedulers();
     }
 
@@ -239,7 +239,7 @@ public class ResourceGroupService implements AutoCloseable{
         this.tenantToRGsMap.remove(tenantName, rg);
         rgTenantUnRegisters.labels(resourceGroupName).inc();
 
-        // If this was the last attachment (tenant or namespace), stop schedulers.
+        // If this was the last registration (tenant or namespace), stop schedulers.
         maybeStopSchedulersIfIdle();
     }
 
@@ -273,7 +273,7 @@ public class ResourceGroupService implements AutoCloseable{
         this.namespaceToRGsMap.put(fqNamespaceName, rg);
         rgNamespaceRegisters.labels(resourceGroupName).inc();
 
-        // First attachment may have just appeared, ensure schedulers start.
+        // Ensure schedulers are started if this is the first registration.
         maybeStartSchedulers();
     }
 
@@ -300,7 +300,7 @@ public class ResourceGroupService implements AutoCloseable{
         this.namespaceToRGsMap.remove(fqNamespaceName, rg);
         rgNamespaceUnRegisters.labels(resourceGroupName).inc();
 
-        // If this was the last attachment (tenant or namespace), stop schedulers.
+        // If this was the last registration (tenant or namespace), stop schedulers.
         maybeStopSchedulersIfIdle();
     }
 
@@ -558,10 +558,7 @@ public class ResourceGroupService implements AutoCloseable{
     // Periodically aggregate the usage from all topics known to the BrokerService.
     // Visibility for unit testing.
     protected void aggregateResourceGroupLocalUsages() {
-        if (!schedulersRunning.get() || resourceGroupsMap.isEmpty()) {
-            return;
-        }
-        if (tenantToRGsMap.isEmpty() && namespaceToRGsMap.isEmpty()) {
+        if (!shouldRunPeriodicTasks()) {
             return;
         }
         final Summary.Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
@@ -626,10 +623,7 @@ public class ResourceGroupService implements AutoCloseable{
     // from the reports received from other brokers.
     // [Visibility for unit testing.]
     protected void calculateQuotaForAllResourceGroups() {
-        if (!schedulersRunning.get() || resourceGroupsMap.isEmpty()) {
-            return;
-        }
-        if (tenantToRGsMap.isEmpty() && namespaceToRGsMap.isEmpty()) {
+        if (!shouldRunPeriodicTasks()) {
             return;
         }
         // Calculate the quota for the next window for this RG, based on the observed usage.
@@ -720,15 +714,27 @@ public class ResourceGroupService implements AutoCloseable{
         }
     }
 
-    // True if at least one tenant or namespace is attached to any RG.
-    private boolean hasActiveAttachments() {
-        // Any tenant or namespace attachments imply the feature is "in use".
+    // Returns true if at least one tenant or namespace is registered to resource group.
+    private boolean hasActiveResourceGroups() {
         return !tenantToRGsMap.isEmpty() || !namespaceToRGsMap.isEmpty();
+    }
+
+    /**
+     * Whether the periodic ResourceGroupService tasks (aggregation & quota calculation) should run.
+     * True only when:
+     *  1. the scheduler flag is set,
+     *  2. at least one Resource Group exists locally, and
+     *  3. at least one tenant or namespace is registered to Resource Group.
+     */
+    private boolean shouldRunPeriodicTasks() {
+        return schedulersRunning.get()
+                && !resourceGroupsMap.isEmpty()
+                && hasActiveResourceGroups();
     }
 
     // Start periodic aggregation/quota schedulers if we actually need them.
     private void maybeStartSchedulers() {
-        if (!hasActiveAttachments()) {
+        if (!hasActiveResourceGroups()) {
             return;
         }
         if (schedulersRunning.compareAndSet(false, true)) {
@@ -747,9 +753,9 @@ public class ResourceGroupService implements AutoCloseable{
             }
         }
     }
-    // Stop schedulers when no attachments remain.
+    // Stop schedulers when no tenant or namespace registrations remain.
     private void maybeStopSchedulersIfIdle() {
-        if (hasActiveAttachments()) {
+        if (hasActiveResourceGroups()) {
             return;
         }
         if (schedulersRunning.compareAndSet(true, false)) {
@@ -762,14 +768,14 @@ public class ResourceGroupService implements AutoCloseable{
                 calculateQuotaPeriodicTask = null;
             }
             if (log.isInfoEnabled()) {
-                log.info("Stopped ResourceGroupService periodic tasks due to no active attachments");
+                log.info("Stopped ResourceGroupService periodic tasks because no registrations remain");
             }
         }
     }
 
     private void initialize() {
         // Store the configured interval. Do not start periodic tasks unconditionally here.
-        // Schedulers are started by maybeStartSchedulers() when the first tenant/namespace attachment is registered.
+        // Schedulers are started by maybeStartSchedulers() when the first tenant/namespace is registered.
         final long periodInSecs = pulsar.getConfiguration().getResourceUsageTransportPublishIntervalInSecs();
         this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
         // if any tenant/namespace registrations already exist, maybeStartSchedulers() will start the schedulers now.
