@@ -51,7 +51,7 @@ import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class AbstractReplicatorTest {
 
     @Test
