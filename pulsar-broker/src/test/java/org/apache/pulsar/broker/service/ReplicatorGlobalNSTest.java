@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit;
  * a lot of topic deletion and makes namespace policies being incorrect.
  */
 @Slf4j
-@Test(groups = "broker-impl")
+@Test(groups = "broker-replication")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;

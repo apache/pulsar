@@ -49,6 +49,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+@Test(groups = "broker-replication")
 public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
     @Override
     @BeforeClass(timeOut = 300000)

@@ -78,7 +78,7 @@ import org.testng.annotations.Test;
 /**
  * Tests replicated subscriptions (PIP-33)
  */
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
     private static final Logger log = LoggerFactory.getLogger(ReplicatorSubscriptionTest.class);
 
