@@ -192,6 +192,8 @@ jobs:
             group: BROKER_GROUP_3
           - name: Brokers - Broker Group 4
             group: BROKER_GROUP_4
+          - name: Brokers - Broker Group 5
+            group: BROKER_GROUP_5
           - name: Brokers - Client Api
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl
