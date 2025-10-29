@@ -91,7 +91,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase {
 
     static final ObjectMapper JACKSON = new ObjectMapper();
