@@ -25,6 +25,9 @@ on:
 permissions:
   actions: write
   contents: read
+  pull-requests: read
+  checks: read
+  statuses: read
 
 jobs:
   pulsarbot:
