@@ -419,6 +419,11 @@ public abstract class NamespacesBase extends AdminResource {
                                 return CompletableFuture.completedFuture(null);
                             }
                             Policies policies = policiesOpt.get();
+                            // Just keep the behavior of V1 namespace being the same as before.
+                            if (!nsName.isV2() && policies.replication_clusters.isEmpty()
+                                    && policies.allowed_clusters.isEmpty()) {
+                                return CompletableFuture.completedFuture(policies);
+                            }
                             String cluster = policies.getClusterThatCanDeleteNamespace();
                             if (cluster == null) {
                                 // There are still more than one clusters configured for the global namespace
@@ -502,6 +507,11 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(policies -> {
                     CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
                     if (namespaceName.isGlobal()) {
+                        // Just keep the behavior of V1 namespace being the same as before.
+                        if (!namespaceName.isV2() && policies.replication_clusters.isEmpty()
+                                && policies.allowed_clusters.isEmpty()) {
+                            return CompletableFuture.completedFuture(null);
+                        }
                         String cluster = policies.getClusterThatCanDeleteNamespace();
                         if (cluster == null) {
                             // There are still more than one clusters configured for the global namespace
