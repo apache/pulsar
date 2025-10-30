@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.semaphore;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -32,6 +33,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -487,6 +489,47 @@ public class AsyncDualMemoryLimiterUtilTest {
             assertEquals(futures[i].get(), "result-" + i);
         }
     }
+
+    @Test
+    public void testWithAcquiredAndUpdatedPermitsDoesntLeakPermitsWhenUpdatedSizeIsLarger() throws Exception {
+        for (int i = 0; i < 10_000; i++) {
+            doTestWithAcquiredPermitsAndUpdatedPermits(50, 100);
+        }
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(10000);
+    }
+
+    @Test
+    public void testWithAcquiredAndUpdatedPermitsDoesntLeakPermitsWhenUpdatedSizeIsSmaller() throws Exception {
+        for (int i = 0; i < 10_000; i++) {
+            doTestWithAcquiredPermitsAndUpdatedPermits(100, 50);
+        }
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(10000);
+    }
+
+    private void doTestWithAcquiredPermitsAndUpdatedPermits(int initialMemorySize, int newMemorySize) {
+        CompletableFuture<Void> result = limiter.withAcquiredPermits(
+                initialMemorySize,  // estimated permits
+                LimitType.HEAP_MEMORY,
+                () -> false,
+                firstPermit -> {
+                    // Simulate getting actual size and updating permits
+                    return limiter.withUpdatedPermits(
+                            firstPermit,
+                            newMemorySize,
+                            () -> false,
+                            secondPermit -> {
+                                return CompletableFuture.completedFuture(null);
+                            },
+                            throwable -> CompletableFuture.failedFuture(throwable)
+                    );
+                },
+                throwable -> CompletableFuture.failedFuture(throwable)
+        );
+        assertThat(result).succeedsWithin(Duration.ofSeconds(1));
+    }
+
 
     private BaseCommand createTestCommand() {
         BaseCommand command = new BaseCommand().setType(BaseCommand.Type.PING);
