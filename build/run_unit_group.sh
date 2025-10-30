@@ -99,6 +99,8 @@ function mvn_test() {
           create_filter_targets+=("$target" "-DskipTests")
           # no need to run install for test run
           target="verify"
+      else
+          create_filter_targets+=("test-compile")
       fi
       create_filter_targets+=("exec:exec")
       $MVN_TEST_OPTIONS -PtestFilterCreate "${pl_modules_args[@]}" "${create_filter_targets[@]}" "${groups_arg}"
