@@ -187,8 +187,11 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         if (isUnbounded()) {
             return;
         }
-        availablePermits.addAndGet(castToImplementation(permit).releasePermits());
-        processQueue();
+        long releasedPermits = castToImplementation(permit).releasePermits();
+        if (releasedPermits > 0) {
+            availablePermits.addAndGet(releasedPermits);
+            processQueue();
+        }
     }
 
     @Override
