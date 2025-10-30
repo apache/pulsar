@@ -156,6 +156,7 @@ import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -2745,26 +2746,27 @@ public class BrokerService implements Closeable {
             return;
         }
         final String localCluster = this.pulsar.getConfiguration().getClusterName();
-        if (!data.replication_clusters.contains(localCluster)) {
-            pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundlesAsync(namespace).thenAccept(bundles -> {
-                bundles.getBundles().forEach(bundle -> {
-                    pulsar.getNamespaceService().isNamespaceBundleOwned(bundle).thenAccept(isExist -> {
-                        if (isExist) {
-                            this.pulsar().getExecutor().execute(() -> {
-                                try {
-                                    pulsar().getAdminClient().namespaces().unloadNamespaceBundle(namespace.toString(),
-                                            bundle.getBundleRange());
-                                } catch (Exception e) {
-                                    log.error("Failed to unload namespace-bundle {} that not owned by {}, {}",
-                                            bundle.toString(), localCluster, e.getMessage());
-                                }
-                            });
-                        }
-                    });
+        if (pulsar.getBrokerService().isCurrentClusterAllowed(namespace, data)) {
+            return;
+        }
+        pulsar().getNamespaceService().getNamespaceBundleFactory()
+                .getBundlesAsync(namespace).thenAccept(bundles -> {
+            bundles.getBundles().forEach(bundle -> {
+                pulsar.getNamespaceService().isNamespaceBundleOwned(bundle).thenAccept(isExist -> {
+                    if (isExist) {
+                        this.pulsar().getExecutor().execute(() -> {
+                            try {
+                                pulsar().getAdminClient().namespaces().unloadNamespaceBundle(namespace.toString(),
+                                        bundle.getBundleRange());
+                            } catch (Exception e) {
+                                log.error("Failed to unload namespace-bundle {} that not owned by {}, {}",
+                                        bundle.toString(), localCluster, e.getMessage());
+                            }
+                        });
+                    }
                 });
             });
-        }
+        });
     }
 
     public PulsarService pulsar() {
@@ -3864,5 +3866,42 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
         this.pulsarChannelInitFactory = factory;
+    }
+
+    /***
+     * After PIP-321 Introduce allowed-cluster at the namespace level, the condition that whether the cluster is
+     * allowed to access by the current cluster was defined by two fields:
+     * - {@link Policies#replication_clusters}
+     * - {@link Policies#allowed_clusters}
+     * {@link Policies#allowed_clusters} has higher priority. Once it's set, {@link Policies#replication_clusters} only
+     * means the default replication clusters for the topics under the namespace.
+     */
+    public boolean isCurrentClusterAllowed(NamespaceName nsName, Policies nsPolicies) {
+        // Compatibility with v1 version namespace.
+        if (Constants.GLOBAL_CLUSTER.equalsIgnoreCase(nsName.getCluster())) {
+            return nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName());
+        }
+        // If allowed clusters has been set, only check allowed clusters.
+        if (!nsPolicies.allowed_clusters.isEmpty()) {
+            return nsPolicies.allowed_clusters.contains(pulsar.getConfig().getClusterName());
+        }
+        // Otherwise, replication clusters means allowed clusters.
+        return nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName());
+    }
+
+    public void setCurrentClusterAllowedIfNoClusterIsAllowed(NamespaceName nsName, Policies nsPolicies) {
+        // Compatibility with v1 version namespace.
+        if (!nsName.isV2()) {
+            return;
+        }
+        if (nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName())
+                || nsPolicies.allowed_clusters.contains(pulsar.getConfig().getClusterName())) {
+            return;
+        }
+        if (nsPolicies.replication_clusters.isEmpty()) {
+            nsPolicies.replication_clusters.add(pulsar.getConfig().getClusterName());
+        } else {
+            nsPolicies.allowed_clusters.add(pulsar.getConfig().getClusterName());
+        }
     }
 }
