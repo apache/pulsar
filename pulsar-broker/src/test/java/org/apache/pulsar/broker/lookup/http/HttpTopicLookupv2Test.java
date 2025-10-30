@@ -278,7 +278,7 @@ public class HttpTopicLookupv2Test {
         destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns2,
                 "invalid-localCluster", false, null, null);
         verify(asyncResponse).resume(arg.capture());
-        assertEquals(arg.getValue().getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        assertEquals(arg.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
     }
 
     @Test

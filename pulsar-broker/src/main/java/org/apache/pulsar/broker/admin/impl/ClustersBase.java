@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -792,9 +793,11 @@ public class ClustersBase extends AdminResource {
                     .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant).thenCompose(namespaces -> {
                         List<CompletableFuture<String>> namespaceNamesInCluster = namespaces.stream()
                                 .map(namespaceName -> adminClient.namespaces().getPoliciesAsync(namespaceName)
-                                        .thenApply(policies -> policies.replication_clusters.contains(cluster)
-                                                ? namespaceName : null))
-                                .collect(Collectors.toList());
+                                    .thenApply(policies -> {
+                                        boolean allowed = pulsar().getBrokerService()
+                                            .isCurrentClusterAllowed(NamespaceName.get(namespaceName), policies);
+                                        return allowed ? namespaceName : null;
+                                    })).collect(Collectors.toList());
                         return FutureUtil.waitForAll(namespaceNamesInCluster).thenApply(
                                 __ -> namespaceNamesInCluster.stream()
                                         .map(CompletableFuture::join)
