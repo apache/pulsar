@@ -168,16 +168,21 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         }
         long oldPermits = permit.getPermits();
         long additionalPermits = newPermits - oldPermits;
-        // mark the old permits as released without adding the permits to availablePermits
-        castToImplementation(permit).releasePermits();
         if (additionalPermits > 0) {
-            return internalAcquire(newPermits, additionalPermits, isCancelled);
+            return internalAcquire(newPermits, additionalPermits, isCancelled)
+                    .thenApply(p -> {
+                        // mark the old permits as released without adding the permits to availablePermits
+                        castToImplementation(permit).releasePermits();
+                        return p;
+                    });
         }
         if (additionalPermits < 0) {
             // new permits are less than the old ones, so we return the difference
             availablePermits.addAndGet(-additionalPermits);
             processQueue();
         }
+        // mark the old permits as released without adding the permits to availablePermits
+        castToImplementation(permit).releasePermits();
         // return the new permits immediately
         return CompletableFuture.completedFuture(new SemaphorePermit(newPermits));
     }
@@ -257,7 +262,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                 SemaphorePermit permit = new SemaphorePermit(request.permits);
                 recordQueueLatency(request.getAgeNanos());
                 boolean futureCompleted = request.future.complete(permit);
-                if (!futureCompleted){
+                if (!futureCompleted) {
                     // request was already cancelled, return permits
                     availablePermits.addAndGet(request.acquirePermits);
                 }

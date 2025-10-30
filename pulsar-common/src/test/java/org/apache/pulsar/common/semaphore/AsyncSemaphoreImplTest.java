@@ -25,6 +25,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -598,5 +599,43 @@ public class AsyncSemaphoreImplTest {
         assertEquals(permit.getPermits(), 10);
         assertTrue(future.isDone());
         assertFalse(future.isCompletedExceptionally());
+    }
+
+    @Test
+    public void testPermitsArentAcquiredInUpdateWhenCancelled() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
+
+        // setup
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        // acquire 5 permits
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(5, cancelled::get);
+        assertThat(future).succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(p -> assertThat(p.getPermits()).isEqualTo(5));
+        AsyncSemaphorePermit permit = future.join();
+        assertThat(semaphore.getAcquiredPermits()).isEqualTo(5);
+
+        // when permits are update when the request is already cancelled
+        cancelled.set(true);
+        CompletableFuture<AsyncSemaphorePermit> future2 = semaphore.update(permit, 10, cancelled::get);
+        assertThat(future2).failsWithin(Duration.ofSeconds(1))
+                .withThrowableThat().havingRootCause()
+                .isInstanceOf(AsyncSemaphore.PermitAcquireCancelledException.class);
+        assertThat(semaphore.getAcquiredPermits()).isEqualTo(5);
+
+        // then no permits should be acquired so that
+        // when a new acquisition with update is made, it should succeed
+        cancelled.set(false);
+        CompletableFuture<AsyncSemaphorePermit> future3 = semaphore.update(permit, 10, cancelled::get);
+        assertThat(future3).succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(p -> assertThat(p.getPermits()).isEqualTo(10));
+        assertThat(semaphore.getAcquiredPermits()).isEqualTo(10);
+
+        // when original permit is released, it shouldn't reduce acquired permits
+        semaphore.release(permit);
+        assertThat(semaphore.getAcquiredPermits()).isEqualTo(10);
+
+        // when updated permit is released, it should reduce acquired permits
+        semaphore.release(future3.join());
+        assertThat(semaphore.getAcquiredPermits()).isEqualTo(0);
     }
 }
