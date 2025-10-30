@@ -40,6 +40,8 @@ public interface AsyncSemaphore {
     /**
      * Acquire or release permits for previously acquired permits by updating the permits.
      * Returns a future that completes when permits are available.
+     * Please notice that the permits in the original AsyncSemaphorePermit instance will be released and a new instance
+     * will be returned with updated permits.
      * It will complete exceptionally with AsyncSemaphore.PermitAcquireTimeoutException on timeout
      * and exceptionally with AsyncSemaphore.PermitAcquireQueueFullException when queue full
      *
