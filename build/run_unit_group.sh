@@ -56,10 +56,63 @@ function mvn_test() {
     else
       failfast_args="-DtestFailFast=false --fail-at-end"
     fi
-    echo "::group::Run tests for " "$@"
-    # use "verify" instead of "test" to workaround MDEP-187 issue in pulsar-functions-worker and pulsar-broker projects with the maven-dependency-plugin's copy goal
-    # Error message was "Artifact has not been packaged yet. When used on reactor artifact, copy should be executed after packaging: see MDEP-187"
-    $MVN_TEST_OPTIONS $failfast_args $clean_arg $target $coverage_arg "$@" "${COMMANDLINE_ARGS[@]}"
+
+    local use_test_filtering=0
+    local groups_arg=""
+    local in_pl_modules=0
+    local pl_modules_args=()
+    local filtered_args=()
+    local skip_arg=0
+
+    for arg in "$@" "${COMMANDLINE_ARGS[@]}"; do
+      if [[ "$arg" =~ ^-Dgroups=(.+)$ ]]; then
+        use_test_filtering=1
+        groups_arg="$arg"
+        skip_arg=1
+      elif [[ "$arg" =~ ^-pl$ ]] || [[ "$arg" =~ ^--projects$ ]]; then
+        in_pl_modules=1
+        pl_modules_args+=("$arg")
+      elif [[ "$arg" =~ ^-pl=(.+)$ ]] || [[ "$arg" =~ ^--projects=(.+)$ ]]; then
+        pl_modules_args+=("$arg")
+      elif [[ "$arg" =~ ^-DexcludedGroups=(.+)$ ]]; then
+        skip_arg=1
+      elif [ $in_pl_modules -eq 1 ]; then
+        pl_modules_args+=("$arg")
+        in_pl_modules=0
+      fi
+      if [ $skip_arg -eq 0 ]; then
+        filtered_args+=("$arg")
+      else
+        skip_arg=0
+      fi
+    done
+
+    if [ $use_test_filtering -eq 1 ]; then
+      echo "::group::Creating test filters for groups: $groups_value"
+      # First, create the test filters using the testFilterCreate profile
+      local create_filter_targets=()
+      if [[ -n "$clean_arg" ]]; then
+        create_filter_targets+=("$clean_arg")
+      fi
+      # handle the case where the classfiles haven't been compiled yet
+      if [[ target == "install" ]]; then
+          create_filter_targets+=("$target" "-DskipTests")
+          # no need to run install for test run
+          target="verify"
+      fi
+      create_filter_targets+=("exec:exec")
+      $MVN_TEST_OPTIONS -PtestFilterCreate "${pl_modules_args[@]}" "${create_filter_targets[@]}" "${groups_arg}"
+      echo "::endgroup::"
+
+      echo "::group::Run tests for ${filtered_args[*]} with test filtering"
+      # Then run tests with testFiltering profile instead of -Dgroups
+      $MVN_TEST_OPTIONS -PtestFiltering $failfast_args $target $coverage_arg "${filtered_args[@]}"
+    else
+      echo "::group::Run tests for " "$@"
+      # use "verify" instead of "test" to workaround MDEP-187 issue in pulsar-functions-worker and pulsar-broker projects with the maven-dependency-plugin's copy goal
+      # Error message was "Artifact has not been packaged yet. When used on reactor artifact, copy should be executed after packaging: see MDEP-187"
+      $MVN_TEST_OPTIONS $failfast_args $clean_arg $target $coverage_arg "$@" "${COMMANDLINE_ARGS[@]}"
+    fi
     echo "::endgroup::"
     set +x
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
@@ -82,7 +135,7 @@ function test_group_broker_group_1() {
 }
 
 function test_group_broker_group_2() {
-  mvn_test -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other'
+  mvn_test -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other,_default'
 }
 
 function test_group_broker_group_3() {
