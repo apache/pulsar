@@ -345,9 +345,22 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         super.testCloseTopicAfterStartReplicationFailed();
     }
 
-    @Override
     @Test
+    @Override
     public void testPartitionedTopicWithTopicPolicyAndNoReplicationClusters() throws Exception {
         super.testPartitionedTopicWithTopicPolicyAndNoReplicationClusters();
+    }
+
+
+    @Test(enabled = false)
+    @Override
+    public void testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters() throws Exception {
+        super.testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters();
+    }
+
+    @Test(enabled = false)
+    @Override
+    public void testReplicatorWhenPartitionCountsDiffer() throws Exception {
+        super.testReplicatorWhenPartitionCountsDiffer();
     }
 }
