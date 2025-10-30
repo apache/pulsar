@@ -21,6 +21,7 @@ package org.apache.pulsar.common.semaphore;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongConsumer;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Runnables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +53,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     private final LongConsumer queueLatencyRecorder;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Runnable processQueueRunnable = Runnables.catchingAndLoggingThrowables(this::internalProcessQueue);
+    private final ScheduledFuture<?> processQueueScheduledFuture;
 
     /**
      * Creates an AsyncSemaphoreImpl with the given parameters.
@@ -86,6 +89,11 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         this.executor = executor;
         this.shutdownExecutor = shutdownExecutor;
         this.queueLatencyRecorder = queueLatencyRecorder;
+        // scheduled task that runs the processQueue method every half of the timeout
+        // this is to support cancellation in cases where the head of the queue request is blocking others
+        // from proceeding and it happens to already be cancelled.
+        this.processQueueScheduledFuture = executor != null
+                ? executor.schedule(processQueueRunnable, timeoutMillis / 2, TimeUnit.MILLISECONDS) : null;
     }
 
     private static ScheduledExecutorService createExecutor() {
@@ -169,12 +177,24 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         long oldPermits = permit.getPermits();
         long additionalPermits = newPermits - oldPermits;
         if (additionalPermits > 0) {
-            return internalAcquire(newPermits, additionalPermits, isCancelled)
-                    .thenApply(p -> {
-                        // mark the old permits as released without adding the permits to availablePermits
-                        castToImplementation(permit).releasePermits();
-                        return p;
-                    });
+            CompletableFuture<AsyncSemaphorePermit> acquireFuture =
+                    internalAcquire(newPermits, additionalPermits, isCancelled);
+            // return a future that completes after original permits have been released when the acquisition
+            // has been successfully completed
+            CompletableFuture<AsyncSemaphorePermit> returnedFuture =
+                    acquireFuture.thenApply(p -> {
+                                // mark the old permits as released without adding the permits to availablePermits
+                                castToImplementation(permit).releasePermits();
+                                return p;
+                            });
+            // add cancellation support for returned future, so that it cancels the acquireFuture if the returnedFuture
+            // is cancelled
+            returnedFuture.whenComplete((p, t) -> {
+                if (t != null && FutureUtil.unwrapCompletionException(t) instanceof CancellationException) {
+                    acquireFuture.cancel(false);
+                }
+            });
+            return returnedFuture;
         }
         if (additionalPermits < 0) {
             // new permits are less than the old ones, so we return the difference
@@ -236,7 +256,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     }
 
     private synchronized void internalProcessQueue() {
-        while (!closed.get()) {
+        while (!closed.get() && !queue.isEmpty()) {
             long current = availablePermits.get();
             if (current <= 0) {
                 break;
@@ -255,6 +275,13 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                 continue;
             }
 
+            // request future has been completed by user code cancellation, remove it from the queue
+            if (request.future.isDone()) {
+                request.cancelTimeoutTask();
+                queue.remove(request);
+                continue;
+            }
+
             if (request.acquirePermits <= current) {
                 availablePermits.addAndGet(-request.acquirePermits);
                 request.cancelTimeoutTask();
@@ -263,7 +290,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                 recordQueueLatency(request.getAgeNanos());
                 boolean futureCompleted = request.future.complete(permit);
                 if (!futureCompleted) {
-                    // request was already cancelled, return permits
+                    // request was cancelled by user code, return permits
                     availablePermits.addAndGet(request.acquirePermits);
                 }
             } else {
@@ -275,6 +302,9 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
+            if (processQueueScheduledFuture != null) {
+                processQueueScheduledFuture.cancel(false);
+            }
             while (!queue.isEmpty()) {
                 PendingRequest request = queue.poll();
                 request.cancelTimeoutTask();

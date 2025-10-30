@@ -638,4 +638,32 @@ public class AsyncSemaphoreImplTest {
         semaphore.release(future3.join());
         assertThat(semaphore.getAcquiredPermits()).isEqualTo(0);
     }
+
+    @Test
+    public void testSupportCompletableFutureCancel() throws Exception {
+        int timeoutMillis = 200;
+        semaphore = new AsyncSemaphoreImpl(10, 10, timeoutMillis);
+
+        // setup
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        // acquire 5 permits
+        CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(5, cancelled::get);
+        assertThat(future).succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(p -> assertThat(p.getPermits()).isEqualTo(5));
+        assertThat(semaphore.getAcquiredPermits()).isEqualTo(5);
+
+        // attempt to acquire 5 permits
+        CompletableFuture<AsyncSemaphorePermit> future2 = semaphore.acquire(10, cancelled::get);
+
+        // attempt to acquire 5 permits
+        CompletableFuture<AsyncSemaphorePermit> future3 = semaphore.acquire(5, cancelled::get);
+        // cancel future2
+        future2.cancel(true);
+        assertThat(future2).isCancelled();
+        // now future3 should succeed
+        assertThat(future3).succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(p -> assertThat(p.getPermits()).isEqualTo(5));
+
+        assertThat(semaphore.getAcquiredPermits()).isEqualTo(10);
+   }
 }
