@@ -513,6 +513,9 @@ public abstract class AdminResource extends PulsarWebResource {
         return getNamespacePolicies(ns);
     }
 
+    /**
+     * Directly get the replication clusters for a namespace, without checking allowed clusters.
+     */
     protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
         return namespaceResources().getPoliciesAsync(namespaceName)
                 .thenApply(policies -> {

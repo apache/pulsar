@@ -98,6 +98,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     protected final String topic;
+    protected final NamespaceName namespace;
 
     // Reference to the CompletableFuture returned when creating this topic in BrokerService.
     // Used to safely remove the topic from BrokerService's cache by ensuring we remove the exact
@@ -184,6 +185,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
+        this.namespace = TopicName.get(topic).getNamespaceObject();
         this.clock = brokerService.getClock();
         this.brokerService = brokerService;
         this.producers = new ConcurrentHashMap<>();
