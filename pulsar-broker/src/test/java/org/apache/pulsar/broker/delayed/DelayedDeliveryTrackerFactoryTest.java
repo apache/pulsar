@@ -81,7 +81,7 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         // the factory should be fallback to InMemoryDelayedDeliveryTrackerFactory
         @Cleanup
         DelayedDeliveryTracker tracker = brokerService.getDelayedDeliveryTrackerFactory().newTracker(dispatcher);
-        Assert.assertTrue(tracker instanceof InMemoryDelayedDeliveryTracker);
+        Assert.assertTrue(tracker instanceof InMemoryTopicDelayedDeliveryTrackerView);
 
         DelayedDeliveryTrackerFactory fallbackFactory = brokerService.getFallbackDelayedDeliveryTrackerFactory();
         Assert.assertTrue(fallbackFactory instanceof InMemoryDelayedDeliveryTrackerFactory);
@@ -223,11 +223,11 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         });
 
         Optional<DelayedDeliveryTracker> optional = reference.get();
-        Assert.assertTrue(optional.get() instanceof InMemoryDelayedDeliveryTracker);
+        Assert.assertTrue(optional.get() instanceof InMemoryTopicDelayedDeliveryTrackerView);
 
         // Mock DelayedDeliveryTracker and Count the number of addMessage() calls
         AtomicInteger counter = new AtomicInteger(0);
-        InMemoryDelayedDeliveryTracker tracker = (InMemoryDelayedDeliveryTracker) optional.get();
+        InMemoryTopicDelayedDeliveryTrackerView tracker = (InMemoryTopicDelayedDeliveryTrackerView) optional.get();
         tracker =  Mockito.spy(tracker);
         Mockito.doAnswer(inv -> {
             counter.incrementAndGet();

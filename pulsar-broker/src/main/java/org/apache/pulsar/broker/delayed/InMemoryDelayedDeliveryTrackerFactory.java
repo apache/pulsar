@@ -22,6 +22,8 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -40,6 +42,9 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
 
     private long fixedDelayDetectionLookahead;
 
+    // Cache of topic-level managers: topic name -> manager instance
+    private final ConcurrentMap<String, TopicDelayedDeliveryTrackerManager> topicManagers = new ConcurrentHashMap<>();
+
     @Override
     public void initialize(PulsarService pulsarService) {
         ServiceConfiguration config = pulsarService.getConfig();
@@ -54,7 +59,7 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String topicName = dispatcher.getTopic().getName();
         String subscriptionName = dispatcher.getSubscription().getName();
-        DelayedDeliveryTracker tracker =  DelayedDeliveryTracker.DISABLE;
+        DelayedDeliveryTracker tracker = DelayedDeliveryTracker.DISABLE;
         try {
             tracker = newTracker0(dispatcher);
         } catch (Exception e) {
@@ -66,13 +71,30 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     }
 
     @VisibleForTesting
-    InMemoryDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+    DelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        String topicName = dispatcher.getTopic().getName();
+
+        // Get or create topic-level manager for this topic
+        TopicDelayedDeliveryTrackerManager manager = topicManagers.computeIfAbsent(topicName,
+            k -> new InMemoryTopicDelayedDeliveryTrackerManager(timer, tickTimeMillis,
+                    isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead));
+
+        // Create a per-subscription view from the topic-level manager
+        return manager.createOrGetView(dispatcher);
     }
 
     @Override
     public void close() {
+        // Close all topic-level managers
+        for (TopicDelayedDeliveryTrackerManager manager : topicManagers.values()) {
+            try {
+                manager.close();
+            } catch (Exception e) {
+                log.warn("Failed to close topic-level delayed delivery manager", e);
+            }
+        }
+        topicManagers.clear();
+
         if (timer != null) {
             timer.stop();
         }
