@@ -176,6 +176,11 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                         return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
                                 + " connected"));
                     } else {
+                        try {
+                            removeConsumer(actConsumer);
+                        } catch (BrokerServiceException e) {
+                            log.warn("[{}] Remove inactive exclusive consumer {}", this.topicName, consumer);
+                        }
                         return addConsumer(consumer);
                     }
                 });
