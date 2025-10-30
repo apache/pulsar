@@ -2088,17 +2088,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     protected CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
-        List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
+        List<String> topicRepls = topicPolicies.getReplicationClusters().get();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(nsPolicies -> {
                     Set<String> allowedClusters = Set.of();
-                    if (policiesOptional.isPresent()) {
-                        allowedClusters = policiesOptional.get().allowed_clusters;
+                    if (nsPolicies.isPresent()) {
+                        allowedClusters = nsPolicies.get().allowed_clusters;
                     }
-                    if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
+                    if (TopicName.get(topic).isGlobal() && !topicRepls.contains(localCluster)
                             && !allowedClusters.contains(localCluster)) {
                         log.warn("Local cluster {} is not part of global namespace repl list {} and allowed list {}",
-                                localCluster, replicationClusters, allowedClusters);
+                                localCluster, topicRepls, allowedClusters);
                         return CompletableFuture.completedFuture(false);
                     } else {
                         return CompletableFuture.completedFuture(true);
