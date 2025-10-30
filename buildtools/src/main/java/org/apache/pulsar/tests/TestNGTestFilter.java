@@ -40,7 +40,7 @@ import net.bytebuddy.pool.TypePool;
  * Maven Surefire includes/excludes files.
  *
  * This tool parses Java test class files using ByteBuddy to extract TestNG
- * @Test annotations and their groups, then generates two files:
+ * Test annotations and their groups, then generates two files:
  * - includes file: Contains test classes/methods that match the specified groups
  * - excludes file: Contains test methods to exclude from classes that have matching tests
  *
@@ -259,7 +259,9 @@ public class TestNGTestFilter {
         String excludesOutputFile = "target/surefire-excludes.txt";
 
         if (args.length == 0) {
-            System.out.println("Usage: TestNGTestFilter <included groups> <testClassDirectory> <includesOutputFile> <excludesOutputFile>");
+            System.out.println(
+                    "Usage: TestNGTestFilter <included groups> <testClassDirectory> <includesOutputFile> "
+                            + "<excludesOutputFile>");
             System.exit(1);
         }
 
