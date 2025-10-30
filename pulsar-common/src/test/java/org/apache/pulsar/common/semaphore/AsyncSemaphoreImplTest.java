@@ -251,7 +251,22 @@ public class AsyncSemaphoreImplTest {
         assertNotNull(permit2);
         assertEquals(permit2.getPermits(), 8);
 
+        CompletableFuture<AsyncSemaphorePermit> future3 = semaphore.acquire(2, () -> false);
+        AsyncSemaphorePermit permit3 = future3.get(1, TimeUnit.SECONDS);
+        assertNotNull(permit3);
+        assertEquals(permit3.getPermits(), 2);
+
+        CompletableFuture<AsyncSemaphorePermit> future4 = semaphore.acquire(1, () -> false);
+        Thread.sleep(1000);
+        // no more permits available, this won't complete
+        assertThat(future4).isNotDone();
+
+        // release permits
         semaphore.release(permit2);
+
+        // now future4 should complete
+        assertThat(future4).succeedsWithin(1, TimeUnit.SECONDS)
+                .satisfies(p -> assertEquals(p.getPermits(), 1));
     }
 
     @Test
