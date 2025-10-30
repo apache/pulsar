@@ -172,13 +172,14 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         castToImplementation(permit).releasePermits();
         if (additionalPermits > 0) {
             return internalAcquire(newPermits, additionalPermits, isCancelled);
-        } else {
+        }
+        if (additionalPermits < 0) {
             // new permits are less than the old ones, so we return the difference
             availablePermits.addAndGet(-additionalPermits);
             processQueue();
-            // return the new permits immediately
-            return CompletableFuture.completedFuture(new SemaphorePermit(newPermits));
         }
+        // return the new permits immediately
+        return CompletableFuture.completedFuture(new SemaphorePermit(newPermits));
     }
 
     @Override
