@@ -189,14 +189,14 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.127.Final</netty.version>
+    <netty.version>4.1.128.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
-    <jetty.version>9.4.57.v20241219</jetty.version>
+    <jetty.version>9.4.58.v20250814</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.42</jersey.version>
     <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.5.10</vertx.version>
+    <vertx.version>4.5.22</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
@@ -292,7 +292,7 @@ flexible messaging model and an intuitive client API.</description>
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring.version>6.1.14</spring.version>
+    <spring.version>6.2.12</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>

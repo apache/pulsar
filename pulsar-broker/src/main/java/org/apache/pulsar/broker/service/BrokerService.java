@@ -98,6 +98,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -158,6 +159,7 @@ import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -210,7 +212,6 @@ public class BrokerService implements Closeable {
     private static final TimeoutException FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Failed to load topic within timeout", BrokerService.class,
                     "futureWithDeadline(...)");
-    private static final long GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = 5000L;
     private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
 
@@ -316,7 +317,7 @@ public class BrokerService implements Closeable {
     // fallback if recover BucketDelayedDeliveryTracker failed.
     private volatile DelayedDeliveryTrackerFactory fallbackDelayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
-    private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
+    private final List<Pair<String, EventLoopGroup>> protocolHandlersWorkerGroups = new ArrayList<>();
 
     @Getter
     private final BundlesQuotas bundlesQuotas;
@@ -563,7 +564,7 @@ public class BrokerService implements Closeable {
             EventLoopGroup dedicatedWorkerGroup =
                     EventLoopUtil.newEventLoopGroup(configuration.getNumIOThreads(), false, defaultThreadFactory);
             bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
-            protocolHandlersWorkerGroups.add(dedicatedWorkerGroup);
+            protocolHandlersWorkerGroups.add(Pair.of(protocol, dedicatedWorkerGroup));
             bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
         } else {
             bootstrap = defaultServerBootstrap.clone();
@@ -880,10 +881,10 @@ public class BrokerService implements Closeable {
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
             log.info("Event loops shutting down gracefully...");
             List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
-            shutdownEventLoops.add(shutdownEventLoopGracefully(acceptorGroup));
-            shutdownEventLoops.add(shutdownEventLoopGracefully(workerGroup));
-            for (EventLoopGroup group : protocolHandlersWorkerGroups) {
-                shutdownEventLoops.add(shutdownEventLoopGracefully(group));
+            shutdownEventLoops.add(shutdownEventLoopGracefully("acceptor", acceptorGroup));
+            shutdownEventLoops.add(shutdownEventLoopGracefully("worker", workerGroup));
+            for (final var pair : protocolHandlersWorkerGroups) {
+                shutdownEventLoops.add(shutdownEventLoopGracefully(pair.getLeft(), pair.getRight()));
             }
 
             CompletableFuture<Void> shutdownFuture =
@@ -980,15 +981,21 @@ public class BrokerService implements Closeable {
         }
     }
 
-    CompletableFuture<Void> shutdownEventLoopGracefully(EventLoopGroup eventLoopGroup) {
+    CompletableFuture<Void> shutdownEventLoopGracefully(String name, EventLoopGroup eventLoopGroup) {
         long brokerShutdownTimeoutMs = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
-        long quietPeriod = Math.min((long) (
-                GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs),
-                GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS);
         long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
-        return NettyFutureUtil.toCompletableFutureVoid(
-                eventLoopGroup.shutdownGracefully(quietPeriod,
-                        timeout, MILLISECONDS));
+        long periodMs = (timeout > 0) ? 1 : 0;
+        long startNs = System.nanoTime();
+        return NettyFutureUtil.toCompletableFutureVoid(eventLoopGroup.shutdownGracefully(
+                periodMs, timeout, MILLISECONDS)
+        ).whenComplete((__, e) -> {
+            final var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
+            if (e == null) {
+                log.info("Event loop {} shut down after {} ms", name, elapsedMs);
+            } else {
+                log.warn("Failed to shut down event loop {} after {} ms: {}", name, elapsedMs, e.getMessage());
+            }
+        });
     }
 
     private CompletableFuture<Void> closeChannel(Channel channel) {
@@ -2783,26 +2790,27 @@ public class BrokerService implements Closeable {
             return;
         }
         final String localCluster = this.pulsar.getConfiguration().getClusterName();
-        if (!data.replication_clusters.contains(localCluster)) {
-            pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundlesAsync(namespace).thenAccept(bundles -> {
-                bundles.getBundles().forEach(bundle -> {
-                    pulsar.getNamespaceService().isNamespaceBundleOwned(bundle).thenAccept(isExist -> {
-                        if (isExist) {
-                            this.pulsar().getExecutor().execute(() -> {
-                                try {
-                                    pulsar().getAdminClient().namespaces().unloadNamespaceBundle(namespace.toString(),
-                                            bundle.getBundleRange());
-                                } catch (Exception e) {
-                                    log.error("Failed to unload namespace-bundle {} that not owned by {}, {}",
-                                            bundle.toString(), localCluster, e.getMessage());
-                                }
-                            });
-                        }
-                    });
+        if (pulsar.getBrokerService().isCurrentClusterAllowed(namespace, data)) {
+            return;
+        }
+        pulsar().getNamespaceService().getNamespaceBundleFactory()
+                .getBundlesAsync(namespace).thenAccept(bundles -> {
+            bundles.getBundles().forEach(bundle -> {
+                pulsar.getNamespaceService().isNamespaceBundleOwned(bundle).thenAccept(isExist -> {
+                    if (isExist) {
+                        this.pulsar().getExecutor().execute(() -> {
+                            try {
+                                pulsar().getAdminClient().namespaces().unloadNamespaceBundle(namespace.toString(),
+                                        bundle.getBundleRange());
+                            } catch (Exception e) {
+                                log.error("Failed to unload namespace-bundle {} that not owned by {}, {}",
+                                        bundle.toString(), localCluster, e.getMessage());
+                            }
+                        });
+                    }
                 });
             });
-        }
+        });
     }
 
     public PulsarService pulsar() {
@@ -3902,5 +3910,42 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
         this.pulsarChannelInitFactory = factory;
+    }
+
+    /***
+     * After PIP-321 Introduce allowed-cluster at the namespace level, the condition that whether the cluster is
+     * allowed to access by the current cluster was defined by two fields:
+     * - {@link Policies#replication_clusters}
+     * - {@link Policies#allowed_clusters}
+     * {@link Policies#allowed_clusters} has higher priority. Once it's set, {@link Policies#replication_clusters} only
+     * means the default replication clusters for the topics under the namespace.
+     */
+    public boolean isCurrentClusterAllowed(NamespaceName nsName, Policies nsPolicies) {
+        // Compatibility with v1 version namespace.
+        if (Constants.GLOBAL_CLUSTER.equalsIgnoreCase(nsName.getCluster())) {
+            return nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName());
+        }
+        // If allowed clusters has been set, only check allowed clusters.
+        if (!nsPolicies.allowed_clusters.isEmpty()) {
+            return nsPolicies.allowed_clusters.contains(pulsar.getConfig().getClusterName());
+        }
+        // Otherwise, replication clusters means allowed clusters.
+        return nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName());
+    }
+
+    public void setCurrentClusterAllowedIfNoClusterIsAllowed(NamespaceName nsName, Policies nsPolicies) {
+        // Compatibility with v1 version namespace.
+        if (!nsName.isV2()) {
+            return;
+        }
+        if (nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName())
+                || nsPolicies.allowed_clusters.contains(pulsar.getConfig().getClusterName())) {
+            return;
+        }
+        if (nsPolicies.replication_clusters.isEmpty()) {
+            nsPolicies.replication_clusters.add(pulsar.getConfig().getClusterName());
+        } else {
+            nsPolicies.allowed_clusters.add(pulsar.getConfig().getClusterName());
+        }
     }
 }

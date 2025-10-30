@@ -27,7 +27,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -287,7 +286,8 @@ public abstract class NamespacesBase extends AdminResource {
         precheckWhenDeleteNamespace(namespaceName, force)
                 .thenCompose(policies -> {
                     final CompletableFuture<List<String>> topicsFuture;
-                    if (policies == null || CollectionUtils.isEmpty(policies.replication_clusters)){
+                    if (policies == null || !pulsar().getBrokerService()
+                            .isCurrentClusterAllowed(namespaceName, policies)) {
                         topicsFuture = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
                     } else {
                         topicsFuture = pulsar().getNamespaceService().getFullListOfTopics(namespaceName);
@@ -484,22 +484,25 @@ public abstract class NamespacesBase extends AdminResource {
                                 return CompletableFuture.completedFuture(null);
                             }
                             Policies policies = policiesOpt.get();
-                            Set<String> replicationClusters = policies.replication_clusters;
-                            if (replicationClusters.size() > 1) {
+                            // Just keep the behavior of V1 namespace being the same as before.
+                            if (!nsName.isV2() && policies.replication_clusters.isEmpty()
+                                    && policies.allowed_clusters.isEmpty()) {
+                                return CompletableFuture.completedFuture(policies);
+                            }
+                            String cluster = policies.getClusterThatCanDeleteNamespace();
+                            if (cluster == null) {
                                 // There are still more than one clusters configured for the global namespace
                                 throw new RestException(Status.PRECONDITION_FAILED,
-                                        "Cannot delete the global namespace " + nsName + ". There are still more than "
-                                        + "one replication clusters configured.");
+                                    "Cannot delete the global namespace " + nsName + ". There are still more than "
+                                    + "one replication clusters configured.");
                             }
-                            if (replicationClusters.size() == 1
-                                    && !policies.replication_clusters.contains(config().getClusterName())) {
+                            if (!cluster.equals(config().getClusterName())) {
                                 // the only replication cluster is other cluster, redirect
-                                String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
-                                return clusterResources().getClusterAsync(replCluster)
+                                return clusterResources().getClusterAsync(cluster)
                                         .thenCompose(replClusterDataOpt -> {
                                             ClusterData replClusterData = replClusterDataOpt
                                                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                                                            "Cluster " + replCluster + " does not exist"));
+                                                            "Cluster " + cluster + " does not exist"));
                                             URL replClusterUrl;
                                             try {
                                                 if (!replClusterData.isBrokerClientTlsEnabled()) {
@@ -519,7 +522,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                     .replaceQueryParam("authoritative", false).build();
                                             if (log.isDebugEnabled()) {
                                                 log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                                        clientAppId(), redirect, replCluster);
+                                                        clientAppId(), redirect, cluster);
                                             }
                                             throw new WebApplicationException(
                                                     Response.temporaryRedirect(redirect).build());
@@ -569,22 +572,25 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(policies -> {
                     CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
                     if (namespaceName.isGlobal()) {
-
-                        if (policies.replication_clusters.size() > 1) {
+                        // Just keep the behavior of V1 namespace being the same as before.
+                        if (!namespaceName.isV2() && policies.replication_clusters.isEmpty()
+                                && policies.allowed_clusters.isEmpty()) {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        String cluster = policies.getClusterThatCanDeleteNamespace();
+                        if (cluster == null) {
                             // There are still more than one clusters configured for the global namespace
                             throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
                                     + namespaceName
                                     + ". There are still more than one replication clusters configured.");
                         }
-                        if (policies.replication_clusters.size() == 1
-                                && !policies.replication_clusters.contains(config().getClusterName())) {
+                        if (!cluster.equals(config().getClusterName())) { // No need to change.
                             // the only replication cluster is other cluster, redirect
-                            String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
-                            future = clusterResources().getClusterAsync(replCluster)
+                            future = clusterResources().getClusterAsync(cluster)
                                     .thenCompose(clusterData -> {
                                         if (clusterData.isEmpty()) {
                                             throw new RestException(Status.NOT_FOUND,
-                                                    "Cluster " + replCluster + " does not exist");
+                                                    "Cluster " + cluster + " does not exist");
                                         }
                                         ClusterData replClusterData = clusterData.get();
                                         URL replClusterUrl;
@@ -608,7 +614,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                         .replaceQueryParam("authoritative", false).build();
                                         if (log.isDebugEnabled()) {
                                             log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                                    clientAppId(), redirect, replCluster);
+                                                    clientAppId(), redirect, cluster);
                                         }
                                         throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                                     });
@@ -805,6 +811,9 @@ public abstract class NamespacesBase extends AdminResource {
                         subscriptionName, role, null/* additional auth-data json */));
     }
 
+    /**
+     * Directly get the replication clusters for a namespace, without checking allowed clusters.
+     */
     protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.READ)
                 .thenAccept(__ -> {
@@ -844,21 +853,19 @@ public abstract class NamespacesBase extends AdminResource {
                                                     "Invalid cluster id: " + clusterId);
                                         }
                                         return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
-                                                .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
-                                                        .thenCompose(nsPolicies -> {
-                                                            if (nsPolicies.allowed_clusters.isEmpty()) {
-                                                                return validateClusterForTenantAsync(
-                                                                        namespaceName.getTenant(), clusterId);
-                                                            }
-                                                            if (!nsPolicies.allowed_clusters.contains(clusterId)) {
-                                                                String msg = String.format("Cluster [%s] is not in the "
-                                                                        + "list of allowed clusters list for namespace "
-                                                                        + "[%s]", clusterId, namespaceName.toString());
-                                                                log.info(msg);
-                                                                throw new RestException(Status.FORBIDDEN, msg);
-                                                            }
-                                                            return CompletableFuture.completedFuture(null);
-                                                        }));
+                                            .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
+                                                .thenCompose(nsPolicies -> {
+                                                    if (!Policies.checkNewReplicationClusters(nsPolicies,
+                                                            replicationClusterSet)) {
+                                                        String msg = String.format("Cluster [%s] is not in the "
+                                                                + "list of allowed clusters list for namespace "
+                                                                + "[%s]", clusterId, namespaceName.toString());
+                                                        log.info(msg);
+                                                        throw new RestException(Status.BAD_REQUEST, msg);
+                                                    }
+                                                    return validateClusterForTenantAsync(
+                                                            namespaceName.getTenant(), clusterId);
+                                                }));
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
                         }))
@@ -2033,13 +2040,17 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
-        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
-            // Default to local cluster
-            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        if (!policies.checkAllowedAndReplicationClusters()) {
+            String msg = String.format("[%s] All replication clusters should be included in allowed clusters."
+                    + " Repl clusters: %s, allowed clusters: %s",
+                    ns.toString(), policies.replication_clusters, policies.allowed_clusters);
+            log.info(msg);
+            throw new RestException(Status.BAD_REQUEST, msg);
         }
+        pulsar().getBrokerService().setCurrentClusterAllowedIfNoClusterIsAllowed(ns, policies);
 
         // Validate cluster names and permissions
-        return policies.replication_clusters.stream()
+        return Stream.concat(policies.replication_clusters.stream(), policies.allowed_clusters.stream())
                     .map(cluster -> validateClusterForTenantAsync(ns.getTenant(), cluster))
                     .reduce(CompletableFuture.completedFuture(null), (a, b) -> a.thenCompose(ignore -> b))
             .thenAccept(__ -> {
@@ -2930,16 +2941,15 @@ public abstract class NamespacesBase extends AdminResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Cannot specify global in the list of allowed clusters");
                     }
-                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(namespacePolicies -> {
-                        namespacePolicies.replication_clusters.forEach(replicationCluster -> {
-                            if (!clusterIds.contains(replicationCluster)) {
-                                throw new RestException(Status.BAD_REQUEST,
-                                        String.format("Allowed clusters do not contain the replication cluster %s. "
-                                                + "Please remove the replication cluster if the cluster is not allowed "
-                                                + "for this namespace", replicationCluster));
-                            }
-                        });
-                        return Sets.newHashSet(clusterIds);
+                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(nsPolicies -> {
+                        Set<String> clusterSet = Sets.newHashSet(clusterIds);
+                        if (!Policies.checkNewAllowedClusters(nsPolicies, clusterSet)){
+                            throw new RestException(Status.BAD_REQUEST,
+                                    String.format("Allowed clusters do not contain the replication cluster %s. "
+                                        + "Please remove the replication cluster if the cluster is not allowed "
+                                        + "for this namespace", nsPolicies.replication_clusters));
+                        }
+                        return clusterSet;
                     });
                 })
                 // Verify the allowed clusters are valid and they do not contain the peer clusters.
@@ -2962,6 +2972,9 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
+    /**
+     * Directly get the allowed clusters for a namespace, without checking replication clusters.
+     */
     protected CompletableFuture<Set<String>> internalGetNamespaceAllowedClustersAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.READ)
                 .thenAccept(__ -> {
