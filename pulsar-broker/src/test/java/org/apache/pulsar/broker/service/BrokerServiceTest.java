@@ -125,6 +125,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -148,7 +149,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
-        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setTopicPoliciesServiceClassName(MockTopicPoliciesService.class.getName());
         super.baseSetup();
     }
 
@@ -1184,7 +1186,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true, null);
+                .loadOrCreatePersistentTopic(new TopicLoadingContext(topic, true,
+                        new CompletableFuture<>()));
 
         try {
             futureResult.get();
@@ -1227,8 +1230,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             ArrayList<CompletableFuture<Optional<Topic>>> loadFutures = new ArrayList<>();
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
-                CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null);
+                CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService().loadOrCreatePersistentTopic(
+                        new TopicLoadingContext(TopicName.get(topicName + "_" + i), false, new CompletableFuture<>()));
                 loadFutures.add(futureResult);
             }
 
@@ -2034,6 +2037,29 @@ public class BrokerServiceTest extends BrokerTestBase {
         sync.client = (PulsarClientImpl) pulsarClient;
         retryStrategically((test) -> sync.getProducer() != null, 1000, 10);
         assertNotNull(sync.getProducer());
+    }
+
+    @Test
+    public void testGetTopicWhenTopicPoliciesFail() throws Exception {
+        final var topicName = TopicName.get("prop/ns-abc/test-get-topic-when-topic-policies-fail");
+        MockTopicPoliciesService.FAILED_TOPICS.add(topicName);
+        @Cleanup final var producer = pulsarClient.newProducer().topic(topicName.toString()).create();
+        assertFalse(MockTopicPoliciesService.FAILED_TOPICS.contains(topicName));
+    }
+
+    static class MockTopicPoliciesService extends TopicPoliciesService.TopicPoliciesServiceDisabled {
+
+        static final Set<TopicName> FAILED_TOPICS = ConcurrentHashMap.newKeySet();
+
+        @Override
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type) {
+            if (FAILED_TOPICS.contains(topicName)) {
+                // Only fail once
+                FAILED_TOPICS.remove(topicName);
+                return CompletableFuture.failedFuture(new RuntimeException("injected failure for " + topicName));
+            }
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
     }
 }
 

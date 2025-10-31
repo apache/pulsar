@@ -42,6 +42,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -329,6 +330,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             assertFalse(pulsar.getConfiguration().isStrictlyVerifySubscriptionName());
         });
+    }
+
+    @Test(timeOut = 5000)
+    public void pulsarClientClockCheckTest() {
+        assertThatThrownBy(
+                () -> PulsarClient.builder()
+                    .serviceUrl(lookupUrl.toString())
+                    .clock(null)
+                    .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("clock must not be null");
     }
 
     @Test(timeOut = 100000)
@@ -4031,14 +4043,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 1) Test receiveAsync is interrupted
         CountDownLatch countDownLatch = new CountDownLatch(1);
         new Thread(() -> {
+            CountDownLatch subCountDownLatch = new CountDownLatch(1);
             try {
                 new Thread(() -> {
                     try {
+                        subCountDownLatch.await();
                         consumer.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                consumer.receiveAsync().get();
+                CompletableFuture<Message<String>> futhre = consumer.receiveAsync();
+                subCountDownLatch.countDown();
+                futhre.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -4055,13 +4071,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                CountDownLatch subCountDownLatch = new CountDownLatch(1);
                 new Thread(() -> {
                     try {
+                        subCountDownLatch.await();
                         consumer2.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                consumer2.batchReceiveAsync().get();
+                CompletableFuture<Messages<String>> future = consumer2.batchReceiveAsync();
+                subCountDownLatch.countDown();
+                future.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -4078,13 +4098,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                CountDownLatch subCountDownLatch = new CountDownLatch(1);
                 new Thread(() -> {
                     try {
+                        subCountDownLatch.await();
                         partitionedTopicConsumer.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                partitionedTopicConsumer.batchReceiveAsync().get();
+                CompletableFuture<Messages<String>> future =
+                        partitionedTopicConsumer.batchReceiveAsync();
+                subCountDownLatch.countDown();
+                future.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -5303,5 +5328,62 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test(dataProvider = "trueFalse")
+    public void testResourceSharingEndToEnd(boolean usePulsarBinaryProtocol) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic");
+        int numberOfClients = 50;
+        List<PulsarClient> clients = new ArrayList<>();
+        @Cleanup
+        Closeable closeClients = () -> {
+            for (PulsarClient client : clients) {
+                try {
+                    client.close();
+                } catch (PulsarClientException e) {
+                    log.error("Failed to close client {}", client, e);
+                }
+            }
+        };
+        @Cleanup
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder().build();
+        List<Consumer<byte[]>> consumers = new ArrayList<>();
+
+        for (int i = 0; i < numberOfClients; i++) {
+            PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(brokerServiceUrl(usePulsarBinaryProtocol))
+                    .sharedResources(sharedResources)
+                    .build();
+            clients.add(client);
+            consumers.add(client.newConsumer().topic(topic)
+                    .subscriptionName("my-subscriber-name" + i).subscribe());
+        }
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topic);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        for (Consumer<byte[]> consumer : consumers) {
+            Message<byte[]> msg = null;
+            Set<String> messageSet = new HashSet<>();
+            for (int i = 0; i < 10; i++) {
+                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                String receivedMessage = new String(msg.getData());
+                log.debug("Received message: [{}]", receivedMessage);
+                String expectedMessage = "my-message-" + i;
+                testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            }
+            // Acknowledge the consumption of all messages at once
+            consumer.acknowledgeCumulative(msg);
+            consumer.close();
+        }
+
+        log.info("-- Exiting {} test --", methodName);
     }
 }

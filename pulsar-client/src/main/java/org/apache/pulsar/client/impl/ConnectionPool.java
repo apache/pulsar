@@ -191,7 +191,7 @@ public class ConnectionPool implements AutoCloseable {
     private Supplier<AddressResolver<InetSocketAddress>> createAddressResolver(ClientConfigurationData conf,
                                                                                EventLoopGroup eventLoopGroup) {
         if (dnsResolverGroup == null) {
-            dnsResolverGroup = new DnsResolverGroupImpl(eventLoopGroup, conf);
+            dnsResolverGroup = new DnsResolverGroupImpl(conf);
         }
         return () -> dnsResolverGroup.createAddressResolver(eventLoopGroup);
     }

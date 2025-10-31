@@ -912,8 +912,7 @@ public abstract class PulsarWebResource {
                             localCluster, namespace.toString());
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                } else if (!policies.replication_clusters.contains(localCluster) && !policies.allowed_clusters
-                        .contains(localCluster)) {
+                } else if (!pulsarService.getBrokerService().isCurrentClusterAllowed(namespace, policies)) {
                     getOwnerFromPeerClusterListAsync(pulsarService, policies.replication_clusters,
                             policies.allowed_clusters)
                             .thenAccept(ownerPeerCluster -> {
