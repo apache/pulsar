@@ -34,6 +34,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcutil-fips</artifactId>
+      <version>2.0.5</version>
+    </dependency>
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
