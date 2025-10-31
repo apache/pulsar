@@ -117,7 +117,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final boolean createdScheduledProviders;
     private final boolean createdLookupProviders;
-    private LookupService lookup;
+    private volatile LookupService lookup;
     private Map<String, LookupService> urlLookupMap = new ConcurrentHashMap<>();
     private final ConnectionPool cnxPool;
     @Getter
@@ -1212,14 +1212,16 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public void reloadLookUp() throws PulsarClientException {
-        if (lookup != null) {
+        LookupService previousLookup = lookup;
+        lookup = createLookup(conf.getServiceUrl());
+        // close the previous lookup after the new lookup is created successfully
+        if (previousLookup != null) {
             try {
-                lookup.close();
+                previousLookup.close();
             } catch (Exception e) {
-                log.warn("Failed to close previous lookup service before replacing", e);
+                log.warn("Failed to close previous lookup service", e);
             }
         }
-        lookup = createLookup(conf.getServiceUrl());
     }
 
     public LookupService createLookup(String url) throws PulsarClientException {
