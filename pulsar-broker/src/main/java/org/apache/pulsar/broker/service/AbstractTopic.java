@@ -1386,6 +1386,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     }
 
     private boolean hasAnyNonReplicatorProducer() {
-        return !producers.isEmpty() && !producers.values().stream().allMatch(Producer::isRemote);
+        return !producers.isEmpty() && producers.values().stream().anyMatch(p -> !p.isRemote());
     }
 }
