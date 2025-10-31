@@ -803,7 +803,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         try {
             switch (producer.getAccessMode()) {
             case Shared:
-                if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
+                // replication producer must be shared mode
+                if ((!producer.isRemote()) && (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty())) {
                     return FutureUtil.failedFuture(
                             new ProducerBusyException(
                                     "Topic has an existing exclusive producer: " + exclusiveProducerName));
@@ -817,12 +818,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                     return FutureUtil.failedFuture(
                             new ProducerFencedException(
                                     "Topic has an existing exclusive producer: " + exclusiveProducerName));
-                } else if (!producers.isEmpty()) {
+                } else if (hasAnyNonReplicatorProducer()) {
                     return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
                 }
                 return handleTopicEpochForExclusiveProducer(producer);
             case ExclusiveWithFencing:
-                if (hasExclusiveProducer || !producers.isEmpty()) {
+                if (hasExclusiveProducer || hasAnyNonReplicatorProducer()) {
                     // clear all waiting producers
                     // otherwise closing any producer will trigger the promotion
                     // of the next pending producer
@@ -836,13 +837,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                         handle.getKey().close(true);
                     });
                     producers.forEach((k, currentProducer) -> {
-                        log.info("[{}] Fencing out producer {}", topic, currentProducer);
-                        currentProducer.close(true);
+                        if (!currentProducer.isRemote()) {
+                            log.info("[{}] Fencing out producer {}", topic, currentProducer);
+                            currentProducer.close(true);
+                        }
                     });
                 }
                 return handleTopicEpochForExclusiveProducer(producer);
             case WaitForExclusive: {
-                if (hasExclusiveProducer || !producers.isEmpty()) {
+                if (hasExclusiveProducer || (hasAnyNonReplicatorProducer())) {
                     CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
                     log.info("[{}] Queuing producer {} since there's already a producer", topic, producer);
                     waitingExclusiveProducers.add(Pair.of(producer, future));
@@ -1380,5 +1383,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     public boolean isSystemCursor(String sub) {
         return COMPACTION_SUBSCRIPTION.equals(sub)
                 || (additionalSystemCursorNames != null && additionalSystemCursorNames.contains(sub));
+    }
+
+    private boolean hasAnyNonReplicatorProducer() {
+        return !producers.isEmpty() && !producers.values().stream().allMatch(Producer::isRemote);
     }
 }
