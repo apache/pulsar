@@ -1215,7 +1215,7 @@ public class PulsarClientImpl implements PulsarClient {
         LookupService previousLookup = lookup;
         lookup = createLookup(conf.getServiceUrl());
         // close the previous lookup after the new lookup is created successfully
-        if (previousLookup != null) {
+        if (previousLookup != null && previousLookup != lookup) {
             try {
                 previousLookup.close();
             } catch (Exception e) {
