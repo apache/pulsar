@@ -230,9 +230,8 @@ public class PulsarAdminBuilderImplTest {
                 pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
         Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
         Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
-        boolean b1 = eventLoopGroup1 == eventLoopGroup2;
-        boolean b2 = nettyTimer1 == nettyTimer2;
-        assertThat(b1 && b2).isTrue();
+        assertThat(eventLoopGroup1).isSameAs(eventLoopGroup2);
+        assertThat(nettyTimer1).isSameAs(nettyTimer2);
         sharedResources.close();
     }
 
