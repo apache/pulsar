@@ -1104,7 +1104,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
-            doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
+            doc = "Interval (in seconds) for ResourceGroupService periodic tasks while resource groups are actively "
+                    + "attached to tenants or namespaces. Periodic tasks start automatically when the first attachment "
+                    + "is registered and stop automatically when no attachments remain. "
+                    + "If a ResourceUsageTransportManager is configured (see resourceUsageTransportClassName), "
+                    + "this interval also controls how frequently, usage reports are published for cross-broker "
+                    + "coordination. Dynamic changes take effect at runtime and reschedule any running tasks."
     )
     private int resourceUsageTransportPublishIntervalInSecs = 60;
 
