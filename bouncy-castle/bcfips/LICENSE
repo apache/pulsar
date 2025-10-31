@@ -205,5 +205,6 @@
 This projects includes binary packages with the following licenses:
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-fips-1.0.7.jar
-    - org.bouncycastle-bc-fips-1.0.2.6.jar
+    - org.bouncycastle-bcpkix-fips-2.0.10.jar
+    - org.bouncycastle-bc-fips-2.0.1.jar
+    - org.bouncycastle-bctutil-fips-2.0.5.jar
