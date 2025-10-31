@@ -3877,6 +3877,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     oldestMarkDeleteCursorInfo.getCursor().getName(),
                                     checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp(),
                                     oldestMarkDeleteCursorInfo.getVersion()));
+                } else {
+                    TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
                 }
 
                 return CompletableFuture.completedFuture(null);
