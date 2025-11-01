@@ -134,13 +134,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
 
     private final Runnable onEmptyCallback;
 
-    public InMemoryTopicDelayedDeliveryTrackerManager(Timer timer, long tickTimeMillis,
-                                                      boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                                      long fixedDelayDetectionLookahead) {
-        this(timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
-             fixedDelayDetectionLookahead, null);
-    }
-
     public InMemoryTopicDelayedDeliveryTrackerManager(Timer timer, long tickTimeMillis, Clock clock,
                                                       boolean isDelayedDeliveryDeliverAtTimeStrict,
                                                       long fixedDelayDetectionLookahead) {
@@ -456,10 +449,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         timeout = timer.newTimeout(this, calculatedDelayMillis, TimeUnit.MILLISECONDS);
     }
 
-    private void updateBufferMemoryEstimate() {
-        // No-op in incremental mode (kept for compatibility)
-    }
-
     private long getNumberOfVisibleDelayedMessagesForSub(SubContext subContext) {
         // Simplified implementation - returns total count
         // Could be enhanced to count only messages visible to this subscription
@@ -596,10 +585,5 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         for (AbstractPersistentDispatcherMultipleConsumers d : toTrigger) {
             d.readMoreEntriesAsync();
         }
-    }
-
-    private void refreshMarkDeletePosition(SubContext subContext) {
-        // Deprecated: mark-delete is now updated via event-driven callbacks from dispatcher.
-        // Intentionally no-op to keep API surface; will be removed in a later cleanup.
     }
 }
