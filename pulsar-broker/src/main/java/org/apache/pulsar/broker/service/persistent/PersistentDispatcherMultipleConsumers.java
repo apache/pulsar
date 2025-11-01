@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.InMemoryTopicDelayedDeliveryTrackerView;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -1474,6 +1475,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     public ManagedCursor getCursor() {
         return cursor;
+    }
+
+    @Override
+    public void markDeletePositionMoveForward() {
+        // Event-driven mark-delete notification: update the topic-level delayed tracker view
+        Optional<DelayedDeliveryTracker> trackerOpt;
+        synchronized (this) {
+            trackerOpt = this.delayedDeliveryTracker;
+        }
+        trackerOpt.ifPresent(tracker -> {
+            if (tracker instanceof InMemoryTopicDelayedDeliveryTrackerView view) {
+                Position md = cursor.getMarkDeletedPosition();
+                if (md != null) {
+                    // Only update the cached mark-delete; avoid heavy operations in this callback
+                    view.updateMarkDeletePosition(md);
+                }
+            }
+        });
     }
 
     protected int getStickyKeyHash(Entry entry) {

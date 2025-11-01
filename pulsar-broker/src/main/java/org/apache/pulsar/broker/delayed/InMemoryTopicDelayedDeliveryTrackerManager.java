@@ -347,8 +347,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         NavigableSet<Position> positions = new TreeSet<>();
         int remaining = maxMessages;
 
-        // Refresh mark-delete once outside of any bucket lock
-        refreshMarkDeletePosition(subContext);
         long cutoffTime = subContext.getCutoffTime();
         Position markDelete = subContext.getMarkDeletePosition();
 
@@ -393,9 +391,9 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
         }
 
-        // Prune global index based on min mark-delete across all subscriptions (write path)
+        // Throttled prune: avoid heavy prune on every hot-path call
         if (!positions.isEmpty()) {
-            pruneByMinMarkDelete();
+            maybePruneByTime();
         }
 
         return positions;
@@ -423,8 +421,8 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
      * Update mark delete position for a subscription.
      */
     void updateMarkDeletePosition(SubContext subContext, Position position) {
+        // Event-driven update from dispatcher; keep it lightweight (no prune here)
         subContext.updateMarkDeletePosition(position);
-        pruneByMinMarkDelete();
     }
 
     // Private helper methods
@@ -601,19 +599,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     }
 
     private void refreshMarkDeletePosition(SubContext subContext) {
-        try {
-            Position pos = subContext.getDispatcher().getCursor().getMarkDeletedPosition();
-            if (pos != null) {
-                Position current = subContext.getMarkDeletePosition();
-                if (current == null || pos.compareTo(current) > 0) {
-                    subContext.updateMarkDeletePosition(pos);
-                }
-            }
-        } catch (Throwable t) {
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to refresh mark-delete position for subscription {}",
-                        subContext.getSubscriptionName(), t);
-            }
-        }
+        // Deprecated: mark-delete is now updated via event-driven callbacks from dispatcher.
+        // Intentionally no-op to keep API surface; will be removed in a later cleanup.
     }
 }
