@@ -86,12 +86,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     private volatile long highestDeliveryTimeTracked = 0;
     private volatile boolean messagesHaveFixedDelay = true;
 
-    // Timestamp precision for memory optimization
-    // TODO: Due to the dynamic adjustment of tickTimeMillis, the same message Position(ledgerId, entryId)
-    //  may be bucketed into different timestamp buckets under different time precisions,
-    //  causing "cross-bucket duplicate indexes" and thus duplicate memory occupancy and duplicate returns.
-    private volatile int timestampPrecisionBitCnt;
-
     // Per-bucket locks (timestamp -> lock) for fine-grained concurrency
     private final ConcurrentHashMap<Long, ReentrantLock> bucketLocks = new ConcurrentHashMap<>();
 
@@ -149,7 +143,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         this.clock = clock;
         this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
-        this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(tickTimeMillis);
         this.onEmptyCallback = onEmptyCallback;
         // Default prune throttle interval: clamp to [5ms, 50ms] using tickTimeMillis as hint
         // TODO: make configurable if needed
@@ -157,17 +150,20 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         this.minPruneIntervalNanos = TimeUnit.MILLISECONDS.toNanos(pruneMs);
     }
 
-    private static int calculateTimestampPrecisionBitCnt(long tickTimeMillis) {
-        int bitCnt = 0;
-        while (tickTimeMillis > 0) {
-            tickTimeMillis >>= 1;
-            bitCnt++;
+    // We bucket messages by aligning the deliverAt timestamp to the start of the logical tick window:
+    // bucketStart = deliverAt - (deliverAt % tickTimeMillis)
+    // If tickTimeMillis changes over time, the same message may land in different buckets when re-added
+    // by another subscription. Read paths dedup via TreeSet and counts include duplicates by design.
+    private long bucketStart(long timestamp) {
+        long t = this.tickTimeMillis;
+        if (t <= 0) {
+            return timestamp;
         }
-        return bitCnt > 0 ? bitCnt - 1 : 0;
-    }
-
-    private static long trimLowerBit(long timestamp, int bits) {
-        return timestamp & (-1L << bits);
+        long mod = timestamp % t;
+        if (mod == 0) {
+            return timestamp;
+        }
+        return timestamp - mod;
     }
 
     @Override
@@ -219,8 +215,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             return;
         }
         this.tickTimeMillis = newTickTimeMillis;
-        // Update precision bits for new tick time (accept old/new buckets co-exist)
-        this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(newTickTimeMillis);
         // Propagate to all subscriptions
         for (SubContext sc : subscriptionContexts.values()) {
             sc.tickTimeMillis = newTickTimeMillis;
@@ -276,7 +270,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             return false;
         }
 
-        long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
+        long timestamp = bucketStart(deliverAt);
         ReentrantLock bLock = bucketLocks.computeIfAbsent(timestamp, k -> new ReentrantLock());
         bLock.lock();
         try {
@@ -384,10 +378,9 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
         }
 
-        // Throttled prune: avoid heavy prune on every hot-path call
-        if (!positions.isEmpty()) {
-            maybePruneByTime();
-        }
+        // Throttled prune: attempt prune even when result is empty (mark-delete might have filtered everything)
+        // Throttling ensures we don't pay the cost on every call
+        maybePruneByTime();
 
         return positions;
     }
@@ -432,16 +425,17 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             return;
         }
         long nextDeliveryTime = first.getKey();
-        if (nextDeliveryTime == currentTimeoutTarget) {
+        long now = clock.millis();
+        if (timeout != null && nextDeliveryTime == currentTimeoutTarget && currentTimeoutTarget >= now) {
             return;
         }
         if (timeout != null) {
             timeout.cancel();
         }
-        long now = clock.millis();
         long delayMillis = nextDeliveryTime - now;
         if (delayMillis < 0) {
-            return;
+            // Bucket already in the past: schedule immediate to unblock readers
+            delayMillis = 0;
         }
         long remainingTickDelayMillis = lastTickRun + tickTimeMillis - now;
         long calculatedDelayMillis = Math.max(delayMillis, remainingTickDelayMillis);
@@ -456,19 +450,17 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     }
 
     private void pruneByMinMarkDelete() {
-        // Find the minimum mark delete position across all subscriptions
+        // Find the minimum mark delete position across all subscriptions.
+        // If any subscription hasn't established a mark-delete yet, skip pruning to preserve global visibility.
         Position minMarkDelete = null;
         for (SubContext subContext : subscriptionContexts.values()) {
             Position markDelete = subContext.getMarkDeletePosition();
-            if (markDelete != null) {
-                if (minMarkDelete == null || markDelete.compareTo(minMarkDelete) < 0) {
-                    minMarkDelete = markDelete;
-                }
+            if (markDelete == null) {
+                return; // at least one subscription without mark-delete -> no pruning
             }
-        }
-
-        if (minMarkDelete == null) {
-            return;
+            if (minMarkDelete == null || markDelete.compareTo(minMarkDelete) < 0) {
+                minMarkDelete = markDelete;
+            }
         }
 
         // No idempotency set to clean (Option A): rely on per-bitmap removal below
@@ -562,10 +554,8 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
         Map.Entry<Long, Long2ObjectRBTreeMap<Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
         if (first != null) {
-            long earliestTs = first.getKey();
             for (SubContext subContext : subscriptionContexts.values()) {
-                long cutoff = subContext.getCutoffTime();
-                if (earliestTs <= cutoff) {
+                if (hasVisibleMessageForSub(subContext)) {
                     toTrigger.add(subContext.getDispatcher());
                 }
             }
@@ -573,10 +563,8 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             // If a significant portion of subscriptions are eligible, opportunistically prune (throttled)
             int subs = subscriptionContexts.size();
             int eligible = toTrigger.size();
-            // majority by default
             int threshold = Math.max(1, subs / 2);
             if (eligible >= threshold) {
-                // Not under timerLock or any bucket lock; prune uses per-bucket locks and is safe here
                 maybePruneByTime();
             }
         }
@@ -585,5 +573,48 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         for (AbstractPersistentDispatcherMultipleConsumers d : toTrigger) {
             d.readMoreEntriesAsync();
         }
+    }
+
+    private boolean hasVisibleMessageForSub(SubContext subContext) {
+        long cutoffTime = subContext.getCutoffTime();
+        Position markDelete = subContext.getMarkDeletePosition();
+        List<Long> tsList = new ArrayList<>(delayedMessageMap.headMap(cutoffTime, true).keySet());
+        for (Long ts : tsList) {
+            ReentrantLock bLock = bucketLocks.get(ts);
+            if (bLock == null) {
+                continue;
+            }
+            bLock.lock();
+            try {
+                Long2ObjectRBTreeMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(ts);
+                if (ledgerMap == null) {
+                    continue;
+                }
+                for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
+                    long ledgerId = ledgerEntry.getLongKey();
+                    if (markDelete != null && ledgerId < markDelete.getLedgerId()) {
+                        continue;
+                    }
+                    Roaring64Bitmap entryIds = ledgerEntry.getValue();
+                    if (markDelete == null || ledgerId > markDelete.getLedgerId()) {
+                        // at least one entry exists in this ledger bucket
+                        if (!entryIds.isEmpty()) {
+                            return true;
+                        }
+                    } else {
+                        LongIterator it = entryIds.getLongIterator();
+                        while (it.hasNext()) {
+                            long e = it.next();
+                            if (e > markDelete.getEntryId()) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            } finally {
+                bLock.unlock();
+            }
+        }
+        return false;
     }
 }
