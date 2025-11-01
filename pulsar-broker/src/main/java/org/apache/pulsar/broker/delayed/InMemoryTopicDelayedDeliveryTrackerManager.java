@@ -23,6 +23,7 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
@@ -36,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.roaringbitmap.longlong.LongIterator;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 /**
@@ -72,19 +74,27 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     private final AtomicLong delayedMessagesCount = new AtomicLong(0);
     private final AtomicLong bufferMemoryBytes = new AtomicLong(0);
 
+    // Prune throttling
+    // Last pruning time
+    private final AtomicLong lastPruneNanos = new AtomicLong(0);
+    // Minimum interval between prunes
+    private final long minPruneIntervalNanos;
+
     // Fixed-delay detection (parity with legacy behavior)
     private volatile long highestDeliveryTimeTracked = 0;
     private volatile boolean messagesHaveFixedDelay = true;
 
     // Timestamp precision for memory optimization
-    private int timestampPrecisionBitCnt;
+    // TODO: Due to the dynamic adjustment of tickTimeMillis, the same message Position(ledgerId, entryId)
+    //  may be bucketed into different timestamp buckets under different time precisions,
+    //  causing "cross-bucket duplicate indexes" and thus duplicate memory occupancy and duplicate returns.
+    private volatile int timestampPrecisionBitCnt;
 
     // Per-bucket locks (timestamp -> lock) for fine-grained concurrency
     private final ConcurrentHashMap<Long, ReentrantLock> bucketLocks = new ConcurrentHashMap<>();
 
     // Timer state guard
     private final ReentrantLock timerLock = new ReentrantLock();
-
 
     /**
      * Subscription context that holds per-subscription state.
@@ -146,6 +156,10 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
         this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(tickTimeMillis);
         this.onEmptyCallback = onEmptyCallback;
+        // Default prune throttle interval: clamp to [5ms, 50ms] using tickTimeMillis as hint
+        // TODO: make configurable if needed
+        long pruneMs = Math.max(5L, Math.min(50L, tickTimeMillis));
+        this.minPruneIntervalNanos = TimeUnit.MILLISECONDS.toNanos(pruneMs);
     }
 
     private static int calculateTimestampPrecisionBitCnt(long tickTimeMillis) {
@@ -310,12 +324,14 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         if (delayedMessageMap.isEmpty()) {
             return false;
         }
-        Long firstKey = delayedMessageMap.firstKey();
-        if (firstKey == null) {
+        // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
+        Map.Entry<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
+        if (first == null) {
             return false;
         }
         long cutoffTime = subContext.getCutoffTime();
-        return firstKey <= cutoffTime;
+        long firstTs = first.getKey();
+        return firstTs <= cutoffTime;
     }
 
     /**
@@ -331,7 +347,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         Position markDelete = subContext.getMarkDeletePosition();
 
         // Snapshot of buckets up to cutoff and iterate per-bucket with bucket locks
-        java.util.List<Long> tsList = new java.util.ArrayList<>(delayedMessageMap.headMap(cutoffTime, true).keySet());
+        List<Long> tsList = new ArrayList<>(delayedMessageMap.headMap(cutoffTime, true).keySet());
         for (Long ts : tsList) {
             if (remaining <= 0) {
                 break;
@@ -355,7 +371,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                     if (markDelete != null && ledgerId < markDelete.getLedgerId()) {
                         continue;
                     }
-                    org.roaringbitmap.longlong.LongIterator it = entryIds.getLongIterator();
+                    LongIterator it = entryIds.getLongIterator();
                     while (it.hasNext() && remaining > 0) {
                         long entryId = it.next();
                         if (markDelete != null && ledgerId == markDelete.getLedgerId()
@@ -408,7 +424,9 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     // Private helper methods
 
     private void updateTimerLocked() {
-        if (delayedMessageMap.isEmpty()) {
+        // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
+        Map.Entry<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
+        if (first == null) {
             if (timeout != null) {
                 currentTimeoutTarget = -1;
                 timeout.cancel();
@@ -416,11 +434,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
             return;
         }
-        Long nextKey = delayedMessageMap.firstKey();
-        if (nextKey == null) {
-            return;
-        }
-        long nextDeliveryTime = nextKey;
+        long nextDeliveryTime = first.getKey();
         if (nextDeliveryTime == currentTimeoutTarget) {
             return;
         }
@@ -490,8 +504,8 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                     } else if (ledgerId == minMarkDelete.getLedgerId()) {
                         long before = entryIds.getLongSizeInBytes();
                         long removedCount = 0;
-                        org.roaringbitmap.longlong.LongIterator it = entryIds.getLongIterator();
-                        java.util.ArrayList<Long> toRemove = new java.util.ArrayList<>();
+                        LongIterator it = entryIds.getLongIterator();
+                        ArrayList<Long> toRemove = new ArrayList<>();
                         while (it.hasNext()) {
                             long e = it.next();
                             if (e <= minMarkDelete.getEntryId()) {
@@ -523,6 +537,16 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         }
     }
 
+    private void maybePruneByTime() {
+        long now = System.nanoTime();
+        long last = lastPruneNanos.get();
+        if (now - last >= minPruneIntervalNanos) {
+            if (lastPruneNanos.compareAndSet(last, now)) {
+                pruneByMinMarkDelete();
+            }
+        }
+    }
+
     // idempotency set removed per Option A
 
     @Override
@@ -542,8 +566,10 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         }
 
         ArrayList<AbstractPersistentDispatcherMultipleConsumers> toTrigger = new ArrayList<>();
-        Long earliestTs = delayedMessageMap.firstKey();
-        if (earliestTs != null) {
+        // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
+        Map.Entry<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
+        if (first != null) {
+            long earliestTs = first.getKey();
             for (SubContext subContext : subscriptionContexts.values()) {
                 long cutoff = subContext.getCutoffTime();
                 if (earliestTs <= cutoff) {
