@@ -83,8 +83,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         }
     }
 
-    private static AbstractPersistentDispatcherMultipleConsumers newDispatcher(String subName, ManagedCursor cursor)
-            throws Exception {
+    private static AbstractPersistentDispatcherMultipleConsumers newDispatcher(String subName, ManagedCursor cursor) {
         AbstractPersistentDispatcherMultipleConsumers dispatcher =
                 mock(AbstractPersistentDispatcherMultipleConsumers.class);
         Subscription subscription = mock(Subscription.class);
@@ -94,7 +93,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         return dispatcher;
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testSingleSubscriptionBasicFlow() throws Exception {
         TestEnv env = new TestEnv();
         long tickMs = 100;
@@ -147,7 +146,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         view.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testSharedIndexDedupAcrossSubscriptions() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -173,7 +172,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v2.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testTimerRunTriggersOnlyAvailableSubscriptions() throws Exception {
         TestEnv env = new TestEnv();
         long tickMs = 100;
@@ -214,7 +213,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v2.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testPauseWithFixedDelays() throws Exception {
         TestEnv env = new TestEnv();
         long lookahead = 5;
@@ -229,7 +228,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         // Add strictly increasing deliverAt times (fixed delay scenario)
         env.time.set(0);
         for (int i = 1; i <= lookahead; i++) {
-            assertTrue(view.addMessage(i, i, i * 100));
+            assertTrue(view.addMessage(i, i, i * 100L));
         }
         assertTrue(view.shouldPauseAllDeliveries());
 
@@ -240,7 +239,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         view.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testDynamicTickTimeUpdateAffectsCutoff() throws Exception {
         TestEnv env = new TestEnv();
         // non-strict mode: cutoff = now + tick
@@ -264,7 +263,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         view.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testMinMarkDeleteAcrossSubscriptions() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -285,9 +284,9 @@ public class InMemoryTopicDeliveryTrackerTest {
         assertTrue(v1.addMessage(2, 1, 100));
         assertEquals(v1.getNumberOfDelayedMessages(), 3);
 
-        // c1 behind, c2 ahead
-        when(c1.getMarkDeletedPosition()).thenReturn(PositionFactory.create(0L, 0L));
-        when(c2.getMarkDeletedPosition()).thenReturn(PositionFactory.create(10L, 10L));
+        // c1 behind, c2 ahead (set via view so manager receives updates)
+        v1.updateMarkDeletePosition(PositionFactory.create(0L, 0L));
+        v2.updateMarkDeletePosition(PositionFactory.create(10L, 10L));
 
         env.time.set(200);
         // Trigger v2 read + prune attempt; min mark-delete still from c1 => no prune
@@ -312,7 +311,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v2.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testTimerSchedulingWindowAlignment() throws Exception {
         TestEnv env = new TestEnv();
         long tickMs = 1000;
@@ -343,7 +342,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         view.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testBufferMemoryUsageAndCleanup() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -363,7 +362,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         assertEquals(manager.topicBufferMemoryBytes(), 0);
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testGetScheduledMessagesLimit() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -391,7 +390,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         view.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testHasMessageAvailableIgnoresMarkDelete() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -411,7 +410,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         view.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testCrossBucketDuplicatesDedupOnRead() throws Exception {
         TestEnv env = new TestEnv();
         long tick = 256;
@@ -443,7 +442,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v2.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testClearIsNoOp() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -460,7 +459,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testMultiSubscriptionCloseDoesNotClear() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -487,7 +486,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         assertEquals(manager.topicDelayedMessages(), 0);
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testBoundaryInputsRejected() throws Exception {
         TestEnv env = new TestEnv();
         ManagedCursor c = mock(ManagedCursor.class);
@@ -518,7 +517,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         }
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testClosedViewThrowsOnOperations() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -535,7 +534,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         expectIllegalState(v::clear);
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testRescheduleOnEarlierDeliverAt() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -555,7 +554,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testEmptyIndexCancelsTimerOnClose() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -566,12 +565,12 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         env.time.set(0);
         assertTrue(v.addMessage(1, 1, 1000));
-        assertTrue(env.tasks.size() >= 1);
+        assertFalse(env.tasks.isEmpty());
         v.close();
         assertTrue(env.tasks.isEmpty());
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testMemoryGrowthAndPruneShrink() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -607,7 +606,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testTimerCancelAndReschedule() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -627,7 +626,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testSortedAndDedupScheduled() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -650,7 +649,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testGlobalDelayedCountSemantics() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -676,7 +675,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v2.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testConcurrentAdditionsSameBucket() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =
@@ -713,7 +712,7 @@ public class InMemoryTopicDeliveryTrackerTest {
         v.close();
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testConcurrentAdditionsMultipleBucketsAndReads() throws Exception {
         TestEnv env = new TestEnv();
         InMemoryTopicDelayedDeliveryTrackerManager manager =

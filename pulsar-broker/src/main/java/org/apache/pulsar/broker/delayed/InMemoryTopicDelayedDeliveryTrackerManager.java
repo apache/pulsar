@@ -260,8 +260,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         bufferMemoryBytes.set(0);
     }
 
-    // Internal methods for subscription views
-
     /**
      * Add a message to the global delayed message index.
      */
@@ -411,8 +409,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         subContext.updateMarkDeletePosition(position);
     }
 
-    // Private helper methods
-
     private void updateTimerLocked() {
         // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
         Map.Entry<Long, Long2ObjectRBTreeMap<Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
@@ -531,8 +527,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
         }
     }
-
-    // idempotency set removed per Option A
 
     @Override
     public void run(Timeout timeout) throws Exception {
