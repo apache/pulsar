@@ -55,9 +55,11 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     private final Timer timer;
     private Timeout timeout;
     private long currentTimeoutTarget = -1;
+    // Last time the TimerTask was triggered
+    private long lastTickRun = 0L;
 
     // Configuration
-    private final long tickTimeMillis;
+    private long tickTimeMillis;
     private final boolean isDelayedDeliveryDeliverAtTimeStrict;
     private final long fixedDelayDetectionLookahead;
     private final Clock clock;
@@ -66,8 +68,12 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     private final AtomicLong delayedMessagesCount = new AtomicLong(0);
     private final AtomicLong bufferMemoryBytes = new AtomicLong(0);
 
+    // Fixed-delay detection (parity with legacy behavior)
+    private long highestDeliveryTimeTracked = 0;
+    private boolean messagesHaveFixedDelay = true;
+
     // Timestamp precision for memory optimization
-    private final int timestampPrecisionBitCnt;
+    private int timestampPrecisionBitCnt;
 
     /**
      * Subscription context that holds per-subscription state.
@@ -76,18 +82,21 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     static class SubContext {
         private final AbstractPersistentDispatcherMultipleConsumers dispatcher;
         private final String subscriptionName;
-        private final long tickTimeMillis;
+        private long tickTimeMillis;
         private final boolean isDelayedDeliveryDeliverAtTimeStrict;
         private final long fixedDelayDetectionLookahead;
+        private final Clock clock;
         private Position markDeletePosition;
 
         SubContext(AbstractPersistentDispatcherMultipleConsumers dispatcher, long tickTimeMillis,
-                   boolean isDelayedDeliveryDeliverAtTimeStrict, long fixedDelayDetectionLookahead) {
+                   boolean isDelayedDeliveryDeliverAtTimeStrict, long fixedDelayDetectionLookahead,
+                   Clock clock) {
             this.dispatcher = dispatcher;
             this.subscriptionName = dispatcher.getSubscription().getName();
             this.tickTimeMillis = tickTimeMillis;
             this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
             this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
+            this.clock = clock;
         }
 
         void updateMarkDeletePosition(Position position) {
@@ -95,8 +104,8 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         }
 
         long getCutoffTime() {
-            return isDelayedDeliveryDeliverAtTimeStrict ? System.currentTimeMillis() :
-                   System.currentTimeMillis() + tickTimeMillis;
+            long now = clock.millis();
+            return isDelayedDeliveryDeliverAtTimeStrict ? now : now + tickTimeMillis;
         }
     }
 
@@ -138,7 +147,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         synchronized (this) {
             SubContext subContext = subscriptionContexts.computeIfAbsent(subscriptionName,
                 k -> new SubContext(dispatcher, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
-                                   fixedDelayDetectionLookahead));
+                                   fixedDelayDetectionLookahead, clock));
 
             return new InMemoryTopicDelayedDeliveryTrackerView(this, subContext);
         }
@@ -150,9 +159,11 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
 
         synchronized (this) {
             subscriptionContexts.remove(subscriptionName);
-
-            // If no more subscriptions, close the manager
-            if (subscriptionContexts.isEmpty() && delayedMessageMap.isEmpty()) {
+            // If no more subscriptions, proactively free index and close the manager to release memory
+            if (subscriptionContexts.isEmpty()) {
+                delayedMessageMap.clear();
+                delayedMessagesCount.set(0);
+                bufferMemoryBytes.set(0);
                 close();
             }
         }
@@ -160,9 +171,24 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
 
     @Override
     public void onTickTimeUpdated(long newTickTimeMillis) {
-        // For now, tick time updates are not supported after initialization
-        // This could be enhanced to update all subscription contexts
-        log.warn("Tick time updates are not currently supported for topic-level delayed delivery managers");
+        synchronized (this) {
+            if (this.tickTimeMillis == newTickTimeMillis) {
+                return;
+            }
+            this.tickTimeMillis = newTickTimeMillis;
+            // Update precision bits for new tick time (accept old/new buckets co-exist)
+            this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(newTickTimeMillis);
+            // Propagate to all subscriptions
+            for (SubContext sc : subscriptionContexts.values()) {
+                sc.tickTimeMillis = newTickTimeMillis;
+            }
+            // Re-evaluate timer scheduling with new tick time
+            updateTimer();
+            if (log.isDebugEnabled()) {
+                log.debug("Updated tickTimeMillis for topic-level delayed delivery manager to {} ms",
+                        newTickTimeMillis);
+            }
+        }
     }
 
     @Override
@@ -205,16 +231,28 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                 timestamp, k -> new Long2ObjectRBTreeMap<>());
             Roaring64Bitmap entryIds = ledgerMap.computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
 
-            // Check if this entry already exists (deduplication)
-            if (!entryIds.contains(entryId)) {
+            // Incremental memory accounting: measure size delta on change
+            long before = entryIds.getLongSizeInBytes();
+            boolean existed = entryIds.contains(entryId);
+            if (!existed) {
                 entryIds.add(entryId);
                 delayedMessagesCount.incrementAndGet();
-                updateBufferMemoryEstimate();
+                long after = entryIds.getLongSizeInBytes();
+                bufferMemoryBytes.addAndGet(after - before);
             }
 
             updateTimer();
+            // Update global fixed-delay detection
+            checkAndUpdateHighest(deliverAt);
             return true;
         }
+    }
+
+    private void checkAndUpdateHighest(long deliverAt) {
+        if (deliverAt < (highestDeliveryTimeTracked - tickTimeMillis)) {
+            messagesHaveFixedDelay = false;
+        }
+        highestDeliveryTimeTracked = Math.max(highestDeliveryTimeTracked, deliverAt);
     }
 
     /**
@@ -222,6 +260,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
      */
     boolean hasMessageAvailableForSub(SubContext subContext) {
         synchronized (this) {
+            refreshMarkDeletePosition(subContext);
             if (delayedMessageMap.isEmpty()) {
                 return false;
             }
@@ -265,6 +304,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
      */
     NavigableSet<Position> getScheduledMessagesForSub(SubContext subContext, int maxMessages) {
         synchronized (this) {
+            refreshMarkDeletePosition(subContext);
             int remaining = maxMessages;
             NavigableSet<Position> positions = new TreeSet<>();
             long cutoffTime = subContext.getCutoffTime();
@@ -289,18 +329,18 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                     long ledgerId = ledgerEntry.getLongKey();
                     Roaring64Bitmap entryIds = ledgerEntry.getValue();
 
-                    // Filter entries based on mark delete position
-                    long[] entryIdArray = entryIds.toArray();
-                    for (long entryId : entryIdArray) {
-                        if (remaining <= 0) {
-                            break;
-                        }
+                    // Fast skip if entire ledger is before mark-delete
+                    if (markDelete != null && ledgerId < markDelete.getLedgerId()) {
+                        continue;
+                    }
+
+                    // Iterate over entry ids without materializing array
+                    var it = entryIds.iterator();
+                    while (it.hasNext() && remaining > 0) {
+                        long entryId = it.next();
 
                         // Skip entries that are before or at mark delete
                         if (markDelete != null) {
-                            if (ledgerId < markDelete.getLedgerId()) {
-                                continue;
-                            }
                             if (ledgerId == markDelete.getLedgerId() && entryId <= markDelete.getEntryId()) {
                                 continue;
                             }
@@ -312,8 +352,8 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                 }
             }
 
-            // Note: We don't remove messages from the global index here
-            // Pruning will be handled separately based on min mark delete across all subscriptions
+            // Prune global index based on min mark-delete across all subscriptions
+            pruneByMinMarkDelete();
 
             return positions;
         }
@@ -323,9 +363,10 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
      * Check if deliveries should be paused for a subscription.
      */
     boolean shouldPauseAllDeliveriesForSub(SubContext subContext) {
-        // Simplified implementation - could be enhanced with fixed delay detection
-        return fixedDelayDetectionLookahead > 0
-                && getNumberOfVisibleDelayedMessagesForSub(subContext) >= fixedDelayDetectionLookahead
+        // Parity with legacy: pause if all observed delays are fixed and backlog is large enough
+        return subContext.getFixedDelayDetectionLookahead() > 0
+                && messagesHaveFixedDelay
+                && getNumberOfVisibleDelayedMessagesForSub(subContext) >= subContext.getFixedDelayDetectionLookahead()
                 && !hasMessageAvailableForSub(subContext);
     }
 
@@ -372,21 +413,20 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         long delayMillis = nextDeliveryTime - now;
 
         if (delayMillis < 0) {
-            // Messages are ready, but we don't need to keep retriggering
+            // Messages are ready; avoid retriggering timer, dispatcher will pick them on next read
             return;
         }
 
+        // Align with tick window like AbstractDelayedDeliveryTracker
+        long remainingTickDelayMillis = lastTickRun + tickTimeMillis - now;
+        long calculatedDelayMillis = Math.max(delayMillis, remainingTickDelayMillis);
+
         currentTimeoutTarget = nextDeliveryTime;
-        timeout = timer.newTimeout(this, delayMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
+        timeout = timer.newTimeout(this, calculatedDelayMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     private void updateBufferMemoryEstimate() {
-        // Simplified memory estimation
-        long estimatedBytes = delayedMessageMap.values().stream()
-            .mapToLong(ledgerMap -> ledgerMap.values().stream()
-                .mapToLong(Roaring64Bitmap::getLongSizeInBytes).sum())
-            .sum();
-        bufferMemoryBytes.set(estimatedBytes);
+        // No-op in incremental mode (kept for compatibility)
     }
 
     private long getNumberOfVisibleDelayedMessagesForSub(SubContext subContext) {
@@ -425,11 +465,14 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
 
                 if (ledgerId < minMarkDelete.getLedgerId()) {
                     // Entire ledger can be removed
+                    long bytes = entryIds.getLongSizeInBytes();
                     delayedMessagesCount.addAndGet(-entryIds.getLongCardinality());
+                    bufferMemoryBytes.addAndGet(-bytes);
                     ledgerIterator.remove();
                 } else if (ledgerId == minMarkDelete.getLedgerId()) {
                     // Remove entries <= mark delete entry ID
                     long removedCount = 0;
+                    long before = entryIds.getLongSizeInBytes();
                     var entryIterator = entryIds.iterator();
                     while (entryIterator.hasNext()) {
                         long entryId = entryIterator.next();
@@ -438,7 +481,9 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                             removedCount++;
                         }
                     }
+                    long after = entryIds.getLongSizeInBytes();
                     delayedMessagesCount.addAndGet(-removedCount);
+                    bufferMemoryBytes.addAndGet(after - before);
 
                     if (entryIds.isEmpty()) {
                         ledgerIterator.remove();
@@ -460,13 +505,38 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             return;
         }
 
+        java.util.ArrayList<AbstractPersistentDispatcherMultipleConsumers> toTrigger = new java.util.ArrayList<>();
         synchronized (this) {
             currentTimeoutTarget = -1;
             this.timeout = null;
+            lastTickRun = clock.millis();
 
-            // Trigger read more entries for all subscriptions
+            // Decide which dispatchers to trigger while holding the lock
             for (SubContext subContext : subscriptionContexts.values()) {
-                subContext.getDispatcher().readMoreEntriesAsync();
+                if (hasMessageAvailableForSub(subContext)) {
+                    toTrigger.add(subContext.getDispatcher());
+                }
+            }
+        }
+        // Invoke callbacks outside the manager lock to reduce contention
+        for (AbstractPersistentDispatcherMultipleConsumers d : toTrigger) {
+            d.readMoreEntriesAsync();
+        }
+    }
+
+    private void refreshMarkDeletePosition(SubContext subContext) {
+        try {
+            Position pos = subContext.getDispatcher().getCursor().getMarkDeletedPosition();
+            if (pos != null) {
+                Position current = subContext.getMarkDeletePosition();
+                if (current == null || pos.compareTo(current) > 0) {
+                    subContext.updateMarkDeletePosition(pos);
+                }
+            }
+        } catch (Throwable t) {
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to refresh mark-delete position for subscription {}",
+                        subContext.getSubscriptionName(), t);
             }
         }
     }
