@@ -46,6 +46,31 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     // Cache of topic-level managers: topic name -> manager instance
     private final ConcurrentMap<String, TopicDelayedDeliveryTrackerManager> topicManagers = new ConcurrentHashMap<>();
 
+    public InMemoryDelayedDeliveryTrackerFactory() {
+
+    }
+
+    // Testing-friendly constructor and accessors
+    @VisibleForTesting
+    InMemoryDelayedDeliveryTrackerFactory(Timer timer, long tickTimeMillis,
+                                          boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                          long fixedDelayDetectionLookahead) {
+        this.timer = timer;
+        this.tickTimeMillis = tickTimeMillis;
+        this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
+        this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
+    }
+
+    @VisibleForTesting
+    int getCachedManagersSize() {
+        return topicManagers.size();
+    }
+
+    @VisibleForTesting
+    boolean hasManagerForTopic(String topicName) {
+        return topicManagers.containsKey(topicName);
+    }
+
     @Override
     public void initialize(PulsarService pulsarService) {
         ServiceConfiguration config = pulsarService.getConfig();
