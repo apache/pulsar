@@ -33,7 +33,7 @@ public class InMemoryTopicDelayedDeliveryTrackerView implements DelayedDeliveryT
 
     private final InMemoryTopicDelayedDeliveryTrackerManager manager;
     private final InMemoryTopicDelayedDeliveryTrackerManager.SubContext subContext;
-    private boolean closed = false;
+    private volatile boolean closed = false;
 
     public InMemoryTopicDelayedDeliveryTrackerView(InMemoryTopicDelayedDeliveryTrackerManager manager,
                                                    InMemoryTopicDelayedDeliveryTrackerManager.SubContext subContext) {

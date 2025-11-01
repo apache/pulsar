@@ -83,7 +83,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     private final long minPruneIntervalNanos;
 
     // Fixed-delay detection (parity with legacy behavior)
-    private volatile long highestDeliveryTimeTracked = 0;
+    private final AtomicLong highestDeliveryTimeTracked = new AtomicLong(0);
     private volatile boolean messagesHaveFixedDelay = true;
 
     // Per-bucket locks (timestamp -> lock) for fine-grained concurrency
@@ -302,10 +302,13 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     }
 
     private void checkAndUpdateHighest(long deliverAt) {
-        if (deliverAt < (highestDeliveryTimeTracked - tickTimeMillis)) {
-            messagesHaveFixedDelay = false;
-        }
-        highestDeliveryTimeTracked = Math.max(highestDeliveryTimeTracked, deliverAt);
+        long current;
+        do {
+            current = highestDeliveryTimeTracked.get();
+            if (deliverAt < (current - tickTimeMillis)) {
+                messagesHaveFixedDelay = false;
+            }
+        } while (deliverAt > current && !highestDeliveryTimeTracked.compareAndSet(current, deliverAt));
     }
 
     /**
