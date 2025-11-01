@@ -21,14 +21,16 @@ package org.apache.pulsar.broker.delayed;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import java.time.Clock;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
@@ -45,11 +47,13 @@ import org.roaringbitmap.longlong.Roaring64Bitmap;
 public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedDeliveryTrackerManager, TimerTask {
 
     // Global delayed message index: timestamp -> ledgerId -> entryId bitmap
-    private final Long2ObjectSortedMap<Long2ObjectSortedMap<Roaring64Bitmap>> delayedMessageMap =
-            new Long2ObjectRBTreeMap<>();
+    // Outer: sorted by timestamp for efficient finding of earliest bucket
+    // Inner: per-ledger bitmaps of entry-ids
+    private final ConcurrentSkipListMap<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> delayedMessageMap =
+            new ConcurrentSkipListMap<>();
 
     // Subscription registry: subscription name -> subscription context
-    private final Map<String, SubContext> subscriptionContexts = new HashMap<>();
+    private final ConcurrentHashMap<String, SubContext> subscriptionContexts = new ConcurrentHashMap<>();
 
     // Timer for delayed delivery
     private final Timer timer;
@@ -69,11 +73,18 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     private final AtomicLong bufferMemoryBytes = new AtomicLong(0);
 
     // Fixed-delay detection (parity with legacy behavior)
-    private long highestDeliveryTimeTracked = 0;
-    private boolean messagesHaveFixedDelay = true;
+    private volatile long highestDeliveryTimeTracked = 0;
+    private volatile boolean messagesHaveFixedDelay = true;
 
     // Timestamp precision for memory optimization
     private int timestampPrecisionBitCnt;
+
+    // Per-bucket locks (timestamp -> lock) for fine-grained concurrency
+    private final ConcurrentHashMap<Long, ReentrantLock> bucketLocks = new ConcurrentHashMap<>();
+
+    // Timer state guard
+    private final ReentrantLock timerLock = new ReentrantLock();
+
 
     /**
      * Subscription context that holds per-subscription state.
@@ -109,22 +120,32 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         }
     }
 
+    private final Runnable onEmptyCallback;
+
     public InMemoryTopicDelayedDeliveryTrackerManager(Timer timer, long tickTimeMillis,
                                                       boolean isDelayedDeliveryDeliverAtTimeStrict,
                                                       long fixedDelayDetectionLookahead) {
         this(timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
-             fixedDelayDetectionLookahead);
+             fixedDelayDetectionLookahead, null);
     }
 
     public InMemoryTopicDelayedDeliveryTrackerManager(Timer timer, long tickTimeMillis, Clock clock,
                                                       boolean isDelayedDeliveryDeliverAtTimeStrict,
                                                       long fixedDelayDetectionLookahead) {
+        this(timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead, null);
+    }
+
+    public InMemoryTopicDelayedDeliveryTrackerManager(Timer timer, long tickTimeMillis, Clock clock,
+                                                      boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                                      long fixedDelayDetectionLookahead,
+                                                      Runnable onEmptyCallback) {
         this.timer = timer;
         this.tickTimeMillis = tickTimeMillis;
         this.clock = clock;
         this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
         this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(tickTimeMillis);
+        this.onEmptyCallback = onEmptyCallback;
     }
 
     private static int calculateTimestampPrecisionBitCnt(long tickTimeMillis) {
@@ -144,50 +165,66 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     public DelayedDeliveryTracker createOrGetView(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String subscriptionName = dispatcher.getSubscription().getName();
 
-        synchronized (this) {
-            SubContext subContext = subscriptionContexts.computeIfAbsent(subscriptionName,
+        SubContext subContext = subscriptionContexts.computeIfAbsent(subscriptionName,
                 k -> new SubContext(dispatcher, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
-                                   fixedDelayDetectionLookahead, clock));
-
-            return new InMemoryTopicDelayedDeliveryTrackerView(this, subContext);
-        }
+                        fixedDelayDetectionLookahead, clock));
+        return new InMemoryTopicDelayedDeliveryTrackerView(this, subContext);
     }
 
     @Override
     public void unregister(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String subscriptionName = dispatcher.getSubscription().getName();
 
-        synchronized (this) {
-            subscriptionContexts.remove(subscriptionName);
-            // If no more subscriptions, proactively free index and close the manager to release memory
-            if (subscriptionContexts.isEmpty()) {
-                delayedMessageMap.clear();
-                delayedMessagesCount.set(0);
-                bufferMemoryBytes.set(0);
-                close();
+        subscriptionContexts.remove(subscriptionName);
+        // If no more subscriptions, proactively free index and release memory
+        if (subscriptionContexts.isEmpty()) {
+            timerLock.lock();
+            try {
+                if (timeout != null) {
+                    timeout.cancel();
+                    timeout = null;
+                }
+                currentTimeoutTarget = -1;
+            } finally {
+                timerLock.unlock();
+            }
+            delayedMessageMap.clear();
+            bucketLocks.clear();
+            delayedMessagesCount.set(0);
+            bufferMemoryBytes.set(0);
+            if (onEmptyCallback != null) {
+                try {
+                    onEmptyCallback.run();
+                } catch (Throwable t) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("onEmptyCallback failed", t);
+                    }
+                }
             }
         }
     }
 
     @Override
     public void onTickTimeUpdated(long newTickTimeMillis) {
-        synchronized (this) {
-            if (this.tickTimeMillis == newTickTimeMillis) {
-                return;
-            }
-            this.tickTimeMillis = newTickTimeMillis;
-            // Update precision bits for new tick time (accept old/new buckets co-exist)
-            this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(newTickTimeMillis);
-            // Propagate to all subscriptions
-            for (SubContext sc : subscriptionContexts.values()) {
-                sc.tickTimeMillis = newTickTimeMillis;
-            }
-            // Re-evaluate timer scheduling with new tick time
-            updateTimer();
-            if (log.isDebugEnabled()) {
-                log.debug("Updated tickTimeMillis for topic-level delayed delivery manager to {} ms",
-                        newTickTimeMillis);
-            }
+        if (this.tickTimeMillis == newTickTimeMillis) {
+            return;
+        }
+        this.tickTimeMillis = newTickTimeMillis;
+        // Update precision bits for new tick time (accept old/new buckets co-exist)
+        this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(newTickTimeMillis);
+        // Propagate to all subscriptions
+        for (SubContext sc : subscriptionContexts.values()) {
+            sc.tickTimeMillis = newTickTimeMillis;
+        }
+        // Re-evaluate timer scheduling with new tick time
+        timerLock.lock();
+        try {
+            updateTimerLocked();
+        } finally {
+            timerLock.unlock();
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("Updated tickTimeMillis for topic-level delayed delivery manager to {} ms", newTickTimeMillis);
         }
     }
 
@@ -203,16 +240,21 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
 
     @Override
     public void close() {
-        synchronized (this) {
+        timerLock.lock();
+        try {
             if (timeout != null) {
                 timeout.cancel();
                 timeout = null;
             }
-            delayedMessageMap.clear();
-            subscriptionContexts.clear();
-            delayedMessagesCount.set(0);
-            bufferMemoryBytes.set(0);
+            currentTimeoutTarget = -1;
+        } finally {
+            timerLock.unlock();
         }
+        delayedMessageMap.clear();
+        bucketLocks.clear();
+        subscriptionContexts.clear();
+        delayedMessagesCount.set(0);
+        bufferMemoryBytes.set(0);
     }
 
     // Internal methods for subscription views
@@ -221,31 +263,37 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
      * Add a message to the global delayed message index.
      */
     boolean addMessageForSub(SubContext subContext, long ledgerId, long entryId, long deliverAt) {
-        synchronized (this) {
-            if (deliverAt < 0 || deliverAt <= subContext.getCutoffTime()) {
-                return false;
-            }
+        if (deliverAt < 0 || deliverAt <= subContext.getCutoffTime()) {
+            return false;
+        }
 
-            long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
-            Long2ObjectSortedMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.computeIfAbsent(
-                timestamp, k -> new Long2ObjectRBTreeMap<>());
+        long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
+        ReentrantLock bLock = bucketLocks.computeIfAbsent(timestamp, k -> new ReentrantLock());
+        bLock.lock();
+        try {
+            ConcurrentHashMap<Long, Roaring64Bitmap> ledgerMap =
+                    delayedMessageMap.computeIfAbsent(timestamp, k -> new ConcurrentHashMap<>());
             Roaring64Bitmap entryIds = ledgerMap.computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
-
-            // Incremental memory accounting: measure size delta on change
             long before = entryIds.getLongSizeInBytes();
-            boolean existed = entryIds.contains(entryId);
-            if (!existed) {
+            if (!entryIds.contains(entryId)) {
                 entryIds.add(entryId);
                 delayedMessagesCount.incrementAndGet();
                 long after = entryIds.getLongSizeInBytes();
                 bufferMemoryBytes.addAndGet(after - before);
             }
-
-            updateTimer();
-            // Update global fixed-delay detection
-            checkAndUpdateHighest(deliverAt);
-            return true;
+        } finally {
+            bLock.unlock();
         }
+
+        // Timer update and fixed delay detection
+        timerLock.lock();
+        try {
+            updateTimerLocked();
+        } finally {
+            timerLock.unlock();
+        }
+        checkAndUpdateHighest(deliverAt);
+        return true;
     }
 
     private void checkAndUpdateHighest(long deliverAt) {
@@ -259,104 +307,76 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
      * Check if there are messages available for a subscription.
      */
     boolean hasMessageAvailableForSub(SubContext subContext) {
-        synchronized (this) {
-            refreshMarkDeletePosition(subContext);
-            if (delayedMessageMap.isEmpty()) {
-                return false;
-            }
-
-            long cutoffTime = subContext.getCutoffTime();
-            long firstTimestamp = delayedMessageMap.firstLongKey();
-
-            if (firstTimestamp > cutoffTime) {
-                return false;
-            }
-
-            // Quick check: if there's any message in the earliest time bucket that's after mark delete
-            Long2ObjectSortedMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(firstTimestamp);
-            if (ledgerMap != null) {
-                Position markDelete = subContext.getMarkDeletePosition();
-                if (markDelete == null) {
-                    return true; // No mark delete means all messages are available
-                }
-
-                for (var entry : ledgerMap.long2ObjectEntrySet()) {
-                    long ledgerId = entry.getLongKey();
-                    Roaring64Bitmap entryIds = entry.getValue();
-
-                    if (ledgerId > markDelete.getLedgerId()) {
-                        return true;
-                    } else if (ledgerId == markDelete.getLedgerId()) {
-                        // Check if there are any entry IDs after mark delete
-                        if (entryIds.stream().anyMatch(entryId -> entryId > markDelete.getEntryId())) {
-                            return true;
-                        }
-                    }
-                }
-            }
-
+        if (delayedMessageMap.isEmpty()) {
             return false;
         }
+        Long firstKey = delayedMessageMap.firstKey();
+        if (firstKey == null) {
+            return false;
+        }
+        long cutoffTime = subContext.getCutoffTime();
+        return firstKey <= cutoffTime;
     }
 
     /**
      * Get scheduled messages for a subscription.
      */
     NavigableSet<Position> getScheduledMessagesForSub(SubContext subContext, int maxMessages) {
-        synchronized (this) {
-            refreshMarkDeletePosition(subContext);
-            int remaining = maxMessages;
-            NavigableSet<Position> positions = new TreeSet<>();
-            long cutoffTime = subContext.getCutoffTime();
-            Position markDelete = subContext.getMarkDeletePosition();
+        NavigableSet<Position> positions = new TreeSet<>();
+        int remaining = maxMessages;
 
-            // Iterate through time buckets
-            var iterator = delayedMessageMap.long2ObjectEntrySet().iterator();
-            while (iterator.hasNext() && remaining > 0) {
-                var timeEntry = iterator.next();
-                long timestamp = timeEntry.getLongKey();
+        // Refresh mark-delete once outside of any bucket lock
+        refreshMarkDeletePosition(subContext);
+        long cutoffTime = subContext.getCutoffTime();
+        Position markDelete = subContext.getMarkDeletePosition();
 
-                if (timestamp > cutoffTime) {
-                    break;
+        // Snapshot of buckets up to cutoff and iterate per-bucket with bucket locks
+        java.util.List<Long> tsList = new java.util.ArrayList<>(delayedMessageMap.headMap(cutoffTime, true).keySet());
+        for (Long ts : tsList) {
+            if (remaining <= 0) {
+                break;
+            }
+            ReentrantLock bLock = bucketLocks.get(ts);
+            if (bLock == null) {
+                continue;
+            }
+            bLock.lock();
+            try {
+                ConcurrentHashMap<Long, Roaring64Bitmap> ledgerMap = delayedMessageMap.get(ts);
+                if (ledgerMap == null) {
+                    continue;
                 }
-
-                Long2ObjectSortedMap<Roaring64Bitmap> ledgerMap = timeEntry.getValue();
-
-                // Iterate through ledgers in this time bucket
-                var ledgerIterator = ledgerMap.long2ObjectEntrySet().iterator();
-                while (ledgerIterator.hasNext() && remaining > 0) {
-                    var ledgerEntry = ledgerIterator.next();
-                    long ledgerId = ledgerEntry.getLongKey();
+                for (Map.Entry<Long, Roaring64Bitmap> ledgerEntry : ledgerMap.entrySet()) {
+                    if (remaining <= 0) {
+                        break;
+                    }
+                    long ledgerId = ledgerEntry.getKey();
                     Roaring64Bitmap entryIds = ledgerEntry.getValue();
-
-                    // Fast skip if entire ledger is before mark-delete
                     if (markDelete != null && ledgerId < markDelete.getLedgerId()) {
                         continue;
                     }
-
-                    // Iterate over entry ids without materializing array
-                    var it = entryIds.iterator();
+                    org.roaringbitmap.longlong.LongIterator it = entryIds.getLongIterator();
                     while (it.hasNext() && remaining > 0) {
                         long entryId = it.next();
-
-                        // Skip entries that are before or at mark delete
-                        if (markDelete != null) {
-                            if (ledgerId == markDelete.getLedgerId() && entryId <= markDelete.getEntryId()) {
-                                continue;
-                            }
+                        if (markDelete != null && ledgerId == markDelete.getLedgerId()
+                                && entryId <= markDelete.getEntryId()) {
+                            continue;
                         }
-
                         positions.add(PositionFactory.create(ledgerId, entryId));
                         remaining--;
                     }
                 }
+            } finally {
+                bLock.unlock();
             }
-
-            // Prune global index based on min mark-delete across all subscriptions
-            pruneByMinMarkDelete();
-
-            return positions;
         }
+
+        // Prune global index based on min mark-delete across all subscriptions (write path)
+        if (!positions.isEmpty()) {
+            pruneByMinMarkDelete();
+        }
+
+        return positions;
     }
 
     /**
@@ -381,16 +401,13 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
      * Update mark delete position for a subscription.
      */
     void updateMarkDeletePosition(SubContext subContext, Position position) {
-        synchronized (this) {
-            subContext.updateMarkDeletePosition(position);
-            // Trigger pruning if needed
-            pruneByMinMarkDelete();
-        }
+        subContext.updateMarkDeletePosition(position);
+        pruneByMinMarkDelete();
     }
 
     // Private helper methods
 
-    private void updateTimer() {
+    private void updateTimerLocked() {
         if (delayedMessageMap.isEmpty()) {
             if (timeout != null) {
                 currentTimeoutTarget = -1;
@@ -399,30 +416,26 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
             return;
         }
-
-        long nextDeliveryTime = delayedMessageMap.firstLongKey();
+        Long nextKey = delayedMessageMap.firstKey();
+        if (nextKey == null) {
+            return;
+        }
+        long nextDeliveryTime = nextKey;
         if (nextDeliveryTime == currentTimeoutTarget) {
             return;
         }
-
         if (timeout != null) {
             timeout.cancel();
         }
-
         long now = clock.millis();
         long delayMillis = nextDeliveryTime - now;
-
         if (delayMillis < 0) {
-            // Messages are ready; avoid retriggering timer, dispatcher will pick them on next read
             return;
         }
-
-        // Align with tick window like AbstractDelayedDeliveryTracker
         long remainingTickDelayMillis = lastTickRun + tickTimeMillis - now;
         long calculatedDelayMillis = Math.max(delayMillis, remainingTickDelayMillis);
-
         currentTimeoutTarget = nextDeliveryTime;
-        timeout = timer.newTimeout(this, calculatedDelayMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
+        timeout = timer.newTimeout(this, calculatedDelayMillis, TimeUnit.MILLISECONDS);
     }
 
     private void updateBufferMemoryEstimate() {
@@ -451,53 +464,66 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             return;
         }
 
-        // Prune entries that are before min mark delete
-        var iterator = delayedMessageMap.long2ObjectEntrySet().iterator();
-        while (iterator.hasNext()) {
-            var timeEntry = iterator.next();
-            Long2ObjectSortedMap<Roaring64Bitmap> ledgerMap = timeEntry.getValue();
+        // No idempotency set to clean (Option A): rely on per-bitmap removal below
 
-            var ledgerIterator = ledgerMap.long2ObjectEntrySet().iterator();
-            while (ledgerIterator.hasNext()) {
-                var ledgerEntry = ledgerIterator.next();
-                long ledgerId = ledgerEntry.getLongKey();
-                Roaring64Bitmap entryIds = ledgerEntry.getValue();
-
-                if (ledgerId < minMarkDelete.getLedgerId()) {
-                    // Entire ledger can be removed
-                    long bytes = entryIds.getLongSizeInBytes();
-                    delayedMessagesCount.addAndGet(-entryIds.getLongCardinality());
-                    bufferMemoryBytes.addAndGet(-bytes);
-                    ledgerIterator.remove();
-                } else if (ledgerId == minMarkDelete.getLedgerId()) {
-                    // Remove entries <= mark delete entry ID
-                    long removedCount = 0;
-                    long before = entryIds.getLongSizeInBytes();
-                    var entryIterator = entryIds.iterator();
-                    while (entryIterator.hasNext()) {
-                        long entryId = entryIterator.next();
-                        if (entryId <= minMarkDelete.getEntryId()) {
-                            entryIterator.remove();
+        // Prune per bucket under bucket lock
+        for (Long ts : new ArrayList<>(delayedMessageMap.keySet())) {
+            ReentrantLock bLock = bucketLocks.get(ts);
+            if (bLock == null) {
+                continue;
+            }
+            bLock.lock();
+            try {
+                ConcurrentHashMap<Long, Roaring64Bitmap> ledgerMap = delayedMessageMap.get(ts);
+                if (ledgerMap == null) {
+                    continue;
+                }
+                ArrayList<Long> ledgersToRemove = new ArrayList<>();
+                for (Map.Entry<Long, Roaring64Bitmap> ledgerEntry : ledgerMap.entrySet()) {
+                    long ledgerId = ledgerEntry.getKey();
+                    Roaring64Bitmap entryIds = ledgerEntry.getValue();
+                    if (ledgerId < minMarkDelete.getLedgerId()) {
+                        long bytes = entryIds.getLongSizeInBytes();
+                        delayedMessagesCount.addAndGet(-entryIds.getLongCardinality());
+                        bufferMemoryBytes.addAndGet(-bytes);
+                        ledgersToRemove.add(ledgerId);
+                    } else if (ledgerId == minMarkDelete.getLedgerId()) {
+                        long before = entryIds.getLongSizeInBytes();
+                        long removedCount = 0;
+                        org.roaringbitmap.longlong.LongIterator it = entryIds.getLongIterator();
+                        java.util.ArrayList<Long> toRemove = new java.util.ArrayList<>();
+                        while (it.hasNext()) {
+                            long e = it.next();
+                            if (e <= minMarkDelete.getEntryId()) {
+                                toRemove.add(e);
+                            }
+                        }
+                        for (Long e : toRemove) {
+                            entryIds.removeLong(e);
                             removedCount++;
                         }
-                    }
-                    long after = entryIds.getLongSizeInBytes();
-                    delayedMessagesCount.addAndGet(-removedCount);
-                    bufferMemoryBytes.addAndGet(after - before);
-
-                    if (entryIds.isEmpty()) {
-                        ledgerIterator.remove();
+                        long after = entryIds.getLongSizeInBytes();
+                        delayedMessagesCount.addAndGet(-removedCount);
+                        bufferMemoryBytes.addAndGet(after - before);
+                        if (entryIds.isEmpty()) {
+                            ledgersToRemove.add(ledgerId);
+                        }
                     }
                 }
-            }
-
-            if (ledgerMap.isEmpty()) {
-                iterator.remove();
+                for (Long ledgerId : ledgersToRemove) {
+                    ledgerMap.remove(ledgerId);
+                }
+                if (ledgerMap.isEmpty()) {
+                    delayedMessageMap.remove(ts);
+                    bucketLocks.remove(ts);
+                }
+            } finally {
+                bLock.unlock();
             }
         }
-
-        updateBufferMemoryEstimate();
     }
+
+    // idempotency set removed per Option A
 
     @Override
     public void run(Timeout timeout) throws Exception {
@@ -505,20 +531,28 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             return;
         }
 
-        java.util.ArrayList<AbstractPersistentDispatcherMultipleConsumers> toTrigger = new java.util.ArrayList<>();
-        synchronized (this) {
+        // Clear timer state
+        timerLock.lock();
+        try {
             currentTimeoutTarget = -1;
             this.timeout = null;
             lastTickRun = clock.millis();
+        } finally {
+            timerLock.unlock();
+        }
 
-            // Decide which dispatchers to trigger while holding the lock
+        ArrayList<AbstractPersistentDispatcherMultipleConsumers> toTrigger = new ArrayList<>();
+        Long earliestTs = delayedMessageMap.firstKey();
+        if (earliestTs != null) {
             for (SubContext subContext : subscriptionContexts.values()) {
-                if (hasMessageAvailableForSub(subContext)) {
+                long cutoff = subContext.getCutoffTime();
+                if (earliestTs <= cutoff) {
                     toTrigger.add(subContext.getDispatcher());
                 }
             }
         }
-        // Invoke callbacks outside the manager lock to reduce contention
+
+        // Invoke callbacks outside of locks
         for (AbstractPersistentDispatcherMultipleConsumers d : toTrigger) {
             d.readMoreEntriesAsync();
         }

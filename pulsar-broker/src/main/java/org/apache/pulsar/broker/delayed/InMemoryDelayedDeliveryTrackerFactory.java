@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Clock;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -74,10 +75,15 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     DelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String topicName = dispatcher.getTopic().getName();
 
-        // Get or create topic-level manager for this topic
-        TopicDelayedDeliveryTrackerManager manager = topicManagers.computeIfAbsent(topicName,
-            k -> new InMemoryTopicDelayedDeliveryTrackerManager(timer, tickTimeMillis,
-                    isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead));
+        // Get or create topic-level manager for this topic with onEmpty callback to remove from cache
+        final TopicDelayedDeliveryTrackerManager[] holder = new TopicDelayedDeliveryTrackerManager[1];
+        TopicDelayedDeliveryTrackerManager manager = topicManagers.computeIfAbsent(topicName, k -> {
+            InMemoryTopicDelayedDeliveryTrackerManager m = new InMemoryTopicDelayedDeliveryTrackerManager(
+                    timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
+                    fixedDelayDetectionLookahead, () -> topicManagers.remove(topicName, holder[0]));
+            holder[0] = m;
+            return m;
+        });
 
         // Create a per-subscription view from the topic-level manager
         return manager.createOrGetView(dispatcher);
