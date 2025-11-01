@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.delayed;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +53,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     // Global delayed message index: timestamp -> ledgerId -> entryId bitmap
     // Outer: sorted by timestamp for efficient finding of earliest bucket
     // Inner: per-ledger bitmaps of entry-ids
-    private final ConcurrentSkipListMap<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> delayedMessageMap =
+    private final ConcurrentSkipListMap<Long, Long2ObjectRBTreeMap<Roaring64Bitmap>> delayedMessageMap =
             new ConcurrentSkipListMap<>();
 
     // Subscription registry: subscription name -> subscription context
@@ -103,11 +105,11 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     static class SubContext {
         private final AbstractPersistentDispatcherMultipleConsumers dispatcher;
         private final String subscriptionName;
-        private long tickTimeMillis;
+        private volatile long tickTimeMillis;
         private final boolean isDelayedDeliveryDeliverAtTimeStrict;
         private final long fixedDelayDetectionLookahead;
         private final Clock clock;
-        private Position markDeletePosition;
+        private volatile Position markDeletePosition;
 
         SubContext(AbstractPersistentDispatcherMultipleConsumers dispatcher, long tickTimeMillis,
                    boolean isDelayedDeliveryDeliverAtTimeStrict, long fixedDelayDetectionLookahead,
@@ -285,9 +287,13 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         ReentrantLock bLock = bucketLocks.computeIfAbsent(timestamp, k -> new ReentrantLock());
         bLock.lock();
         try {
-            ConcurrentHashMap<Long, Roaring64Bitmap> ledgerMap =
-                    delayedMessageMap.computeIfAbsent(timestamp, k -> new ConcurrentHashMap<>());
-            Roaring64Bitmap entryIds = ledgerMap.computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
+            Long2ObjectRBTreeMap<Roaring64Bitmap> ledgerMap =
+                    delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>());
+            Roaring64Bitmap entryIds = ledgerMap.get(ledgerId);
+            if (entryIds == null) {
+                entryIds = new Roaring64Bitmap();
+                ledgerMap.put(ledgerId, entryIds);
+            }
             long before = entryIds.getLongSizeInBytes();
             if (!entryIds.contains(entryId)) {
                 entryIds.add(entryId);
@@ -325,7 +331,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             return false;
         }
         // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
-        Map.Entry<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
+        Map.Entry<Long, Long2ObjectRBTreeMap<Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
         if (first == null) {
             return false;
         }
@@ -358,15 +364,15 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
             bLock.lock();
             try {
-                ConcurrentHashMap<Long, Roaring64Bitmap> ledgerMap = delayedMessageMap.get(ts);
+                Long2ObjectRBTreeMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(ts);
                 if (ledgerMap == null) {
                     continue;
                 }
-                for (Map.Entry<Long, Roaring64Bitmap> ledgerEntry : ledgerMap.entrySet()) {
+                for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
                     if (remaining <= 0) {
                         break;
                     }
-                    long ledgerId = ledgerEntry.getKey();
+                    long ledgerId = ledgerEntry.getLongKey();
                     Roaring64Bitmap entryIds = ledgerEntry.getValue();
                     if (markDelete != null && ledgerId < markDelete.getLedgerId()) {
                         continue;
@@ -425,7 +431,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
 
     private void updateTimerLocked() {
         // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
-        Map.Entry<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
+        Map.Entry<Long, Long2ObjectRBTreeMap<Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
         if (first == null) {
             if (timeout != null) {
                 currentTimeoutTarget = -1;
@@ -488,13 +494,13 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
             bLock.lock();
             try {
-                ConcurrentHashMap<Long, Roaring64Bitmap> ledgerMap = delayedMessageMap.get(ts);
+                Long2ObjectRBTreeMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(ts);
                 if (ledgerMap == null) {
                     continue;
                 }
                 ArrayList<Long> ledgersToRemove = new ArrayList<>();
-                for (Map.Entry<Long, Roaring64Bitmap> ledgerEntry : ledgerMap.entrySet()) {
-                    long ledgerId = ledgerEntry.getKey();
+                for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
+                    long ledgerId = ledgerEntry.getLongKey();
                     Roaring64Bitmap entryIds = ledgerEntry.getValue();
                     if (ledgerId < minMarkDelete.getLedgerId()) {
                         long bytes = entryIds.getLongSizeInBytes();
@@ -567,7 +573,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
 
         ArrayList<AbstractPersistentDispatcherMultipleConsumers> toTrigger = new ArrayList<>();
         // Use firstEntry() to avoid NoSuchElementException on concurrent empty map
-        Map.Entry<Long, ConcurrentHashMap<Long, Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
+        Map.Entry<Long, Long2ObjectRBTreeMap<Roaring64Bitmap>> first = delayedMessageMap.firstEntry();
         if (first != null) {
             long earliestTs = first.getKey();
             for (SubContext subContext : subscriptionContexts.values()) {
@@ -575,6 +581,16 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                 if (earliestTs <= cutoff) {
                     toTrigger.add(subContext.getDispatcher());
                 }
+            }
+
+            // If a significant portion of subscriptions are eligible, opportunistically prune (throttled)
+            int subs = subscriptionContexts.size();
+            int eligible = toTrigger.size();
+            // majority by default
+            int threshold = Math.max(1, subs / 2);
+            if (eligible >= threshold) {
+                // Not under timerLock or any bucket lock; prune uses per-bucket locks and is safe here
+                maybePruneByTime();
             }
         }
 
