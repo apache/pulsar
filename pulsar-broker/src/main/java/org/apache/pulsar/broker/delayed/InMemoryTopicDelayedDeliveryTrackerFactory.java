@@ -22,6 +22,9 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Clock;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -29,8 +32,9 @@ import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherM
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
-    private static final Logger log = LoggerFactory.getLogger(InMemoryDelayedDeliveryTrackerFactory.class);
+public class InMemoryTopicDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
+
+    private static final Logger log = LoggerFactory.getLogger(InMemoryTopicDelayedDeliveryTrackerFactory.class);
 
     private Timer timer;
 
@@ -39,6 +43,34 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     private boolean isDelayedDeliveryDeliverAtTimeStrict;
 
     private long fixedDelayDetectionLookahead;
+
+    // Cache of topic-level managers: topic name -> manager instance
+    private final ConcurrentMap<String, TopicDelayedDeliveryTrackerManager> topicManagers = new ConcurrentHashMap<>();
+
+    public InMemoryTopicDelayedDeliveryTrackerFactory() {
+
+    }
+
+    // Testing-friendly constructor and accessors
+    @VisibleForTesting
+    InMemoryTopicDelayedDeliveryTrackerFactory(Timer timer, long tickTimeMillis,
+                                          boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                          long fixedDelayDetectionLookahead) {
+        this.timer = timer;
+        this.tickTimeMillis = tickTimeMillis;
+        this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
+        this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
+    }
+
+    @VisibleForTesting
+    int getCachedManagersSize() {
+        return topicManagers.size();
+    }
+
+    @VisibleForTesting
+    boolean hasManagerForTopic(String topicName) {
+        return topicManagers.containsKey(topicName);
+    }
 
     @Override
     public void initialize(PulsarService pulsarService) {
@@ -66,16 +98,38 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     }
 
     @VisibleForTesting
-    InMemoryDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+    DelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        String topicName = dispatcher.getTopic().getName();
+
+        // Get or create topic-level manager for this topic with onEmpty callback to remove from cache
+        final TopicDelayedDeliveryTrackerManager[] holder = new TopicDelayedDeliveryTrackerManager[1];
+        TopicDelayedDeliveryTrackerManager manager = topicManagers.computeIfAbsent(topicName, k -> {
+            InMemoryTopicDelayedDeliveryTrackerManager m = new InMemoryTopicDelayedDeliveryTrackerManager(
+                    timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
+                    fixedDelayDetectionLookahead, () -> topicManagers.remove(topicName, holder[0]));
+            holder[0] = m;
+            return m;
+        });
+
+        // Create a per-subscription view from the topic-level manager
+        return manager.createOrGetView(dispatcher);
     }
 
     @Override
     public void close() {
+        // Close all topic-level managers
+        for (TopicDelayedDeliveryTrackerManager manager : topicManagers.values()) {
+            try {
+                manager.close();
+            } catch (Exception e) {
+                log.warn("Failed to close topic-level delayed delivery manager", e);
+            }
+        }
+        topicManagers.clear();
+
         if (timer != null) {
             timer.stop();
         }
     }
-
 }
+

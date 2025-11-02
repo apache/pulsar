@@ -370,7 +370,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = """
             Class name of the factory that implements the delayed deliver tracker.
             If value is "org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory", \
-            will create bucket based delayed message index tracker.
+            will create bucket based delayed message index tracker.\n
+            If value is "org.apache.pulsar.broker.delayed.InMemoryTopicDelayedDeliveryTrackerFactory", \
+            will create topic-level in-memory delayed message index tracker.\n
+            If value is "org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory", \
+            will create in-memory delayed delivery tracker (per existing implementation).
             """)
     private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed"
             + ".InMemoryDelayedDeliveryTrackerFactory";

@@ -29,10 +29,9 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class InMemoryDelayedDeliveryTrackerFactoryUnitTest {
+public class InMemoryTopicDelayedDeliveryTrackerFactoryTest {
 
-    private static AbstractPersistentDispatcherMultipleConsumers mockDispatcher(String topicName, String subName)
-            throws Exception {
+    private static AbstractPersistentDispatcherMultipleConsumers mockDispatcher(String topicName, String subName) {
         AbstractPersistentDispatcherMultipleConsumers dispatcher =
                 mock(AbstractPersistentDispatcherMultipleConsumers.class);
         PersistentTopic topic = mock(PersistentTopic.class);
@@ -47,8 +46,8 @@ public class InMemoryDelayedDeliveryTrackerFactoryUnitTest {
     @Test
     public void testManagersSharedPerTopicAndIndependentAcrossTopics() throws Exception {
         Timer timer = mock(Timer.class);
-        InMemoryDelayedDeliveryTrackerFactory f =
-                new InMemoryDelayedDeliveryTrackerFactory(timer, 100, true, 0);
+        InMemoryTopicDelayedDeliveryTrackerFactory f =
+                new InMemoryTopicDelayedDeliveryTrackerFactory(timer, 100, true, 0);
 
         AbstractPersistentDispatcherMultipleConsumers dA1 = mockDispatcher("persistent://ns/topicA", "sub1");
         AbstractPersistentDispatcherMultipleConsumers dA2 = mockDispatcher("persistent://ns/topicA", "sub2");
@@ -75,8 +74,8 @@ public class InMemoryDelayedDeliveryTrackerFactoryUnitTest {
     @Test
     public void testOnEmptyCallbackRemovesManagerFromCache() throws Exception {
         Timer timer = mock(Timer.class);
-        InMemoryDelayedDeliveryTrackerFactory f =
-                new InMemoryDelayedDeliveryTrackerFactory(timer, 100, true, 0);
+        InMemoryTopicDelayedDeliveryTrackerFactory f =
+                new InMemoryTopicDelayedDeliveryTrackerFactory(timer, 100, true, 0);
 
         AbstractPersistentDispatcherMultipleConsumers dA1 = mockDispatcher("persistent://ns/topicA", "sub1");
         AbstractPersistentDispatcherMultipleConsumers dA2 = mockDispatcher("persistent://ns/topicA", "sub2");
@@ -94,8 +93,8 @@ public class InMemoryDelayedDeliveryTrackerFactoryUnitTest {
     @Test
     public void testFactoryCloseClosesManagersAndStopsTimer() throws Exception {
         Timer timer = mock(Timer.class);
-        InMemoryDelayedDeliveryTrackerFactory f =
-                new InMemoryDelayedDeliveryTrackerFactory(timer, 100, true, 0);
+        InMemoryTopicDelayedDeliveryTrackerFactory f =
+                new InMemoryTopicDelayedDeliveryTrackerFactory(timer, 100, true, 0);
 
         AbstractPersistentDispatcherMultipleConsumers dA1 = mockDispatcher("persistent://ns/topicA", "sub1");
         AbstractPersistentDispatcherMultipleConsumers dB1 = mockDispatcher("persistent://ns/topicB", "sub1");
