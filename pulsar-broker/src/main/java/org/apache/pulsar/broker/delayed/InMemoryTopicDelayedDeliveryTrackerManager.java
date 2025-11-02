@@ -108,6 +108,18 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         private final Clock clock;
         private volatile Position markDeletePosition;
 
+        /**
+         * Constructs a new SubContext for a subscription.
+         *
+         * @param dispatcher the dispatcher associated with the subscription
+         * @param tickTimeMillis the tick interval in milliseconds for delayed delivery checks
+         * @param isDelayedDeliveryDeliverAtTimeStrict if true, delayed messages are delivered strictly at their
+         *                                            scheduled time; if false, messages may be delivered in the next
+         *                                            tick window
+         * @param fixedDelayDetectionLookahead the lookahead window (in milliseconds) used for
+         *                                    detecting fixed-delay messages
+         * @param clock the clock instance used for time calculations
+         */
         SubContext(AbstractPersistentDispatcherMultipleConsumers dispatcher, long tickTimeMillis,
                    boolean isDelayedDeliveryDeliverAtTimeStrict, long fixedDelayDetectionLookahead,
                    Clock clock) {

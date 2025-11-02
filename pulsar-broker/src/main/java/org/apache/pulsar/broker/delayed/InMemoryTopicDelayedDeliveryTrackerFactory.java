@@ -97,7 +97,7 @@ public class InMemoryTopicDelayedDeliveryTrackerFactory implements DelayedDelive
             tracker = newTracker0(dispatcher);
         } catch (Exception e) {
             // it should never go here
-            log.warn("Failed to create InMemoryDelayedDeliveryTracker, topic {}, subscription {}",
+            log.warn("Failed to create InMemoryTopicDelayedDeliveryTracker, topic {}, subscription {}",
                     topicName, subscriptionName, e);
         }
         return tracker;
