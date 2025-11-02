@@ -26,18 +26,18 @@ import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherM
  * allowing different implementations (in-memory, bucket-based) to share the same contract.
  * <p>
  * The manager maintains a single global delayed message index per topic that is shared by all
- * subscriptions, and provides per-subscription "view" objects that implement DelayedDeliveryTracker
+ * subscriptions, and provides per-subscription tracker objects that implement DelayedDeliveryTracker
  * interface for compatibility with existing dispatcher logic.
  */
 public interface TopicDelayedDeliveryTrackerManager extends AutoCloseable {
 
     /**
-     * Create or get a delayed delivery tracker view for the specified subscription.
+     * Create or get a delayed delivery tracker for the specified subscription.
      *
      * @param dispatcher the dispatcher instance for the subscription
-     * @return a DelayedDeliveryTracker view for the subscription
+     * @return a DelayedDeliveryTracker bound to the subscription
      */
-    DelayedDeliveryTracker createOrGetView(AbstractPersistentDispatcherMultipleConsumers dispatcher);
+    DelayedDeliveryTracker createOrGetTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher);
 
     /**
      * Unregister a subscription from the manager.

@@ -44,14 +44,14 @@ public class InMemoryTopicDelayedDeliveryTrackerFactory implements DelayedDelive
 
     private long fixedDelayDetectionLookahead;
 
+    // New tuning knobs
+    private long pruneMinIntervalMillis;
+    private double pruneEligibleRatio;
+    private long topicManagerIdleMillis;
+
     // Cache of topic-level managers: topic name -> manager instance
     private final ConcurrentMap<String, TopicDelayedDeliveryTrackerManager> topicManagers = new ConcurrentHashMap<>();
 
-    public InMemoryTopicDelayedDeliveryTrackerFactory() {
-
-    }
-
-    // Testing-friendly constructor and accessors
     @VisibleForTesting
     InMemoryTopicDelayedDeliveryTrackerFactory(Timer timer, long tickTimeMillis,
                                           boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -60,6 +60,9 @@ public class InMemoryTopicDelayedDeliveryTrackerFactory implements DelayedDelive
         this.tickTimeMillis = tickTimeMillis;
         this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
+        this.pruneMinIntervalMillis = 0;
+        this.pruneEligibleRatio = 0.5;
+        this.topicManagerIdleMillis = 0;
     }
 
     @VisibleForTesting
@@ -80,6 +83,9 @@ public class InMemoryTopicDelayedDeliveryTrackerFactory implements DelayedDelive
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
         this.isDelayedDeliveryDeliverAtTimeStrict = config.isDelayedDeliveryDeliverAtTimeStrict();
         this.fixedDelayDetectionLookahead = config.getDelayedDeliveryFixedDelayDetectionLookahead();
+        this.pruneMinIntervalMillis = config.getDelayedDeliveryPruneMinIntervalMillis();
+        this.pruneEligibleRatio = config.getDelayedDeliveryPruneEligibleRatio();
+        this.topicManagerIdleMillis = config.getDelayedDeliveryTopicManagerIdleMillis();
     }
 
     @Override
@@ -106,13 +112,29 @@ public class InMemoryTopicDelayedDeliveryTrackerFactory implements DelayedDelive
         TopicDelayedDeliveryTrackerManager manager = topicManagers.computeIfAbsent(topicName, k -> {
             InMemoryTopicDelayedDeliveryTrackerManager m = new InMemoryTopicDelayedDeliveryTrackerManager(
                     timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
-                    fixedDelayDetectionLookahead, () -> topicManagers.remove(topicName, holder[0]));
+                    fixedDelayDetectionLookahead, pruneMinIntervalMillis, pruneEligibleRatio, () -> {
+                        if (topicManagerIdleMillis <= 0) {
+                            topicManagers.remove(topicName, holder[0]);
+                        } else {
+                            timer.newTimeout(__ -> {
+                                TopicDelayedDeliveryTrackerManager tm = holder[0];
+                                if (tm instanceof InMemoryTopicDelayedDeliveryTrackerManager) {
+                                    if (!((InMemoryTopicDelayedDeliveryTrackerManager) tm).hasActiveSubscriptions()) {
+                                        topicManagers.remove(topicName, tm);
+                                    }
+                                } else {
+                                    // If the manager has been replaced or removed, ensure entry is cleaned up
+                                    topicManagers.remove(topicName, tm);
+                                }
+                            }, topicManagerIdleMillis, TimeUnit.MILLISECONDS);
+                        }
+                    });
             holder[0] = m;
             return m;
         });
 
-        // Create a per-subscription view from the topic-level manager
-        return manager.createOrGetView(dispatcher);
+        // Create a per-subscription tracker from the topic-level manager
+        return manager.createOrGetTracker(dispatcher);
     }
 
     @Override
@@ -132,4 +154,3 @@ public class InMemoryTopicDelayedDeliveryTrackerFactory implements DelayedDelive
         }
     }
 }
-

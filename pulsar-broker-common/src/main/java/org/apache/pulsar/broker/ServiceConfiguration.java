@@ -422,6 +422,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
+            Minimum interval (in milliseconds) between prune attempts within the in-memory topic-level delayed
+            delivery tracker. Set to a positive value to override the default adaptive interval based on
+            delayedDeliveryTickTimeMillis. Set to 0 or a negative value to use the default adaptive interval.
+            """)
+    private long delayedDeliveryPruneMinIntervalMillis = 0;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The ratio [0.0, 1.0] of subscriptions that need to be eligible for delivery in order to trigger an
+            opportunistic prune in the in-memory topic-level delayed delivery tracker. For example, 0.5 means prune
+            when at least half of the subscriptions are eligible. Default is 0.5.
+            """)
+    private double delayedDeliveryPruneEligibleRatio = 0.5;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            Idle timeout (in milliseconds) for the topic-level in-memory delayed delivery tracker manager. When the
+            last subscription is unregistered, the manager will be removed from the factory cache after this idle
+            timeout, provided no new subscriptions have been registered in the meantime. Set to 0 to remove
+            immediately (default).
+            """)
+    private long delayedDeliveryTopicManagerIdleMillis = 0;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
             The max allowed delay for delayed delivery (in milliseconds). If the broker receives a message which \
             exceeds this max delay, then it will return an error to the producer. \
             The default value is 0 which means there is no limit on the max delivery delay.""")

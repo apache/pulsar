@@ -24,19 +24,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 
 /**
- * View object for a subscription that implements DelayedDeliveryTracker interface.
- * This view forwards all operations to the topic-level manager while maintaining
- * compatibility with existing dispatcher logic.
+ * Subscription-scoped tracker implementing {@link DelayedDeliveryTracker} by delegating all
+ * operations to the topic-level {@link InMemoryTopicDelayedDeliveryTrackerManager}.
  */
 @Slf4j
-public class InMemoryTopicDelayedDeliveryTrackerView implements DelayedDeliveryTracker {
+public class InMemoryTopicDelayedDeliveryTracker implements DelayedDeliveryTracker {
 
     private final InMemoryTopicDelayedDeliveryTrackerManager manager;
     private final InMemoryTopicDelayedDeliveryTrackerManager.SubContext subContext;
     private volatile boolean closed = false;
 
-    public InMemoryTopicDelayedDeliveryTrackerView(InMemoryTopicDelayedDeliveryTrackerManager manager,
-                                                   InMemoryTopicDelayedDeliveryTrackerManager.SubContext subContext) {
+    public InMemoryTopicDelayedDeliveryTracker(InMemoryTopicDelayedDeliveryTrackerManager manager,
+                                               InMemoryTopicDelayedDeliveryTrackerManager.SubContext subContext) {
         this.manager = manager;
         this.subContext = subContext;
     }

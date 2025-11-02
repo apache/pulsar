@@ -82,6 +82,9 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     // Minimum interval between prunes
     private final long minPruneIntervalNanos;
 
+    // Ratio of eligible subscriptions required to opportunistically prune [0.0, 1.0]
+    private final double pruneEligibleRatio;
+
     // Fixed-delay detection (parity with legacy behavior)
     private final AtomicLong highestDeliveryTimeTracked = new AtomicLong(0);
     private volatile boolean messagesHaveFixedDelay = true;
@@ -131,12 +134,15 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     public InMemoryTopicDelayedDeliveryTrackerManager(Timer timer, long tickTimeMillis, Clock clock,
                                                       boolean isDelayedDeliveryDeliverAtTimeStrict,
                                                       long fixedDelayDetectionLookahead) {
-        this(timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead, null);
+        this(timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead,
+                0, 0.5, null);
     }
 
     public InMemoryTopicDelayedDeliveryTrackerManager(Timer timer, long tickTimeMillis, Clock clock,
                                                       boolean isDelayedDeliveryDeliverAtTimeStrict,
                                                       long fixedDelayDetectionLookahead,
+                                                      long pruneMinIntervalMillis,
+                                                      double pruneEligibleRatio,
                                                       Runnable onEmptyCallback) {
         this.timer = timer;
         this.tickTimeMillis = tickTimeMillis;
@@ -144,10 +150,16 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
         this.onEmptyCallback = onEmptyCallback;
-        // Default prune throttle interval: clamp to [5ms, 50ms] using tickTimeMillis as hint
-        // TODO: make configurable if needed
-        long pruneMs = Math.max(5L, Math.min(50L, tickTimeMillis));
+        // Prune throttle interval: use configured override if positive, otherwise adaptive clamp [5ms, 50ms]
+        long pruneMs = pruneMinIntervalMillis > 0
+                ? pruneMinIntervalMillis
+                : Math.max(5L, Math.min(50L, tickTimeMillis));
         this.minPruneIntervalNanos = TimeUnit.MILLISECONDS.toNanos(pruneMs);
+        // Prune eligible ratio: clamp into [0.0, 1.0]
+        if (Double.isNaN(pruneEligibleRatio)) {
+            pruneEligibleRatio = 0.5;
+        }
+        this.pruneEligibleRatio = Math.max(0.0, Math.min(1.0, pruneEligibleRatio));
     }
 
     // We bucket messages by aligning the deliverAt timestamp to the start of the logical tick window:
@@ -167,13 +179,13 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
     }
 
     @Override
-    public DelayedDeliveryTracker createOrGetView(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+    public DelayedDeliveryTracker createOrGetTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String subscriptionName = dispatcher.getSubscription().getName();
 
         SubContext subContext = subscriptionContexts.computeIfAbsent(subscriptionName,
                 k -> new SubContext(dispatcher, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
                         fixedDelayDetectionLookahead, clock));
-        return new InMemoryTopicDelayedDeliveryTrackerView(this, subContext);
+        return new InMemoryTopicDelayedDeliveryTracker(this, subContext);
     }
 
     @Override
@@ -207,6 +219,13 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
                 }
             }
         }
+    }
+
+    /**
+     * Whether there are active subscriptions registered with this manager.
+     */
+    public boolean hasActiveSubscriptions() {
+        return !subscriptionContexts.isEmpty();
     }
 
     @Override
@@ -560,7 +579,7 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             // If a significant portion of subscriptions are eligible, opportunistically prune (throttled)
             int subs = subscriptionContexts.size();
             int eligible = toTrigger.size();
-            int threshold = Math.max(1, subs / 2);
+            int threshold = Math.max(1, (int) Math.ceil(subs * pruneEligibleRatio));
             if (eligible >= threshold) {
                 maybePruneByTime();
             }

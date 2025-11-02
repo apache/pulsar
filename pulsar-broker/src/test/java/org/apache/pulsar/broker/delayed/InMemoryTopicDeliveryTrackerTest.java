@@ -104,46 +104,46 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         ManagedCursor cursor = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = newDispatcher("sub-a", cursor);
-        DelayedDeliveryTracker view = manager.createOrGetView(dispatcher);
+        DelayedDeliveryTracker tracker = manager.createOrGetTracker(dispatcher);
 
-        assertFalse(view.hasMessageAvailable());
+        assertFalse(tracker.hasMessageAvailable());
 
         // Add 3 messages in the future
         env.time.set(1000);
-        assertTrue(view.addMessage(1, 1, 1200));
-        assertTrue(view.addMessage(1, 2, 1300));
-        assertTrue(view.addMessage(2, 1, 1400));
+        assertTrue(tracker.addMessage(1, 1, 1200));
+        assertTrue(tracker.addMessage(1, 2, 1300));
+        assertTrue(tracker.addMessage(2, 1, 1400));
 
-        assertFalse(view.hasMessageAvailable());
-        assertEquals(view.getNumberOfDelayedMessages(), 3);
+        assertFalse(tracker.hasMessageAvailable());
+        assertEquals(tracker.getNumberOfDelayedMessages(), 3);
 
         // Advance time so first 2 buckets are visible
         env.time.set(1350);
-        assertTrue(view.hasMessageAvailable());
-        NavigableSet<Position> scheduled = view.getScheduledMessages(10);
+        assertTrue(tracker.hasMessageAvailable());
+        NavigableSet<Position> scheduled = tracker.getScheduledMessages(10);
         // Should include both positions from first 2 buckets
         assertEquals(scheduled.size(), 2);
 
         // Global counter doesn't drop until mark-delete pruning
-        assertEquals(view.getNumberOfDelayedMessages(), 3);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 3);
 
         // Mark-delete beyond the scheduled positions and prune
-        ((InMemoryTopicDelayedDeliveryTrackerView) view)
+        ((InMemoryTopicDelayedDeliveryTracker) tracker)
                 .updateMarkDeletePosition(PositionFactory.create(1L, 2L));
         // Trigger pruning by another get
-        view.getScheduledMessages(10);
+        tracker.getScheduledMessages(10);
         // Now only one entry should remain in global index (prune is throttled -> wait up to 2s)
         long start = System.currentTimeMillis();
-        while (view.getNumberOfDelayedMessages() != 1 && System.currentTimeMillis() - start < 2000) {
+        while (tracker.getNumberOfDelayedMessages() != 1 && System.currentTimeMillis() - start < 2000) {
             try {
                 Thread.sleep(30);
             } catch (InterruptedException ignored) {}
-            view.getScheduledMessages(1);
+            tracker.getScheduledMessages(1);
         }
-        assertEquals(view.getNumberOfDelayedMessages(), 1);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
 
         // Cleanup
-        view.close();
+        tracker.close();
     }
 
     @Test
@@ -157,8 +157,8 @@ public class InMemoryTopicDeliveryTrackerTest {
         AbstractPersistentDispatcherMultipleConsumers d1 = newDispatcher("sub-a", c1);
         AbstractPersistentDispatcherMultipleConsumers d2 = newDispatcher("sub-b", c2);
 
-        DelayedDeliveryTracker v1 = manager.createOrGetView(d1);
-        DelayedDeliveryTracker v2 = manager.createOrGetView(d2);
+        DelayedDeliveryTracker v1 = manager.createOrGetTracker(d1);
+        DelayedDeliveryTracker v2 = manager.createOrGetTracker(d2);
 
         env.time.set(1000);
         assertTrue(v1.addMessage(10, 20, 2000));
@@ -183,8 +183,8 @@ public class InMemoryTopicDeliveryTrackerTest {
         ManagedCursor c2 = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d1 = newDispatcher("sub-a", c1);
         AbstractPersistentDispatcherMultipleConsumers d2 = newDispatcher("sub-b", c2);
-        DelayedDeliveryTracker v1 = manager.createOrGetView(d1);
-        DelayedDeliveryTracker v2 = manager.createOrGetView(d2);
+        DelayedDeliveryTracker v1 = manager.createOrGetTracker(d1);
+        DelayedDeliveryTracker v2 = manager.createOrGetTracker(d2);
 
         env.time.set(0);
         // Add two buckets. Only sub-a will have messages available based on mark-delete
@@ -197,9 +197,9 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         // Set time after cutoff and set sub-a mark-delete behind entries, sub-b beyond entries
         env.time.set(600);
-        ((InMemoryTopicDelayedDeliveryTrackerView) v1)
+        ((InMemoryTopicDelayedDeliveryTracker) v1)
                 .updateMarkDeletePosition(PositionFactory.create(0L, 0L)); // visible for sub-a
-        ((InMemoryTopicDelayedDeliveryTrackerView) v2)
+        ((InMemoryTopicDelayedDeliveryTracker) v2)
                 .updateMarkDeletePosition(PositionFactory.create(1L, 5L)); // filtered for sub-b
 
         // Invoke manager timer task directly
@@ -222,21 +222,21 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         ManagedCursor cursor = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = newDispatcher("sub-a", cursor);
-        InMemoryTopicDelayedDeliveryTrackerView view =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(dispatcher);
+        InMemoryTopicDelayedDeliveryTracker tracker =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(dispatcher);
 
         // Add strictly increasing deliverAt times (fixed delay scenario)
         env.time.set(0);
         for (int i = 1; i <= lookahead; i++) {
-            assertTrue(view.addMessage(i, i, i * 100L));
+            assertTrue(tracker.addMessage(i, i, i * 100L));
         }
-        assertTrue(view.shouldPauseAllDeliveries());
+        assertTrue(tracker.shouldPauseAllDeliveries());
 
         // Move time forward to make messages available -> pause should be lifted
         env.time.set(lookahead * 100 + 1);
-        assertFalse(view.shouldPauseAllDeliveries());
+        assertFalse(tracker.shouldPauseAllDeliveries());
 
-        view.close();
+        tracker.close();
     }
 
     @Test
@@ -248,19 +248,19 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         ManagedCursor cursor = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = newDispatcher("sub-a", cursor);
-        DelayedDeliveryTracker view = manager.createOrGetView(dispatcher);
+        DelayedDeliveryTracker tracker = manager.createOrGetTracker(dispatcher);
 
         env.time.set(1000);
         // deliverAt within current tick window -> rejected
-        assertFalse(view.addMessage(1, 1, 1050)); // cutoff=1100
-        assertEquals(view.getNumberOfDelayedMessages(), 0);
+        assertFalse(tracker.addMessage(1, 1, 1050)); // cutoff=1100
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
 
         // shrink tick: cutoff reduces -> same deliverAt becomes accepted
-        view.resetTickTime(10);
-        assertTrue(view.addMessage(1, 1, 1050)); // cutoff=1010
-        assertEquals(view.getNumberOfDelayedMessages(), 1);
+        tracker.resetTickTime(10);
+        assertTrue(tracker.addMessage(1, 1, 1050)); // cutoff=1010
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
 
-        view.close();
+        tracker.close();
     }
 
     @Test
@@ -273,10 +273,10 @@ public class InMemoryTopicDeliveryTrackerTest {
         ManagedCursor c2 = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d1 = newDispatcher("sub-a", c1);
         AbstractPersistentDispatcherMultipleConsumers d2 = newDispatcher("sub-b", c2);
-        InMemoryTopicDelayedDeliveryTrackerView v1 =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(d1);
-        InMemoryTopicDelayedDeliveryTrackerView v2 =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(d2);
+        InMemoryTopicDelayedDeliveryTracker v1 =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(d1);
+        InMemoryTopicDelayedDeliveryTracker v2 =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(d2);
 
         env.time.set(0);
         assertTrue(v1.addMessage(1, 1, 100));
@@ -320,14 +320,14 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         ManagedCursor cursor = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = newDispatcher("sub-a", cursor);
-        DelayedDeliveryTracker view = manager.createOrGetView(dispatcher);
+        DelayedDeliveryTracker tracker = manager.createOrGetTracker(dispatcher);
 
         // Establish lastTickRun via a manual run at t=10000
         env.time.set(10000);
         manager.run(mock(Timeout.class));
 
         // Add with deliverAt=10001, but tick window alignment should schedule at >= 11000
-        assertTrue(view.addMessage(1, 1, 10001));
+        assertTrue(tracker.addMessage(1, 1, 10001));
         long scheduledAt = env.tasks.firstKey();
         assertTrue(scheduledAt >= 11000, "scheduledAt=" + scheduledAt);
 
@@ -335,11 +335,11 @@ public class InMemoryTopicDeliveryTrackerTest {
         env.tasks.clear();
         env.time.set(20000);
         // No run -> lastTickRun remains 10000; bucketStart(20005)=20000; schedule aligns to bucket start immediately
-        assertTrue(view.addMessage(1, 2, 20005));
+        assertTrue(tracker.addMessage(1, 2, 20005));
         long scheduledAt2 = env.tasks.firstKey();
         assertEquals(scheduledAt2, 20000);
 
-        view.close();
+        tracker.close();
     }
 
     @Test
@@ -350,7 +350,7 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("sub-a", c);
-        DelayedDeliveryTracker v = manager.createOrGetView(d);
+        DelayedDeliveryTracker v = manager.createOrGetTracker(d);
 
         env.time.set(0);
         assertTrue(v.addMessage(1, 1, 10));
@@ -369,14 +369,14 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 1, env.clock, true, 0);
         ManagedCursor cursor = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = newDispatcher("sub", cursor);
-        DelayedDeliveryTracker view = manager.createOrGetView(dispatcher);
+        DelayedDeliveryTracker tracker = manager.createOrGetTracker(dispatcher);
 
         env.time.set(1000);
         for (int i = 0; i < 10; i++) {
-            assertTrue(view.addMessage(1, i, 1001));
+            assertTrue(tracker.addMessage(1, i, 1001));
         }
         env.time.set(2000);
-        NavigableSet<Position> positions = view.getScheduledMessages(3);
+        NavigableSet<Position> positions = tracker.getScheduledMessages(3);
         assertEquals(positions.size(), 3);
 
         Position prev = null;
@@ -387,7 +387,7 @@ public class InMemoryTopicDeliveryTrackerTest {
             prev = p;
         }
 
-        view.close();
+        tracker.close();
     }
 
     @Test
@@ -397,17 +397,17 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 100, env.clock, true, 0);
         ManagedCursor cursor = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = newDispatcher("s", cursor);
-        InMemoryTopicDelayedDeliveryTrackerView view =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(dispatcher);
+        InMemoryTopicDelayedDeliveryTracker tracker =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(dispatcher);
 
         env.time.set(900);
-        assertTrue(view.addMessage(1, 1, 1000));
+        assertTrue(tracker.addMessage(1, 1, 1000));
         env.time.set(1000);
-        view.updateMarkDeletePosition(PositionFactory.create(1, 1));
-        assertTrue(view.hasMessageAvailable());
-        assertTrue(view.getScheduledMessages(10).isEmpty());
+        tracker.updateMarkDeletePosition(PositionFactory.create(1, 1));
+        assertTrue(tracker.hasMessageAvailable());
+        assertTrue(tracker.getScheduledMessages(10).isEmpty());
 
-        view.close();
+        tracker.close();
     }
 
     @Test
@@ -421,8 +421,8 @@ public class InMemoryTopicDeliveryTrackerTest {
         ManagedCursor c2 = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d1 = newDispatcher("s1", c1);
         AbstractPersistentDispatcherMultipleConsumers d2 = newDispatcher("s2", c2);
-        DelayedDeliveryTracker v1 = manager.createOrGetView(d1);
-        DelayedDeliveryTracker v2 = manager.createOrGetView(d2);
+        DelayedDeliveryTracker v1 = manager.createOrGetTracker(d1);
+        DelayedDeliveryTracker v2 = manager.createOrGetTracker(d2);
 
         env.time.set(1000);
         long deliverAt = 1023;
@@ -449,7 +449,7 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 1, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        DelayedDeliveryTracker v = manager.createOrGetView(d);
+        DelayedDeliveryTracker v = manager.createOrGetTracker(d);
 
         env.time.set(0);
         assertTrue(v.addMessage(1, 1, 10));
@@ -469,8 +469,8 @@ public class InMemoryTopicDeliveryTrackerTest {
         ManagedCursor c2 = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d1 = newDispatcher("s1", c1);
         AbstractPersistentDispatcherMultipleConsumers d2 = newDispatcher("s2", c2);
-        DelayedDeliveryTracker v1 = manager.createOrGetView(d1);
-        DelayedDeliveryTracker v2 = manager.createOrGetView(d2);
+        DelayedDeliveryTracker v1 = manager.createOrGetTracker(d1);
+        DelayedDeliveryTracker v2 = manager.createOrGetTracker(d2);
 
         env.time.set(0);
         assertTrue(v1.addMessage(1, 1, 10));
@@ -494,7 +494,7 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         InMemoryTopicDelayedDeliveryTrackerManager mStrict =
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 100, env.clock, true, 0);
-        DelayedDeliveryTracker vStrict = mStrict.createOrGetView(d);
+        DelayedDeliveryTracker vStrict = mStrict.createOrGetTracker(d);
         env.time.set(1000);
         assertFalse(vStrict.addMessage(1, 1, -1));
         assertFalse(vStrict.addMessage(1, 2, 1000));
@@ -502,7 +502,7 @@ public class InMemoryTopicDeliveryTrackerTest {
 
         InMemoryTopicDelayedDeliveryTrackerManager mNonStrict =
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 100, env.clock, false, 0);
-        DelayedDeliveryTracker vNon = mNonStrict.createOrGetView(d);
+        DelayedDeliveryTracker vNon = mNonStrict.createOrGetTracker(d);
         env.time.set(1000);
         assertFalse(vNon.addMessage(1, 3, 1100));
         vNon.close();
@@ -524,8 +524,8 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 1, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        InMemoryTopicDelayedDeliveryTrackerView v =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(d);
+        InMemoryTopicDelayedDeliveryTracker v =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(d);
         v.close();
 
         expectIllegalState(() -> v.addMessage(1, 1, 10));
@@ -541,7 +541,7 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 1, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        DelayedDeliveryTracker v = manager.createOrGetView(d);
+        DelayedDeliveryTracker v = manager.createOrGetTracker(d);
 
         env.time.set(0);
         assertTrue(v.addMessage(1, 1, 10));
@@ -561,7 +561,7 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 100, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        DelayedDeliveryTracker v = manager.createOrGetView(d);
+        DelayedDeliveryTracker v = manager.createOrGetTracker(d);
 
         env.time.set(0);
         assertTrue(v.addMessage(1, 1, 1000));
@@ -577,8 +577,8 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 10, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        InMemoryTopicDelayedDeliveryTrackerView v =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(d);
+        InMemoryTopicDelayedDeliveryTracker v =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(d);
 
         env.time.set(0);
         for (int i = 0; i < 50; i++) {
@@ -613,7 +613,7 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 10, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        DelayedDeliveryTracker v = manager.createOrGetView(d);
+        DelayedDeliveryTracker v = manager.createOrGetTracker(d);
 
         env.time.set(0);
         assertTrue(v.addMessage(1, 1, 100));
@@ -633,7 +633,7 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 1, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        DelayedDeliveryTracker v = manager.createOrGetView(d);
+        DelayedDeliveryTracker v = manager.createOrGetTracker(d);
 
         env.time.set(0);
         assertTrue(v.addMessage(2, 3, 10));
@@ -658,10 +658,10 @@ public class InMemoryTopicDeliveryTrackerTest {
         ManagedCursor c2 = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d1 = newDispatcher("s1", c1);
         AbstractPersistentDispatcherMultipleConsumers d2 = newDispatcher("s2", c2);
-        InMemoryTopicDelayedDeliveryTrackerView v1 =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(d1);
-        InMemoryTopicDelayedDeliveryTrackerView v2 =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(d2);
+        InMemoryTopicDelayedDeliveryTracker v1 =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(d1);
+        InMemoryTopicDelayedDeliveryTracker v2 =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(d2);
 
         env.time.set(0);
         assertTrue(v1.addMessage(1, 1, 10));
@@ -682,7 +682,7 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 1, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        DelayedDeliveryTracker v = manager.createOrGetView(d);
+        DelayedDeliveryTracker v = manager.createOrGetTracker(d);
 
         env.time.set(0);
         int threads = 5;
@@ -719,8 +719,8 @@ public class InMemoryTopicDeliveryTrackerTest {
                 new InMemoryTopicDelayedDeliveryTrackerManager(env.timer, 5, env.clock, true, 0);
         ManagedCursor c = mock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers d = newDispatcher("s", c);
-        InMemoryTopicDelayedDeliveryTrackerView v =
-                (InMemoryTopicDelayedDeliveryTrackerView) manager.createOrGetView(d);
+        InMemoryTopicDelayedDeliveryTracker v =
+                (InMemoryTopicDelayedDeliveryTracker) manager.createOrGetTracker(d);
 
         env.time.set(0);
         ExecutorService es = Executors.newFixedThreadPool(2);
