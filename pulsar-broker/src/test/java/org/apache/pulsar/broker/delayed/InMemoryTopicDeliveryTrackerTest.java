@@ -31,6 +31,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -47,6 +48,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
@@ -132,15 +134,12 @@ public class InMemoryTopicDeliveryTrackerTest {
                 .updateMarkDeletePosition(PositionFactory.create(1L, 2L));
         // Trigger pruning by another get
         tracker.getScheduledMessages(10);
-        // Now only one entry should remain in global index (prune is throttled -> wait up to 2s)
-        long start = System.currentTimeMillis();
-        while (tracker.getNumberOfDelayedMessages() != 1 && System.currentTimeMillis() - start < 2000) {
-            try {
-                Thread.sleep(30);
-            } catch (InterruptedException ignored) {}
-            tracker.getScheduledMessages(1);
-        }
-        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+        // Now only one entry should remain in global index; wait until prune catches up
+        Awaitility.await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(30))
+                .untilAsserted(() -> {
+                    tracker.getScheduledMessages(1);
+                    assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+                });
 
         // Cleanup
         tracker.close();
@@ -296,16 +295,12 @@ public class InMemoryTopicDeliveryTrackerTest {
         // Advance c1 mark-delete beyond (1,2)
         v1.updateMarkDeletePosition(PositionFactory.create(1L, 2L));
         v1.getScheduledMessages(10);
-        long start2 = System.currentTimeMillis();
-        while (v1.getNumberOfDelayedMessages() != 1 && System.currentTimeMillis() - start2 < 2000) {
-            try {
-                Thread.sleep(30);
-            } catch (InterruptedException ignored) {
-
-            }
-            v1.getScheduledMessages(1);
-        }
-        assertEquals(v1.getNumberOfDelayedMessages(), 1);
+        // Wait until prune catches up
+        Awaitility.await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(30))
+                .untilAsserted(() -> {
+                    v1.getScheduledMessages(1);
+                    assertEquals(v1.getNumberOfDelayedMessages(), 1);
+                });
 
         v1.close();
         v2.close();
@@ -590,18 +585,13 @@ public class InMemoryTopicDeliveryTrackerTest {
         env.time.set(200);
         v.updateMarkDeletePosition(PositionFactory.create(1, 25));
         v.getScheduledMessages(100);
-        // Wait for prune-by-time throttling window and trigger reads to allow prune to occur
-        long memAfter = manager.topicBufferMemoryBytes();
-        long startWall = System.currentTimeMillis();
-        while (memAfter >= memBefore && System.currentTimeMillis() - startWall < 2000) {
-            try {
-                Thread.sleep(60);
-            } catch (InterruptedException ignored) {
-            }
-            v.getScheduledMessages(1);
-            memAfter = manager.topicBufferMemoryBytes();
-        }
-        assertTrue(memAfter < memBefore, "Memory should shrink after prune");
+        // Wait until memory shrinks due to prune
+        Awaitility.await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(60))
+                .untilAsserted(() -> {
+                    v.getScheduledMessages(1);
+                    long memAfter = manager.topicBufferMemoryBytes();
+                    assertTrue(memAfter < memBefore, "Memory should shrink after prune");
+                });
 
         v.close();
     }

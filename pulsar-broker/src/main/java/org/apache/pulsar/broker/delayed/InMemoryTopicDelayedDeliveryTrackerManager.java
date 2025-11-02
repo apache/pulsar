@@ -481,8 +481,6 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
             }
         }
 
-        // No idempotency set to clean (Option A): rely on per-bitmap removal below
-
         // Prune per bucket under bucket lock
         for (Long ts : new ArrayList<>(delayedMessageMap.keySet())) {
             ReentrantLock bLock = bucketLocks.get(ts);
@@ -550,6 +548,8 @@ public class InMemoryTopicDelayedDeliveryTrackerManager implements TopicDelayedD
         }
     }
 
+    // Note: pruning is throttled by minPruneIntervalNanos. Tests should use Awaitility
+    // to wait for prune to occur instead of relying on direct triggers here.
     @Override
     public void run(Timeout timeout) throws Exception {
         if (timeout == null || timeout.isCancelled()) {
