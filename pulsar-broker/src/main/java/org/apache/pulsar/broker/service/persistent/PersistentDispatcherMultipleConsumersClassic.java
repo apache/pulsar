@@ -50,7 +50,6 @@ import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
-import org.apache.pulsar.broker.delayed.InMemoryTopicDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -1309,21 +1308,14 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     @Override
+    protected Optional<DelayedDeliveryTracker> getDelayedDeliveryTrackerOptional() {
+        return delayedDeliveryTracker;
+    }
+
+    @Override
     public void markDeletePositionMoveForward() {
-        // Event-driven mark-delete notification: update the topic-level delayed tracker view
-        Optional<DelayedDeliveryTracker> trackerOpt;
-        synchronized (this) {
-            trackerOpt = this.delayedDeliveryTracker;
-        }
-        trackerOpt.ifPresent(tracker -> {
-            if (tracker instanceof InMemoryTopicDelayedDeliveryTracker view) {
-                Position md = cursor.getMarkDeletedPosition();
-                if (md != null) {
-                    // Only update the cached mark-delete; avoid heavy operations in this callback
-                    view.updateMarkDeletePosition(md);
-                }
-            }
-        });
+        // Centralized propagation to topic-level tracker
+        propagateMarkDeleteToTopicDelayedTracker();
     }
 
     protected int getStickyKeyHash(Entry entry) {

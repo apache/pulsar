@@ -625,6 +625,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // reschedule a read with a backoff after moving the mark-delete position forward since there might have
         // been consumers that were blocked by hash and couldn't make progress
         reScheduleReadWithKeySharedUnblockingInterval();
+        // Propagate mark-delete progress to topic-level tracker view
+        propagateMarkDeleteToTopicDelayedTracker();
     }
 
     /**
