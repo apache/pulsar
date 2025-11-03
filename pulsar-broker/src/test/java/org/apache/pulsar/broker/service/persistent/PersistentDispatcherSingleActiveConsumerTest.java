@@ -37,28 +37,29 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
 public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsumerBase {
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -144,7 +145,8 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         final var interceptor = new Interceptor();
         pulsar.getBrokerService().setInterceptor(interceptor);
         final var topic = "test-override-inactive-consumer";
-        @Cleanup final var consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+        @Cleanup final var client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        @Cleanup final var consumer = client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
         final var dispatcher = ((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(TopicName.get(topic)
                 .toString()).get().orElseThrow()).getSubscription("sub").dispatcher;
         Assert.assertEquals(dispatcher.getConsumers().size(), 1);
