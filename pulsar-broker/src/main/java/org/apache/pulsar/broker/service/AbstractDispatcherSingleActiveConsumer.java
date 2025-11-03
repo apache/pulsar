@@ -192,7 +192,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                             // A race condition happened in `ServerCnx#channelInactive`
                             // 1. `isActive` was set to false
                             // 2. `consumer.close()` is called
-                            // We should wait for the
+                            // We should wait until the consumer is closed, retry for some times
                             log.warn("[{}] race condition happened that cnx of the active consumer ({}) is inactive "
                                     + "but it's not removed, retrying", getName(), actConsumer);
                             final var future = new CompletableFuture<Void>();
