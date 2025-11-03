@@ -3897,7 +3897,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long count = 0;
             // If the from & to are pointing to different ledgers, then we need to :
             // 1. Add the entries in the ledger pointed by toPosition
-            count += toPosition.getEntryId();
+            count += toPosition.getEntryId() < 0 ? 0 : toPosition.getEntryId();
             count += toIncluded ? 1 : 0;
 
             // 2. Add the entries in the ledger pointed by fromPosition

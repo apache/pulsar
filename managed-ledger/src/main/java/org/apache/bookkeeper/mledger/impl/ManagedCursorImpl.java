@@ -1453,6 +1453,23 @@ public class ManagedCursorImpl implements ManagedCursor {
         return firstLedgerId == null ? null : PositionFactory.create(firstLedgerId, 0);
     }
 
+    /**
+     * Compare two positions. It is different with {@link Position#compareTo(Position)} when the params are invalid.
+     * For example: position-1 is "1:{latest entry}", and position-2 is "2:0", they are the same position.
+     */
+    private int comparePositions(Position pos1, Position pos2) {
+        if (pos1 == null || pos2 == null) {
+            throw new IllegalArgumentException("Positions must not be null");
+        }
+        if (pos1.getLedgerId() == pos2.getLedgerId() && pos1.getEntryId() == pos2.getEntryId()) {
+            return 0;
+        }
+        if (!ledger.isValidPosition(pos1) || !ledger.isValidPosition(pos2)) {
+            return ledger.getNextValidPosition(pos1).compareTo(ledger.getNextValidPosition(pos2));
+        }
+        return pos1.compareTo(pos2);
+    }
+
     protected void internalResetCursor(Position proposedReadPosition,
                                        AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
         final Position newReadPosition;
@@ -1489,7 +1506,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // modify mark delete and read position since we are able to persist new position for cursor
                 lock.writeLock().lock();
                 try {
-                    if (markDeletePosition.compareTo(newMarkDeletePosition) >= 0) {
+                    int compareRes = comparePositions(markDeletePosition, newMarkDeletePosition);
+                    if (compareRes == 0) {
+                        // nothing to do.
+                    } else if (compareRes > 0) {
                         MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), -getNumberOfEntries(
                                 Range.closedOpen(newMarkDeletePosition, markDeletePosition)));
                     } else {
