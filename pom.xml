@@ -370,7 +370,7 @@ flexible messaging model and an intuitive client API.</description>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
 
-    <beanutils.version>1.11.0</beanutils.version>
+    <commons-beanutils.version>1.11.0</commons-beanutils.version>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
   </properties>
 
@@ -1742,7 +1742,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>commons-beanutils</groupId>
         <artifactId>commons-beanutils</artifactId>
-        <version>${beanutils.version}</version>
+        <version>${commons-beanutils.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
