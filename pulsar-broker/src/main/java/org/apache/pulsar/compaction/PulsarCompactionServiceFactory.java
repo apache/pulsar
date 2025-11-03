@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.AccessLevel;
 import lombok.Getter;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.jspecify.annotations.NonNull;
@@ -69,8 +70,14 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
     @Override
     public CompletableFuture<TopicCompactionService> newTopicCompactionService(@NonNull String topic) {
         Objects.requireNonNull(topic);
+        final BookKeeper bookKeeper;
+        try {
+            bookKeeper = pulsarService.getBookKeeperClient();
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
         PulsarTopicCompactionService pulsarTopicCompactionService =
-                new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
+                new PulsarTopicCompactionService(topic, bookKeeper, () -> {
                     try {
                         return this.getCompactor();
                     } catch (Throwable e) {

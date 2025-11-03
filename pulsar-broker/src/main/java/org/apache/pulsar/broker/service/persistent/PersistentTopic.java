@@ -3075,8 +3075,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 getLedgerMetadataFutures.add(completableFuture);
                                 CompletableFuture<LedgerMetadata> metadataFuture = null;
                                 try {
-                                    metadataFuture = brokerService.getPulsar().getBookKeeperClient()
-                                        .getLedgerMetadata(ledgerId);
+                                    metadataFuture = brokerService.getPulsar().getOptionalBookKeeperClient()
+                                            .map(bkClient -> bkClient.getLedgerMetadata(ledgerId))
+                                            .orElse(null);
                                 } catch (NullPointerException e) {
                                     // related to bookkeeper issue https://github.com/apache/bookkeeper/issues/2741
                                     if (log.isDebugEnabled()) {
@@ -4288,7 +4289,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 if (strategicCompactionMap.containsKey(topic)) {
                     currentCompaction = brokerService.pulsar().getStrategicCompactor()
-                            .compact(topic, strategicCompactionMap.get(topic));
+                            .map(__ -> __.compact(topic, strategicCompactionMap.get(topic)))
+                            .orElse(CompletableFuture.completedFuture(COMPACTION_NEVER_RUN));
                 } else {
                     currentCompaction = topicCompactionService.compact().thenApply(x -> null);
                 }

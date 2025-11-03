@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.broker.storage;
 
-import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Optional;
-import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
 import org.apache.pulsar.common.classification.InterfaceStability.Unstable;
@@ -47,13 +45,12 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * Initialize the managed ledger storage.
      *
      * @param conf service config
-     * @param bookkeeperProvider bookkeeper provider
+     * @param metadataStore the metadata store used in Pulsar
+     * @param openTelemetry the OpenTelemetry instance used in Pulsar
      * @throws Exception
      */
     void initialize(ServiceConfiguration conf,
                     MetadataStoreExtended metadataStore,
-                    BookKeeperClientFactory bookkeeperProvider,
-                    EventLoopGroup eventLoopGroup,
                     OpenTelemetry openTelemetry) throws Exception;
 
     /**
@@ -85,21 +82,20 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     void close() throws IOException;
 
     /**
-     * Initialize the {@link ManagedLedgerStorage} from the provided resources.
+     * Initialize the {@link ManagedLedgerStorage} from the provided resources if it's not the built-in storage.
      *
      * @param conf service config
-     * @param bkProvider bookkeeper client provider
+     * @param metadataStore the metadata store used in Pulsar
+     * @param openTelemetry the OpenTelemetry instance used in Pulsar
      * @return the initialized managed ledger storage.
      */
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        MetadataStoreExtended metadataStore,
-                                       BookKeeperClientFactory bkProvider,
-                                       EventLoopGroup eventLoopGroup,
                                        OpenTelemetry openTelemetry) throws Exception {
         ManagedLedgerStorage storage =
                 Reflections.createInstance(conf.getManagedLedgerStorageClassName(), ManagedLedgerStorage.class,
                         Thread.currentThread().getContextClassLoader());
-        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup, openTelemetry);
+        storage.initialize(conf, metadataStore, openTelemetry);
         return storage;
     }
 }

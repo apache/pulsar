@@ -67,9 +67,8 @@ public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
         // Fence the topic by opening the ManagedLedger for the topic outside the Pulsar broker. This will cause the
         // broker to fail subsequent send operation and it will trigger a recover
         EventLoopGroup eventLoopGroup = new NioEventLoopGroup(1);
-        ManagedLedgerClientFactory clientFactory = new ManagedLedgerClientFactory();
-        clientFactory.initialize(pulsar.getConfiguration(), pulsar.getLocalMetadataStore(),
-                pulsar.getBookKeeperClientFactory(), eventLoopGroup, OpenTelemetry.noop());
+        ManagedLedgerClientFactory clientFactory = new ManagedLedgerClientFactory(pulsar.getConfiguration(),
+                pulsar.getLocalMetadataStore(), eventLoopGroup, OpenTelemetry.noop());
         ManagedLedgerFactory mlFactory = clientFactory.getDefaultStorageClass().getManagedLedgerFactory();
         ManagedLedger ml = mlFactory.open(TopicName.get(topicName).getPersistenceNamingEncoding());
         ml.close();
