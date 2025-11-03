@@ -53,17 +53,6 @@ Learn more about Pulsar at https://pulsar.apache.org
 - Transparent handling of partitioned topics
 - Transparent batching of messages
 
-## Database Integrations
-
-Pulsar provides native sink connectors for NoSQL databases:
-
-- **Apache Cassandra**: Official Cassandra sink connector for streaming key-value data
-- **ScyllaDB**: Drop-in compatible with Cassandra sink connector. ScyllaDB offers high performance and low latency while maintaining full Cassandra protocol compatibility. See [ScyllaDB Integration Guide](SCYLLADB_INTEGRATION.md) for details.
-
-**Learn more:**
-- [Connect Pulsar to Cassandra/ScyllaDB](https://pulsar.apache.org/docs/4.1.x/io-quickstart/#connect-pulsar-to-cassandra)
-- [Streaming Real-Time Chat Messages into ScyllaDB with Apache Pulsar](https://www.scylladb.com/2022/04/25/streaming-real-time-chat-messages-into-scylladb-with-apache-pulsar/)
-
 ## Repositories
 
 This repository is the main repository of Apache Pulsar. Pulsar PMC also maintains other repositories for
