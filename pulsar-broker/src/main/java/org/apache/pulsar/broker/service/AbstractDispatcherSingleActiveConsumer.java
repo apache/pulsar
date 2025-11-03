@@ -64,7 +64,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     protected boolean isFirstRead = true;
     private static final int CONSUMER_CONSISTENT_HASH_REPLICAS = 100;
-    private volatile int addConsumerCount = 0;
+    private int addConsumerFailedAttemptCount = 0;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
                                                   String topicName, Subscription subscription,
@@ -233,11 +233,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      * @return
      */
     private synchronized CompletableFuture<Void> internalAddConsumer(Consumer actConsumer, Consumer consumer) {
-        addConsumerCount++;
-        if (addConsumerCount >= 5) {
-            log.warn("Added consumer failed, consumers {}, active consumer {}, active state : {}", consumers,
-                    actConsumer, actConsumer.cnx().isActive());
-            addConsumerCount = 0;
+        addConsumerFailedAttemptCount++;
+        if (addConsumerFailedAttemptCount >= 5) {
+            log.warn("Added consumer failed with attempt count {}, consumers: {}, active consumer: {},"
+                            + "active state : {}",
+                    addConsumerFailedAttemptCount, consumers, actConsumer, actConsumer.cnx().isActive());
+            addConsumerFailedAttemptCount = 0;
             return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
                     + " connected"));
         }
