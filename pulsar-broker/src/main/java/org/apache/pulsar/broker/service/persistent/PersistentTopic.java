@@ -4140,6 +4140,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (lastDispatchablePosition != null) {
             return CompletableFuture.completedFuture(lastDispatchablePosition);
         }
+        Position lastPosition;
+        if (transactionBuffer instanceof TransactionBufferDisable) {
+            lastPosition = getLastPosition();
+        } else {
+            lastPosition = getMaxReadPosition();
+        }
         return ledger.getLastDispatchablePosition(entry -> {
             MessageMetadata md = entry.getMessageMetadata();
             if (md == null) {
@@ -4154,7 +4160,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return !isTxnAborted(txnID, entry.getPosition());
             }
             return true;
-        }, getMaxReadPosition()).thenApply(position -> {
+        }, lastPosition).thenApply(position -> {
             // Update lastDispatchablePosition to the given position
             updateLastDispatchablePosition(position);
             return position;
