@@ -369,6 +369,9 @@ flexible messaging model and an intuitive client API.</description>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
+
+    <beanutils.version>1.11.0</beanutils.version>
+    <commons-configuration2.version>2.12.0</commons-configuration2.version>
   </properties>
 
   <dependencyManagement>
@@ -1735,6 +1738,16 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.opentelemetry.semconv</groupId>
         <artifactId>opentelemetry-semconv</artifactId>
         <version>${opentelemetry.semconv.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-beanutils</groupId>
+        <artifactId>commons-beanutils</artifactId>
+        <version>${beanutils.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-configuration2</artifactId>
+        <version>${commons-configuration2.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
