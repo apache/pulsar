@@ -921,11 +921,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 }
 
                 // Wait for all sends to complete.
-                completionLatch.await();
+                assertTrue(completionLatch.await(20, TimeUnit.SECONDS));
 
-                if (error.get() != null) {
-                    throw new AssertionError("Concurrent send encountered an exception", error.get());
-                }
+                assertNull(error.get(), "Concurrent send encountered an exception");
                 return publisherDropSeen.get();
             });
 
