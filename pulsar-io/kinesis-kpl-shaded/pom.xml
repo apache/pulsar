@@ -53,6 +53,12 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <!-- enforce kafka client version that gets pulled transitively -->
+      <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>${kafka-client.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
   <dependencies>
