@@ -199,7 +199,10 @@ public class RawReaderImpl implements RawReader {
         private void failPendingRawReceives() {
             List<CompletableFuture<RawMessage>> toError = new ArrayList<>();
             while (!pendingRawReceives.isEmpty()) {
-                toError.add(pendingRawReceives.remove());
+                final CompletableFuture<RawMessage> ret = pendingRawReceives.poll();
+                if (ret != null) {
+                    toError.add(ret);
+                }
             }
             toError.forEach((f) -> f.cancel(false));
         }
