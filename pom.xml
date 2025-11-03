@@ -370,6 +370,8 @@ flexible messaging model and an intuitive client API.</description>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
     <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
+    <commons-beanutils.version>1.11.0</commons-beanutils.version>
+    <commons-configuration2.version>2.12.0</commons-configuration2.version>
   </properties>
 
   <dependencyManagement>
@@ -1742,6 +1744,16 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.nimbusds</groupId>
         <artifactId>nimbus-jose-jwt</artifactId>
         <version>${nimbus-jose-jwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-beanutils</groupId>
+        <artifactId>commons-beanutils</artifactId>
+        <version>${commons-beanutils.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-configuration2</artifactId>
+        <version>${commons-configuration2.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
