@@ -76,6 +76,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -1308,6 +1309,26 @@ public abstract class PulsarWebResource {
         } else {
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    public CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID) {
+        String appId = clientAppId();
+        String originalPrincipal = originalPrincipal();
+        validateOriginalPrincipal(appId, originalPrincipal);
+
+        String checkOwner = pulsar.getConfiguration().getProxyRoles().contains(appId) ? originalPrincipal : appId;
+        return pulsar.getTransactionMetadataStoreService()
+                .verifyTxnOwnership(txnID, checkOwner)
+                .thenCompose(isOwner -> {
+                    if (isOwner) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    if (config().isAuthenticationEnabled() && config().isAuthorizationEnabled()) {
+                        return CompletableFuture.completedFuture(hasSuperUserAccess());
+                    } else {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                });
     }
 
     public <T> T sync(Supplier<CompletableFuture<T>> supplier) {
