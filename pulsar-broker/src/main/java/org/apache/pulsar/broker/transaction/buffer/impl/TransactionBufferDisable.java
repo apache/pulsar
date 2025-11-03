@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -108,7 +109,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
 
     @Override
     public Position getMaxReadPosition() {
-        return topic.getLastPosition();
+        return PositionFactory.LATEST;
     }
 
     @Override
