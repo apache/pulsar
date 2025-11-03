@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,6 +33,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
@@ -46,6 +48,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -140,11 +143,16 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         admin.topics().delete(topicName, false);
     }
 
-    @Test
-    public void testOverrideInactiveConsumer() throws Exception {
+    @DataProvider
+    public static Object[][] closeDelayMs() {
+        return new Object[][] { { 500 }, { 2000 } };
+    }
+
+    @Test(dataProvider = "closeDelayMs")
+    public void testOverrideInactiveConsumer(long closeDelayMs) throws Exception {
         final var interceptor = new Interceptor();
         pulsar.getBrokerService().setInterceptor(interceptor);
-        final var topic = "test-override-inactive-consumer";
+        final var topic = "test-override-inactive-consumer-" + closeDelayMs;
         @Cleanup final var client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         @Cleanup final var consumer = client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
         final var dispatcher = ((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(TopicName.get(topic)
@@ -156,6 +164,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         final var latch = new CountDownLatch(1);
         interceptor.latch.set(latch);
         interceptor.injectCloseLatency.set(true);
+        interceptor.delayMs = closeDelayMs;
         // Simulate the real case because `channelInactive` is always called in the event loop thread
         final var cnx = (ServerCnx) dispatcher.getConsumers().get(0).cnx();
         cnx.ctx().executor().execute(() -> {
@@ -168,15 +177,25 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
         @Cleanup final var mockConsumer = Mockito.mock(Consumer.class);
         Assert.assertTrue(latch.await(1, TimeUnit.SECONDS));
-        dispatcher.addConsumer(mockConsumer).get();
-        Assert.assertEquals(dispatcher.getConsumers().size(), 1);
-        Assert.assertSame(mockConsumer, dispatcher.getConsumers().get(0));
+        if (closeDelayMs < 1000) {
+            dispatcher.addConsumer(mockConsumer).get();
+            Assert.assertEquals(dispatcher.getConsumers().size(), 1);
+            Assert.assertSame(mockConsumer, dispatcher.getConsumers().get(0));
+        } else {
+            try {
+                dispatcher.addConsumer(mockConsumer).get();
+                Assert.fail();
+            } catch (ExecutionException e) {
+                Assert.assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
+            }
+        }
     }
 
     private static class Interceptor extends MockBrokerInterceptor {
 
         final AtomicBoolean injectCloseLatency = new AtomicBoolean(false);
         final AtomicReference<CountDownLatch> latch = new AtomicReference<>();
+        long delayMs = 500;
 
         @Override
         public void onConnectionClosed(ServerCnx cnx) {
@@ -184,7 +203,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
                 Optional.ofNullable(latch.get()).ifPresent(CountDownLatch::countDown);
                 latch.set(null);
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(delayMs);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }

@@ -168,16 +168,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     private synchronized CompletableFuture<Void> internalAddConsumer(Consumer consumer, int retryCount) {
-        if (retryCount >= MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE) {
-            log.warn("[{}] The active consumer's connection is still inactive after all retries, remove {} by force",
-                    getName(), consumer);
-            try {
-                removeConsumer(consumer);
-            } catch (BrokerServiceException e) {
-                // Ignore the exception because it could only be thrown when the consumer is already removed
-                log.warn("[{}] Failed to remove inactive consumer {}", getName(), e);
-            }
-        }
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer {}", this.topicName, consumer);
             consumer.disconnect();
@@ -192,6 +182,11 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                     if (actConsumerStillAlive.isEmpty() || actConsumerStillAlive.get()) {
                         return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
                                 + " connected"));
+                    } else if (retryCount >= MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE) {
+                        log.warn("[{}] The active consumer's connection is still inactive after all retries {}, skip "
+                                        + "adding new consumer {}", getName(), actConsumer, consumer);
+                        return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
+                                + " connected after " + MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE + " attempts"));
                     } else {
                         if (Thread.currentThread().equals(callerThread)) {
                             // A race condition happened in `ServerCnx#channelInactive`
@@ -203,9 +198,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                             final var future = new CompletableFuture<Void>();
                             CompletableFuture.delayedExecutor(100, TimeUnit.MILLISECONDS)
                                     .execute(() -> future.complete(null));
-                            return future.thenCompose(__ -> addConsumer(consumer));
+                            return future.thenCompose(__ -> internalAddConsumer(consumer, retryCount + 1));
                         } else {
-                            return addConsumer(consumer);
+                            return internalAddConsumer(consumer, retryCount + 1);
                         }
                     }
                 });
