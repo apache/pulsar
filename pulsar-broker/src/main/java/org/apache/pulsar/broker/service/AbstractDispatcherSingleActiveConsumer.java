@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBaseDispatcher {
 
+    private static final int MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE = 5;
     protected final String topicName;
     protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer>
             ACTIVE_CONSUMER_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
@@ -158,7 +160,11 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return Collections.unmodifiableNavigableMap(hashRing);
     }
 
-    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+    public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        return internalAddConsumer(consumer, 0);
+    }
+
+    private synchronized CompletableFuture<Void> internalAddConsumer(Consumer consumer, int retryCount) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer {}", this.topicName, consumer);
             consumer.disconnect();
@@ -168,12 +174,31 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
             Consumer actConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             if (actConsumer != null) {
+                final var callerThread = Thread.currentThread();
                 return actConsumer.cnx().checkConnectionLiveness().thenCompose(actConsumerStillAlive -> {
                     if (actConsumerStillAlive == null || actConsumerStillAlive) {
                         return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
                                 + " connected"));
+                    } else if (retryCount >= MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE) {
+                        log.warn("[{}] The active consumer's connection is still inactive after all retries {}, skip "
+                                        + "adding new consumer {}", getName(), actConsumer, consumer);
+                        return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
+                                + " connected after " + MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE + " attempts"));
                     } else {
-                        return addConsumer(consumer);
+                        if (Thread.currentThread().equals(callerThread)) {
+                            // A race condition happened in `ServerCnx#channelInactive`
+                            // 1. `isActive` was set to false
+                            // 2. `consumer.close()` is called
+                            // We should wait until the consumer is closed, retry for some times
+                            log.warn("[{}] race condition happened that cnx of the active consumer ({}) is inactive "
+                                    + "but it's not removed, retrying", getName(), actConsumer);
+                            final var future = new CompletableFuture<Void>();
+                            CompletableFuture.delayedExecutor(100, TimeUnit.MILLISECONDS)
+                                    .execute(() -> future.complete(null));
+                            return future.thenCompose(__ -> internalAddConsumer(consumer, retryCount + 1));
+                        } else {
+                            return internalAddConsumer(consumer, retryCount + 1);
+                        }
                     }
                 });
             } else {

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -48,6 +49,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     protected final Subscription subscription;
 
     private CompletableFuture<Void> closeFuture = null;
+    @Getter
     protected final String name;
     protected final Rate msgDrop;
     protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers>

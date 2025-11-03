@@ -74,7 +74,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
     }
 
-
     /**
      * Filter messages that are being sent to a consumers.
      * <p>
@@ -365,6 +364,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     protected abstract void reScheduleRead();
+
+    public abstract String getName();
 
     protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter) {
         if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
