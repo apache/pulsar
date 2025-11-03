@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,24 +43,22 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
 public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsumerBase {
-    private final Interceptor interceptor = new Interceptor();
 
-    @BeforeClass(alwaysRun = true)
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
-        pulsar.getBrokerService().setInterceptor(interceptor);
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -142,6 +141,8 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
     @Test
     public void testOverrideInactiveConsumer() throws Exception {
+        final var interceptor = new Interceptor();
+        pulsar.getBrokerService().setInterceptor(interceptor);
         final var topic = "test-override-inactive-consumer";
         @Cleanup final var consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe();
         final var dispatcher = ((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(TopicName.get(topic)
@@ -163,9 +164,11 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
             }
         });
 
-        final var mockConsumer = Mockito.mock(Consumer.class);
+        @Cleanup final var mockConsumer = Mockito.mock(Consumer.class);
         Assert.assertTrue(latch.await(1, TimeUnit.SECONDS));
         dispatcher.addConsumer(mockConsumer).get();
+        Assert.assertEquals(dispatcher.getConsumers().size(), 1);
+        Assert.assertSame(mockConsumer, dispatcher.getConsumers().get(0));
     }
 
     private static class Interceptor extends MockBrokerInterceptor {
@@ -176,16 +179,14 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         @Override
         public void onConnectionClosed(ServerCnx cnx) {
             if (injectCloseLatency.compareAndSet(true, false)) {
-                if (latch.get() != null) {
-                    latch.get().countDown();
-                }
+                Optional.ofNullable(latch.get()).ifPresent(CountDownLatch::countDown);
+                latch.set(null);
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
-            super.onConnectionClosed(cnx);
         }
     }
 }
