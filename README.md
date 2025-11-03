@@ -93,7 +93,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - [Pulsar Connectors](https://github.com/apache/pulsar-connectors) (bundled as [pulsar-io](pulsar-io))
 - [Pulsar Translation](https://github.com/apache/pulsar-translation)
-- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto) (bundled as [pulsar-sql](pulsar-sql))
+- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto) (bundled as pulsar-sql(has been [removed](https://github.com/apache/pulsar/pull/21795)))
 - [Ruby Client](https://github.com/apache/pulsar-client-ruby)
 
 ## Pulsar Runtime Java Version Recommendation
