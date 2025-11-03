@@ -64,6 +64,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     protected boolean isFirstRead = true;
     private static final int CONSUMER_CONSISTENT_HASH_REPLICAS = 100;
+    private volatile int addConsumerCount = 0;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
                                                   String topicName, Subscription subscription,
@@ -176,12 +177,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                         return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
                                 + " connected"));
                     } else {
-                        try {
-                            removeConsumer(actConsumer);
-                        } catch (BrokerServiceException e) {
-                            log.warn("[{}] Remove inactive exclusive consumer {}", this.topicName, consumer);
-                        }
-                        return addConsumer(consumer);
+                        return internalAddConsumer(actConsumer, consumer);
                     }
                 });
             } else {
@@ -228,6 +224,24 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * This method is used to help debugging addConsumer failed for exclusive subscription.
+     * @param actConsumer
+     * @param consumer
+     * @return
+     */
+    private synchronized CompletableFuture<Void> internalAddConsumer(Consumer actConsumer, Consumer consumer) {
+        addConsumerCount++;
+        if (addConsumerCount >= 5) {
+            log.warn("Added consumer failed, consumers {}, active consumer {}, active state : {}", consumers,
+                    actConsumer, actConsumer.cnx().isActive());
+            addConsumerCount = 0;
+            return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
+                    + " connected"));
+        }
+        return addConsumer(consumer);
     }
 
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
