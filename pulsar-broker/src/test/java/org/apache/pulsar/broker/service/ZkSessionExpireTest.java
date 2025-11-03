@@ -202,11 +202,11 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         metadataZKProxy.unRejectAllConnections();
         Awaitility.await().untilAsserted(() -> {
             Set<String> availableBrokers1 = getAvailableBrokers(pulsar1);
-            Set<String> availableBrokers2 = getAvailableBrokers(pulsar1);
+            Set<String> availableBrokers2 = getAvailableBrokers(pulsar2);
             log.info("Available brokers 1: {}", availableBrokers1);
             log.info("Available brokers 2: {}", availableBrokers2);
             assertEquals(availableBrokers1.size(), 2);
-            assertEquals(availableBrokers1.size(), 2);
+            assertEquals(availableBrokers2.size(), 2);
         });
 
         // Verify: the topic on broker-1 will be unloaded.
