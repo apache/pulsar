@@ -589,7 +589,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                                     // Read policies in background
                                                     .thenAccept(__ -> readMorePoliciesAsync(reader));
                                         });
-                                initFuture.exceptionally(ex -> {
+                                initFuture.exceptionallyAsync(ex -> {
                                     try {
                                         if (closed.get()) {
                                             return null;
@@ -603,7 +603,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                                 namespace, cleanupEx);
                                     }
                                     return null;
-                                });
+                                }, pulsarService.getExecutor());
                                 // let caller know we've got an exception.
                                 return initFuture;
                             }).thenApply(__ -> true);
