@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.Response;
-
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -31,6 +26,10 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.Response;
 
 /**
  * A client for an OAuth 2.0 token endpoint.
@@ -52,6 +51,7 @@ public class TokenClient implements ClientCredentialsExchanger {
 
     /**
      * Constructing http request parameters.
+     *
      * @param req object with relevant request parameters
      * @return Generate the final request body from a map.
      */
@@ -75,6 +75,7 @@ public class TokenClient implements ClientCredentialsExchanger {
 
     /**
      * Performs a token exchange using client credentials.
+     *
      * @param req the client credentials request details.
      * @return a token result
      * @throws TokenExchangeException
@@ -93,21 +94,20 @@ public class TokenClient implements ClientCredentialsExchanger {
                     .get();
 
             switch (res.getStatusCode()) {
-            case 200:
-                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                        TokenResult.class);
+                case 200:
+                    return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                            TokenResult.class);
 
-            case 400: // Bad request
-            case 401: // Unauthorized
-                throw new TokenExchangeException(
-                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                                TokenError.class));
+                case 400: // Bad request
+                case 401: // Unauthorized
+                    throw new TokenExchangeException(
+                            ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                                    TokenError.class));
 
-            default:
-                throw new IOException(
-                        "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
+                default:
+                    throw new IOException(
+                            "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
             }
-
 
 
         } catch (InterruptedException | ExecutionException e1) {

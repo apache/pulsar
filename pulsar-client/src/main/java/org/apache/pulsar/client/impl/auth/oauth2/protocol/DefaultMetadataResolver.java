@@ -21,16 +21,15 @@ package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 import com.fasterxml.jackson.databind.ObjectReader;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.Response;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.Response;
 
 /**
  * Resolves OAuth 2.0 authorization server metadata as described in RFC 8414.
@@ -48,7 +47,34 @@ public class DefaultMetadataResolver implements MetadataResolver {
     }
 
     /**
+     * Gets a well-known metadata URL for the given OAuth issuer URL.
+     *
+     * @param issuerUrl The authorization server's issuer identifier
+     * @return a resolver
+     */
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient) {
+        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl), httpClient);
+    }
+
+    /**
+     * Gets a well-known metadata URL for the given OAuth issuer URL.
+     *
+     * @param issuerUrl The authorization server's issuer identifier
+     * @return a URL
+     * @see <a href="https://tools.ietf.org/id/draft-ietf-oauth-discovery-08.html#ASConfig">
+     * OAuth Discovery: Obtaining Authorization Server Metadata</a>
+     */
+    public static URL getWellKnownMetadataUrl(URL issuerUrl) {
+        try {
+            return URI.create(issuerUrl.toExternalForm() + "/.well-known/openid-configuration").normalize().toURL();
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    /**
      * Resolves the authorization metadata.
+     *
      * @return metadata
      * @throws IOException if the metadata could not be resolved.
      */
@@ -68,31 +94,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
             return metadata;
 
         } catch (IOException | InterruptedException | ExecutionException e) {
-            throw new IOException("Cannot obtain authorization metadata from " + metadataUrl.toString(), e);
-        }
-    }
-
-    /**
-     * Gets a well-known metadata URL for the given OAuth issuer URL.
-     * @param issuerUrl The authorization server's issuer identifier
-     * @return a resolver
-     */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient) {
-        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl), httpClient);
-    }
-
-    /**
-     * Gets a well-known metadata URL for the given OAuth issuer URL.
-     * @see <a href="https://tools.ietf.org/id/draft-ietf-oauth-discovery-08.html#ASConfig">
-     *     OAuth Discovery: Obtaining Authorization Server Metadata</a>
-     * @param issuerUrl The authorization server's issuer identifier
-     * @return a URL
-     */
-    public static URL getWellKnownMetadataUrl(URL issuerUrl) {
-        try {
-            return URI.create(issuerUrl.toExternalForm() + "/.well-known/openid-configuration").normalize().toURL();
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(e);
+            throw new IOException("Cannot obtain authorization metadata from " + metadataUrl, e);
         }
     }
 }

@@ -19,24 +19,31 @@
 package org.apache.pulsar.client.impl.auth.oauth2;
 
 import io.netty.handler.ssl.SslContextBuilder;
-import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.*;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.apache.pulsar.PulsarVersion;
-
-import javax.net.ssl.SSLException;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import javax.net.ssl.SSLException;
+import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 
 /**
  * Implementation of OAuth 2.0 Client Credentials flow.
@@ -67,11 +74,89 @@ class ClientCredentialsFlow extends FlowBase {
     private boolean initialized = false;
 
     @Builder
-    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope, AsyncHttpClient httpClient) {
+    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
+                                 AsyncHttpClient httpClient) {
         super(issuerUrl, httpClient);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
+    }
+
+    /**
+     * Constructs a {@link ClientCredentialsFlow} from configuration parameters.
+     *
+     * @param params
+     * @return
+     */
+    public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
+        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
+        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
+        // These are optional parameters, so we only perform a get
+        String scope = params.get(CONFIG_PARAM_SCOPE);
+        String audience = params.get(CONFIG_PARAM_AUDIENCE);
+
+        int connectTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_CONNECT_TIMEOUT,
+                DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
+        int readTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_READ_TIMEOUT,
+                DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
+
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
+        confBuilder.setUseProxyProperties(true);
+        confBuilder.setFollowRedirect(true);
+        confBuilder.setConnectTimeout(connectTimeout);
+        confBuilder.setReadTimeout(readTimeout);
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try {
+                confBuilder.setSslContext(SslContextBuilder.forClient()
+                        .trustManager(new File(trustCertsFilePath))
+                        .build());
+            } catch (SSLException e) {
+                log.error("Could not set trustCertsFilePath", e);
+            }
+        }
+        AsyncHttpClient httpClient = new DefaultAsyncHttpClient(confBuilder.build());
+
+        return ClientCredentialsFlow.builder()
+                .issuerUrl(issuerUrl)
+                .audience(audience)
+                .privateKey(privateKeyUrl)
+                .scope(scope)
+                .httpClient(httpClient)
+                .build();
+    }
+
+    /**
+     * Loads the private key from the given URL.
+     *
+     * @param privateKeyURL
+     * @return
+     * @throws IOException
+     */
+    private static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
+        try {
+            URLConnection urlConnection = new org.apache.pulsar.client.api.url.URL(privateKeyURL).openConnection();
+            try {
+                String protocol = urlConnection.getURL().getProtocol();
+                String contentType = urlConnection.getContentType();
+                if ("data".equals(protocol) && !"application/json".equals(contentType)) {
+                    throw new IllegalArgumentException(
+                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
+                }
+                KeyFile privateKey;
+                try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(),
+                        StandardCharsets.UTF_8)) {
+                    privateKey = KeyFile.fromJson(r);
+                }
+                return privateKey;
+            } finally {
+                IOUtils.close(urlConnection);
+            }
+        } catch (URISyntaxException | InstantiationException | IllegalAccessException e) {
+            throw new IOException("Invalid privateKey format", e);
+        }
     }
 
     @Override
@@ -108,7 +193,7 @@ class ClientCredentialsFlow extends FlowBase {
             tr = this.exchanger.exchangeClientCredentials(req);
         } catch (TokenExchangeException | IOException e) {
             throw new PulsarClientException.AuthenticationException("Unable to obtain an access token: "
-                                                                    + e.getMessage());
+                    + e.getMessage());
         }
 
         return tr;
@@ -116,84 +201,11 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Override
     public void close() throws Exception {
-        if(httpClient != null) {
+        if (httpClient != null) {
             httpClient.close();
         }
         if (exchanger != null) {
             exchanger.close();
-        }
-    }
-
-    /**
-     * Constructs a {@link ClientCredentialsFlow} from configuration parameters.
-     * @param params
-     * @return
-     */
-    public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
-        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
-        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
-        // These are optional parameters, so we only perform a get
-        String scope = params.get(CONFIG_PARAM_SCOPE);
-        String audience = params.get(CONFIG_PARAM_AUDIENCE);
-
-        int connectTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-        int readTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_READ_TIMEOUT, DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
-        String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
-
-        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        confBuilder.setCookieStore(null);
-        confBuilder.setUseProxyProperties(true);
-        confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(connectTimeout);
-        confBuilder.setReadTimeout(readTimeout);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-        if(StringUtils.isNotBlank(trustCertsFilePath)) {
-            try {
-                confBuilder.setSslContext(SslContextBuilder.forClient()
-                        .trustManager(new File(trustCertsFilePath))
-                        .build());
-            } catch (SSLException e) {
-                log.error("Could not set trustCertsFilePath", e);
-            }
-        }
-        AsyncHttpClient httpClient = new DefaultAsyncHttpClient(confBuilder.build());
-
-        return ClientCredentialsFlow.builder()
-                .issuerUrl(issuerUrl)
-                .audience(audience)
-                .privateKey(privateKeyUrl)
-                .scope(scope)
-                .httpClient(httpClient)
-                .build();
-    }
-
-    /**
-     * Loads the private key from the given URL.
-     * @param privateKeyURL
-     * @return
-     * @throws IOException
-     */
-    private static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
-        try {
-            URLConnection urlConnection = new org.apache.pulsar.client.api.url.URL(privateKeyURL).openConnection();
-            try {
-                String protocol = urlConnection.getURL().getProtocol();
-                String contentType = urlConnection.getContentType();
-                if ("data".equals(protocol) && !"application/json".equals(contentType)) {
-                    throw new IllegalArgumentException(
-                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
-                }
-                KeyFile privateKey;
-                try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(),
-                        StandardCharsets.UTF_8)) {
-                    privateKey = KeyFile.fromJson(r);
-                }
-                return privateKey;
-            } finally {
-                IOUtils.close(urlConnection);
-            }
-        } catch (URISyntaxException | InstantiationException | IllegalAccessException e) {
-            throw new IOException("Invalid privateKey format", e);
         }
     }
 }
