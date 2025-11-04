@@ -233,6 +233,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         if (position != null) {
             var markDeletedPosition = cursor.getMarkDeletedPosition();
             if (markDeletedPosition != null && markDeletedPosition.compareTo(position) >= 0) {
+                expirationCheckInProgress = FALSE;
                 return;
             }
             log.info("[{}][{}] Expiring all messages until position {}", topicName, subName, position);
