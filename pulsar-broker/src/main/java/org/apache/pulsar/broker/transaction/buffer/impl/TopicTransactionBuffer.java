@@ -184,8 +184,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void handleTxnEntry(Entry entry) {
                         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
-                        MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload,
-                                TopicTransactionBufferRecover.SUBSCRIPTION_NAME, -1);
+                        MessageMetadata msgMetadata = entry.getMessageMetadata();
+                        if (msgMetadata == null) {
+                            msgMetadata = Commands.peekMessageMetadata(metadataAndPayload,
+                                    TopicTransactionBufferRecover.SUBSCRIPTION_NAME, -1);
+                        }
                         if (msgMetadata != null && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
                             TxnID txnID = new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
                             Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
@@ -227,6 +230,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @VisibleForTesting
+    public void setPublishFuture(CompletableFuture<Position> publishFuture) {
+        this.publishFuture = publishFuture;
     }
 
     @VisibleForTesting
@@ -295,7 +303,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         "Transaction Buffer recover failed, the current state is: " + getState()));
             }
         }).whenComplete(((position, throwable) -> buffer.release()));
-        publishFuture = future;
+        setPublishFuture(future);
         return future;
     }
 

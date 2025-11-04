@@ -20,6 +20,6 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
-# Create an inline docker container with alpine:3.21 base image and mount the current directory to it as the
+# Create an inline docker container with alpine:3.22 base image and mount the current directory to it as the
 # working directory and run the script inside the container.
-docker run --rm -v "$SCRIPT_DIR/..:/pulsar_src" -w /pulsar_src alpine:3.21 sh -c 'apk add --no-cache bash python3 && /pulsar_src/src/update_python_protobuf_stubs.sh'
+docker run --rm -v "$SCRIPT_DIR/..:/pulsar_src" -w /pulsar_src alpine:3.22 sh -c 'apk add --no-cache bash python3 && /pulsar_src/src/update_python_protobuf_stubs.sh'

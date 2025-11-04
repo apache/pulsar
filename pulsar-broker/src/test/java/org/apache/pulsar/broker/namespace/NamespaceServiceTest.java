@@ -868,6 +868,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                     "Cluster [r3] is not in the list of allowed clusters list for tenant [my-tenant]");
         }
         // 3. Clean up
+        admin.namespaces().setNamespaceAllowedClusters(namespace, Set.of(pulsar.getConfig().getClusterName()));
         admin.namespaces().deleteNamespace(namespace, true);
         admin.tenants().deleteTenant(tenant, true);
         for (String cluster : clusters) {
@@ -935,7 +936,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
             namespaces.setNamespaceReplicationClusters(namespace, replicationClustersExcel);
             fail();
             //Todo: The status code in the old implementation is confused.
-        } catch (PulsarAdminException.NotAuthorizedException ignore) {}
+        } catch (PulsarAdminException ignore) {
+            assertTrue(ignore.getMessage().contains("allowed clusters list"));
+        }
 
         // 2.2 Peer cluster can not be a part of the allowed clusters.
         LinkedHashSet<String> peerCluster = new LinkedHashSet<>();
@@ -950,6 +953,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         // CleanUp: Namespace with replication clusters can not be deleted by force.
         namespaces.setNamespaceReplicationClusters(namespace, Set.of(conf.getClusterName()));
+        namespaces.setNamespaceAllowedClusters(namespace, Set.of(conf.getClusterName()));
         admin.namespaces().deleteNamespace(namespace, true);
         admin.tenants().deleteTenant(tenant, true);
         for (String cluster : clusters) {

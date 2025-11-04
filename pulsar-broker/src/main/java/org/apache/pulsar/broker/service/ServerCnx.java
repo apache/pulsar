@@ -25,6 +25,7 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
@@ -37,6 +38,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -148,6 +150,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.configuration.anonymizer.DefaultAuthenticationRoleLoggingAnonymizer;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.Metadata;
@@ -181,6 +184,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.utils.TimedSingleThreadRateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -191,6 +195,8 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
+    private static final Logger PAUSE_RECEIVING_LOG = LoggerFactory.getLogger(ServerCnx.class.getName()
+            + ".pauseReceiving");
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
@@ -215,6 +221,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private AuthData originalAuthDataCopy;
     private boolean pendingAuthChallengeResponse = false;
     private ScheduledFuture<?> authRefreshTask;
+    private final DefaultAuthenticationRoleLoggingAnonymizer authenticationRoleLoggingAnonymizer;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -249,6 +256,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private final long connectionLivenessCheckTimeoutMillis;
     private final TopicsPattern.RegexImplementation topicsPatternImplementation;
+    private final boolean pauseReceivingRequestsIfUnwritable;
+    private final TimedSingleThreadRateLimiter requestRateLimiter;
+    private final int pauseReceivingCooldownMilliSeconds;
+    private boolean pausedDueToRateLimitation = false;
 
     // Tracks and limits number of bytes pending to be published from a single specific IO thread.
     static final class PendingBytesPerThreadTracker {
@@ -273,7 +284,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (maxPendingBytesPerThread > 0 && pendingBytes > maxPendingBytesPerThread
                     && !limitExceeded) {
                 limitExceeded = true;
-                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.setPublishBufferLimiting(true));
+                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.markThrottled(
+                        ThrottleType.IOThreadMaxPendingPublishBytesExceeded));
             }
         }
 
@@ -283,7 +295,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // we resume all connections sharing the same thread
             if (limitExceeded && pendingBytes <= resumeThresholdPendingBytesPerThread) {
                 limitExceeded = false;
-                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.setPublishBufferLimiting(false));
+                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.unmarkThrottled(
+                        ThrottleType.IOThreadMaxPendingPublishBytesExceeded));
             }
         }
     }
@@ -301,6 +314,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Start, Connected, Failed, Connecting
     }
 
+    @Getter
     private final ServerCnxThrottleTracker throttleTracker;
 
     public ServerCnx(PulsarService pulsar) {
@@ -312,6 +326,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // the null check is a workaround for #13620
         super(pulsar.getBrokerService() != null ? pulsar.getBrokerService().getKeepAliveIntervalSeconds() : 0,
                 TimeUnit.SECONDS);
+        this.pauseReceivingRequestsIfUnwritable =
+                pulsar.getConfig().isPulsarChannelPauseReceivingRequestsIfUnwritable();
+        this.requestRateLimiter = new TimedSingleThreadRateLimiter(
+                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownRateLimitPermits(),
+                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownRateLimitPeriodMs(),
+                TimeUnit.MILLISECONDS);
+        this.pauseReceivingCooldownMilliSeconds =
+                pulsar.getConfig().getPulsarChannelPauseReceivingCooldownMs();
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
@@ -352,6 +374,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.brokerInterceptor = this.service != null ? this.service.getInterceptor() : null;
         this.throttleTracker = new ServerCnxThrottleTracker(this);
         topicsPatternImplementation = conf.getTopicsPatternRegexImplementation();
+        this.authenticationRoleLoggingAnonymizer = new DefaultAuthenticationRoleLoggingAnonymizer(
+                conf.getAuthenticationRoleLoggingAnonymizer());
     }
 
     @Override
@@ -438,11 +462,62 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
+    private void checkPauseReceivingRequestsAfterResumeRateLimit(BaseCommand cmd) {
+        if (!pauseReceivingRequestsIfUnwritable
+                || pauseReceivingCooldownMilliSeconds <= 0 || cmd.getType() == BaseCommand.Type.PONG
+                || cmd.getType() == BaseCommand.Type.PING) {
+            return;
+        }
+        if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
+            final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
+            if (outboundBuffer != null) {
+                PAUSE_RECEIVING_LOG.debug("Start to handle request [{}], totalPendingWriteBytes: {}, channel"
+                    + " isWritable: {}", cmd.getType(), outboundBuffer.totalPendingWriteBytes(),
+                    ctx.channel().isWritable());
+            } else {
+                PAUSE_RECEIVING_LOG.debug("Start to handle request [{}], channel isWritable: {}",
+                        cmd.getType(), ctx.channel().isWritable());
+            }
+        }
+        // "requestRateLimiter" will return the permits that you acquired if it is not opening(has been called
+        // "timingOpen(duration)").
+        if (requestRateLimiter.acquire(1) == 0 && !pausedDueToRateLimitation) {
+            log.warn("[{}] Reached rate limitation", this);
+            // Stop receiving requests.
+            pausedDueToRateLimitation = true;
+            getThrottleTracker().markThrottled(ThrottleType.ConnectionPauseReceivingCooldownRateLimit);
+            // Resume after 1 second.
+            ctx.channel().eventLoop().schedule(() -> {
+                if (pausedDueToRateLimitation) {
+                    log.info("[{}] Resuming connection after rate limitation", this);
+                    getThrottleTracker().unmarkThrottled(ThrottleType.ConnectionPauseReceivingCooldownRateLimit);
+                    pausedDueToRateLimitation = false;
+                }
+            }, requestRateLimiter.getPeriodAtMs(), TimeUnit.MILLISECONDS);
+        }
+    }
+
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        if (log.isDebugEnabled()) {
-            log.debug("Channel writability has changed to: {}", ctx.channel().isWritable());
+        if (pauseReceivingRequestsIfUnwritable && ctx.channel().isWritable()) {
+            log.info("[{}] is writable, turn on channel auto-read", this);
+            getThrottleTracker().unmarkThrottled(ThrottleType.ConnectionOutboundBufferFull);
+            requestRateLimiter.timingOpen(pauseReceivingCooldownMilliSeconds, TimeUnit.MILLISECONDS);
+        } else if (pauseReceivingRequestsIfUnwritable && !ctx.channel().isWritable()) {
+            final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
+            if (outboundBuffer != null) {
+                if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
+                    PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read,"
+                        + " totalPendingWriteBytes: {}", this, outboundBuffer.totalPendingWriteBytes());
+                }
+            } else {
+                if (PAUSE_RECEIVING_LOG.isDebugEnabled()) {
+                    PAUSE_RECEIVING_LOG.debug("[{}] is not writable, turn off channel auto-read", this);
+                }
+            }
+            getThrottleTracker().markThrottled(ThrottleType.ConnectionOutboundBufferFull);
         }
+        ctx.fireChannelWritabilityChanged();
     }
 
     @Override
@@ -503,8 +578,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handleLookup(CommandLookupTopic lookup) {
+    protected void handleLookup(CommandLookupTopic lookupParam) {
         checkArgument(state == State.Connected);
+
+        // Make a copy since the command is handled asynchronously
+        CommandLookupTopic lookup = new CommandLookupTopic().copyFrom(lookupParam);
+
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.isAuthoritative();
 
@@ -591,8 +670,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
+    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadataParam) {
         checkArgument(state == State.Connected);
+
+        // Make a copy since the command is handled asynchronously
+        CommandPartitionedTopicMetadata partitionMetadata =
+                new CommandPartitionedTopicMetadata().copyFrom(partitionMetadataParam);
+
         final long requestId = partitionMetadata.getRequestId();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received PartitionMetadataLookup from {} for {}", partitionMetadata.getTopic(),
@@ -821,12 +905,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     clientVersion, clientProtoVersion, proxyVersion);
         } else if (originalPrincipal != null) {
             log.info("[{}] connected role={} and originalAuthRole={} using authMethod={}, clientVersion={}, "
-                            + "clientProtocolVersion={}, proxyVersion={}", remoteAddress, authRole, originalPrincipal,
-                    authMethod, clientVersion, clientProtoVersion, proxyVersion);
+                            + "clientProtocolVersion={}, proxyVersion={}", remoteAddress,
+                    authenticationRoleLoggingAnonymizer.anonymize(authRole),
+                    authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal), authMethod, clientVersion,
+                    clientProtoVersion, proxyVersion);
         } else {
             log.info("[{}] connected with role={} using authMethod={}, clientVersion={}, clientProtocolVersion={}, "
-                            + "proxyVersion={}", remoteAddress, authRole, authMethod, clientVersion, clientProtoVersion,
-                    proxyVersion);
+                           + "proxyVersion={}", remoteAddress, authenticationRoleLoggingAnonymizer.anonymize(authRole),
+                    authMethod, clientVersion, clientProtoVersion, proxyVersion);
         }
         if (brokerInterceptor != null) {
             brokerInterceptor.onConnectionCreated(this);
@@ -1214,7 +1300,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Handle subscribe command: auth role = {}, original auth role = {}",
-                remoteAddress, authRole, originalPrincipal);
+                remoteAddress, authenticationRoleLoggingAnonymizer.anonymize(authRole),
+                    authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal));
         }
 
         final String subscriptionName = subscribe.getSubscription();
@@ -2365,7 +2452,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }, null);
 
             CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                MessageMetadata metadata = entry.getMessageMetadata();
+                if (metadata == null) {
+                    metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                }
                 int batchSize = metadata.getNumMessagesInBatch();
                 entry.release();
                 return metadata.hasNumMessagesInBatch() ? batchSize : -1;
@@ -2430,11 +2520,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
                 log.warn("OriginalRole {} is not authorized to perform operation {} on namespace {}",
-                        originalPrincipal, operation, namespaceName);
+                        authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal), operation, namespaceName);
             }
             if (!isAuthorized) {
                 log.warn("Role {} is not authorized to perform operation {} on namespace {}",
-                        authRole, operation, namespaceName);
+                        authenticationRoleLoggingAnonymizer.anonymize(authRole), operation, namespaceName);
             }
             return isProxyAuthorized && isAuthorized;
         });
@@ -3104,8 +3194,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handleCommandWatchTopicList(CommandWatchTopicList commandWatchTopicList) {
+    protected void handleCommandWatchTopicList(CommandWatchTopicList commandWatchTopicListParam) {
         checkArgument(state == State.Connected);
+
+        // make a copy since command is handled asynchronously
+        CommandWatchTopicList commandWatchTopicList = new CommandWatchTopicList().copyFrom(commandWatchTopicListParam);
+
         final long requestId = commandWatchTopicList.getRequestId();
         final long watcherId = commandWatchTopicList.getWatcherId();
         final NamespaceName namespaceName = NamespaceName.get(commandWatchTopicList.getNamespace());
@@ -3309,7 +3403,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // or the pending publish bytes
     private void increasePendingSendRequestsAndPublishBytes(int msgSize) {
         if (++pendingSendRequest == maxPendingSendRequests) {
-            throttleTracker.setPendingSendRequestsExceeded(true);
+            throttleTracker.markThrottled(ThrottleType.ConnectionMaxPendingPublishRequestsExceeded);
         }
         PendingBytesPerThreadTracker.getInstance().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
@@ -3334,7 +3428,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         PendingBytesPerThreadTracker.getInstance().decrementPublishBytes(msgSize, resumeThresholdPendingBytesPerThread);
 
         if (--pendingSendRequest == resumeReadsThreshold) {
-            throttleTracker.setPendingSendRequestsExceeded(false);
+            throttleTracker.unmarkThrottled(ThrottleType.ConnectionMaxPendingPublishRequestsExceeded);
         }
 
         if (isNonPersistentTopic) {
@@ -3642,8 +3736,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void messageReceived() {
-        super.messageReceived();
+    protected void messageReceived(BaseCommand cmd) {
+        checkPauseReceivingRequestsAfterResumeRateLimit(cmd);
+        super.messageReceived(cmd);
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
             connectionCheckInProgress.complete(Optional.of(true));
             connectionCheckInProgress = null;
@@ -3710,22 +3805,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @VisibleForTesting
     protected void setAuthRole(String authRole) {
         this.authRole = authRole;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void incrementThrottleCount() {
-        throttleTracker.incrementThrottleCount();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void decrementThrottleCount() {
-        throttleTracker.decrementThrottleCount();
     }
 
     @VisibleForTesting

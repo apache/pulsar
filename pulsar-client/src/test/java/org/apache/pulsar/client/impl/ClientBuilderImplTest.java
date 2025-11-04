@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -219,6 +221,21 @@ public class ClientBuilderImplTest {
         confProps.put(AUTH_PARAM_MAP_PROP, secretAuthParamMap("pass2"));
         Authentication auth = createClientAndGetAuth(confProps);
         assertThatAuthIsNotSet(auth);
+    }
+
+    @Test
+    public void testClientDescription() throws PulsarClientException {
+        @Cleanup PulsarClient ignored =
+                PulsarClient.builder().serviceUrl("pulsar://localhost:6650").description("forked").build();
+    }
+
+    @Test
+    public void testClientDescriptionLengthExceed64() {
+        String longDescription = "a".repeat(65);
+        assertThatThrownBy(() -> {
+            @Cleanup PulsarClient ignored =
+                    PulsarClient.builder().serviceUrl("pulsar://localhost:6650").description(longDescription).build();
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
     private void assertThatAuthIsNotSet(Authentication authentication) {

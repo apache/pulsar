@@ -21,9 +21,12 @@ package org.apache.pulsar.client.impl;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
@@ -65,16 +68,20 @@ public class HttpClient implements Closeable {
 
     protected final AsyncHttpClient httpClient;
     protected final ServiceNameResolver serviceNameResolver;
+    private final NameResolver<InetAddress> nameResolver;
     protected final Authentication authentication;
     protected final ClientConfigurationData clientConf;
     protected ScheduledExecutorService executorService;
     protected PulsarSslFactory sslFactory;
 
-    protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
+    protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Timer timer,
+                         NameResolver<InetAddress> nameResolver)
+            throws PulsarClientException {
         this.authentication = conf.getAuthentication();
         this.clientConf = conf;
         this.serviceNameResolver = new PulsarServiceNameResolver(conf.getServiceUrlQuarantineInitDurationMs(),
                 conf.getServiceUrlQuarantineMaxDurationMs());
+        this.nameResolver = nameResolver;
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
@@ -84,7 +91,10 @@ public class HttpClient implements Closeable {
         confBuilder.setMaxRedirects(conf.getMaxLookupRedirects());
         confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
         confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
+                PulsarVersion.getVersion(),
+                (conf.getDescription() == null ? "" : ("-" + conf.getDescription()))
+        ));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
             public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
@@ -125,6 +135,7 @@ public class HttpClient implements Closeable {
             }
         }
         confBuilder.setEventLoopGroup(eventLoopGroup);
+        confBuilder.setNettyTimer(timer);
         AsyncHttpClientConfig config = confBuilder.build();
         httpClient = new DefaultAsyncHttpClient(config);
 
@@ -181,7 +192,9 @@ public class HttpClient implements Closeable {
 
                 // auth complete, use a new builder
                 BoundRequestBuilder builder = httpClient.prepareGet(requestUrl)
-                    .setHeader("Accept", "application/json");
+                        // share the DNS resolver and cache with Pulsar client
+                        .setNameResolver(nameResolver)
+                        .setHeader("Accept", "application/json");
 
                 if (authData.hasDataForHttp()) {
                     Set<Entry<String, String>> headers;

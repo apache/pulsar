@@ -97,5 +97,8 @@ public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBas
         PartitionedTopicMetadata partitionedTopicMetadata3 =
                 pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName2, true).get();
         assertEquals(partitionedTopicMetadata3.partitions, 3);
+
+        // cleanup.
+        stopLocalMetadataStoreConnectionTermination();
     }
 }

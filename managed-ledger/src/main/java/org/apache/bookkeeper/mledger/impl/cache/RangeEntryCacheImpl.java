@@ -152,7 +152,8 @@ public class RangeEntryCacheImpl implements EntryCache {
 
         Position position = entry.getPosition();
         ReferenceCountedEntry cacheEntry =
-                EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler());
+                EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
+                            entry.getMessageMetadata());
         cachedData.release();
         if (entries.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
@@ -532,6 +533,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
                                 for (LedgerEntry e : ledgerEntries) {
                                     EntryImpl entry = EntryImpl.create(e, interceptor, expectedReadCountVal);
+                                    entry.initializeMessageMetadataIfNeeded(ml.getName());
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                     if (expectedReadCountVal > 0) {

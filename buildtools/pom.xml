@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>29</version>
+    <version>35</version>
     <relativePath />
   </parent>
 
@@ -55,13 +55,13 @@
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.124.Final</netty.version>
+    <netty.version>4.1.128.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>33.4.8-jre</guava.version>
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>2.0</snakeyaml.version>
-    <mockito.version>5.17.0</mockito.version>
-    <byte-buddy.version>1.15.11</byte-buddy.version>
+    <mockito.version>5.19.0</mockito.version>
+    <byte-buddy.version>1.17.7</byte-buddy.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>

@@ -49,6 +49,9 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 /**
@@ -99,7 +102,7 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
-    public void testConvertBackFidelity() throws IOException  {
+    public void testConvertBackFidelity() throws IOException, JSONException  {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant("test-tenant");
         sinkConfig.setNamespace("test-namespace");
@@ -143,9 +146,10 @@ public class SinkConfigUtilsTest {
                 new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.SHARED, functionDetails.getSource().getSubscriptionType());
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(convertedConfig),
-                new Gson().toJson(sinkConfig)
+                new Gson().toJson(sinkConfig),
+                JSONCompareMode.STRICT
         );
 
         sinkConfig.setRetainOrdering(true);
@@ -155,9 +159,11 @@ public class SinkConfigUtilsTest {
                 new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.FAILOVER, functionDetails.getSource().getSubscriptionType());
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(convertedConfig),
-                new Gson().toJson(sinkConfig));
+                new Gson().toJson(sinkConfig),
+                JSONCompareMode.STRICT
+        );
 
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setRetainKeyOrdering(true);
@@ -166,9 +172,11 @@ public class SinkConfigUtilsTest {
                 new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.KEY_SHARED, functionDetails.getSource().getSubscriptionType());
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(convertedConfig),
-                new Gson().toJson(sinkConfig));
+                new Gson().toJson(sinkConfig),
+                JSONCompareMode.STRICT
+        );
     }
 
     @Test
