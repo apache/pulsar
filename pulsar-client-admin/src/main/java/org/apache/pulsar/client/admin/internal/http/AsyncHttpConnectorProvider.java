@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal.http;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Configuration;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;
@@ -51,8 +52,8 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
 
 
     public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
-            int autoCertRefreshTimeSeconds) {
+            int autoCertRefreshTimeSeconds, PulsarClientSharedResourcesImpl sharedResources) {
         return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression);
+                conf, acceptGzipCompression, sharedResources);
     }
 }
