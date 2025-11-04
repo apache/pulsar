@@ -18,23 +18,36 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import io.netty.handler.ssl.SslContextBuilder;
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
+import javax.net.ssl.SSLException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.Metadata;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.MetadataResolver;
 import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 
 /**
  * An abstract OAuth 2.0 authorization flow.
  */
 @Slf4j
 abstract class FlowBase implements Flow {
+
+    public static final String CONFIG_PARAM_CONNECT_TIMEOUT = "connectTimeout";
+    public static final String CONFIG_PARAM_READ_TIMEOUT = "readTimeout";
+    public static final String CONFIG_PARAM_TRUST_CERTS_FILE_PATH = "trustCertsFilePath";
+
+    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     private static final long serialVersionUID = 1L;
 
@@ -43,9 +56,42 @@ abstract class FlowBase implements Flow {
 
     protected transient Metadata metadata;
 
-    protected FlowBase(URL issuerUrl, AsyncHttpClient httpClient) {
+    protected FlowBase(URL issuerUrl, Integer connectTimeout, Integer readTimeout, String trustCertsFilePath) {
         this.issuerUrl = issuerUrl;
-        this.httpClient = httpClient;
+        this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
+    }
+
+    private AsyncHttpClient defaultHttpClient(Integer readTimeout, Integer connectTimeout, String trustCertsFilePath) {
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
+        confBuilder.setUseProxyProperties(true);
+        confBuilder.setFollowRedirect(true);
+        confBuilder.setConnectTimeout(
+                getParameterInt(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
+                        DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000));
+        confBuilder.setReadTimeout(
+                getParameterInt(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000));
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try {
+                confBuilder.setSslContext(SslContextBuilder.forClient()
+                        .trustManager(new File(trustCertsFilePath))
+                        .build());
+            } catch (SSLException e) {
+                log.error("Could not set " + CONFIG_PARAM_TRUST_CERTS_FILE_PATH, e);
+            }
+        }
+        return new DefaultAsyncHttpClient(confBuilder.build());
+    }
+
+    private int getParameterInt(String name, Integer value, int defaultValue) {
+        if (value == null) {
+            log.info("Configuration for [{}] is using the default value: [{}]", name, defaultValue);
+            return defaultValue;
+        } else {
+            log.info("Configuration for [{}] is: [{}]", name, value);
+            return value;
+        }
     }
 
     public void initialize() throws PulsarClientException {
@@ -78,6 +124,25 @@ abstract class FlowBase implements Flow {
             return new URL(s);
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException("Malformed configuration parameter: " + name);
+        }
+    }
+
+    static Integer parseParameterInt(Map<String, String> params, String name) {
+        String value = params.get(name);
+        if (StringUtils.isNotBlank(value)) {
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException numberFormatException) {
+                throw new IllegalArgumentException("Malformed configuration parameter: " + name);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (httpClient != null) {
+            httpClient.close();
         }
     }
 }
