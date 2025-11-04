@@ -19,44 +19,32 @@
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
 import com.fasterxml.jackson.databind.ObjectReader;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.Response;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLConnection;
-import java.time.Duration;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Resolves OAuth 2.0 authorization server metadata as described in RFC 8414.
  */
 public class DefaultMetadataResolver implements MetadataResolver {
 
-    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
-
     private final URL metadataUrl;
     private final ObjectReader objectReader;
-    private Duration connectTimeout;
-    private Duration readTimeout;
+    private final AsyncHttpClient httpClient;
 
-    public DefaultMetadataResolver(URL metadataUrl) {
+    public DefaultMetadataResolver(URL metadataUrl, AsyncHttpClient httpClient) {
         this.metadataUrl = metadataUrl;
         this.objectReader = ObjectMapperFactory.getMapper().reader().forType(Metadata.class);
-        // set a default timeout to ensure that this doesn't block
-        this.connectTimeout = Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS);
-        this.readTimeout = Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS);
-    }
-
-    public DefaultMetadataResolver withConnectTimeout(Duration connectTimeout) {
-        this.connectTimeout = connectTimeout;
-        return this;
-    }
-
-    public DefaultMetadataResolver withReadTimeout(Duration readTimeout) {
-        this.readTimeout = readTimeout;
-        return this;
+        this.httpClient = httpClient;
     }
 
     /**
@@ -65,23 +53,21 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * @throws IOException if the metadata could not be resolved.
      */
     public Metadata resolve() throws IOException {
+
         try {
-            URLConnection c = this.metadataUrl.openConnection();
-            if (connectTimeout != null) {
-                c.setConnectTimeout((int) connectTimeout.toMillis());
-            }
-            if (readTimeout != null) {
-                c.setReadTimeout((int) readTimeout.toMillis());
-            }
-            c.setRequestProperty("Accept", "application/json");
+            Response response = httpClient.prepareGet(metadataUrl.toString())
+                    .addHeader(HttpHeaderNames.ACCEPT, HttpHeaderValues.APPLICATION_JSON)
+                    .execute()
+                    .toCompletableFuture()
+                    .get();
 
             Metadata metadata;
-            try (InputStream inputStream = c.getInputStream()) {
+            try (InputStream inputStream = response.getResponseBodyAsStream()) {
                 metadata = this.objectReader.readValue(inputStream);
             }
             return metadata;
 
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException | ExecutionException e) {
             throw new IOException("Cannot obtain authorization metadata from " + metadataUrl.toString(), e);
         }
     }
@@ -91,8 +77,8 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * @param issuerUrl The authorization server's issuer identifier
      * @return a resolver
      */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl) {
-        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl));
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient) {
+        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl), httpClient);
     }
 
     /**

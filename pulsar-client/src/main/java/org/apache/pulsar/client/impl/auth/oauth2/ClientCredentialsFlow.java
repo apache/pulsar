@@ -18,24 +18,25 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import io.netty.handler.ssl.SslContextBuilder;
+import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.*;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.apache.pulsar.PulsarVersion;
+
+import javax.net.ssl.SSLException;
+import java.io.*;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
 /**
  * Implementation of OAuth 2.0 Client Credentials flow.
@@ -48,6 +49,12 @@ class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
     public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
     public static final String CONFIG_PARAM_SCOPE = "scope";
+    public static final String CONFIG_PARAM_CONNECT_TIMEOUT = "connectTimeout";
+    public static final String CONFIG_PARAM_READ_TIMEOUT = "readTimeout";
+    public static final String CONFIG_PARAM_TRUST_CERTS_FILE_PATH = "trustCertsFilePath";
+
+    private static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    private static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     private static final long serialVersionUID = 1L;
 
@@ -60,8 +67,8 @@ class ClientCredentialsFlow extends FlowBase {
     private boolean initialized = false;
 
     @Builder
-    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope) {
-        super(issuerUrl);
+    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope, AsyncHttpClient httpClient) {
+        super(issuerUrl, httpClient);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
@@ -73,7 +80,7 @@ class ClientCredentialsFlow extends FlowBase {
         assert this.metadata != null;
 
         URL tokenUrl = this.metadata.getTokenEndpoint();
-        this.exchanger = new TokenClient(tokenUrl);
+        this.exchanger = new TokenClient(tokenUrl, httpClient);
         initialized = true;
     }
 
@@ -109,6 +116,9 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Override
     public void close() throws Exception {
+        if(httpClient != null) {
+            httpClient.close();
+        }
         if (exchanger != null) {
             exchanger.close();
         }
@@ -125,11 +135,35 @@ class ClientCredentialsFlow extends FlowBase {
         // These are optional parameters, so we only perform a get
         String scope = params.get(CONFIG_PARAM_SCOPE);
         String audience = params.get(CONFIG_PARAM_AUDIENCE);
+
+        int connectTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
+        int readTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_READ_TIMEOUT, DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
+
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
+        confBuilder.setUseProxyProperties(true);
+        confBuilder.setFollowRedirect(true);
+        confBuilder.setConnectTimeout(connectTimeout);
+        confBuilder.setReadTimeout(readTimeout);
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        if(StringUtils.isNotBlank(trustCertsFilePath)) {
+            try {
+                confBuilder.setSslContext(SslContextBuilder.forClient()
+                        .trustManager(new File(trustCertsFilePath))
+                        .build());
+            } catch (SSLException e) {
+                log.error("Could not set trustCertsFilePath", e);
+            }
+        }
+        AsyncHttpClient httpClient = new DefaultAsyncHttpClient(confBuilder.build());
+
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .audience(audience)
                 .privateKey(privateKeyUrl)
                 .scope(scope)
+                .httpClient(httpClient)
                 .build();
     }
 

@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.Response;
+
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -26,44 +31,17 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.Response;
 
 /**
  * A client for an OAuth 2.0 token endpoint.
  */
 public class TokenClient implements ClientCredentialsExchanger {
 
-    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
-
     private final URL tokenUrl;
     private final AsyncHttpClient httpClient;
 
-    public TokenClient(URL tokenUrl) {
-        this(tokenUrl, null);
-    }
-
-    TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
-        if (httpClient == null) {
-            DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-            confBuilder.setCookieStore(null);
-            confBuilder.setUseProxyProperties(true);
-            confBuilder.setFollowRedirect(true);
-            confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-            confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
-            confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-            AsyncHttpClientConfig config = confBuilder.build();
-            this.httpClient = new DefaultAsyncHttpClient(config);
-        } else {
-            this.httpClient = httpClient;
-        }
+    public TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
+        this.httpClient = httpClient;
         this.tokenUrl = tokenUrl;
     }
 

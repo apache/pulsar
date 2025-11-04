@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.Metadata;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.MetadataResolver;
+import org.asynchttpclient.AsyncHttpClient;
 
 /**
  * An abstract OAuth 2.0 authorization flow.
@@ -38,11 +39,13 @@ abstract class FlowBase implements Flow {
     private static final long serialVersionUID = 1L;
 
     protected final URL issuerUrl;
+    protected final AsyncHttpClient httpClient;
 
     protected transient Metadata metadata;
 
-    protected FlowBase(URL issuerUrl) {
+    protected FlowBase(URL issuerUrl, AsyncHttpClient httpClient) {
         this.issuerUrl = issuerUrl;
+        this.httpClient = httpClient;
     }
 
     public void initialize() throws PulsarClientException {
@@ -55,7 +58,7 @@ abstract class FlowBase implements Flow {
     }
 
     protected MetadataResolver createMetadataResolver() {
-        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl);
+        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, httpClient);
     }
 
     static String parseParameterString(Map<String, String> params, String name) {
