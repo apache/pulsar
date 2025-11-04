@@ -75,11 +75,35 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Builder
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
-                                 AsyncHttpClient httpClient) {
-        super(issuerUrl, httpClient);
+                                 Integer connectTimeout, Integer readTimeout, String trustCertsFilePath) {
+        super(issuerUrl, getHttpClient(connectTimeout, readTimeout, trustCertsFilePath));
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
+    }
+
+    private static AsyncHttpClient getHttpClient(Integer connectTimeout, Integer readTimeout,
+                                                 String trustCertsFilePath) {
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
+        confBuilder.setUseProxyProperties(true);
+        confBuilder.setFollowRedirect(true);
+        confBuilder.setConnectTimeout(
+                getConfigValueAsInt(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
+                        DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000));
+        confBuilder.setReadTimeout(
+                getConfigValueAsInt(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000));
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try {
+                confBuilder.setSslContext(SslContextBuilder.forClient()
+                        .trustManager(new File(trustCertsFilePath))
+                        .build());
+            } catch (SSLException e) {
+                log.error("Could not set trustCertsFilePath", e);
+            }
+        }
+        return new DefaultAsyncHttpClient(confBuilder.build());
     }
 
     /**
@@ -94,38 +118,57 @@ class ClientCredentialsFlow extends FlowBase {
         // These are optional parameters, so we only perform a get
         String scope = params.get(CONFIG_PARAM_SCOPE);
         String audience = params.get(CONFIG_PARAM_AUDIENCE);
-
-        int connectTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_CONNECT_TIMEOUT,
-                DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-        int readTimeout = ConfigUtils.getConfigValueAsInt(params, CONFIG_PARAM_READ_TIMEOUT,
-                DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        Integer connectTimeout = getConfigValueAsInt(params, CONFIG_PARAM_CONNECT_TIMEOUT);
+        Integer readTimeout = getConfigValueAsInt(params, CONFIG_PARAM_READ_TIMEOUT);
         String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
-
-        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        confBuilder.setCookieStore(null);
-        confBuilder.setUseProxyProperties(true);
-        confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(connectTimeout);
-        confBuilder.setReadTimeout(readTimeout);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-        if (StringUtils.isNotBlank(trustCertsFilePath)) {
-            try {
-                confBuilder.setSslContext(SslContextBuilder.forClient()
-                        .trustManager(new File(trustCertsFilePath))
-                        .build());
-            } catch (SSLException e) {
-                log.error("Could not set trustCertsFilePath", e);
-            }
-        }
-        AsyncHttpClient httpClient = new DefaultAsyncHttpClient(confBuilder.build());
 
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .audience(audience)
                 .privateKey(privateKeyUrl)
                 .scope(scope)
-                .httpClient(httpClient)
+                .connectTimeout(connectTimeout)
+                .readTimeout(readTimeout)
+                .trustCertsFilePath(trustCertsFilePath)
                 .build();
+    }
+
+    /**
+     * Utility method to get an integer from parameters.
+     *
+     * @param params the parameters
+     * @param key    the key
+     * @return the integer value if exists, else null.
+     */
+    private static Integer getConfigValueAsInt(Map<String, String> params, String key) {
+        String value = params.get(key);
+        if (StringUtils.isNotBlank(value)) {
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException numberFormatException) {
+                log.error("Expected configuration for [{}] to be an integer, but got [{}]",
+                        key, value, numberFormatException);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Utility method to get an integer, or the default value.
+     *
+     * @param key          the key
+     * @param value        the nullable value
+     * @param defaultValue the default value
+     * @return the value if exits, else the default value.
+     */
+    private static int getConfigValueAsInt(String key, Integer value, int defaultValue) {
+        if (value == null) {
+            log.info("Configuration for [{}] is using the default value: [{}]", key, defaultValue);
+            return defaultValue;
+        } else {
+            log.info("Configuration for [{}] is [{}]", key, value);
+            return value;
+        }
     }
 
     /**
