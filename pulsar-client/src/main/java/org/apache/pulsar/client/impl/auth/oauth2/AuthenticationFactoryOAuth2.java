@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.net.URL;
 import java.time.Clock;
+import lombok.Builder;
 import org.apache.pulsar.client.api.Authentication;
 
 /**
@@ -75,9 +76,10 @@ public final class AuthenticationFactoryOAuth2 {
      * @param trustCertsFilePath the path to the file that contains trusted certificates
      * @return an Authentication object
      */
-    public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope,
-                                                   Integer connectTimeout, Integer readTimeout,
-                                                   String trustCertsFilePath) {
+    @Builder(builderMethodName = "clientCredentialsBuilder")
+    private static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope,
+                                                    Integer connectTimeout, Integer readTimeout,
+                                                    String trustCertsFilePath) {
         ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .privateKey(credentialsUrl.toExternalForm())
@@ -89,5 +91,6 @@ public final class AuthenticationFactoryOAuth2 {
                 .build();
         return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
     }
+
 
 }
