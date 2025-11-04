@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -327,7 +328,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @return the jsonified schema info
      */
     public String jsonifySchemaInfo(SchemaInfo schemaInfo) {
-        return SchemaUtils.jsonifySchemaInfo(schemaInfo);
+        return SchemaUtils.jsonifySchemaInfo(schemaInfo, true);
     }
 
     /**
@@ -402,5 +403,10 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
             }
         }
         return new TopicMessageIdImpl(topic, messageIdAdv);
+    }
+
+    @Override
+    public PulsarClientSharedResourcesBuilder newSharedResourcesBuilder() {
+        return new PulsarClientSharedResourcesBuilderImpl();
     }
 }

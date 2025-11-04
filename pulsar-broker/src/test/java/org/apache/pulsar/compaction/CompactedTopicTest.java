@@ -39,8 +39,8 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -104,14 +104,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
      * Build a compacted ledger, and return the id of the ledger, the position of the different
      * entries in the ledger, and a list of gaps, and the entry which should be returned after the gap.
      */
-    private Triple<Long, List<Pair<MessageIdData,Long>>, List<Pair<MessageIdData,Long>>>
+    private Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>>
         buildCompactedLedger(BookKeeper bk, int count)
             throws Exception {
         LedgerHandle lh = bk.createLedger(1, 1,
                                           Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                                           Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
-        List<Pair<MessageIdData,Long>> positions = new ArrayList<>();
-        List<Pair<MessageIdData,Long>> idsInGaps = new ArrayList<>();
+        List<Pair<MessageIdData, Long>> positions = new ArrayList<>();
+        List<Pair<MessageIdData, Long>> idsInGaps = new ArrayList<>();
 
         AtomicLong ledgerIds = new AtomicLong(10L);
         AtomicLong entryIds = new AtomicLong(0L);
@@ -163,10 +163,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testEntryLookup() throws Exception {
         @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
 
-        Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
-            = buildCompactedLedger(bk, 500);
+        Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData =
+            buildCompactedLedger(bk, 500);
 
         List<Pair<MessageIdData, Long>> positions = compactedLedgerData.getMiddle();
         List<Pair<MessageIdData, Long>> idsInGaps = compactedLedgerData.getRight();
@@ -175,25 +175,25 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                                         Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                                         Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
         long lastEntryId = lh.getLastAddConfirmed();
-        AsyncLoadingCache<Long,MessageIdData> cache = CompactedTopicImpl.createCache(lh, 50);
+        AsyncLoadingCache<Long, MessageIdData> cache = CompactedTopicImpl.createCache(lh, 50);
 
         MessageIdData firstPositionId = positions.get(0).getLeft();
         Pair<MessageIdData, Long> lastPosition = positions.get(positions.size() - 1);
 
         // check ids before and after ids in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(0, 0), lastEntryId, cache).get(),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory.create(0, 0), lastEntryId, cache).get(),
                             Long.valueOf(0));
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(Long.MAX_VALUE, 0),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory.create(Long.MAX_VALUE, 0),
                                                               lastEntryId, cache).get(),
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // entry 0 is never in compacted ledger due to how we generate dummy
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(firstPositionId.getLedgerId(), 0),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory.create(firstPositionId.getLedgerId(), 0),
                                                               lastEntryId, cache).get(),
                             Long.valueOf(0));
         // check next id after last id in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(lastPosition.getLeft().getLedgerId(),
-                                                                               lastPosition.getLeft().getEntryId() + 1),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory
+                             .create(lastPosition.getLeft().getLedgerId(), lastPosition.getLeft().getEntryId() + 1),
                                                               lastEntryId, cache).get(),
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
@@ -203,14 +203,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         // Check ids we know are in compacted ledger
         for (Pair<MessageIdData, Long> p : positions) {
-            PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
+            Position pos = PositionFactory.create(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
             Long got = CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
             Assert.assertEquals(got, p.getRight());
         }
 
         // Check ids we know are in the gaps of the compacted ledger
         for (Pair<MessageIdData, Long> gap : idsInGaps) {
-            PositionImpl pos = new PositionImpl(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
+            Position pos = PositionFactory.create(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
             Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(), gap.getRight());
         }
     }
@@ -219,7 +219,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testCleanupOldCompactedTopicLedger() throws Exception {
         @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
 
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
@@ -232,7 +232,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         // set the compacted topic ledger
         CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
-        compactedTopic.newCompactedLedger(new PositionImpl(1,2), oldCompactedLedger.getId()).get();
+        compactedTopic.newCompactedLedger(PositionFactory.create(1, 2), oldCompactedLedger.getId()).get();
 
         // ensure both ledgers still exist, can be opened
         bk.openLedger(oldCompactedLedger.getId(),
@@ -243,7 +243,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                       Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
 
         // update the compacted topic ledger
-        PositionImpl newHorizon = new PositionImpl(1,3);
+        Position newHorizon = PositionFactory.create(1, 3);
         compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId()).get();
 
         // Make sure the old compacted ledger still exist after the new compacted ledger created.
@@ -291,7 +291,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         List<CompletableFuture<MessageId>> list = new ArrayList<>(messages);
         for (int i = 0; i < messages; i++) {
-            list.add(producer.newMessage().keyBytes(key.getBytes(Charset.defaultCharset())).value(msgBytes).sendAsync());
+            list.add(producer.newMessage().keyBytes(key.getBytes(Charset.defaultCharset()))
+                    .value(msgBytes).sendAsync());
         }
 
         FutureUtil.waitForAll(list).get();
@@ -412,7 +413,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Optional<Topic> topicRef = pulsar.getBrokerService().getTopicIfExists(topic).get();
         Assert.assertTrue(topicRef.isPresent());
         PersistentTopic persistentTopic = (PersistentTopic) topicRef.get();
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl)persistentTopic.getManagedLedger();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
 
         Awaitility.await().untilAsserted(() -> {
@@ -455,8 +456,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDoNotLossTheLastCompactedLedgerData() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testDoNotLossTheLastCompactedLedgerData-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testDoNotLossTheLastCompactedLedgerData-"
+                + UUID.randomUUID();
         final int numMessages = 2000;
         final int keys = 200;
         final String msg = "Test";
@@ -514,8 +515,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReadCompactedDataWhenLedgerRolloverKickIn() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testReadCompactedDataWhenLedgerRolloverKickIn-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testReadCompactedDataWhenLedgerRolloverKickIn-"
+                + UUID.randomUUID();
         final int numMessages = 2000;
         final int keys = 200;
         final String msg = "Test";
@@ -589,8 +590,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 120000)
     public void testCompactionWithTopicUnloading() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testCompactionWithTopicUnloading-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testCompactionWithTopicUnloading-"
+                + UUID.randomUUID();
         final int numMessages = 2000;
         final int keys = 500;
         final String msg = "Test";
@@ -664,7 +665,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         producer.newMessage().key("k").value(("value").getBytes()).send();
         producer.newMessage().key("k").value(null).send();
-        ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor().compact(topic).get();
+        ((PulsarCompactionServiceFactory) pulsar.getCompactionServiceFactory()).getCompactor().compact(topic).get();
 
         Awaitility.await()
                 .pollInterval(3, TimeUnit.SECONDS)
@@ -691,8 +692,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testHasMessageAvailableWithNullValueMessage() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testHasMessageAvailable-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testHasMessageAvailable-"
+                + UUID.randomUUID();
         final int numMessages = 10;
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -717,7 +718,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(stats.compactedLedger.entries, numMessages / 2);
             Assert.assertEquals(admin.topics().getStats(topic)
                     .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+            Assert.assertEquals(stats.lastConfirmedEntry,
+                    stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
         });
 
         @Cleanup
@@ -736,8 +738,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReadCompleteMessagesDuringTopicUnloading() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testReadCompleteMessagesDuringTopicUnloading-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testReadCompleteMessagesDuringTopicUnloading-"
+                + UUID.randomUUID();
         final int numMessages = 1000;
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -771,13 +773,15 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(stats.compactedLedger.entries, numMessages);
             Assert.assertEquals(admin.topics().getStats(topic)
                     .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+            Assert.assertEquals(stats.lastConfirmedEntry,
+                    stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
         });
         // Unload the topic to make sure the original ledger been deleted.
         admin.topics().unload(topic);
         // Produce more messages to the original topic
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + numMessages + "").value(String.format("msg [%d]", i + numMessages)).sendAsync();
+            lastMessage = producer.newMessage().key(i + numMessages + "")
+                    .value(String.format("msg [%d]", i + numMessages)).sendAsync();
         }
         producer.flush();
         lastMessage.join();
@@ -798,8 +802,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReadCompactedLatestMessageWithInclusive() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testLedgerRollover-"
+                + UUID.randomUUID();
         final int numMessages = 1;
 
         @Cleanup
@@ -823,7 +827,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(stats.compactedLedger.entries, numMessages);
             Assert.assertEquals(admin.topics().getStats(topic)
                     .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+            Assert.assertEquals(stats.lastConfirmedEntry,
+                    stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
         });
 
         Awaitility.await()
@@ -849,7 +854,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testCompactWithConcurrentGetCompactionHorizonAndCompactedTopicContext() throws Exception {
         @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
 
         Mockito.doAnswer(invocation -> {
             Thread.sleep(1500);
@@ -868,7 +873,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
 
-        PositionImpl oldHorizon = new PositionImpl(1, 2);
+        Position oldHorizon = PositionFactory.create(1, 2);
         var future = CompletableFuture.supplyAsync(() -> {
             // set the compacted topic ledger
             return compactedTopic.newCompactedLedger(oldHorizon, oldCompactedLedger.getId());
@@ -889,7 +894,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         future.join();
 
-        PositionImpl newHorizon = new PositionImpl(1, 3);
+        Position newHorizon = PositionFactory.create(1, 3);
         var future2 = CompletableFuture.supplyAsync(() -> {
             // update the compacted topic ledger
             return compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId());

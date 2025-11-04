@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 
 /**
  * Builder class for a {@link PulsarAdmin} instance.
@@ -291,6 +292,20 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
+     * SSL Factory Plugin used to generate the SSL Context and SSLEngine.
+     * @param sslFactoryPlugin Name of the SSL Factory Class to be used.
+     * @return PulsarAdminBuilder
+     */
+    PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin);
+
+    /**
+     * Parameters used by the SSL Factory Plugin class.
+     * @param sslFactoryPluginParams String parameters to be used by the SSL Factory Class.
+     * @return
+     */
+    PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+
+    /**
      * This sets the connection time out for the pulsar admin client.
      *
      * @param connectionTimeout
@@ -326,5 +341,70 @@ public interface PulsarAdminBuilder {
      * @return
      */
     PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader);
+
+    /**
+     * Determines whether to include the "Accept-Encoding: gzip" header in HTTP requests.
+     * By default, the "Accept-Encoding: gzip" header is included in HTTP requests.
+     * If this is set to false, the "Accept-Encoding: gzip" header will not be included in the requests.
+     *
+     * @param acceptGzipCompression A flag that indicates whether to include the "Accept-Encoding: gzip" header in HTTP
+     *                              requests
+     */
+    PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression);
+
+    /**
+     * Configures the maximum number of connections that the client library will establish with a single host.
+     * <p>
+     * By default, the connection pool maintains up to 16 connections to a single host. This method allows you to
+     * modify this default behavior and limit the number of connections.
+     * <p>
+     * This setting can be useful in scenarios where you want to limit the resources used by the client library,
+     * or control the level of parallelism for operations so that a single client does not overwhelm
+     * the Pulsar cluster with too many concurrent connections.
+     *
+     * @param maxConnectionsPerHost the maximum number of connections to establish per host. Set to <= 0 to disable
+     *                             the limit.
+     * @return the PulsarAdminBuilder instance, allowing for method chaining
+     */
+    PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost);
+
+    /**
+     * Sets the maximum idle time for a pooled connection. If a connection is idle for more than the specified
+     * amount of seconds, it will be released back to the connection pool.
+     * Defaults to 25 seconds.
+     *
+     * @param connectionMaxIdleSeconds the maximum idle time, in seconds, for a pooled connection
+     * @return the PulsarAdminBuilder instance
+     */
+    PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
+     * Set the description.
+     *
+     * <p> By default, PulsarAdmin sends an HTTP <i>User-Agent</i> header such as
+     * <code>Pulsar-Java-v&lt;x.y.z&gt;</code> when making requests to the broker.
+     *
+     * <p> This method provides a way to add more description to a specific PulsarAdmin instance. If it's configured,
+     * the description will be appended to the original admin version string, with '-' as the separator.
+     *
+     * <p>For example, if the admin version is 4.0.0, and the description is "forked", the final client version string
+     * will be "Pulsar-Java-v4.0.0-forked".
+     *
+     * @param description the description of the current PulsarAdmin instance
+     * @throws IllegalArgumentException if the length of description exceeds 64
+     */
+    PulsarAdminBuilder description(String description);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (only support IO/event loops, timers, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the adminClient builder instance
+     */
+    PulsarAdminBuilder sharedResources(PulsarClientSharedResources sharedResources);
 
 }

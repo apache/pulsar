@@ -18,37 +18,41 @@
  */
 package org.apache.pulsar.io.kafka.source;
 
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.fail;
 import com.google.common.collect.ImmutableMap;
-import java.time.Duration;
-import java.util.Collections;
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
 import org.apache.pulsar.io.kafka.KafkaSourceConfig;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.expectThrows;
-import static org.testng.Assert.fail;
-
 
 public class KafkaAbstractSourceTest {
 
@@ -169,7 +173,8 @@ public class KafkaAbstractSourceTest {
         assertEquals(config.getTopic(), "test");
         assertEquals(config.getSecurityProtocol(), SecurityProtocol.SASL_PLAINTEXT.name);
         assertEquals(config.getSaslMechanism(), "PLAIN");
-        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
+        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule "
+                + "required \nusername=\"alice\" \npassword=\"pwd\";");
         assertEquals(config.getSslEndpointIdentificationAlgorithm(), "");
         assertEquals(config.getSslTruststoreLocation(), "/etc/cert.pem");
         assertEquals(config.getSslTruststorePassword(), "cert_pwd");
@@ -216,6 +221,88 @@ public class KafkaAbstractSourceTest {
         source.start();
         // will throw RuntimeException.
         source.read();
+    }
+
+    @Test
+    public final void throwExceptionBySendFail() throws Exception {
+        KafkaAbstractSource source = new DummySource();
+
+        KafkaSourceConfig kafkaSourceConfig = new KafkaSourceConfig();
+        kafkaSourceConfig.setTopic("test-topic");
+        kafkaSourceConfig.setAutoCommitEnabled(false);
+        Field kafkaSourceConfigField = KafkaAbstractSource.class.getDeclaredField("kafkaSourceConfig");
+        kafkaSourceConfigField.setAccessible(true);
+        kafkaSourceConfigField.set(source, kafkaSourceConfig);
+
+        Field defaultMaxPollIntervalMsField = KafkaAbstractSource.class.getDeclaredField("maxPollIntervalMs");
+        defaultMaxPollIntervalMsField.setAccessible(true);
+        defaultMaxPollIntervalMsField.set(source, 300000);
+
+        Consumer consumer = mock(Consumer.class);
+        ConsumerRecord<String, byte[]> consumerRecord = new ConsumerRecord<>("topic", 0, 0,
+                "t-key", "t-value".getBytes(StandardCharsets.UTF_8));
+        ConsumerRecords<String, byte[]> consumerRecords = new ConsumerRecords<>(Collections.singletonMap(
+                new TopicPartition("topic", 0),
+                Arrays.asList(consumerRecord)));
+        Mockito.doReturn(consumerRecords).when(consumer).poll(Mockito.any(Duration.class));
+
+        Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
+        consumerField.setAccessible(true);
+        consumerField.set(source, consumer);
+        source.start();
+
+        // Mock send message fail
+        Record record = source.read();
+        record.fail();
+
+        // read again will throw RuntimeException.
+        try {
+            source.read();
+            fail("Should throw exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof RuntimeException);
+            assertTrue(e.getCause().getMessage().contains("Failed to process record with kafka topic"));
+        }
+    }
+
+    @Test
+    public final void throwExceptionBySendTimeOut() throws Exception {
+        KafkaAbstractSource source = new DummySource();
+
+        KafkaSourceConfig kafkaSourceConfig = new KafkaSourceConfig();
+        kafkaSourceConfig.setTopic("test-topic");
+        kafkaSourceConfig.setAutoCommitEnabled(false);
+        Field kafkaSourceConfigField = KafkaAbstractSource.class.getDeclaredField("kafkaSourceConfig");
+        kafkaSourceConfigField.setAccessible(true);
+        kafkaSourceConfigField.set(source, kafkaSourceConfig);
+
+        Field defaultMaxPollIntervalMsField = KafkaAbstractSource.class.getDeclaredField("maxPollIntervalMs");
+        defaultMaxPollIntervalMsField.setAccessible(true);
+        defaultMaxPollIntervalMsField.set(source, 1);
+
+        Consumer consumer = mock(Consumer.class);
+        ConsumerRecord<String, byte[]> consumerRecord = new ConsumerRecord<>("topic", 0, 0,
+                "t-key", "t-value".getBytes(StandardCharsets.UTF_8));
+        ConsumerRecords<String, byte[]> consumerRecords = new ConsumerRecords<>(Collections.singletonMap(
+                new TopicPartition("topic", 0),
+                Arrays.asList(consumerRecord)));
+        Mockito.doReturn(consumerRecords).when(consumer).poll(Mockito.any(Duration.class));
+
+        Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
+        consumerField.setAccessible(true);
+        consumerField.set(source, consumer);
+        source.start();
+
+        // Mock send message fail, just read do noting.
+        source.read();
+
+        // read again will throw TimeOutException.
+        try {
+            source.read();
+            fail("Should throw exception");
+        } catch (Exception e) {
+            assertTrue(e instanceof TimeoutException);
+        }
     }
 
     private File getFile(String name) {

@@ -29,6 +29,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ForkJoinWorkerThread;
@@ -37,6 +38,9 @@ import org.apache.commons.lang3.ThreadUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.ISuite;
+import org.testng.ISuiteListener;
+import org.testng.ITestClass;
 
 /**
  * Detects new threads that have been created during the test execution. This is useful to detect thread leaks.
@@ -44,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * is set to a positive value. A recommended value is 10000 for THREAD_LEAK_DETECTOR_WAIT_MILLIS. This will ensure
  * that any asynchronous operations should have completed before the detector determines that it has found a leak.
  */
-public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter {
+public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter implements ISuiteListener {
     private static final Logger LOG = LoggerFactory.getLogger(ThreadLeakDetectorListener.class);
     private static final long WAIT_FOR_THREAD_TERMINATION_MILLIS =
             Long.parseLong(System.getenv().getOrDefault("THREAD_LEAK_DETECTOR_WAIT_MILLIS", "0"));
@@ -71,13 +75,44 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
     }
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    public void onStart(ISuite suite) {
+        // capture the initial set of threads
+        detectLeakedThreads(Collections.emptyList());
+    }
+
+    @Override
+    protected void onBetweenTestClasses(List<ITestClass> testClasses) {
+        detectLeakedThreads(testClasses);
+    }
+
+    private static String joinTestClassNames(List<ITestClass> testClasses) {
+        return testClasses.stream()
+                .map(ITestClass::getRealClass)
+                .map(Class::getName)
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String joinSimpleTestClassNames(List<ITestClass> testClasses) {
+        return testClasses.stream()
+                .map(ITestClass::getRealClass)
+                .map(Class::getSimpleName)
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String firstTestClassName(List<ITestClass> testClasses) {
+        return testClasses.stream()
+                .findFirst()
+                .get()
+                .getRealClass().getName();
+    }
+
+    private void detectLeakedThreads(List<ITestClass> testClasses) {
         LOG.info("Capturing identifiers of running threads.");
         MutableBoolean differenceDetected = new MutableBoolean();
         Set<ThreadKey> currentThreadKeys =
-                compareThreads(capturedThreadKeys, endedTestClass, WAIT_FOR_THREAD_TERMINATION_MILLIS <= 0,
+                compareThreads(capturedThreadKeys, testClasses, WAIT_FOR_THREAD_TERMINATION_MILLIS <= 0,
                         differenceDetected, null);
-        if (WAIT_FOR_THREAD_TERMINATION_MILLIS > 0 && endedTestClass != null && differenceDetected.booleanValue()) {
+        if (WAIT_FOR_THREAD_TERMINATION_MILLIS > 0 && !testClasses.isEmpty() && differenceDetected.booleanValue()) {
             LOG.info("Difference detected in active threads. Waiting up to {} ms for threads to terminate.",
                     WAIT_FOR_THREAD_TERMINATION_MILLIS);
             long endTime = System.currentTimeMillis() + WAIT_FOR_THREAD_TERMINATION_MILLIS;
@@ -88,7 +123,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                     Thread.currentThread().interrupt();
                 }
                 differenceDetected.setFalse();
-                currentThreadKeys = compareThreads(capturedThreadKeys, endedTestClass, false, differenceDetected, null);
+                currentThreadKeys = compareThreads(capturedThreadKeys, testClasses, false, differenceDetected, null);
                 if (!differenceDetected.booleanValue()) {
                     break;
                 }
@@ -97,23 +132,24 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                 String datetimePart =
                         DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss.SSS").format(ZonedDateTime.now());
                 PrintWriter out = null;
+                String firstTestClassName = firstTestClassName(testClasses);
                 try {
                     if (!DUMP_DIR.exists()) {
                         DUMP_DIR.mkdirs();
                     }
                     File threadleakdumpFile =
-                            new File(DUMP_DIR, "threadleak" + datetimePart + endedTestClass.getName() + ".txt");
+                            new File(DUMP_DIR, "threadleak" + datetimePart + firstTestClassName + ".txt");
                     out = new PrintWriter(threadleakdumpFile);
                 } catch (IOException e) {
                     LOG.error("Cannot write thread leak dump", e);
                 }
-                currentThreadKeys = compareThreads(capturedThreadKeys, endedTestClass, true, null, out);
+                currentThreadKeys = compareThreads(capturedThreadKeys, testClasses, true, null, out);
                 if (out != null) {
                     out.close();
                 }
                 if (COLLECT_THREADDUMP) {
                     File threaddumpFile =
-                            new File(DUMP_DIR, "threaddump" + datetimePart + endedTestClass.getName() + ".txt");
+                            new File(DUMP_DIR, "threaddump" + datetimePart + firstTestClassName + ".txt");
                     try {
                         Files.asCharSink(threaddumpFile, Charsets.UTF_8)
                                 .write(ThreadDumpUtil.buildThreadDiagnosticString());
@@ -126,7 +162,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
         capturedThreadKeys = currentThreadKeys;
     }
 
-    private static Set<ThreadKey> compareThreads(Set<ThreadKey> previousThreadKeys, Class<?> endedTestClass,
+    private static Set<ThreadKey> compareThreads(Set<ThreadKey> previousThreadKeys, List<ITestClass> testClasses,
                                                  boolean logDifference, MutableBoolean differenceDetected,
                                                  PrintWriter out) {
         Set<ThreadKey> threadKeys = Collections.unmodifiableSet(ThreadUtils.getAllThreads().stream()
@@ -134,7 +170,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                 .map(ThreadKey::of)
                 .collect(Collectors.<ThreadKey, Set<ThreadKey>>toCollection(LinkedHashSet::new)));
 
-        if (endedTestClass != null && previousThreadKeys != null) {
+        if (!testClasses.isEmpty() && previousThreadKeys != null) {
             int newThreadsCounter = 0;
             for (ThreadKey threadKey : threadKeys) {
                 if (!previousThreadKeys.contains(threadKey)) {
@@ -144,7 +180,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                     }
                     if (logDifference || out != null) {
                         String message = String.format("Tests in class %s created thread id %d with name '%s'",
-                                endedTestClass.getSimpleName(),
+                                joinSimpleTestClassNames(testClasses),
                                 threadKey.getThreadId(), threadKey.getThreadName());
                         if (logDifference) {
                             LOG.warn(message);
@@ -158,7 +194,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (newThreadsCounter > 0 && (logDifference || out != null)) {
                 String message = String.format(
                         "Summary: Tests in class %s created %d new threads. There are now %d threads in total.",
-                        endedTestClass.getName(), newThreadsCounter, threadKeys.size());
+                        joinTestClassNames(testClasses), newThreadsCounter, threadKeys.size());
                 if (logDifference) {
                     LOG.warn(message);
                 }
@@ -177,7 +213,8 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             return true;
         }
         // skip Testcontainers threads
-        if (thread.getThreadGroup() != null && "testcontainers".equals(thread.getThreadGroup().getName())) {
+        final ThreadGroup threadGroup = thread.getThreadGroup();
+        if (threadGroup != null && "testcontainers".equals(threadGroup.getName())) {
             return true;
         }
         String threadName = thread.getName();
@@ -188,6 +225,14 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             }
             // skip JVM internal threads related to java.lang.Process
             if (threadName.equals("process reaper")) {
+                return true;
+            }
+            // skip thread created by sun.net.www.http.KeepAliveCache
+            if (threadName.equals("Keep-Alive-Timer")) {
+                return true;
+            }
+            // skip JVM internal thread related to agent attach
+            if (threadName.equals("Attach Listener")) {
                 return true;
             }
             // skip JVM internal thread used for CompletableFuture.delayedExecutor
@@ -212,6 +257,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             }
             // skip org.glassfish.grizzly.http.server.DefaultSessionManager thread pool
             if (threadName.equals("Grizzly-HttpSession-Expirer")) {
+                return true;
+            }
+            // skip Hadoop LocalFileSystem stats thread
+            if (threadName.equals("org.apache.hadoop.fs.FileSystem$Statistics$StatisticsDataReferenceCleaner")) {
                 return true;
             }
             // Testcontainers AbstractWaitStrategy.EXECUTOR

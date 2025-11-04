@@ -297,21 +297,24 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 2);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic)
+                .partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 2);
         }
 
         reader1.close();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 1);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic)
+                .partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 1);
         }
 
         reader2.close();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 0);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic)
+                .partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 0);
         }
 
@@ -321,7 +324,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     public void testMultiReaderSeek() throws Exception {
         String topic = "persistent://my-property/my-ns/testKeyHashRangeReader" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
-        publishMessages(topic,100,false);
+        publishMessages(topic, 100, false);
     }
 
     @Test
@@ -629,6 +632,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     void shouldSupportCancellingReadNextAsync() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
         MultiTopicsReaderImpl<byte[]> reader = (MultiTopicsReaderImpl<byte[]>) pulsarClient.newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)

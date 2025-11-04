@@ -89,6 +89,7 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -481,7 +482,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             try {
                 worker().getStateStoreProvider().cleanUp(tenant, namespace, componentName);
             } catch (Throwable e) {
-                log.error("failed to clean up the state store for {}/{}/{}", tenant, namespace, componentName);
+                log.error("failed to clean up the state store for {}/{}/{}", tenant, namespace, componentName, e);
             }
         }
     }
@@ -1054,7 +1055,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         try {
             worker().getBrokerAdmin().topics().getSubscriptions(inputTopicToWrite);
         } catch (PulsarAdminException e) {
-            log.error("Function in trigger function is not ready @ /{}/{}/{}", tenant, namespace, functionName);
+            log.error("Function in trigger function is not ready @ /{}/{}/{}", tenant, namespace, functionName, e);
             throw new RestException(Status.BAD_REQUEST, "Function in trigger function is not ready");
         }
         String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
@@ -1150,6 +1151,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.warn("getFunctionState does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            throw new RestException(Status.NOT_FOUND, String.format("'%s' is not found", functionName));
+        }
+
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             StateValue value = store.getStateValue(key);
@@ -1219,18 +1226,26 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.warn("putFunctionState does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            throw new RestException(Status.NOT_FOUND, String.format("'%s' is not found", functionName));
+        }
+
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             ByteBuffer data;
-            if (state.getStringValue() != null) {
-                data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
-            } else if (state.getByteValue() != null) {
-                data = ByteBuffer.wrap(state.getByteValue());
-            } else if (state.getNumberValue() != null) {
-                data = ByteBuffer.allocate(Long.BYTES);
-                data.putLong(state.getNumberValue());
+            if (state.getByteValue() == null || state.getByteValue().length == 0) {
+                if (state.getStringValue() != null) {
+                    data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
+                }  else if (state.getNumberValue() != null) {
+                    data = ByteBuffer.allocate(Long.BYTES);
+                    data.putLong(state.getNumberValue());
+                } else {
+                    throw new IllegalArgumentException("Invalid state value");
+                }
             } else {
-                throw new IllegalArgumentException("Invalid state value");
+                data = ByteBuffer.wrap(state.getByteValue());
             }
             store.put(key, data);
         } catch (Throwable e) {
@@ -1268,8 +1283,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
                 File tempFile = createPkgTempFile();
                 tempFile.deleteOnExit();
-                FileOutputStream out = new FileOutputStream(tempFile);
-                IOUtils.copy(uploadedInputStream, out);
+                try (FileOutputStream out = new FileOutputStream(tempFile)) {
+                    IOUtils.copy(uploadedInputStream, out);
+                }
                 PackageMetadata metadata = PackageMetadata.builder().createTime(System.currentTimeMillis()).build();
                 worker().getBrokerAdmin().packages().upload(metadata, path, tempFile.getAbsolutePath());
             } else {
@@ -1319,11 +1335,17 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     private StreamingOutput getStreamingOutput(String pkgPath, FunctionDetails.ComponentType componentType) {
         return output -> {
             if (pkgPath.startsWith(Utils.HTTP)) {
+                if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, pkgPath)) {
+                    throw new IllegalArgumentException("Invalid package url: " + pkgPath);
+                }
                 URL url = URI.create(pkgPath).toURL();
                 try (InputStream inputStream = url.openStream()) {
                     IOUtils.copy(inputStream, output);
                 }
             } else if (pkgPath.startsWith(Utils.FILE)) {
+                if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, pkgPath)) {
+                    throw new IllegalArgumentException("Invalid package url: " + pkgPath);
+                }
                 URI url = URI.create(pkgPath);
                 File file = new File(url.getPath());
                 Files.copy(file.toPath(), output);
@@ -1732,12 +1754,6 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    protected ClassLoader getClassLoaderFromPackage(String className,
-                                                  File packageFile,
-                                                  String narExtractionDirectory) {
-        return FunctionCommon.getClassLoaderFromPackage(componentType, className, packageFile, narExtractionDirectory);
-    }
-
     static File downloadPackageFile(PulsarWorkerService worker, String packageName)
             throws IOException, PulsarAdminException {
         Path tempDirectory;
@@ -1753,12 +1769,17 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return file;
     }
 
-    protected File getPackageFile(String functionPkgUrl, String existingPackagePath, InputStream uploadedInputStream)
+    protected File getPackageFile(FunctionDetails.ComponentType componentType, String functionPkgUrl,
+                                  String existingPackagePath, InputStream uploadedInputStream)
             throws IOException, PulsarAdminException {
         File componentPackageFile = null;
         if (isNotBlank(functionPkgUrl)) {
-            componentPackageFile = getPackageFile(functionPkgUrl);
+            componentPackageFile = getPackageFile(componentType, functionPkgUrl);
         } else if (existingPackagePath.startsWith(Utils.FILE) || existingPackagePath.startsWith(Utils.HTTP)) {
+            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, functionPkgUrl)) {
+                throw new IllegalArgumentException("Function Package url is not valid."
+                        + "supported url (http/https/file)");
+            }
             try {
                 componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingPackagePath);
             } catch (Exception e) {
@@ -1766,6 +1787,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                 + "when getting %s package from %s", e.getMessage(),
                         ComponentTypeUtils.toString(componentType), functionPkgUrl));
             }
+        } else if (Utils.hasPackageTypePrefix(existingPackagePath)) {
+            componentPackageFile = getPackageFile(componentType, existingPackagePath);
         } else if (uploadedInputStream != null) {
             componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
         } else if (!existingPackagePath.startsWith(Utils.BUILTIN)) {
@@ -1783,15 +1806,16 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return componentPackageFile;
     }
 
-    protected File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return downloadPackageFile(worker(), packageName);
-    }
-
-    protected File getPackageFile(String functionPkgUrl) throws IOException, PulsarAdminException {
+    protected File getPackageFile(FunctionDetails.ComponentType componentType, String functionPkgUrl)
+            throws IOException, PulsarAdminException {
         if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
-            return downloadPackageFile(functionPkgUrl);
+            if (!worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+                throw new IllegalStateException("Function Package management service is disabled. "
+                        + "Please enable it to use " + functionPkgUrl);
+            }
+            return downloadPackageFile(worker(), functionPkgUrl);
         } else {
-            if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
+            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, functionPkgUrl)) {
                 throw new IllegalArgumentException("Function Package url is not valid."
                         + "supported url (http/https/file)");
             }
@@ -1805,7 +1829,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    protected ClassLoader getBuiltinFunctionClassLoader(String archive) {
+    protected ValidatableFunctionPackage getBuiltinFunctionPackage(String archive) {
         if (!StringUtils.isEmpty(archive)) {
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
@@ -1815,7 +1839,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 if (function == null) {
                     throw new IllegalArgumentException("Built-in " + componentType + " is not available");
                 }
-                return function.getClassLoader();
+                return function.getFunctionPackage();
             }
         }
         return null;

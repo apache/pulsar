@@ -20,8 +20,8 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -32,6 +32,7 @@ import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -67,15 +68,15 @@ public class PulsarFunctionTlsTest {
 
     protected static final int BROKER_COUNT = 2;
 
-    private final String TLS_SERVER_CERT_FILE_PATH =
+    private static final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private final String TLS_SERVER_KEY_FILE_PATH =
+    private static final String TLS_SERVER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private final String TLS_CLIENT_CERT_FILE_PATH =
+    private static final String TLS_CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private final String TLS_CLIENT_KEY_FILE_PATH =
+    private static final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    private final String CA_CERT_FILE_PATH =
+    private static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -88,7 +89,8 @@ public class PulsarFunctionTlsTest {
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
-    private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
+    private PulsarFunctionTestTemporaryDirectory[] tempDirectories =
+            new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
     @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
@@ -153,6 +155,12 @@ public class PulsarFunctionTlsTest {
             workerConfig.setUseTls(true);
             workerConfig.setTlsEnableHostnameVerification(true);
             workerConfig.setTlsAllowInsecureConnection(false);
+            File packagePath = new File(
+                    PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParentFile();
+            List<String> urlPatterns =
+                    List.of(packagePath.toURI() + ".*");
+            workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+            workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
@@ -195,11 +203,13 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
+                    pulsarAdmins[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (fnWorkerServices[i] != null) {
                     fnWorkerServices[i].stop();
+                    fnWorkerServices[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
@@ -214,9 +224,13 @@ public class PulsarFunctionTlsTest {
                             getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
                     pulsarServices[i].getConfiguration()
                             .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i] = null;
                 }
             }
-            bkEnsemble.stop();
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (tempDirectories[i] != null) {
@@ -255,7 +269,8 @@ public class PulsarFunctionTlsTest {
                     assertTrue(true);
                 } else {
                     final WorkerInfo workerInfo = workerService.getMembershipManager().getLeader();
-                    assertTrue(workerInfo != null && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
+                    assertTrue(workerInfo != null
+                            && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
                 }
             });
             pulsarAdmins[i].functions().createFunctionWithUrl(

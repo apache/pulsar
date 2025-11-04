@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -31,6 +32,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrap
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.Reflections;
@@ -52,6 +54,10 @@ public interface LoadManager {
 
     void start() throws PulsarServerException;
 
+    default boolean started() {
+        return true;
+    }
+
     /**
      * Is centralized decision making to assign a new bundle.
      */
@@ -63,7 +69,7 @@ public interface LoadManager {
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
-            Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
         throw new UnsupportedOperationException();
     }
 
@@ -147,8 +153,14 @@ public interface LoadManager {
     static LoadManager create(final PulsarService pulsar) {
         try {
             final ServiceConfiguration conf = pulsar.getConfiguration();
+
+            String loadManagerClassName = conf.getLoadManagerClassName();
+            if (StringUtils.isBlank(loadManagerClassName)) {
+                loadManagerClassName = SimpleLoadManagerImpl.class.getName();
+            }
+
             // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = Reflections.createInstance(conf.getLoadManagerClassName(),
+            final Object loadManagerInstance = Reflections.createInstance(loadManagerClassName,
                     Thread.currentThread().getContextClassLoader());
             if (loadManagerInstance instanceof LoadManager casted) {
                 casted.initialize(pulsar);

@@ -97,3 +97,15 @@ test-reports/
 
 # Gradle Enterprise
 .mvn/.gradle-enterprise/
+# Gradle Develocity
+.mvn/.develocity/
+.vscode
+effective-pom.xml
+
+# AI Tools
+CLAUDE.md
+# There's no need to add all AI tool directories/files to the project's .gitignore file.
+# AI tool directories/files can be ignored from git by using a global gitignore file defined with
+# "git config --global core.excludesfile $HOME/.gitignore_global"
+# and adding the AI tool directories/files to the ~/.gitignore_global file without modifying the
+# project's .gitignore file.

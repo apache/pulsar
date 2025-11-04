@@ -20,9 +20,10 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -31,24 +32,21 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class TopicPublishRateThrottleTest extends BrokerTestBase{
-
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        AsyncTokenBucket.switchToConsistentTokensView();
+        // no-op, each test will call baseSetup
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        AsyncTokenBucket.resetToDefaultEventualConsistentTokensView();
     }
 
     @Test
     public void testProducerBlockedByPrecisTopicPublishRateLimiting() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
-        conf.setPreciseTopicPublishRateLimiterEnable(true);
+        PublishRate publishRate = new PublishRate(1, 10);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
@@ -71,12 +69,60 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         } catch (TimeoutException e) {
             // No-op
         }
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
+    }
+
+    @Test
+    public void testResumeEvenProducerClosed() throws Exception {
+        PublishRate publishRate = new PublishRate(1, 10);
+        conf.setMaxPendingPublishRequestsPerConnection(0);
+        super.baseSetup();
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
+        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).create();
+
+        Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
+        Assert.assertNotNull(topicRef);
+        MessageId messageId = null;
+        // first will be success, and the second will fail, will set auto read to false.
+        messageId = producer.sendAsync(new byte[10]).get(500, TimeUnit.MILLISECONDS);
+        Assert.assertNotNull(messageId);
+        // second will be blocked
+        producer.sendAsync(new byte[10]);
+
+        // Verify: even through the producer was closed before the unblock, the state should be unblocked at the next
+        // period of rate limiter.
+        producer.close();
+        Thread.sleep(3000);
+        org.apache.pulsar.client.api.Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic).create();
+        producer2.sendAsync(new byte[2]).get(500, TimeUnit.MILLISECONDS);
+
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
+    }
+
+    @Test
+    public void testSystemTopicPublishNonBlock() throws Exception {
+        super.baseSetup();
+        PublishRate publishRate = new PublishRate(1, 10);
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
+        PulsarAdmin admin1 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
+            ? brokerUrl.toString() : brokerUrlTls.toString()).readTimeout(5, TimeUnit.SECONDS).build();
+        admin1.topics().createNonPartitionedTopic(topic);
+        admin1.topicPolicies().setDeduplicationStatus(topic, true);
+        admin1.topicPolicies().setDeduplicationStatus(topic, false);
+        // cleanup.
+        admin.namespaces().removePublishRate("prop/ns-abc");
+        admin1.close();
     }
 
     @Test
     public void testPrecisTopicPublishRateLimitingProduceRefresh() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
-        conf.setPreciseTopicPublishRateLimiterEnable(true);
+        PublishRate publishRate = new PublishRate(1, 10);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
@@ -106,11 +152,12 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
             // No-op
         }
         Assert.assertNotNull(messageId);
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
     }
 
     @Test
     public void testBrokerLevelPublishRateDynamicUpdate() throws Exception{
-        conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testMultiLevelPublishRate";
@@ -126,7 +173,8 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "" + rateInMsg);
         Awaitility.await()
             .untilAsserted(() ->
-                Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
+                Assert.assertEquals(admin.brokers()
+                                .getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
                     "" + rateInMsg));
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);

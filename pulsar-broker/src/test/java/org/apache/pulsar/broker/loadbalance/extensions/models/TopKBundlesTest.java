@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
@@ -88,14 +89,17 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 100000;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 500;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         NamespaceBundleStats stats3 = new NamespaceBundleStats();
         stats3.msgRateIn = 10000;
+        stats3.msgThroughputOut = 10;
         bundleStats.put(bundle3, stats3);
 
         NamespaceBundleStats stats4 = new NamespaceBundleStats();
@@ -118,10 +122,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put("pulsar/system/0x00000000_0x0FFFFFFF", stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats2);
 
         topKBundles.update(bundleStats, 2);
@@ -129,6 +135,42 @@ public class TopKBundlesTest {
         assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
         var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
         assertEquals(top0.bundleName(), bundle1);
+    }
+
+    @Test
+    public void testSheddingExcludedNamespaces() {
+        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+        var topKBundles = new TopKBundles(pulsar);
+        pulsar.getConfiguration().setLoadBalancerSheddingExcludedNamespaces(Set.of("my-tenant/my-namespace2"));
+        NamespaceBundleStats stats1 = new NamespaceBundleStats();
+        stats1.msgRateIn = 500;
+        bundleStats.put("my-tenant/my-namespace2/0x00000000_0x0FFFFFFF", stats1);
+
+        NamespaceBundleStats stats2 = new NamespaceBundleStats();
+        stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
+        bundleStats.put(bundle1, stats2);
+
+        topKBundles.update(bundleStats, 2);
+
+        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
+        var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
+        assertEquals(top0.bundleName(), bundle1);
+    }
+
+    @Test
+    public void testZeroMsgThroughputBundleStats() {
+        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+        var topKBundles = new TopKBundles(pulsar);
+        NamespaceBundleStats stats1 = new NamespaceBundleStats();
+        bundleStats.put(bundle1, stats1);
+
+        NamespaceBundleStats stats2 = new NamespaceBundleStats();
+        bundleStats.put(bundle1, stats2);
+
+        topKBundles.update(bundleStats, 2);
+
+        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
     }
 
 
@@ -166,10 +208,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         topKBundles.update(bundleStats, 2);
@@ -188,10 +232,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         topKBundles.update(bundleStats, 2);
@@ -213,10 +259,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         topKBundles.update(bundleStats, 2);
@@ -270,5 +318,30 @@ public class TopKBundlesTest {
                 assertNull(errorMsg);
             }
         }
+    }
+
+    // Issue https://github.com/apache/pulsar/issues/24754
+    @Test
+    public void testPartitionSortCompareToContractViolationIssue() {
+        Random rnd = new Random(0);
+        ArrayList<NamespaceBundleStats> stats = new ArrayList<>();
+        for (int i = 0; i < 1000; ++i) {
+            NamespaceBundleStats s = new NamespaceBundleStats();
+            s.msgThroughputIn = 4 * 75000 * rnd.nextDouble();  // Just above threshold (1e5)
+            s.msgThroughputOut = 75000000 - (4 * (75000 * rnd.nextDouble()));
+            s.msgRateIn = 4 * 75 * rnd.nextDouble();
+            s.msgRateOut = 75000 - (4 * 75 * rnd.nextDouble());
+            s.topics = i;
+            s.consumerCount = i;
+            s.producerCount = 4 * rnd.nextInt(375);
+            s.cacheSize = 75000000 - (rnd.nextInt(4 * 75000));
+            stats.add(s);
+        }
+        List<Map.Entry<String, ? extends Comparable>> bundleEntries = new ArrayList<>();
+
+        for (NamespaceBundleStats s : stats) {
+            bundleEntries.add(Map.entry("bundle-" + s.msgThroughputIn, s));
+        }
+        TopKBundles.partitionSort(bundleEntries, 100);
     }
 }

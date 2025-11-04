@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -54,9 +53,9 @@ public interface PendingAckHandle {
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
      * @throws NotAllowedException if Use this method incorrectly eg. not use
-     * PositionImpl or cumulative ack with a list of positions.
+     * Position or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl,
+    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<Position,
             Integer>> positions);
     /**
      * Acknowledge message(s) for an ongoing transaction.
@@ -78,9 +77,9 @@ public interface PendingAckHandle {
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
      * @throws NotAllowedException if Use this method incorrectly eg. not use
-     * PositionImpl or cumulative ack with a list of positions.
+     * Position or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions);
+    CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<Position> positions);
 
     /**
      * Commit a transaction.
@@ -108,14 +107,14 @@ public interface PendingAckHandle {
      *
      * @param position {@link Position} which position need to sync and carry it batch size
      */
-    void syncBatchPositionAckSetForTransaction(PositionImpl position);
+    void syncBatchPositionAckSetForTransaction(Position position);
 
     /**
      * Judge the all ack set point have acked by normal ack and transaction pending ack.
      *
      * @param position {@link Position} which position need to check
      */
-    boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position);
+    boolean checkIsCanDeleteConsumerPendingAck(Position position);
 
     /**
      * When the position is actually deleted, we can use this method to clear the cache for individual ack messages.
@@ -147,6 +146,13 @@ public interface PendingAckHandle {
     TransactionPendingAckStats getStats(boolean lowWaterMarks);
 
     /**
+     * Get the raw pending ack handle stats.
+     *
+     * @return the raw stats of this pending ack handle.
+     */
+    PendingAckHandleStats getPendingAckHandleStats();
+
+    /**
      * Close the pending ack handle.
      *
      * @return the future of this operation.
@@ -168,7 +174,7 @@ public interface PendingAckHandle {
      * @param position {@link Position} witch need to get in pendingAck
      * @return {@link Position} return the position in pendingAck
      */
-    PositionImpl getPositionInPendingAck(PositionImpl position);
+    Position getPositionInPendingAck(Position position);
 
     /**
      * Get the stats of this message position is in pending ack.
@@ -176,5 +182,5 @@ public interface PendingAckHandle {
      * @param batchIndex the batch index of ths position.
      * @return the stats of the message position.
      */
-    PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex);
+    PositionInPendingAckStats checkPositionInPendingAckState(Position position, Integer batchIndex);
 }

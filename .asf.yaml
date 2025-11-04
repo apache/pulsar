@@ -34,6 +34,8 @@ github:
     issues: true
     # Enable projects for project management boards
     projects: true
+    # Enable discussions
+    discussions: true
   enabled_merge_buttons:
     squash:  true
     merge:   false
@@ -84,6 +86,10 @@ github:
     branch-2.11: {}
     branch-3.0: {}
     branch-3.1: {}
+    branch-3.2: {}
+    branch-3.3: {}
+    branch-4.0: {}
+    branch-4.1: {}
 
 notifications:
   commits:      commits@pulsar.apache.org

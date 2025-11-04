@@ -30,15 +30,23 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 public class EntryFilterWithClassLoader implements EntryFilter {
     private final EntryFilter entryFilter;
     private final NarClassLoader classLoader;
+    private final boolean classLoaderOwned;
 
-    public EntryFilterWithClassLoader(EntryFilter entryFilter, NarClassLoader classLoader) {
+    public EntryFilterWithClassLoader(EntryFilter entryFilter, NarClassLoader classLoader, boolean classLoaderOwned) {
         this.entryFilter = entryFilter;
         this.classLoader = classLoader;
+        this.classLoaderOwned = classLoaderOwned;
     }
 
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
-        return entryFilter.filterEntry(entry, context);
+        ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
+            return entryFilter.filterEntry(entry, context);
+        } finally {
+            Thread.currentThread().setContextClassLoader(currentClassLoader);
+        }
     }
 
     @VisibleForTesting
@@ -48,11 +56,20 @@ public class EntryFilterWithClassLoader implements EntryFilter {
 
     @Override
     public void close() {
-        entryFilter.close();
+        ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
         try {
-            classLoader.close();
-        } catch (IOException e) {
-            log.error("close EntryFilterWithClassLoader failed", e);
+            Thread.currentThread().setContextClassLoader(classLoader);
+            entryFilter.close();
+        } finally {
+            Thread.currentThread().setContextClassLoader(currentClassLoader);
+        }
+        if (classLoaderOwned) {
+            log.info("Closing classloader {} for EntryFilter {}", classLoader, entryFilter.getClass().getName());
+            try {
+                classLoader.close();
+            } catch (IOException e) {
+                log.error("close EntryFilterWithClassLoader failed", e);
+            }
         }
     }
 }

@@ -51,4 +51,6 @@ public interface MetadataOp {
     default OpPut asPut() {
         return (OpPut) this;
     }
+
+    String getPath();
 }

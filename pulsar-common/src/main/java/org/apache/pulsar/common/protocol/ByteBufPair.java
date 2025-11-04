@@ -82,13 +82,21 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     }
 
     /**
-     * @return a single buffer with the content of both individual buffers
+     * Combines the content of both buffers into a single {@link ByteBuf}.
+     *
+     * <p>This method creates a new {@link ByteBuf} with the combined readable content
+     * of the two buffers in the given {@link ByteBufPair}. The original buffer is
+     * released after the data is written into the new buffer.
+     *
+     * @param pair the {@link ByteBufPair} containing the two buffers to be coalesced
+     * @return a new {@link ByteBuf} containing the combined content of both buffers
      */
     @VisibleForTesting
     public static ByteBuf coalesce(ByteBufPair pair) {
         ByteBuf b = Unpooled.buffer(pair.readableBytes());
         b.writeBytes(pair.b1, pair.b1.readerIndex(), pair.b1.readableBytes());
         b.writeBytes(pair.b2, pair.b2.readerIndex(), pair.b2.readableBytes());
+        pair.release();
         return b;
     }
 
@@ -107,8 +115,38 @@ public final class ByteBufPair extends AbstractReferenceCounted {
         return this;
     }
 
+    /**
+     * Encoder that writes a {@link ByteBufPair} to the socket.
+     * Use {@link #getEncoder(boolean)} to get the appropriate encoder instead of referencing this.
+     */
+    @Deprecated
     public static final Encoder ENCODER = new Encoder();
+
+    private static final boolean COPY_ENCODER_REQUIRED_FOR_TLS;
+    static {
+        boolean copyEncoderRequiredForTls = false;
+        try {
+            // io.netty.handler.ssl.SslHandlerCoalescingBufferQueue is only available in netty 4.1.111 and later
+            // when the class is available, there's no need to use the CopyingEncoder when TLS is enabled
+            ByteBuf.class.getClassLoader().loadClass("io.netty.handler.ssl.SslHandlerCoalescingBufferQueue");
+        } catch (ClassNotFoundException e) {
+            copyEncoderRequiredForTls = true;
+        }
+        COPY_ENCODER_REQUIRED_FOR_TLS = copyEncoderRequiredForTls;
+    }
+
+    /**
+     * Encoder that makes a copy of the ByteBufs before writing them to the socket.
+     * This is needed with Netty <4.1.111.Final when TLS is enabled, because the SslHandler will modify the input
+     * ByteBufs.
+     * Use {@link #getEncoder(boolean)} to get the appropriate encoder instead of referencing this.
+     */
+    @Deprecated
     public static final CopyingEncoder COPYING_ENCODER = new CopyingEncoder();
+
+    public static ChannelOutboundHandlerAdapter getEncoder(boolean tlsEnabled) {
+        return tlsEnabled && COPY_ENCODER_REQUIRED_FOR_TLS ? COPYING_ENCODER : ENCODER;
+    }
 
     @Sharable
     @SuppressWarnings("checkstyle:JavadocType")

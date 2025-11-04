@@ -323,7 +323,7 @@ public class SourcesBase extends AdminResource {
     @ApiOperation(
             value = "Lists all Pulsar Sources currently deployed in a given namespace",
             response = String.class,
-            responseContainer = "Collection"
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
@@ -342,8 +342,9 @@ public class SourcesBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart an instance of a Pulsar Source", response = Void.class)
+    @ApiOperation(value = "Restart an instance of a Pulsar Source")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
@@ -365,8 +366,9 @@ public class SourcesBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart all instances of a Pulsar Source", response = Void.class)
+    @ApiOperation(value = "Restart all instances of a Pulsar Source")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
@@ -386,8 +388,9 @@ public class SourcesBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop instance of a Pulsar Source", response = Void.class)
+    @ApiOperation(value = "Stop instance of a Pulsar Source")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
@@ -407,8 +410,9 @@ public class SourcesBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop all instances of a Pulsar Source", response = Void.class)
+    @ApiOperation(value = "Stop all instances of a Pulsar Source")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
@@ -428,8 +432,9 @@ public class SourcesBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Start an instance of a Pulsar Source", response = Void.class)
+    @ApiOperation(value = "Start an instance of a Pulsar Source")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
@@ -449,8 +454,9 @@ public class SourcesBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Start all instances of a Pulsar Source", response = Void.class)
+    @ApiOperation(value = "Start all instances of a Pulsar Source")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),

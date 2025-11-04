@@ -106,7 +106,8 @@ public class TopicOwnerTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        pulsarAdmins[0].clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsarServices[0].getWebServiceAddress()).build());
+        pulsarAdmins[0].clusters().createCluster(testCluster, ClusterData.builder()
+                .serviceUrl(pulsarServices[0].getWebServiceAddress()).build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Sets.newHashSet(testCluster))
                 .build();
@@ -117,10 +118,19 @@ public class TopicOwnerTest {
     @AfterMethod(alwaysRun = true)
     void tearDown() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
-            pulsarServices[i].close();
-            pulsarAdmins[i].close();
+            if (pulsarAdmins[i] != null) {
+                pulsarAdmins[i].close();
+                pulsarAdmins[i] = null;
+            }
+            if (pulsarServices[i] != null) {
+                pulsarServices[i].close();
+                pulsarServices[i] = null;
+            }
         }
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -145,7 +155,8 @@ public class TopicOwnerTest {
                     true);
             return CompletableFuture.completedFuture(Optional.of(lookupResult));
         };
-        doAnswer(answer).when(spyLeaderNamespaceService).getBrokerServiceUrlAsync(any(TopicName.class), any(LookupOptions.class));
+        doAnswer(answer).when(spyLeaderNamespaceService).getBrokerServiceUrlAsync(any(TopicName.class),
+                any(LookupOptions.class));
         FieldUtils.writeField(leaderPulsar, "nsService", spyLeaderNamespaceService, true);
         return leaderAuthorizedBroker;
     }
@@ -194,7 +205,8 @@ public class TopicOwnerTest {
         String serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);
 
         while (serviceUrlForTopic1.equals(serviceUrlForTopic2)) {
-            // Retry for bundle distribution, should make sure bundles for topic1 and topic2 are maintained in different brokers.
+            // Retry for bundle distribution,
+            // should make sure bundles for topic1 and topic2 are maintained in different brokers.
             pulsarAdmins[0].namespaces().unload("my-tenant/my-ns");
             serviceUrlForTopic1 = pulsarAdmins[0].lookups().lookupTopic(topic1);
             serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);

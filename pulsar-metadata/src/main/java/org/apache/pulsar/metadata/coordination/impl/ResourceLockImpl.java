@@ -21,8 +21,13 @@ package org.apache.pulsar.metadata.coordination.impl;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataSerde;
@@ -44,7 +49,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private long version;
     private final CompletableFuture<Void> expiredFuture;
     private boolean revalidateAfterReconnection = false;
+    private final Backoff backoff;
     private final FutureUtil.Sequencer<Void> sequencer;
+    private final ScheduledExecutorService executor;
+    private ScheduledFuture<?> revalidateTask;
 
     private enum State {
         Init,
@@ -55,7 +63,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     private State state;
 
-    public ResourceLockImpl(MetadataStoreExtended store, MetadataSerde<T> serde, String path) {
+    ResourceLockImpl(MetadataStoreExtended store, MetadataSerde<T> serde, String path,
+                     ScheduledExecutorService executor) {
         this.store = store;
         this.serde = serde;
         this.path = path;
@@ -63,6 +72,11 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         this.expiredFuture = new CompletableFuture<>();
         this.sequencer = FutureUtil.Sequencer.create();
         this.state = State.Init;
+        this.executor = executor;
+        this.backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMax(60, TimeUnit.SECONDS)
+                .create();
     }
 
     @Override
@@ -93,6 +107,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
 
         state = State.Releasing;
+        if (revalidateTask != null) {
+            revalidateTask.cancel(true);
+        }
+
         CompletableFuture<Void> result = new CompletableFuture<>();
 
         store.delete(path, Optional.of(version))
@@ -210,8 +228,15 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
      * This method is thread-safe and it will perform multiple re-validation operations in turn.
      */
     synchronized CompletableFuture<Void> silentRevalidateOnce() {
+        if (state != State.Valid) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         return sequencer.sequential(() -> revalidate(value))
-                .thenRun(() -> log.info("Successfully revalidated the lock on {}", path))
+                .thenRun(() -> {
+                    log.info("Successfully revalidated the lock on {}", path);
+                    backoff.reset();
+                })
                 .exceptionally(ex -> {
                     synchronized (ResourceLockImpl.this) {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
@@ -225,8 +250,12 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             // Continue assuming we hold the lock, until we can revalidate it, either
                             // on Reconnected or SessionReestablished events.
                             revalidateAfterReconnection = true;
-                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
-                                    realCause.getMessage());
+
+                            long delayMillis = backoff.next();
+                            log.warn("Failed to revalidate the lock at {}: {} - Retrying in {} seconds", path,
+                                    realCause.getMessage(), delayMillis / 1000.0);
+                            revalidateTask =
+                                    executor.schedule(this::silentRevalidateOnce, delayMillis, TimeUnit.MILLISECONDS);
                         }
                     }
                     return null;

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.utils.functions;
 
 import java.io.File;
@@ -30,10 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.utils.Exceptions;
+import org.zeroturnaround.zip.ZipUtil;
 
 
 @UtilityClass
@@ -45,44 +44,41 @@ public class FunctionUtils {
     /**
      * Extract the Pulsar Function class from a function or archive.
      */
-    public static String getFunctionClass(ClassLoader classLoader) throws IOException {
-        NarClassLoader ncl = (NarClassLoader) classLoader;
-        String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
+    public static String getFunctionClass(File narFile) throws IOException {
+        return getFunctionDefinition(narFile).getFunctionClass();
+    }
 
-        FunctionDefinition conf = ObjectMapperFactory.getYamlMapper().reader().readValue(configStr,
-        FunctionDefinition.class);
-        if (StringUtils.isEmpty(conf.getFunctionClass())) {
-            throw new IOException(
-                    String.format("The '%s' functionctor does not provide a function implementation", conf.getName()));
+    public static FunctionDefinition getFunctionDefinition(File narFile) throws IOException {
+        return getPulsarIOServiceConfig(narFile, FunctionDefinition.class);
+    }
+
+    public static <T> T getPulsarIOServiceConfig(File narFile, Class<T> valueType) throws IOException {
+        String filename = "META-INF/services/" + PULSAR_IO_SERVICE_NAME;
+        byte[] configEntry = ZipUtil.unpackEntry(narFile, filename);
+        if (configEntry != null) {
+            return ObjectMapperFactory.getYamlMapper().reader().readValue(configEntry, valueType);
+        } else {
+            return null;
         }
+    }
 
-        try {
-            // Try to load source class and check it implements Function interface
-            Class functionClass = ncl.loadClass(conf.getFunctionClass());
-            if (!(Function.class.isAssignableFrom(functionClass))) {
-                throw new IOException(
-                        "Class " + conf.getFunctionClass() + " does not implement interface " + Function.class
-                                .getName());
-            }
-        } catch (Throwable t) {
-            Exceptions.rethrowIOException(t);
-        }
-
-        return conf.getFunctionClass();
+    public static String getFunctionClass(NarClassLoader narClassLoader) throws IOException {
+        return getFunctionDefinition(narClassLoader).getFunctionClass();
     }
 
     public static FunctionDefinition getFunctionDefinition(NarClassLoader narClassLoader) throws IOException {
-        String configStr = narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, FunctionDefinition.class);
+        return getPulsarIOServiceConfig(narClassLoader, FunctionDefinition.class);
     }
 
-    public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory) throws IOException {
-        return searchForFunctions(functionsDirectory, false);
+    public static <T> T getPulsarIOServiceConfig(NarClassLoader narClassLoader, Class<T> valueType) throws IOException {
+        return ObjectMapperFactory.getYamlMapper().reader()
+                .readValue(narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME), valueType);
     }
 
     public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory,
-                                                                      boolean alwaysPopulatePath) throws IOException {
-        Path path = Paths.get(functionsDirectory).toAbsolutePath();
+                                                                      String narExtractionDirectory,
+                                                                      boolean enableClassloading) throws IOException {
+        Path path = Paths.get(functionsDirectory).toAbsolutePath().normalize();
         log.info("Searching for functions in {}", path);
 
         TreeMap<String, FunctionArchive> functions = new TreeMap<>();
@@ -95,22 +91,12 @@ public class FunctionUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-
-                    NarClassLoader ncl = NarClassLoaderBuilder.builder()
-                            .narFile(new File(archive.toString()))
-                            .build();
-
-                    FunctionArchive.FunctionArchiveBuilder functionArchiveBuilder = FunctionArchive.builder();
-                    FunctionDefinition cntDef = FunctionUtils.getFunctionDefinition(ncl);
+                    FunctionDefinition cntDef = FunctionUtils.getFunctionDefinition(archive.toFile());
                     log.info("Found function {} from {}", cntDef, archive);
-
-                    functionArchiveBuilder.archivePath(archive);
-
-                    functionArchiveBuilder.classLoader(ncl);
-                    functionArchiveBuilder.functionDefinition(cntDef);
-
-                    if (alwaysPopulatePath || !StringUtils.isEmpty(cntDef.getFunctionClass())) {
-                        functions.put(cntDef.getName(), functionArchiveBuilder.build());
+                    if (!StringUtils.isEmpty(cntDef.getFunctionClass())) {
+                        FunctionArchive functionArchive =
+                                new FunctionArchive(archive, cntDef, narExtractionDirectory, enableClassloading);
+                        functions.put(cntDef.getName(), functionArchive);
                     }
                 } catch (Throwable t) {
                     log.warn("Failed to load function from {}", archive, t);

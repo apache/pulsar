@@ -32,7 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
@@ -144,8 +144,8 @@ public class LeastResourceUsageWithWeightTest {
 
         Set<String> candidates = new HashSet<>();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,50, 100));
-        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx,100, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 50, 100));
+        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 100, 100));
         brokerLoadDataStore.pushAsync("3", null);
         brokerLoadDataStore.pushAsync("4", null);
         candidates.add("1");
@@ -155,7 +155,7 @@ public class LeastResourceUsageWithWeightTest {
         assertEquals(result, "1");
 
         strategy = new LeastResourceUsageWithWeight();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,100, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 100, 100));
         result = strategy.select(candidates, bundleData, ctx).get();
         assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
 
@@ -196,8 +196,8 @@ public class LeastResourceUsageWithWeightTest {
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {

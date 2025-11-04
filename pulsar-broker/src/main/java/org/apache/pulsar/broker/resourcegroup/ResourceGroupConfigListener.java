@@ -18,15 +18,22 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.slf4j.Logger;
@@ -47,24 +54,32 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     private final ResourceGroupService rgService;
     private final PulsarService pulsarService;
     private final ResourceGroupResources rgResources;
-    private final ResourceGroupNamespaceConfigListener rgNamespaceConfigListener;
+    private volatile ResourceGroupNamespaceConfigListener rgNamespaceConfigListener;
 
     public ResourceGroupConfigListener(ResourceGroupService rgService, PulsarService pulsarService) {
         this.rgService = rgService;
         this.pulsarService = pulsarService;
         this.rgResources = pulsarService.getPulsarResources().getResourcegroupResources();
-        loadAllResourceGroups();
         this.rgResources.getStore().registerListener(this);
-        rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(
-                rgService, pulsarService, this);
+        execute(() -> loadAllResourceGroupsWithRetryAsync(0));
     }
 
-    private void loadAllResourceGroups() {
-        rgResources.listResourceGroupsAsync().whenCompleteAsync((rgList, ex) -> {
-            if (ex != null) {
-                LOG.error("Exception when fetching resource groups", ex);
-                return;
+    private void loadAllResourceGroupsWithRetryAsync(long retry) {
+        loadAllResourceGroupsAsync().thenAccept(__ -> {
+            if (rgNamespaceConfigListener == null) {
+                rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(rgService, pulsarService, this);
             }
+        }).exceptionally(e -> {
+            long nextRetry = retry + 1;
+            long delay = 500 * nextRetry;
+            LOG.error("Failed to load all resource groups during initialization, retrying after {}ms: ", delay, e);
+            schedule(() -> loadAllResourceGroupsWithRetryAsync(nextRetry), delay);
+            return null;
+        });
+    }
+
+    private CompletableFuture<Void> loadAllResourceGroupsAsync() {
+        return rgResources.listResourceGroupsAsync().thenCompose(rgList -> {
             final Set<String> existingSet = rgService.resourceGroupGetAll();
             HashSet<String> newSet = new HashSet<>();
 
@@ -72,21 +87,26 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
 
             final Sets.SetView<String> deleteList = Sets.difference(existingSet, newSet);
 
-            for (String rgName: deleteList) {
+            for (String rgName : deleteList) {
                 deleteResourceGroup(rgName);
             }
 
             final Sets.SetView<String> addList = Sets.difference(newSet, existingSet);
-            for (String rgName: addList) {
-                pulsarService.getPulsarResources().getResourcegroupResources()
-                    .getResourceGroupAsync(rgName).thenAcceptAsync(optionalRg -> {
-                    ResourceGroup rg = optionalRg.get();
-                    createResourceGroup(rgName, rg);
-                }).exceptionally((ex1) -> {
-                    LOG.error("Failed to fetch resourceGroup", ex1);
-                    return null;
-                });
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (String rgName : addList) {
+                futures.add(pulsarService.getPulsarResources()
+                        .getResourcegroupResources()
+                        .getResourceGroupAsync(rgName)
+                        .thenAccept(optionalRg -> {
+                            if (optionalRg.isPresent()) {
+                                ResourceGroup rg = optionalRg.get();
+                                createResourceGroup(rgName, rg);
+                            }
+                        })
+                );
             }
+
+            return FutureUtil.waitForAll(futures);
         });
     }
 
@@ -140,7 +160,10 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         Optional<String> rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath);
         if ((notification.getType() == NotificationType.ChildrenChanged)
             || (notification.getType() == NotificationType.Created)) {
-            loadAllResourceGroups();
+            loadAllResourceGroupsAsync().exceptionally((ex) -> {
+                LOG.error("Exception when fetching resource groups", ex);
+                return null;
+            });
         } else if (rgName.isPresent()) {
             switch (notification.getType()) {
             case Modified:
@@ -150,5 +173,18 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
                 break;
             }
         }
+    }
+
+    protected void execute(Runnable runnable) {
+        pulsarService.getExecutor().execute(catchingAndLoggingThrowables(runnable));
+    }
+
+    protected void schedule(Runnable runnable, long delayMs) {
+        pulsarService.getExecutor().schedule(catchingAndLoggingThrowables(runnable), delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    @VisibleForTesting
+    ResourceGroupNamespaceConfigListener getRgNamespaceConfigListener() {
+        return rgNamespaceConfigListener;
     }
 }

@@ -69,6 +69,8 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
         leaderElection.close();
 
+        assertEquals(leaderElection.getState(), LeaderElectionState.NoLeader);
+
         assertEquals(cache.get("/my/leader-election").join(), Optional.empty());
     }
 

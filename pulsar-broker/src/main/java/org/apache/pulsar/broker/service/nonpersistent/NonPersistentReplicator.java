@@ -23,24 +23,26 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.OpSendMsgStats;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
 import org.apache.pulsar.common.stats.Rate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 public class NonPersistentReplicator extends AbstractReplicator implements Replicator {
 
     private final Rate msgOut = new Rate();
@@ -52,9 +54,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             BrokerService brokerService, PulsarClientImpl replicationClient) throws PulsarServerException {
         super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
                 replicationClient);
-
+        // NonPersistentReplicator does not support limitation so far, so reset pending queue size to the default value.
+        producerBuilder.maxPendingMessages(1000);
         producerBuilder.blockIfQueueFull(false);
-
         startProducer();
     }
 
@@ -67,7 +69,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    protected void readEntries(Producer<byte[]> producer) {
+    protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
         this.producer = (ProducerImpl) producer;
 
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Started)) {
@@ -78,8 +80,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                     "[{}] Replicator was stopped while creating the producer."
                             + " Closing it. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
-            STATE_UPDATER.set(this, State.Stopping);
-            closeProducerAsync();
+            doCloseProducerAsync(producer, () -> {});
             return;
         }
     }
@@ -117,6 +118,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             }
 
             msgOut.recordEvent(headersAndPayload.readableBytes());
+            stats.incrementMsgOutCounter();
+            stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
 
             msg.setReplicatedFrom(localCluster);
 
@@ -130,6 +133,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                         replicatorId);
             }
             msgDrop.recordEvent();
+            stats.incrementMsgDropCount();
             entry.release();
         }
     }
@@ -144,11 +148,11 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    public NonPersistentReplicatorStatsImpl getStats() {
-        stats.connected = producer != null && producer.isConnected();
-        stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
-
+    public NonPersistentReplicatorStatsImpl computeStats() {
         ProducerImpl producer = this.producer;
+        stats.connected = isConnected();
+        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
+
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
             stats.outboundConnectedSince = producer.getConnectedSince();
@@ -160,11 +164,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         return stats;
     }
 
-    private long getReplicationDelayInSeconds() {
-        if (producer != null) {
-            return TimeUnit.MILLISECONDS.toSeconds(producer.getDelayInMillis());
-        }
-        return 0L;
+    @Override
+    public NonPersistentReplicatorStatsImpl getStats() {
+        return stats;
     }
 
     private static final class ProducerSendCallback implements SendCallback {
@@ -173,9 +175,15 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         private MessageImpl msg;
 
         @Override
-        public void sendComplete(Exception exception) {
+        public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
             if (exception != null) {
-                log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
+                Throwable actEx = FutureUtil.unwrapCompletionException(exception);
+                if (actEx instanceof PulsarClientException.ProducerQueueIsFullError) {
+                    log.warn("[{}] Discard to replicate non-persistent messages to the remote cluster because the"
+                        + " producer pending queue is full", replicator.replicatorId);
+                } else {
+                    log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
+                }
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Message persisted on remote broker", replicator.replicatorId);
@@ -239,8 +247,6 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);
-
     @Override
     protected Position getReplicatorReadPosition() {
         // No-op
@@ -259,8 +265,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    public boolean isConnected() {
-        ProducerImpl<?> producer = this.producer;
-        return producer != null && producer.isConnected();
+    protected void beforeTerminate() {
+        // No-op
     }
 }

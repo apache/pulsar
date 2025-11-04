@@ -38,7 +38,9 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
@@ -53,7 +55,7 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
@@ -61,6 +63,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.web.RestException;
@@ -95,7 +98,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerAcks;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -122,8 +124,9 @@ public class TopicsBase extends PersistentTopicsBase {
                         .thenAccept(schemaMeta -> {
                             // Both schema version and schema data are necessary.
                             if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
-                                internalPublishMessages(topicName, request, pulsar().getBrokerService()
-                                                .getOwningTopics().get(topic).values(), asyncResponse,
+                                final var partitionIndexes = pulsar().getBrokerService().getOwningTopics()
+                                        .getOrDefault(topic, Set.of()).stream().toList();
+                                internalPublishMessages(topicName, request, partitionIndexes, asyncResponse,
                                         AutoConsumeSchema.getSchema(schemaMeta.getLeft().toSchemaInfo()),
                                         schemaMeta.getRight());
                             } else {
@@ -194,7 +197,7 @@ public class TopicsBase extends PersistentTopicsBase {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
             List<Message> messages = buildMessage(request, schema, producerName, topicName);
-            List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
+            List<CompletableFuture<Position>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             for (int index = 0; index < messages.size(); index++) {
                 ProducerAck produceMessageResult = new ProducerAck();
@@ -235,7 +238,7 @@ public class TopicsBase extends PersistentTopicsBase {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
             List<Message> messages = buildMessage(request, schema, producerName, topicName);
-            List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
+            List<CompletableFuture<Position>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             // Try to publish messages to all partitions this broker owns in round robin mode.
             for (int index = 0; index < messages.size(); index++) {
@@ -266,8 +269,8 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    private CompletableFuture<PositionImpl> publishSingleMessageToPartition(String topic, Message message) {
-        CompletableFuture<PositionImpl> publishResult = new CompletableFuture<>();
+    private CompletableFuture<Position> publishSingleMessageToPartition(String topic, Message message) {
+        CompletableFuture<Position> publishResult = new CompletableFuture<>();
         pulsar().getBrokerService().getTopic(topic, false)
         .thenAccept(t -> {
             // TODO: Check message backlog and fail if backlog too large.
@@ -280,8 +283,14 @@ public class TopicsBase extends PersistentTopicsBase {
                         .remove(topicName.getPartitionIndex());
             } else {
                 try {
-                    t.get().publishMessage(messageToByteBuf(message),
-                            RestMessagePublishContext.get(publishResult, t.get(), System.nanoTime()));
+                    ByteBuf headersAndPayload = messageToByteBuf(message);
+                    try {
+                        Topic topicObj = t.get();
+                        topicObj.publishMessage(headersAndPayload,
+                                RestMessagePublishContext.get(publishResult, topicObj, System.nanoTime()));
+                    } finally {
+                        headersAndPayload.release();
+                    }
                 } catch (Exception e) {
                     if (log.isDebugEnabled()) {
                         log.debug("Fail to publish single messages to topic  {}: {} ",
@@ -297,11 +306,11 @@ public class TopicsBase extends PersistentTopicsBase {
 
     // Process results for all message publishing attempts
     private void processPublishMessageResults(List<ProducerAck> produceMessageResults,
-                                              List<CompletableFuture<PositionImpl>> publishResults) {
+                                              List<CompletableFuture<Position>> publishResults) {
         // process publish message result
         for (int index = 0; index < publishResults.size(); index++) {
             try {
-                PositionImpl position = publishResults.get(index).get();
+                Position position = publishResults.get(index).get();
                 MessageId messageId = new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
                         Integer.parseInt(produceMessageResults.get(index).getMessageId()));
                 produceMessageResults.get(index).setMessageId(messageId.toString());
@@ -336,7 +345,7 @@ public class TopicsBase extends PersistentTopicsBase {
         List<String> redirectAddresses = Collections.synchronizedList(new ArrayList<>());
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         List<CompletableFuture<Void>> lookupFutures = new ArrayList<>();
-        if (!topicName.isPartitioned() && metadata.partitions > 1) {
+        if (!topicName.isPartitioned() && metadata.partitions > 0) {
             // Partitioned topic with multiple partitions, need to do look up for each partition.
             for (int index = 0; index < metadata.partitions; index++) {
                 lookupFutures.add(lookUpBrokerForTopic(topicName.getPartition(index),
@@ -446,7 +455,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
                 pulsar().getBrokerService().getOwningTopics().computeIfAbsent(partitionedTopicName
                                 .getPartitionedTopicName(),
-                        (key) -> ConcurrentOpenHashSet.<Integer>newBuilder().build())
+                        __ -> ConcurrentHashMap.newKeySet())
                         .add(partitionedTopicName.getPartitionIndex());
                 completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
             } else {
@@ -517,7 +526,7 @@ public class TopicsBase extends PersistentTopicsBase {
         // Only need to add to first partition the broker owns since the schema id in schema registry are
         // same for all partitions which is the partitionedTopicName
         List<Integer> partitions = pulsar().getBrokerService().getOwningTopics()
-                .get(topicName.getPartitionedTopicName()).values();
+                .get(topicName.getPartitionedTopicName()).stream().toList();
         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
         for (int index = 0; index < partitions.size(); index++) {
             CompletableFuture<SchemaVersion> future = new CompletableFuture<>();

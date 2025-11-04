@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.io.docs;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,14 +32,19 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.reflections.Reflections;
 import org.reflections.util.ConfigurationBuilder;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 @Slf4j
-public class ConnectorDocGenerator {
+@Command(name = "connector-doc-gen")
+public class ConnectorDocGenerator implements Callable<Integer> {
 
     private static final String INDENT = "  ";
 
@@ -118,41 +121,25 @@ public class ConnectorDocGenerator {
         }
     }
 
-    /**
-     * Args for stats generator.
-     */
-    private static class MainArgs {
-        @Parameter(
-                names = {"-o", "--output-dir"},
-                description = "The output dir to dump connector docs",
-                required = true)
-        String outputDir = null;
+    @Option(
+            names = {"-o", "--output-dir"},
+            description = "The output dir to dump connector docs",
+            required = true)
+    String outputDir = null;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
-        boolean help = false;
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
+    boolean help = false;
+
+    @Override
+    public Integer call() throws Exception {
+        ConnectorDocGenerator docGen = new ConnectorDocGenerator();
+        docGen.generatorConnectorYamlFiles(outputDir);
+        return 0;
     }
 
     public static void main(String[] args) throws Exception {
-        MainArgs mainArgs = new MainArgs();
-
-        JCommander commander = new JCommander();
-        try {
-            commander.setProgramName("connector-doc-gen");
-            commander.addObject(mainArgs);
-            commander.parse(args);
-            if (mainArgs.help) {
-                commander.usage();
-                Runtime.getRuntime().exit(0);
-                return;
-            }
-        } catch (Exception e) {
-            commander.usage();
-            Runtime.getRuntime().exit(1);
-            return;
-        }
-
-        ConnectorDocGenerator docGen = new ConnectorDocGenerator();
-        docGen.generatorConnectorYamlFiles(mainArgs.outputDir);
+        CommandLine commander = new CommandLine(new ConnectorDocGenerator());
+        Runtime.getRuntime().exit(commander.execute(args));
     }
 
 }

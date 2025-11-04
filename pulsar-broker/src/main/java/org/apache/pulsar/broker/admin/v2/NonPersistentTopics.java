@@ -52,15 +52,16 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +75,7 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/partitions")
-    @ApiOperation(value = "Get partitioned topic metadata.")
+    @ApiOperation(value = "Get partitioned topic metadata.", response = PartitionedTopicMetadata.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
@@ -96,13 +97,25 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        super.getPartitionedMetadata(asyncResponse, tenant, namespace, encodedTopic, authoritative,
-                checkAllowAutoCreation);
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicOwnershipAsync(topicName, authoritative).whenComplete((__, ex) -> {
+            if (ex != null) {
+                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                if (isNot307And404Exception(actEx)) {
+                    log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, actEx);
+            } else {
+                // "super.getPartitionedMetadata" will handle error itself.
+                super.getPartitionedMetadata(asyncResponse, tenant, namespace, encodedTopic, authoritative,
+                        checkAllowAutoCreation);
+            }
+        });
     }
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/internalStats")
-    @ApiOperation(value = "Get the internal stats for the topic.")
+    @ApiOperation(value = "Get the internal stats for the topic.", response = PersistentTopicInternalStats.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
@@ -132,7 +145,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 })
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -145,6 +158,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiOperation(value = "Create a partitioned topic.",
             notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -317,6 +331,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/unload")
     @ApiOperation(value = "Unload a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "This operation requires super-user access"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -462,24 +477,23 @@ public class NonPersistentTopics extends PersistentTopics {
             } else {
                 validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
                         .thenAccept(nsBundle -> {
-                            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
-                                    pulsar().getBrokerService()
-                                            .getMultiLayerTopicsMap().get(namespaceName.toString());
+                            final var bundleTopics = pulsar().getBrokerService().getMultiLayerTopicsMap()
+                                    .get(namespaceName.toString());
                             if (bundleTopics == null || bundleTopics.isEmpty()) {
                                 asyncResponse.resume(Collections.emptyList());
                                 return;
                             }
                             final List<String> topicList = new ArrayList<>();
                             String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
-                            ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
+                            final var topicMap = bundleTopics.get(bundleKey);
                             if (topicMap != null) {
-                                topicList.addAll(topicMap.keys().stream()
+                                topicList.addAll(topicMap.keySet().stream()
                                         .filter(name -> !TopicName.get(name).isPersistent())
                                         .collect(Collectors.toList()));
                             }
                             asyncResponse.resume(topicList);
                         }).exceptionally(ex -> {
-                            if (!isRedirectException(ex)) {
+                            if (isNot307And404Exception(ex)) {
                                 log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                                         namespaceName, bundleRange, ex);
                             }
@@ -488,7 +502,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         });
             }
         }).exceptionally(ex -> {
-            if (!isRedirectException(ex)) {
+            if (isNot307And404Exception(ex)) {
                 log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                         namespaceName, bundleRange, ex);
             }
@@ -502,6 +516,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiOperation(value = "Truncate a topic.",
             notes = "NonPersistentTopic does not support truncate.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 412, message = "NonPersistentTopic does not support truncate.")
     })
     public void truncateTopic(
@@ -525,7 +540,7 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/entryFilters")
-    @ApiOperation(value = "Get entry filters for a topic.")
+    @ApiOperation(value = "Get entry filters for a topic.", response = EntryFilters.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
     public void getEntryFilters(@Suspended AsyncResponse asyncResponse,
@@ -553,7 +568,9 @@ public class NonPersistentTopics extends PersistentTopics {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/entryFilters")
     @ApiOperation(value = "Set entry filters for specified topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -581,7 +598,9 @@ public class NonPersistentTopics extends PersistentTopics {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/entryFilters")
     @ApiOperation(value = "Remove entry filters for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),

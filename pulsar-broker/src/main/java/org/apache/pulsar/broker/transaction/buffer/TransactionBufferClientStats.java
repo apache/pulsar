@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientStatsImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 
@@ -34,10 +35,10 @@ public interface TransactionBufferClientStats {
     void close();
 
 
-    static TransactionBufferClientStats create(boolean exposeTopicMetrics, TransactionBufferHandler handler,
-                                               boolean enableTxnCoordinator) {
+    static TransactionBufferClientStats create(PulsarService pulsarService, boolean exposeTopicMetrics,
+                                               TransactionBufferHandler handler, boolean enableTxnCoordinator) {
         return enableTxnCoordinator
-                ? TransactionBufferClientStatsImpl.getInstance(exposeTopicMetrics, handler) : NOOP;
+                ? TransactionBufferClientStatsImpl.getInstance(pulsarService, exposeTopicMetrics, handler) : NOOP;
     }
 
 

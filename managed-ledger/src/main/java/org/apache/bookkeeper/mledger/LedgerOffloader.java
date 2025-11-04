@@ -230,5 +230,9 @@ public interface LedgerOffloader {
                              Map<String, String> offloadDriverMetadata) throws ManagedLedgerException {
         throw ManagedLedgerException.getManagedLedgerException(new UnsupportedOperationException());
     }
+
+    default boolean isAppendable() {
+        return true;
+    }
 }
 

@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.io.solr;
 
+import java.io.File;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.solr.client.solrj.embedded.JettySolrRunner;
-
-import java.io.File;
+import org.apache.solr.embedded.JettySolrRunner;
 
 @Slf4j
 public class SolrServerUtil {
@@ -35,8 +34,8 @@ public class SolrServerUtil {
 
     public void startStandaloneSolr() throws Exception {
         if (standaloneSolr != null) {
-            throw new IllegalStateException("Test is already running a standalone Solr instance " +
-                standaloneSolr.getBaseUrl() + "! This indicates a bug in the unit test logic.");
+            throw new IllegalStateException("Test is already running a standalone Solr instance "
+                + standaloneSolr.getBaseUrl() + "! This indicates a bug in the unit test logic.");
         }
 
         File solrHomeDir = new File(FileUtils.getTempDirectory().getPath() + "/solr_home");
@@ -57,7 +56,7 @@ public class SolrServerUtil {
                 standaloneSolr.start();
             } catch (Exception e) {
                 if (e instanceof RuntimeException) {
-                    throw (RuntimeException)e;
+                    throw (RuntimeException) e;
                 } else {
                     throw new RuntimeException(e);
                 }

@@ -108,9 +108,11 @@ public class NamespaceBundles {
 
     public void validateBundle(NamespaceBundle nsBundle) throws Exception {
         int idx = Arrays.binarySearch(partitions, nsBundle.getLowerEndpoint());
-        checkArgument(idx >= 0, "Cannot find bundle in the bundles list");
-        checkArgument(nsBundle.getUpperEndpoint().equals(bundles.get(idx).getUpperEndpoint()),
-                "Invalid upper boundary for bundle");
+        checkArgument(idx >= 0, "Cannot find bundle %s in the bundles list", nsBundle);
+        NamespaceBundle foundBundle = bundles.get(idx);
+        Long upperEndpoint = foundBundle.getUpperEndpoint();
+        checkArgument(nsBundle.getUpperEndpoint().equals(upperEndpoint),
+                "Invalid upper boundary for bundle %s. Expected upper boundary of %s", nsBundle, foundBundle);
     }
 
     public NamespaceBundle getFullBundle() {
@@ -197,6 +199,7 @@ public class NamespaceBundles {
     public LocalPolicies toLocalPolicies() {
         return new LocalPolicies(this.getBundlesData(),
                 localPolicies.map(lp -> lp.getLeft().bookieAffinityGroup).orElse(null),
-                localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null));
+                localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null),
+                localPolicies.map(lp -> lp.getLeft().migrated).orElse(false));
     }
 }

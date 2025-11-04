@@ -45,8 +45,8 @@ import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -239,9 +239,11 @@ public class FilterEntryTest extends BrokerTestBase {
         hasFilterField.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(
+                EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
         EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(
+                EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
         field.set(dispatcher, List.of(loader1, loader2));
         hasFilterField.set(dispatcher, true);
 
@@ -308,7 +310,7 @@ public class FilterEntryTest extends BrokerTestBase {
         assertNotNull(lastMsgId);
         MessageIdImpl finalLastMsgId = lastMsgId;
         Awaitility.await().untilAsserted(() -> {
-            PositionImpl position = (PositionImpl) subscription.getCursor().getMarkDeletedPosition();
+            Position position = subscription.getCursor().getMarkDeletedPosition();
             assertEquals(position.getLedgerId(), finalLastMsgId.getLedgerId());
             assertEquals(position.getEntryId(), finalLastMsgId.getEntryId());
         });
@@ -371,9 +373,11 @@ public class FilterEntryTest extends BrokerTestBase {
             hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
-            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(
+                    EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilter2Test();
-            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(
+                    EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 
@@ -463,10 +467,10 @@ public class FilterEntryTest extends BrokerTestBase {
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilterTest();
             EntryFilterWithClassLoader loader2 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 
@@ -546,8 +550,8 @@ public class FilterEntryTest extends BrokerTestBase {
                                int numEntriesRejected, int numMessagesRejected,
                                int numEntriesRescheduled, int numMessagesRescheduled
     ) throws Exception {
-        AnalyzeSubscriptionBacklogResult a1
-                = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
+        AnalyzeSubscriptionBacklogResult a1 =
+                admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
         Assert.assertEquals(numEntries, a1.getEntries());
         Assert.assertEquals(numEntriesAccepted, a1.getFilterAcceptedEntries());

@@ -26,7 +26,6 @@ package org.apache.bookkeeper.test;
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertFalse;
-
 import com.google.common.base.Stopwatch;
 import java.io.File;
 import java.io.IOException;
@@ -73,9 +72,9 @@ import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterTest;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.BeforeTest;
 
 /**
  * A class runs several bookie servers for testing.
@@ -86,7 +85,7 @@ public abstract class BookKeeperClusterTestCase {
 
     protected String testName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void handleTestMethodName(Method method) {
         testName = method.getName();
     }
@@ -148,7 +147,7 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
-    @BeforeTest
+    @BeforeClass(alwaysRun = true)
     public void setUp() throws Exception {
         setUp(getLedgersRootPath());
     }
@@ -187,7 +186,7 @@ public abstract class BookKeeperClusterTestCase {
         return "";
     }
 
-    @AfterTest(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     public void tearDown() throws Exception {
         boolean failed = false;
         for (Throwable e : asyncExceptions) {
@@ -222,7 +221,9 @@ public abstract class BookKeeperClusterTestCase {
             tearDownException = e;
         }
 
-        executor.shutdownNow();
+        if (executor != null) {
+            executor.shutdownNow();
+        }
 
         LOG.info("Tearing down test {} in {} ms.", testName, sw.elapsed(TimeUnit.MILLISECONDS));
         if (tearDownException != null) {

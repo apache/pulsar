@@ -84,6 +84,8 @@ public interface MetadataStoreExtended extends MetadataStore {
         return Optional.empty();
     }
 
+    default void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {}
+
     /**
      * Handles a metadata synchronizer event.
      *

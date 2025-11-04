@@ -46,8 +46,9 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
     protected void setup() throws Exception {
         internalSetup();
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
+                .serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);
@@ -79,7 +80,7 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
             if (bs.isTopicNsOwnedByBrokerAsync(TopicName.get(topicName)).join()) {
                 continue;
             }
-            verifiedBrokerNum ++;
+            verifiedBrokerNum++;
             try {
                 bs.getOrCreateTopic(topicName).get();
             } catch (Exception ex) {

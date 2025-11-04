@@ -31,7 +31,9 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -40,9 +42,11 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
@@ -58,9 +62,9 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 @Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
@@ -98,10 +102,35 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public Consumer<T> subscribe() throws PulsarClientException {
         try {
-            return subscribeAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(subscribeAsync(), Consumer::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
+    }
+
+    private CompletableFuture<Boolean> checkDlqAlreadyExists(String topic) {
+        CompletableFuture<Boolean> existsFuture = new CompletableFuture<>();
+        client.getPartitionedTopicMetadata(topic, false, true).thenAccept(metadata -> {
+            TopicName topicName = TopicName.get(topic);
+            if (topicName.isPersistent()) {
+                // Either partitioned or non-partitioned, it exists.
+                existsFuture.complete(true);
+            } else {
+                // If it is a non-persistent topic, return true only it is a partitioned topic.
+                existsFuture.complete(metadata != null && metadata.partitions > 0);
+            }
+        }).exceptionally(ex -> {
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            if (actEx instanceof PulsarClientException.NotFoundException
+                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                    || actEx instanceof PulsarAdminException.NotFoundException) {
+                existsFuture.complete(false);
+            } else {
+                existsFuture.completeExceptionally(ex);
+            }
+            return null;
+        });
+        return existsFuture;
     }
 
     @Override
@@ -120,31 +149,44 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
+        if (conf.getDecryptFailListener() != null && conf.getMessageListener() == null) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("decryptFailListener must be set with messageListener"));
+        }
+        if (conf.getDecryptFailListener() != null && conf.getCryptoFailureAction() != null) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("decryptFailListener can't be set with cryptoFailureAction"));
+        }
+        if (conf.getDecryptFailListener() == null && conf.getCryptoFailureAction() == null) {
+            conf.setCryptoFailureAction(ConsumerCryptoFailureAction.FAIL);
+        }
+        if (conf.getBatchReceivePolicy() != null) {
+            conf.setReceiverQueueSize(
+                    Math.max(conf.getBatchReceivePolicy().getMaxNumMessages(), conf.getReceiverQueueSize()));
+        }
         CompletableFuture<Void> applyDLQConfig;
         if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
-            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
-                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
-                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            String oldRetryLetterTopic = TopicName.get(topicFirst.getDomain().value(), topicFirst.getNamespaceObject(),
+                    conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX).toString();
+            String oldDeadLetterTopic = TopicName.get(topicFirst.getDomain().value(), topicFirst.getNamespaceObject(),
+                    conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX).toString();
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
-                CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldRetryLetterTopic);
-                CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldDeadLetterTopic);
+                CompletableFuture<Boolean> retryLetterTopicMetadata = checkDlqAlreadyExists(oldRetryLetterTopic);
+                CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
-                            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-                            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-                            if (retryLetterTopicMetadata.join().partitions > 0) {
+                            String retryLetterTopic = RetryMessageUtil.getRetryTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
+                            String deadLetterTopic = RetryMessageUtil.getDLQTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
+                            if (retryLetterTopicMetadata.join()) {
                                 retryLetterTopic = oldRetryLetterTopic;
                             }
-                            if (deadLetterTopicMetadata.join().partitions > 0) {
+                            if (deadLetterTopicMetadata.join()) {
                                 deadLetterTopic = oldDeadLetterTopic;
                             }
                             if (deadLetterPolicy == null) {
@@ -254,6 +296,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount) {
+        checkArgument(negativeAckPrecisionBitCount >= 0, "negativeAckPrecisionBitCount needs to be >= 0");
+        conf.setNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCount);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> subscriptionType(@NonNull SubscriptionType subscriptionType) {
         conf.setSubscriptionType(subscriptionType);
         return this;
@@ -269,6 +318,19 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> decryptFailListener(@NonNull DecryptFailListener<T> messageListener) {
+        conf.setDecryptFailListener(messageListener);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> messageListenerExecutor(MessageListenerExecutor messageListenerExecutor) {
+        checkArgument(messageListenerExecutor != null, "messageListenerExecutor needs to be not null");
+        conf.setMessageListenerExecutor(messageListenerExecutor);
         return this;
     }
 

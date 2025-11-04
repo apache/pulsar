@@ -19,15 +19,20 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.DisabledPublishRateLimiter;
+import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EntryFilters;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.jspecify.annotations.NonNull;
 
 public class SystemTopic extends PersistentTopic {
 
@@ -46,7 +51,7 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
+    public CompletableFuture<Boolean> checkTimeBacklogExceeded(boolean shouldUpdateOldPositionInfo) {
         return CompletableFuture.completedFuture(false);
     }
 
@@ -70,6 +75,10 @@ public class SystemTopic extends PersistentTopic {
         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
             return super.checkReplication();
         }
+        // Since the txn system topic is not allowed to access anymore, we should delete data.
+        if (SystemTopicNames.isTransactionBufferOrPendingAckSystemTopicName(TopicName.get(topic))) {
+            return super.removeTopicIfLocalClusterNotAllowed().thenAccept(__ -> {});
+        }
         return CompletableFuture.completedFuture(null);
     }
 
@@ -78,6 +87,22 @@ public class SystemTopic extends PersistentTopic {
         // All system topics are using compaction except `HealthCheck`,
         // even though is not explicitly set in the policies.
         return !NamespaceService.isHeartbeatNamespace(TopicName.get(topic));
+    }
+
+    @Override
+    public boolean isDeduplicationEnabled() {
+        /*
+            Disable deduplication on system topic to avoid recovering deduplication WAL
+            (especially from offloaded topic).
+            Because the system topic usually is a precondition of other topics. therefore,
+            we should pay attention on topic loading time.
+
+            Note: If the system topic loading timeout may cause dependent topics to fail to run.
+
+            Dependency diagram: normal topic --rely on--> system topic --rely on--> deduplication recover
+                                --may rely on--> (tiered storage)
+         */
+        return false;
     }
 
     @Override
@@ -94,5 +119,20 @@ public class SystemTopic extends PersistentTopic {
     @Override
     public List<EntryFilter> getEntryFilters() {
         return null;
+    }
+
+    @Override
+    public PublishRateLimiter getBrokerPublishRateLimiter() {
+        return DisabledPublishRateLimiter.INSTANCE;
+    }
+
+    @Override
+    public void updateResourceGroupLimiter(@NonNull Policies namespacePolicies) {
+        // nothing todo.
+    }
+
+    @Override
+    public Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
     }
 }

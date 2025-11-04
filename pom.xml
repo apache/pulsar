@@ -26,13 +26,13 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>29</version>
+    <version>35</version>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.3.0-SNAPSHOT</version>
+  <version>4.2.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -80,25 +80,29 @@ flexible messaging model and an intuitive client API.</description>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
-    <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
+    <pulsar.client.compiler.release>17</pulsar.client.compiler.release>
 
-    <pulsar.client.python.version>3.4.0</pulsar.client.python.version>
+    <pulsar.client.python.version>3.8.0</pulsar.client.python.version>
+
+    <IMAGE_JDK_MAJOR_VERSION>21</IMAGE_JDK_MAJOR_VERSION>
 
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
     <groups/>
-    <excludedGroups>quarantine</excludedGroups>
+    <excludedGroups>quarantine,flaky</excludedGroups>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2025-09-01T03:46:57Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <!-- By default build for local Docker platform.
          To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
     -->
     <docker.platforms></docker.platforms>
+    <docker.skip.push>true</docker.skip.push>
+    <docker.skip.tag>false</docker.skip.tag>
 
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -110,7 +114,49 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
+      -XX:+EnableDynamicAgentLoading <!-- byte-buddy-agent and mockito-core agent dynamic loading -->
+      -Xshare:off <!-- suppress sharing warning -->
+      ${test.additional.args.jdk24}
+      ${test.netty.args}
+      ${test.asyncprofiler.args}
+      ${test.jvm.args}
     </test.additional.args>
+    <!-- arguments to pass to test JVMs -->
+    <test.jvm.args></test.jvm.args>
+    <test.additional.args.jdk24></test.additional.args.jdk24>
+    <!-- Netty related JVM args, including Netty leak detection enabled in tests -->
+    <test.netty.args>
+      <!-- required for triggering GC to trigger leak detection synchronously in tests -->
+      -XX:+UnlockExperimentalVMOptions -XX:ReferencesPerThread=0 -XX:+ParallelRefProcEnabled
+      <!--
+      enable optimized Netty direct memory buffer access
+      https://pulsar.apache.org/docs/4.0.x/client-libraries-java-setup/#enabling-optimized-netty-direct-memory-buffer-access
+      -->
+      --add-opens java.base/java.nio=ALL-UNNAMED
+      --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+      -Dio.netty.tryReflectionSetAccessible=true
+      -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true
+      -Dpulsar.allocator.pooled=true
+      -Dpulsar.allocator.exit_on_oom=false
+      -Dpulsar.allocator.out_of_memory_policy=FallbackToHeap
+      ${test.netty.leakdetection.args}
+    </test.netty.args>
+    <test.netty.leakdetection.args>
+      <!-- use the custom resource leak detector in buildtools module -->
+      -Dio.netty.customResourceLeakDetector=org.apache.pulsar.tests.ExtendedNettyLeakDetector
+      -Dorg.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmOnLeak=${testExitJvmOnLeak}
+      -Dorg.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmDelayMillis=${testExitJvmOnLeakDelayMillis}
+      -Dio.netty.leakDetection.level=${testLeakDetectionLevel}
+      <!-- allows using paranoid leak detection with relatively low overhead -->
+      -Dio.netty.leakDetection.targetRecords=16
+      -Dio.netty.leakDetection.acquireAndReleaseOnly=true
+      -Dio.netty.leakDetection.samplingInterval=32
+    </test.netty.leakdetection.args>
+    <test.asyncprofiler.args></test.asyncprofiler.args>
+    <testExitJvmOnLeak>false</testExitJvmOnLeak>
+    <testExitJvmOnLeakDelayMillis>1000</testExitJvmOnLeakDelayMillis>
+    <testLeakDetectionLevel>paranoid</testLeakDetectionLevel>
+    <testMaxHeapSize>1300M</testMaxHeapSize>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
@@ -125,46 +171,57 @@ flexible messaging model and an intuitive client API.</description>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
+    <docker.image>pulsar</docker.image>
+    <docker.tag>latest</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
+    <skipDeployConnector>false</skipDeployConnector>
     <shadePluginPhase>package</shadePluginPhase>
     <narPluginPhase>package</narPluginPhase>
 
     <!-- apache commons -->
-    <commons-compress.version>1.21</commons-compress.version>
+    <commons-compress.version>1.27.1</commons-compress.version>
 
-    <bookkeeper.version>4.16.3</bookkeeper.version>
-    <zookeeper.version>3.9.1</zookeeper.version>
-    <commons-cli.version>1.5.0</commons-cli.version>
-    <commons-text.version>1.10.0</commons-text.version>
+    <bookkeeper.version>4.17.2</bookkeeper.version>
+    <zookeeper.version>3.9.4</zookeeper.version>
+    <commons-cli.version>1.9.0</commons-cli.version>
+    <commons-text.version>1.13.1</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
-    <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.105.Final</netty.version>
-    <netty-iouring.version>0.0.24.Final</netty-iouring.version>
-    <jetty.version>9.4.53.v20231009</jetty.version>
+    <curator.version>5.7.1</curator.version>
+    <netty.version>4.1.128.Final</netty.version>
+    <netty-iouring.version>0.0.26.Final</netty-iouring.version>
+    <jetty.version>9.4.58.v20250814</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
-    <jersey.version>2.34</jersey.version>
-    <athenz.version>1.10.50</athenz.version>
+    <jersey.version>2.42</jersey.version>
+    <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.3.8</vertx.version>
+    <vertx.version>4.5.22</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
-    <slf4j.version>1.7.32</slf4j.version>
+    <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.18.0</log4j2.version>
-    <bouncycastle.version>1.75</bouncycastle.version>
-    <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
-    <bouncycastle.bc-fips.version>1.0.2.4</bouncycastle.bc-fips.version>
-    <jackson.version>2.14.2</jackson.version>
+    <log4j2.version>2.23.1</log4j2.version>
+    <!-- bouncycastle dependencies aren't necessarily aligned -->
+    <bouncycastle.bcprov-jdk18on.version>1.78.1</bouncycastle.bcprov-jdk18on.version>
+    <bouncycastle.bcpkix-jdk18on.version>1.81</bouncycastle.bcpkix-jdk18on.version>
+    <bouncycastle.bcprov-ext-jdk18on.version>1.78.1</bouncycastle.bcprov-ext-jdk18on.version>
+    <bouncycastle.bcpkix-fips.version>2.0.10</bouncycastle.bcpkix-fips.version>
+    <bouncycastle.bc-fips.version>2.0.1</bouncycastle.bc-fips.version>
+    <jackson.version>2.17.2</jackson.version>
+    <fastutil.version>8.5.16</fastutil.version>
+    <jctools.version>4.0.5</jctools.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
-    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.43.3</docker-maven.version>
+    <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
+    <docker-maven.version>0.45.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf3.version>3.19.6</protobuf3.version>
+    <!-- match the byte-buddy version (or newer) used by the mockito-core pom -->
+    <byte-buddy.version>1.17.7</byte-buddy.version>
+    <zt-zip.version>1.17</zt-zip.version>
+    <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.55.3</grpc.version>
+    <grpc.version>1.75.0</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.26.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
@@ -174,63 +231,60 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
-    <kafka-client.version>3.4.0</kafka-client.version>
+    <kafka-client.version>3.9.1</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
-    <aws-sdk.version>1.12.262</aws-sdk.version>
-    <avro.version>1.11.3</avro.version>
+    <aws-sdk.version>1.12.788</aws-sdk.version>
+    <aws-sdk2.version>2.32.28</aws-sdk2.version>
+    <avro.version>1.12.0</avro.version>
     <joda.version>2.10.10</joda.version>
-    <jclouds.version>2.5.0</jclouds.version>
+    <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
-    <sqlite-jdbc.version>3.42.0.0</sqlite-jdbc.version>
-    <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.5.1</postgresql-jdbc.version>
+    <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
+    <postgresql-jdbc.version>42.7.7</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
-    <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
+    <mariadb-jdbc.version>3.5.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
-    <json-smart.version>2.4.10</json-smart.version>
-    <opensearch.version>1.2.4</opensearch.version>
-    <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <debezium.version>1.9.7.Final</debezium.version>
-    <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.30</debezium.mysql.version>
-    <!-- Override version that brings CVE-2022-3143 with debezium -->
-    <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
+    <json-smart.version>2.5.2</json-smart.version>
+    <opensearch.version>2.16.0</opensearch.version>
+    <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
+    <debezium.version>3.2.4.Final</debezium.version>
+    <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
+    <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hadoop2.version>2.10.2</hadoop2.version>
-    <hadoop3.version>3.3.5</hadoop3.version>
-    <hbase.version>2.4.16</hbase.version>
-    <guava.version>32.1.2-jre</guava.version>
+    <hadoop3.version>3.4.0</hadoop3.version>
+    <dnsjava3.version>3.6.2</dnsjava3.version>
+    <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
+    <hbase.version>2.6.0-hadoop3</hbase.version>
+    <guava.version>33.4.8-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
-    <confluent.version>6.2.8</confluent.version>
-    <aircompressor.version>0.20</aircompressor.version>
-    <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.82</jcommander.version>
-    <commons-lang3.version>3.11</commons-lang3.version>
-    <commons-configuration.version>1.10</commons-configuration.version>
-    <commons-io.version>2.8.0</commons-io.version>
-    <commons-codec.version>1.15</commons-codec.version>
-    <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
+    <confluent.version>7.9.2</confluent.version>
+    <aircompressor.version>0.27</aircompressor.version>
+    <asynchttpclient.version>2.12.4</asynchttpclient.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
+    <commons-io.version>2.19.0</commons-io.version>
+    <commons-codec.version>1.18.0</commons-codec.version>
+    <commons-logging.version>1.3.5</commons-logging.version>
+    <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
-    <caffeine.version>2.9.1</caffeine.version>
+    <caffeine.version>3.2.1</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
     <jline.version>2.14.6</jline.version>
     <jline3.version>3.21.0</jline3.version>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
-    <assertj-core.version>3.24.2</assertj-core.version>
-    <lombok.version>1.18.30</lombok.version>
-    <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
+    <assertj-core.version>3.27.5</assertj-core.version>
+    <lombok.version>1.18.42</lombok.version>
+    <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
-    <javax.activation.version>1.2.0</javax.activation.version>
     <jakarta.activation.version>1.2.2</jakarta.activation.version>
     <jakarta.xml.bind.version>2.3.3</jakarta.xml.bind.version>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
     <jna.version>5.12.1</jna.version>
     <kubernetesclient.version>18.0.0</kubernetesclient.version>
+    <jose4j.version>0.9.4</jose4j.version>
     <okhttp3.version>4.9.3</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
     <okio.version>3.4.0</okio.version>
@@ -238,27 +292,39 @@ flexible messaging model and an intuitive client API.</description>
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring.version>5.3.27</spring.version>
+    <spring.version>6.2.12</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
-    <jetcd.version>0.7.5</jetcd.version>
+    <jetcd.version>0.7.7</jetcd.version>
+    <oxia.version>0.7.0</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
-    <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+    <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
-    <zstd-jni.version>1.5.2-3</zstd-jni.version>
+
+    <!-- zstd-jni is only used for testcase,
+    the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
+    <zstd-jni.version>1.5.7-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
+    <opentelemetry.version>1.45.0</opentelemetry.version>
+    <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
+    <opentelemetry.instrumentation.version>1.33.6</opentelemetry.instrumentation.version>
+    <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
+    <opentelemetry.semconv.version>1.29.0-alpha</opentelemetry.semconv.version>
+    <picocli.version>4.7.5</picocli.version>
+    <re2j.version>1.8</re2j.version>
+    <completable-futures.version>0.3.6</completable-futures.version>
+    <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
-    <testcontainers.version>1.18.3</testcontainers.version>
+    <testcontainers.version>1.20.4</testcontainers.version>
+    <!-- Set docker-java.version to the version of docker-java used in org.testcontainers:testcontainers pom -->
+    <docker-java.version>3.4.0</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
     <restassured.version>5.4.0</restassured.version>
-
-    <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
-    <docker-java.version>3.3.0</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
-    <mockito.version>5.6.0</mockito.version>
+    <mockito.version>5.19.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.3</objenesis.version> <!-- should match mockito-core objenesis version -->
@@ -266,47 +332,55 @@ flexible messaging model and an intuitive client API.</description>
     <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
+    <consolecaptor.version>1.0.3</consolecaptor.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
-    <license-maven-plugin.version>4.1</license-maven-plugin.version>
+    <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.3.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
-    <surefire.version>3.1.0</surefire.version>
+    <surefire.version>3.5.3</surefire.version>
     <maven-assembly-plugin.version>3.5.0</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.5.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.4.1</maven-shade-plugin>
+    <maven-shade-plugin>3.6.0</maven-shade-plugin>
     <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
+    <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.5.0</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.9.10</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
-    <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-    <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
-    <spotbugs-maven-plugin.version>4.7.3.6</spotbugs-maven-plugin.version>
-    <spotbugs.version>4.7.3</spotbugs.version>
-    <errorprone.version>2.24.0</errorprone.version>
-    <errorprone-slf4j.version>0.1.21</errorprone-slf4j.version>
+    <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
+    <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.9.6.0</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.9.6</spotbugs.version>
+    <errorprone.version>2.38.0</errorprone.version>
+    <errorprone-slf4j.version>0.1.28</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>9.0.7</dependency-check-maven.version>
-    <roaringbitmap.version>0.9.44</roaringbitmap.version>
+    <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
+    <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
+    <roaringbitmap.version>1.2.0</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
-
-    <!-- Used to configure rename.netty.native. Libs -->
-    <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
+    <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
+    <commons-beanutils.version>1.11.0</commons-beanutils.version>
+    <commons-configuration2.version>2.12.0</commons-configuration2.version>
   </properties>
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>net.minidev</groupId>
+        <artifactId>json-smart</artifactId>
+        <version>${json-smart.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.jline</groupId>
@@ -339,6 +413,10 @@ flexible messaging model and an intuitive client API.</description>
                 <groupId>org.yaml</groupId>
                 <artifactId>*</artifactId>
             </exclusion>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
         </exclusions>
       </dependency>
 
@@ -358,8 +436,16 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
+        <artifactId>mockito-bom</artifactId>
         <version>${mockito.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>dev.failsafe</groupId>
+        <artifactId>failsafe</artifactId>
+        <version>${failsafe.version}</version>
       </dependency>
 
       <dependency>
@@ -448,6 +534,10 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>*</artifactId>
           </exclusion>
           <exclusion>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
+          </exclusion>
+          <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
             <groupId>org.slf4j</groupId>
           </exclusion>
@@ -482,6 +572,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.vertx</groupId>
         <artifactId>vertx-web</artifactId>
         <version>${vertx.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>io.vertx</groupId>
+          <artifactId>vertx-grpc</artifactId>
+          <version>${vertx.version}</version>
       </dependency>
 
       <dependency>
@@ -545,6 +640,10 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>jose4j</artifactId>
             <groupId>org.bitbucket.b_c</groupId>
           </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -582,6 +681,13 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-util</artifactId>
+        <!-- This is only used for JEtcd so far. Once we upgrade Grpc to >= 1.60, we can remove the special version pin -->
+        <version>1.60.0</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>bookkeeper-common</artifactId>
         <version>${bookkeeper.version}</version>
@@ -612,9 +718,27 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.google.re2j</groupId>
+        <artifactId>re2j</artifactId>
+        <version>${re2j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.spotify</groupId>
+        <artifactId>completable-futures</artifactId>
+        <version>${completable-futures.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.rocksdb</groupId>
         <artifactId>rocksdbjni</artifactId>
         <version>${rocksdb.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.bitbucket.b_c</groupId>
+        <artifactId>jose4j</artifactId>
+        <version>${jose4j.version}</version>
       </dependency>
 
       <dependency>
@@ -675,9 +799,15 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>com.beust</groupId>
-        <artifactId>jcommander</artifactId>
-        <version>${jcommander.version}</version>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli</artifactId>
+        <version>${picocli.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli-shell-jline3</artifactId>
+        <version>${picocli.version}</version>
       </dependency>
 
       <dependency>
@@ -711,15 +841,15 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>commons-configuration</groupId>
-        <artifactId>commons-configuration</artifactId>
-        <version>${commons-configuration.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
         <version>${commons-io.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>commons-logging</groupId>
+        <artifactId>commons-logging</artifactId>
+        <version>${commons-logging.version}</version>
       </dependency>
 
       <dependency>
@@ -730,20 +860,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
+        <artifactId>slf4j-bom</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>jcl-over-slf4j</artifactId>
-        <version>${slf4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
@@ -791,9 +911,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.ws.rs</groupId>
-        <artifactId>javax.ws.rs-api</artifactId>
-        <version>${javax.ws.rs-api.version}</version>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs-api.version}</version>
       </dependency>
 
       <dependency>
@@ -851,6 +971,18 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>it.unimi.dsi</groupId>
+        <artifactId>fastutil</artifactId>
+        <version>${fastutil.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>${jctools.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.codehaus.jettison</groupId>
         <artifactId>jettison</artifactId>
         <version>${jettison.version}</version>
@@ -895,8 +1027,20 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${bouncycastle.bcprov-jdk18on.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk18on</artifactId>
-        <version>${bouncycastle.version}</version>
+        <version>${bouncycastle.bcpkix-jdk18on.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-ext-jdk18on</artifactId>
+        <version>${bouncycastle.bcprov-ext-jdk18on.version}</version>
       </dependency>
 
       <dependency>
@@ -915,6 +1059,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zts-java-client-core</artifactId>
         <version>${athenz.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -955,38 +1105,16 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient</artifactId>
+        <artifactId>simpleclient_bom</artifactId>
         <version>${prometheus.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_hotspot</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_log4j2</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_servlet</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_jetty</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_caffeine</artifactId>
-        <version>${prometheus.version}</version>
+        <groupId>io.prometheus.jmx</groupId>
+        <artifactId>collector</artifactId>
+        <version>${prometheus-jmx.version}</version>
       </dependency>
 
       <dependency>
@@ -999,12 +1127,50 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.etcd</groupId>
         <artifactId>jetcd-core</artifactId>
         <version>${jetcd.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
-
       <dependency>
         <groupId>io.etcd</groupId>
         <artifactId>jetcd-test</artifactId>
         <version>${jetcd.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>jetcd-core-shaded</artifactId>
+        <version>${project.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1058,6 +1224,18 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>${byte-buddy.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.zeroturnaround</groupId>
+        <artifactId>zt-zip</artifactId>
+        <version>${zt-zip.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-bom</artifactId>
         <version>${grpc.version}</version>
@@ -1085,6 +1263,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1153,9 +1335,28 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.github.oxia-db</groupId>
+        <artifactId>oxia-client</artifactId>
+        <version>${oxia.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.oxia-db</groupId>
+        <artifactId>oxia-testcontainers</artifactId>
+        <version>${oxia.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-java-sdk-bom</artifactId>
         <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk2.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -1170,6 +1371,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.apache.bookkeeper</groupId>
             <artifactId>bookkeeper-server</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -1177,6 +1382,74 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-collections4</artifactId>
         <version>${commons.collections4.version}</version>
+      </dependency>
+
+      <!-- support only hadoop 3 since hadoop 2 is EOL -->
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop3.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-auth</artifactId>
+        <version>${hadoop3.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-client</artifactId>
+        <version>${hadoop3.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hbase</groupId>
+        <artifactId>hbase-client</artifactId>
+        <version>${hbase.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <!-- dnsjava is pulled in by hadoop-common -->
+      <dependency>
+        <groupId>dnsjava</groupId>
+        <artifactId>dnsjava</artifactId>
+        <version>${dnsjava3.version}</version>
       </dependency>
 
       <!-- test dependencies -->
@@ -1210,9 +1483,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.annotation</groupId>
-        <artifactId>javax.annotation-api</artifactId>
-        <version>${javax.annotation-api.version}</version>
+        <groupId>jakarta.annotation</groupId>
+        <artifactId>jakarta.annotation-api</artifactId>
+        <version>${jakarta.annotation-api.version}</version>
       </dependency>
 
       <dependency>
@@ -1225,12 +1498,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>jakarta.xml.bind</groupId>
         <artifactId>jakarta.xml.bind-api</artifactId>
         <version>${jakarta.xml.bind.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.sun.activation</groupId>
-        <artifactId>javax.activation</artifactId>
-        <version>${javax.activation.version}</version>
       </dependency>
 
       <dependency>
@@ -1426,12 +1693,67 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>checker-qual</artifactId>
         <version>${checkerframework.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.jspecify</groupId>
+        <artifactId>jspecify</artifactId>
+        <version>1.0.0</version>
+      </dependency>
 
       <dependency>
         <groupId>io.rest-assured</groupId>
         <artifactId>rest-assured</artifactId>
         <version>${restassured.version}</version>
         <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom-alpha</artifactId>
+        <version>${opentelemetry.alpha.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-bom</artifactId>
+        <version>${opentelemetry.instrumentation.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
+        <version>${opentelemetry.instrumentation.alpha.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.semconv</groupId>
+        <artifactId>opentelemetry-semconv</artifactId>
+        <version>${opentelemetry.semconv.version}</version>
+      </dependency>
+      <!-- enforce nimbus-jose-jwt version that gets pulled transitively -->
+      <dependency>
+        <groupId>com.nimbusds</groupId>
+        <artifactId>nimbus-jose-jwt</artifactId>
+        <version>${nimbus-jose-jwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-beanutils</groupId>
+        <artifactId>commons-beanutils</artifactId>
+        <version>${commons-beanutils.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-configuration2</artifactId>
+        <version>${commons-configuration2.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -1471,13 +1793,14 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>javax.annotation-api</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -1508,6 +1831,10 @@ flexible messaging model and an intuitive client API.</description>
         <exclusion>
           <groupId>org.apache.zookeeper</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>log4j-slf4j-impl</artifactId>
+          <groupId>org.apache.logging.log4j</groupId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -1566,12 +1893,8 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:+UseZGC
-            -Dpulsar.allocator.pooled=true
-            -Dpulsar.allocator.leak_detection=Advanced
-            -Dpulsar.allocator.exit_on_oom=false
-            -Dpulsar.allocator.out_of_memory_policy=FallbackToHeap
-            -Dio.netty.tryReflectionSetAccessible=true
+          <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath}
+            -XX:+ExitOnOutOfMemoryError -Xmx${testMaxHeapSize} -XX:+UseZGC
             ${test.additional.args}
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
@@ -1697,9 +2020,20 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>generated-site/**</exclude>
                 <exclude>**/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
+                <exclude>**/.vscode/**</exclude>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
+                <exclude>**/*_pb2.py</exclude>
+                <exclude>**/*_pb2_grpc.py</exclude>
+                <exclude>jmh-result-*</exclude>
+                <exclude>profile-results/**</exclude>
+                <!--
+                Exclude any files from license checks that are in hidden directories (name starting with ".")
+                at the top level. This helps exclude directories used by AI tools
+                while preserving license checks in subdirectories.
+                -->
+                <exclude>.*/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -1749,6 +2083,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/assemble/README.bin.txt</exclude>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
+
+            <!-- exclude services files -->
+            <exclude>**/META-INF/services/*</exclude>
 
             <!-- These files are generated automatically by the Protobuf compiler
                  and are included in source tree for convenience -->
@@ -1826,6 +2163,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>
             <exclude>**/.gitignore</exclude>
+            <exclude>**/.gitattributes</exclude>
             <exclude>**/.svn</exclude>
             <exclude>**/*.iws</exclude>
             <exclude>**/*.ipr</exclude>
@@ -1842,12 +2180,16 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/SecurityAuth.audit*</exclude>
             <exclude>**/site2/**</exclude>
             <exclude>**/.idea/**</exclude>
+            <exclude>**/.vscode/**</exclude>
             <exclude>**/.mvn/**</exclude>
             <exclude>**/*.a</exclude>
             <exclude>**/*.so</exclude>
             <exclude>**/*.so.*</exclude>
             <exclude>**/*.dylib</exclude>
+            <exclude>**/*.patch</exclude>
             <exclude>src/test/resources/*.txt</exclude>
+            <exclude>**/*_pb2.py</exclude>
+            <exclude>**/*_pb2_grpc.py</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -1864,8 +2206,8 @@ flexible messaging model and an intuitive client API.</description>
               <configuration>
                 <rules>
                   <requireJavaVersion>
-                    <version>17</version>
-                    <message>Java 17+ is required to build Pulsar.</message>
+                    <version>[17,18),[21,22),[24,26)</version>
+                    <message>Java 17, 21, 24 or 25 is required to build Pulsar.</message>
                   </requireJavaVersion>
                   <requireMavenVersion>
                     <version>3.6.1</version>
@@ -1947,6 +2289,7 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
+            <failOnError>false</failOnError>
           </configuration>
         </plugin>
         <plugin>
@@ -2009,13 +2352,20 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>com.github.spotbugs</groupId>
           <artifactId>spotbugs-maven-plugin</artifactId>
           <version>${spotbugs-maven-plugin.version}</version>
-            <dependencies>
-              <dependency>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs</artifactId>
-                <version>${spotbugs.version}</version>
-              </dependency>
-            </dependencies>
+          <dependencies>
+            <dependency>
+              <groupId>com.github.spotbugs</groupId>
+              <artifactId>spotbugs</artifactId>
+              <version>${spotbugs.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <!--
+            TODO: remove omitted visitors and fix issues.
+            Checks have been omitted to migrate from SpotBugs 4.7.x to 4.9.x for supporting JDK 24 builds.
+             -->
+            <omitVisitors>ConstructorThrow,FindPublicAttributes,SharedVariableAtomicityDetector,UnreadFields,MultipleInstantiationsOfSingletons,InitializeNonnullFieldsInConstructor,FindNullDeref</omitVisitors>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -2026,6 +2376,64 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>io.fabric8</groupId>
           <artifactId>docker-maven-plugin</artifactId>
           <version>${docker-maven.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.owasp</groupId>
+          <artifactId>dependency-check-maven</artifactId>
+          <version>${dependency-check-maven.version}</version>
+          <configuration>
+            <nvdApiKeyEnvironmentVariable>NIST_NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+            <!-- Uncomment the following to use the NVD data feed provided by the Dependency-Check project -->
+            <!-- <nvdDatafeedUrl>https://jeremylong.github.io/DependencyCheck/hb_nvd/</nvdDatafeedUrl> -->
+          </configuration>
+        </plugin>
+        <!--
+          vscode-java and Eclipse Maven integration workaround:
+          - Addresses maven-dependency-plugin exception (MDEP-187) issue by ignoring the plugin execution
+          - Uses org.eclipse.m2e:lifecycle-mapping:1.0.0 as configuration placeholder in pluginManagement section
+          For details: https://eclipse.dev/m2e/documentation/m2e-execution-not-covered.html#ignore-plugin-goal
+        -->
+        <plugin>
+          <groupId>org.eclipse.m2e</groupId>
+          <artifactId>lifecycle-mapping</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <lifecycleMappingMetadata>
+              <pluginExecutions>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <versionRange>[1.0.0,)</versionRange>
+                    <goals>
+                      <goal>copy</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <versionRange>[1.0.0,)</versionRange>
+                    <goals>
+                      <goal>unpack</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+              </pluginExecutions>
+            </lifecycleMappingMetadata>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -2044,20 +2452,6 @@ flexible messaging model and an intuitive client API.</description>
   </build>
 
   <profiles>
-    <profile>
-      <!-- used for running integration tests on Java 8 -->
-      <id>integration-test-java8</id>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
-      <properties>
-        <test.additional.args/>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-        <pulsar.broker.compiler.release/>
-        <pulsar.client.compiler.release/>
-      </properties>
-    </profile>
     <profile>
       <id>coverage</id>
       <properties>
@@ -2120,7 +2514,8 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
               <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-              <encoding>UTF-8</encoding>
+              <inputEncoding>UTF-8</inputEncoding>
+              <outputEncoding>UTF-8</outputEncoding>
               <excludes>**/proto/*</excludes>
             </configuration>
           </plugin>
@@ -2128,6 +2523,7 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
               <doclint>none</doclint>
+              <failOnError>false</failOnError>
             </configuration>
           </plugin>
           <plugin>
@@ -2184,7 +2580,7 @@ flexible messaging model and an intuitive client API.</description>
                          <configuration>
                            <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
                            <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-                           <encoding>UTF-8</encoding>
+                           <inputEncoding>UTF-8</inputEncoding>
                            <excludes>**/proto/*</excludes>
                          </configuration>
                           <goals>
@@ -2204,10 +2600,6 @@ flexible messaging model and an intuitive client API.</description>
           <family>Windows</family>
         </os>
       </activation>
-      <properties>
-        <rename.netty.native.libs>rename-netty-native-libs.cmd</rename.netty.native.libs>
-      </properties>
-
     </profile>
     <!-- Primary Module profile -->
     <profile>
@@ -2234,7 +2626,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>
-        <module>pulsar-client-1x-base</module>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
@@ -2253,6 +2644,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
+        <module>pulsar-opentelemetry</module>
 
         <module>structured-event-log</module>
 
@@ -2271,7 +2663,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-messagecrypto-bc</module>
 
         <module>pulsar-metadata</module>
+        <module>jetcd-core-shaded</module>
         <module>jclouds-shaded</module>
+        <module>pulsar-client-dependencies-minimized</module>
 
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
@@ -2317,6 +2711,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
+        <module>pulsar-opentelemetry</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
@@ -2335,7 +2730,8 @@ flexible messaging model and an intuitive client API.</description>
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>pulsar-metadata</module>
-
+        <module>jetcd-core-shaded</module>
+        <module>pulsar-client-dependencies-minimized</module>
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->
@@ -2353,6 +2749,7 @@ flexible messaging model and an intuitive client API.</description>
 
          usage example:
          echo lombok.addJavaxGeneratedAnnotation=true >> lombok.config
+         echo lombok.addNullAnnotations=jspecify >> lombok.config
          mvn -Perrorprone,main compile
 
          Revisiting warnings and errors is possible in IntelliJ after activating
@@ -2377,6 +2774,7 @@ flexible messaging model and an intuitive client API.</description>
               <maxmem>1024m</maxmem>
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
+                <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:-options</arg>
                 <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
                 <!-- the following argument must be kept on one line when building with JDK8 -->
@@ -2415,6 +2813,20 @@ flexible messaging model and an intuitive client API.</description>
           </plugin>
         </plugins>
       </build>
+      <dependencies>
+        <!-- required for "lombok.addJavaxGeneratedAnnotation=true" support -->
+        <dependency>
+          <groupId>jakarta.annotation</groupId>
+          <artifactId>jakarta.annotation-api</artifactId>
+          <scope>provided</scope>
+        </dependency>
+        <!-- required for lombok.addNullAnnotations=jspecify support -->
+        <dependency>
+          <groupId>org.jspecify</groupId>
+          <artifactId>jspecify</artifactId>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>integrationTests</id>
@@ -2475,7 +2887,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <configuration>
               <suppressionFiles>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-false-positives.xml</suppressionFile>
@@ -2510,7 +2921,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <reportSets>
               <reportSet>
                 <reports>
@@ -2560,6 +2970,163 @@ flexible messaging model and an intuitive client API.</description>
         <skipDocker>true</skipDocker>
         <skipTests>true</skipTests>
         <checkstyle.skip>true</checkstyle.skip>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>jdk-major-version-set</id>
+      <activation>
+        <property>
+          <name>env.IMAGE_JDK_MAJOR_VERSION</name>
+        </property>
+      </activation>
+      <properties>
+        <!-- Override the default value with the environment variable -->
+        <IMAGE_JDK_MAJOR_VERSION>${env.IMAGE_JDK_MAJOR_VERSION}</IMAGE_JDK_MAJOR_VERSION>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>jdk21</id>
+      <activation>
+        <jdk>21</jdk>
+      </activation>
+      <properties>
+        <!-- nifi-nar-maven-plugin >= 2.0.0 require Java 21+ -->
+        <nifi-nar-maven-plugin.version>2.1.0</nifi-nar-maven-plugin.version>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.nifi</groupId>
+              <artifactId>nifi-nar-maven-plugin</artifactId>
+              <version>${nifi-nar-maven-plugin.version}</version>
+              <extensions>true</extensions>
+              <configuration>
+                <!--
+                skips nifi nar specific doc generation which isn't used for Pulsar nar files
+                see https://github.com/apache/nifi-maven/pull/35
+                -->
+                <skipDocGeneration>true</skipDocGeneration>
+                <finalName>${project.artifactId}-${project.version}</finalName>
+              </configuration>
+              <executions>
+                <execution>
+                  <id>default-nar</id>
+                  <phase>${narPluginPhase}</phase>
+                  <goals>
+                    <goal>nar</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
+    <profile>
+      <id>jdk24</id>
+      <activation>
+        <jdk>24</jdk>
+      </activation>
+      <properties>
+        <!-- JDK 24+ specific arguments -->
+        <test.additional.args.jdk24>
+          --enable-native-access=ALL-UNNAMED <!-- Required by java.lang.System::loadLibrary calls -->
+          --sun-misc-unsafe-memory-access=allow <!-- required for enabling unsafe memory access for Netty since 4.1.121.Final -->
+        </test.additional.args.jdk24>
+      </properties>
+    </profile>
+
+    <!-- This profile is used to disable Netty leak detection in tests. It is activated by setting the
+         environment variable NETTY_LEAK_DETECTION to off. -->
+    <profile>
+      <id>disableNettyLeakDetection</id>
+      <activation>
+        <property>
+          <name>env.NETTY_LEAK_DETECTION</name>
+          <value>off</value>
+        </property>
+      </activation>
+      <properties>
+       <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+    </profile>
+
+    <!-- This profile is used to run tests with Async Profiler profiling.
+         Download Async Profiler from https://github.com/async-profiler/async-profiler/releases and
+         after installing set LIBASYNCPROFILER_PATH environment variable to the full path of the
+         libasyncProfiler.so (Linux) or libasyncProfiler.dylib (MacOS) file.
+         The profiler will generate a JFR file in the target directory with the name test_profile_<timestamp>_<forkNumber>.jfr
+         Async Profiler's jfrconv tool can be used to convert the JFR file to different type of flamegraphs.
+         For example, to convert the JFR file to a CPU flamegraph, run the following command:
+         jfrconv \-\-cpu target/test_profile_<timestamp>_<forkNumber>_<pid>.jfr
+         the result will be in a .html file in the target directory.
+         You can also use Eclipse Mission Control (https://adoptium.net/jmc) to open the JFR file and analyze it.
+         example usage:
+         ENABLE_MANUAL_TEST=true mvn -PtestAsyncProfiler test -pl pulsar-broker -Dtest=BrokerEntryCacheRollingRestartTest
+         On Linux, it's recommended to pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling:
+         ENABLE_MANUAL_TEST=true mvn -PtestAsyncProfiler -Dtest.asyncprofiler.event=cpu test -pl pulsar-broker -Dtest=BrokerEntryCacheRollingRestartTest
+    -->
+    <profile>
+      <id>testAsyncProfiler</id>
+      <properties>
+        <!-- On Linux, pass -Dtest.asyncprofiler.event=cpu to use the most optimal method for method profiling.
+        See https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md for more details.
+        -->
+        <test.asyncprofiler.event>itimer</test.asyncprofiler.event>
+        <!-- Assumes Async Profiler 4.1+ to be installed, which supports "all" option -->
+        <!-- See https://github.com/async-profiler/async-profiler/blob/v4.1/src/arguments.cpp#L45 for supported options -->
+        <test.asyncprofiler.opts>event=${test.asyncprofiler.event},all,alloc=2m,jfrsync=profile</test.asyncprofiler.opts>
+        <test.asyncprofiler.outputformat>jfr</test.asyncprofiler.outputformat>
+        <test.asyncprofiler.args>
+          -XX:+UnlockDiagnosticVMOptions
+          -XX:+DebugNonSafepoints
+          -Xms${testMaxHeapSize} -XX:+AlwaysPreTouch
+          -agentpath:${env.LIBASYNCPROFILER_PATH}=start,${test.asyncprofiler.opts},quiet,file=${pulsar.basedir}/target/test_profile_${git.commit.id.abbrev}_${maven.build.timestamp}_${surefire.forkNumber}_%p.${test.asyncprofiler.outputformat}
+          -Dpulsar.test.logging.appender=FILE
+          -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
+        </test.asyncprofiler.args>
+        <testForkCount>1</testForkCount>
+        <testRetryCount>0</testRetryCount>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
+        <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <injectAllReactorProjects>true</injectAllReactorProjects>
+              <skipPoms>false</skipPoms>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!-- This profile is used in addition to -PtestAsyncProfiler to profile created exceptions
+      This works only on Linux.
+      -->
+      <id>testAsyncProfilerExceptions</id>
+      <properties>
+        <test.asyncprofiler.opts>event=Java_java_lang_Throwable_fillInStackTrace,tree,reverse</test.asyncprofiler.opts>
+        <test.asyncprofiler.outputformat>html</test.asyncprofiler.outputformat>
+      </properties>
+    </profile>
+    <!-- profile that redirects log4j logs to a file -->
+    <profile>
+      <id>testLoggingToFile</id>
+      <properties>
+        <test.jvm.args>
+        -Dpulsar.test.logging.appender=FILE
+        -Dpulsar.test.logging.file=target/test_${maven.build.timestamp}_${surefire.forkNumber}.log
+        </test.jvm.args>
+        <redirectTestOutputToFile>false</redirectTestOutputToFile>
       </properties>
     </profile>
   </profiles>

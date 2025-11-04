@@ -43,6 +43,8 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
     private List<String> domainNameList = null;
     private int allowedOffset = 30;
 
+    private AuthenticationMetrics authenticationMetrics;
+
     public enum ErrorCode {
         UNKNOWN,
         NO_CLIENT,
@@ -54,6 +56,14 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+        var config = context.getConfig();
         String domainNames;
         if (config.getProperty(DOMAIN_NAME_LIST) != null) {
             domainNames = (String) config.getProperty(DOMAIN_NAME_LIST);
@@ -84,6 +94,11 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
     @Override
     public String getAuthMethodName() {
         return "athenz";
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -141,7 +156,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
                 if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
                     log.debug("Athenz Role Token : {}, Authenticated for Client: {}", roleToken, clientAddress);
-                    AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+                    authenticationMetrics.recordSuccess();
                     return token.getPrincipal();
                 } else {
                     errorCode = ErrorCode.INVALID_TOKEN;

@@ -163,6 +163,22 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
 
+    @FieldContext(category = CATEGORY_WORKER,
+            doc = "Enable or disable the use of HA proxy protocol for resolving the client IP for http/https "
+                    + "requests. Default is false.")
+    private boolean webServiceHaProxyProtocolEnabled = false;
+
+    @FieldContext(category = CATEGORY_WORKER, doc =
+            "Trust X-Forwarded-For header for resolving the client IP for http/https requests.\n"
+                    + "Default is false.")
+    private boolean webServiceTrustXForwardedFor = false;
+
+    @FieldContext(category = CATEGORY_WORKER, doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
+
     @FieldContext(
             category = CATEGORY_WORKER,
             required = false,
@@ -239,6 +255,22 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Specifies if the function worker should use classloading for validating submissions for built-in "
+                    + "connectors and functions. This is required for validateConnectorConfig to take effect. "
+                    + "Default is false."
+    )
+    private Boolean enableClassloadingOfBuiltinFiles = false;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Specifies if the function worker should use classloading for validating submissions for external "
+                    + "connectors and functions. This is required for validateConnectorConfig to take effect. "
+                    + "Default is false."
+    )
+    private Boolean enableClassloadingOfExternalFiles = false;
+
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
@@ -250,7 +282,22 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
     @FieldContext(
             category = CATEGORY_CONNECTORS,
-            doc = "Should we validate connector config during submission"
+            doc = "Whether to enable referencing connectors directory files by file url in connector (sink/source) "
+                    + "creation. Default is true."
+    )
+    private Boolean enableReferencingConnectorDirectoryFiles = true;
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Regex patterns for enabling creation of connectors by referencing packages in matching http/https "
+                    + "urls."
+    )
+    private List<String> additionalEnabledConnectorUrlPatterns = new ArrayList<>();
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Enables extended validation for connector config with fine-grain annotation based validation "
+                    + "during submission. Classloading with either enableClassloadingOfExternalFiles or "
+                    + "enableClassloadingOfBuiltinFiles must be enabled on the worker for this to take effect. "
+                    + "Default is false."
     )
     private Boolean validateConnectorConfig = false;
     @FieldContext(
@@ -263,6 +310,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "The path to the location to locate builtin functions"
     )
     private String functionsDirectory = "./functions";
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Whether to enable referencing functions directory files by file url in functions creation. "
+                    + "Default is true."
+    )
+    private Boolean enableReferencingFunctionsDirectoryFiles = true;
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Regex patterns for enabling creation of functions by referencing packages in matching http/https "
+                    + "urls."
+    )
+    private List<String> additionalEnabledFunctionsUrlPatterns = new ArrayList<>();
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The Pulsar topic used for storing function metadata"

@@ -23,12 +23,13 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
+import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +43,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -50,6 +52,7 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.AdditionalAnswers;
 import org.mockito.Mockito;
@@ -237,7 +240,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                 .subscribe();
 
         producer.newMessage()
-                .value(1l)
+                .value(1L)
                 .send();
 
         // first batch receive
@@ -370,5 +373,62 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                 .subscriptionName("sub").subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         assertTrue(consumer.isConnected());
+    }
+
+    @Test
+    public void testSameTopics() throws Exception {
+        final String topic1 = BrokerTestUtil.newUniqueName("public/default/tp");
+        final String topic2 = "persistent://" + topic1;
+        admin.topics().createNonPartitionedTopic(topic2);
+        // Create consumer with two same topics.
+        try {
+            pulsarClient.newConsumer(Schema.INT32).topics(Arrays.asList(topic1, topic2))
+                    .subscriptionName("s1").subscribe();
+            fail("Do not allow use two same topics.");
+        } catch (Exception e) {
+            if (e instanceof PulsarClientException && e.getCause() != null) {
+                e = (Exception) e.getCause();
+            }
+            Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
+            assertTrue(unwrapEx instanceof IllegalArgumentException);
+            assertTrue(e.getMessage().contains("Subscription topics include duplicate items"
+                    + " or invalid names"));
+        }
+        // cleanup.
+        admin.topics().delete(topic2);
+    }
+
+    @Test(timeOut = 30000)
+    public void testSubscriptionNotFound() throws PulsarAdminException, PulsarClientException {
+        final var topic1 = newTopicName();
+        final var topic2 = newTopicName();
+
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        try {
+            final var singleTopicConsumer = pulsarClient.newConsumer()
+                    .topic(topic1)
+                    .subscriptionName("sub-1")
+                    .isAckReceiptEnabled(true)
+                    .subscribe();
+            assertTrue(singleTopicConsumer instanceof ConsumerImpl);
+        } catch (PulsarClientException.SubscriptionNotFoundException ignore) {
+        } catch (Throwable t) {
+            fail("Should throw PulsarClientException.SubscriptionNotFoundException instead");
+        }
+
+        try {
+            final var multiTopicsConsumer = pulsarClient.newConsumer()
+                    .topics(List.of(topic1, topic2))
+                    .subscriptionName("sub-2")
+                    .isAckReceiptEnabled(true)
+                    .subscribe();
+            assertTrue(multiTopicsConsumer instanceof MultiTopicsConsumerImpl);
+        } catch (PulsarClientException.SubscriptionNotFoundException ignore) {
+        } catch (Throwable t) {
+            fail("Should throw PulsarClientException.SubscriptionNotFoundException instead");
+        }
+
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
     }
 }

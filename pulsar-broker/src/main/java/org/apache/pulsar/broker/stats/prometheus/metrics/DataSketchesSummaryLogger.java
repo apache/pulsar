@@ -19,15 +19,10 @@
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import com.yahoo.sketches.quantiles.DoublesSketch;
-import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
-import io.netty.util.concurrent.FastThreadLocal;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.concurrent.locks.StampedLock;
 
 public class DataSketchesSummaryLogger {
 
@@ -55,14 +50,7 @@ public class DataSketchesSummaryLogger {
         countAdder.increment();
         sumAdder.add((long) valueMillis);
 
-        LocalData localData = current.localData.get();
-
-        long stamp = localData.lock.readLock();
-        try {
-            localData.successSketch.update(valueMillis);
-        } finally {
-            localData.lock.unlockRead(stamp);
-        }
+        current.getLocalData().updateSuccess(valueMillis);
     }
 
     public void rotateLatencyCollection() {
@@ -72,15 +60,7 @@ public class DataSketchesSummaryLogger {
         replacement = local;
 
         final DoublesUnion aggregateValues = new DoublesUnionBuilder().build();
-        local.map.forEach((localData, b) -> {
-            long stamp = localData.lock.writeLock();
-            try {
-                aggregateValues.update(localData.successSketch);
-                localData.successSketch.reset();
-            } finally {
-                localData.lock.unlockWrite(stamp);
-            }
-        });
+        local.record(aggregateValues, null);
 
         values = aggregateValues.getResultAndReset();
     }
@@ -96,28 +76,5 @@ public class DataSketchesSummaryLogger {
     public double getQuantileValue(double quantile) {
         DoublesSketch s = values;
         return s != null ? s.getQuantile(quantile) : Double.NaN;
-    }
-
-    private static class LocalData {
-        private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
-        private final StampedLock lock = new StampedLock();
-    }
-
-    private static class ThreadLocalAccessor {
-        private final Map<LocalData, Boolean> map = new ConcurrentHashMap<>();
-        private final FastThreadLocal<LocalData> localData = new FastThreadLocal<LocalData>() {
-
-            @Override
-            protected LocalData initialValue() throws Exception {
-                LocalData localData = new LocalData();
-                map.put(localData, Boolean.TRUE);
-                return localData;
-            }
-
-            @Override
-            protected void onRemoval(LocalData value) throws Exception {
-                map.remove(value);
-            }
-        };
     }
 }

@@ -19,9 +19,7 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Base64;
@@ -39,6 +37,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -67,21 +66,23 @@ import org.testng.annotations.Test;
 
 public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithJwtAuthorizationTest.class);
+    private static final String CLUSTER_NAME = "proxy-authorization";
 
-    private final String ADMIN_ROLE = "admin";
-    private final String PROXY_ROLE = "proxy";
-    private final String BROKER_ROLE = "broker";
-    private final String CLIENT_ROLE = "client";
-    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private static final String ADMIN_ROLE = "admin";
+    private static final String PROXY_ROLE = "proxy";
+    private static final String BROKER_ROLE = "broker";
+    private static final String CLIENT_ROLE = "client";
+    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
-    private final String ADMIN_TOKEN = Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
-    private final String PROXY_TOKEN = Jwts.builder().setSubject(PROXY_ROLE).signWith(SECRET_KEY).compact();
-    private final String BROKER_TOKEN = Jwts.builder().setSubject(BROKER_ROLE).signWith(SECRET_KEY).compact();
-    private final String CLIENT_TOKEN = Jwts.builder().setSubject(CLIENT_ROLE).signWith(SECRET_KEY).compact();
+    private static final String ADMIN_TOKEN = Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
+    private static final String PROXY_TOKEN = Jwts.builder().setSubject(PROXY_ROLE).signWith(SECRET_KEY).compact();
+    private static final String BROKER_TOKEN = Jwts.builder().setSubject(BROKER_ROLE).signWith(SECRET_KEY).compact();
+    private static final String CLIENT_TOKEN = Jwts.builder().setSubject(CLIENT_ROLE).signWith(SECRET_KEY).compact();
 
     private ProxyService proxyService;
     private WebServer webServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @BeforeMethod
     @Override
@@ -89,7 +90,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         // enable auth&auth and use JWT at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
-        conf.getProperties().setProperty("tokenSecretKey", "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+        conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
+                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add(ADMIN_ROLE);
@@ -104,7 +106,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("proxy-authorization");
+        conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
@@ -112,13 +114,15 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
-        proxyConfig.getProperties().setProperty("tokenSecretKey", "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+        proxyConfig.getProperties().setProperty("tokenSecretKey", "data:;base64,"
+                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerWebServiceURL(pulsar.getWebServiceAddress());
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         // enable auth&auth and use JWT at proxy
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
@@ -128,7 +132,10 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         AuthenticationService authService =
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService));
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService, proxyClientAuthentication));
         webServer = new WebServer(proxyConfig, authService);
     }
 
@@ -138,11 +145,14 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         super.internalCleanup();
         proxyService.close();
         webServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     private void startProxy() throws Exception {
         proxyService.start();
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null);
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null, proxyClientAuthentication);
         webServer.start();
     }
 
@@ -169,7 +179,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
@@ -268,9 +279,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
                 .topic(topicName).create();
-        final int MSG_NUM = 10;
+        final int msgNum = 10;
         Set<String> messageSet = new HashSet<>();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             String message = "my-message-" + i;
             messageSet.add(message);
             producer.send(message.getBytes());
@@ -278,7 +289,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         Message<byte[]> msg;
         Set<String> receivedMessageSet = new HashSet<>();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
@@ -301,14 +312,14 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 .topic(topicName).create();
 
         messageSet.clear();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             String message = "my-message-" + i;
             messageSet.add(message);
             producer.send(message.getBytes());
         }
 
         receivedMessageSet.clear();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
@@ -366,7 +377,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
@@ -423,7 +435,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         final WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         @Cleanup
         final Client client = javax.ws.rs.client.ClientBuilder
@@ -448,7 +460,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticateMetricsEndpoint(false);
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
@@ -461,7 +473,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticateMetricsEndpoint(true);
         webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();

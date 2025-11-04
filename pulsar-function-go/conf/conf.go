@@ -91,6 +91,8 @@ type Conf struct {
 	UserConfig                  string `json:"userConfig" yaml:"userConfig"`
 	//metrics config
 	MetricsPort int `json:"metricsPort" yaml:"metricsPort"`
+	// FunctionDetails
+	FunctionDetails string `json:"functionDetails" yaml:"functionDetails"`
 }
 
 var (

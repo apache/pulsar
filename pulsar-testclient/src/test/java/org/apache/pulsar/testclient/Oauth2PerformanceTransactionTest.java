@@ -64,7 +64,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(Oauth2PerformanceTransactionTest.class);
 
     // Credentials File, which contains "client_id" and "client_secret"
-    private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
+    private static final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
 
     private final String authenticationPlugin = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
 
@@ -186,7 +186,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
 
         Thread thread = new Thread(() -> {
             try {
-                PerformanceTransaction.main(args.split(" "));
+                new PerformanceTransaction().run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }

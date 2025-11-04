@@ -139,6 +139,12 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
+        // pass the raw functino details directly so that we don't need to assemble the `instanceConf.funcDetails`
+        // manually in Go instance
+        String functionDetails =
+                JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails());
+        goInstanceConfig.setFunctionDetails(functionDetails);
+
         if (instanceConfig.getClusterName() != null) {
             goInstanceConfig.setClusterName(instanceConfig.getClusterName());
         }
@@ -361,12 +367,26 @@ public class RuntimeUtils {
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
 
+            // Needed for optimized Netty direct byte buffer support
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
+            // Handle possible shaded Netty versions
+            args.add("-Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true");
+            args.add("-Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true");
 
-            // Needed for netty.DnsResolverUtil on JDK9+
-            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_11)) {
+                // Needed for optimized Netty direct byte buffer support
                 args.add("--add-opens");
-                args.add("java.base/sun.net=ALL-UNNAMED");
+                args.add("java.base/java.nio=ALL-UNNAMED");
+                args.add("--add-opens");
+                args.add("java.base/jdk.internal.misc=ALL-UNNAMED");
+            }
+
+            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+                // Needed for optimized checksum calculation when com.scurrilous.circe.checksum.Java9IntHash
+                // is used. That gets used when the native library libcirce-checksum is not available or cannot
+                // be loaded.
+                args.add("--add-opens");
+                args.add("java.base/java.util.zip=ALL-UNNAMED");
             }
 
             if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
@@ -520,17 +540,17 @@ public class RuntimeUtils {
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
-        StringBuilder result = new StringBuilder();
         URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
-        BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        String line;
-        while ((line = rd.readLine()) != null) {
-            result.append(line + System.lineSeparator());
+        try (BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            StringBuilder result = new StringBuilder();
+            String line;
+            while ((line = rd.readLine()) != null) {
+                result.append(line + System.lineSeparator());
+            }
+            return result.toString();
         }
-        rd.close();
-        return result.toString();
     }
 
     /**

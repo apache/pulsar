@@ -21,11 +21,12 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.Getter;
 
-@SuppressWarnings("LombokGetterMayBeUsed")
+@Getter
 public class PersistentTopicMetrics {
 
-    @Getter
     private final BacklogQuotaMetrics backlogQuotaMetrics = new BacklogQuotaMetrics();
+
+    private final TransactionBufferClientMetrics transactionBufferClientMetrics = new TransactionBufferClientMetrics();
 
     public static class BacklogQuotaMetrics {
         private final LongAdder timeBasedBacklogQuotaExceededEvictionCount = new LongAdder();
@@ -46,5 +47,14 @@ public class PersistentTopicMetrics {
         public long getTimeBasedBacklogQuotaExceededEvictionCount() {
             return timeBasedBacklogQuotaExceededEvictionCount.longValue();
         }
+    }
+
+    @Getter
+    public static class TransactionBufferClientMetrics {
+        private final LongAdder commitSucceededCount = new LongAdder();
+        private final LongAdder commitFailedCount = new LongAdder();
+
+        private final LongAdder abortSucceededCount = new LongAdder();
+        private final LongAdder abortFailedCount = new LongAdder();
     }
 }

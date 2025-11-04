@@ -32,7 +32,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ClassUtils;
 import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -56,6 +55,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.DrainingHash;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
@@ -96,6 +96,7 @@ import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
 import org.apache.pulsar.common.policies.data.impl.DelayedDeliveryPoliciesImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.DrainingHashImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
@@ -243,6 +244,7 @@ public class ObjectMapperFactory {
         resolver.addMapping(DispatchRate.class, DispatchRateImpl.class);
         resolver.addMapping(TopicStats.class, TopicStatsImpl.class);
         resolver.addMapping(ConsumerStats.class, ConsumerStatsImpl.class);
+        resolver.addMapping(DrainingHash.class, DrainingHashImpl.class);
         resolver.addMapping(NonPersistentPublisherStats.class, NonPersistentPublisherStatsImpl.class);
         resolver.addMapping(NonPersistentReplicatorStats.class, NonPersistentReplicatorStatsImpl.class);
         resolver.addMapping(NonPersistentSubscriptionStats.class, NonPersistentSubscriptionStatsImpl.class);
@@ -260,15 +262,7 @@ public class ObjectMapperFactory {
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
 
-        try {
-            // We look for LoadManagerReport first, then add deserializer to the module
-            // With shaded client, org.apache.pulsar.policies is relocated to
-            // org.apache.pulsar.shade.org.apache.pulsar.policies
-            ClassUtils.getClass("org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport");
-            module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
-        } catch (ClassNotFoundException e) {
-            log.debug("Add LoadManagerReport deserializer failed because LoadManagerReport.class has been shaded", e);
-        }
+        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
 
         module.setAbstractTypes(resolver);
 

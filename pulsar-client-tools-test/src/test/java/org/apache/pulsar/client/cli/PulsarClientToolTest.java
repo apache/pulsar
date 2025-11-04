@@ -357,7 +357,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 "--memory-limit", memoryLimitArg,
                 "produce", "-m", message,
                 "-n", Integer.toString(numberOfMessages), topicName};
-        pulsarClientTool.jcommander.parse(args);
+        pulsarClientTool.getCommander().parseArgs(args);
         assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), CA_CERT_FILE_PATH);
         assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
         assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
@@ -386,8 +386,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 "-ml", memoryLimitArg,
                 "produce", "-m", message,
                 "-n", Integer.toString(numberOfMessages), topicName};
-        
-        pulsarClientTool.jcommander.parse(args);
+        pulsarClientTool.getCommander().parseArgs(args);
         assertEquals(pulsarClientTool.rootParams.getMemoryLimit(), 10 * 1024 * 1024);
     }
 
@@ -405,12 +404,12 @@ public class PulsarClientToolTest extends BrokerTestBase {
         String[] args = {"--url", url,
                 "produce", "-m", message,
                 "-n", Integer.toString(numberOfMessages), topicName};
-        pulsarClientTool.jcommander.parse(args);
+        pulsarClientTool.getCommander().parseArgs(args);
         assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
         assertEquals(pulsarClientTool.rootParams.getProxyServiceURL(), "pulsar+ssl://my-proxy-pulsar:4443");
         assertEquals(pulsarClientTool.rootParams.getProxyProtocol(), ProxyProtocol.SNI);
     }
-    
+
     @Test
     public void testSendMultipleMessage() throws Exception {
         Properties properties = new Properties();
@@ -470,8 +469,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class TestKey {
-        public String key_a;
-        public int key_b;
+        public String keyA;
+        public int keyB;
 
     }
 
@@ -498,7 +497,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 String[] args = {"produce",
                         "-kvet", "inline",
                         "-ks", String.format("json:%s", keySchema.getSchemaInfo().getSchemaDefinition()),
-                        "-kvk", ObjectMapperFactory.getMapper().writer().writeValueAsString(new TestKey("my-key", Integer.MAX_VALUE)),
+                        "-kvk", ObjectMapperFactory.getMapper().writer().writeValueAsString(
+                                new TestKey("my-key", Integer.MAX_VALUE)),
                         "-vs", "string",
                         "-m", "test",
                         topicName};
@@ -511,8 +511,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final Message<KeyValue<TestKey, String>> message = consumer.receive(10, TimeUnit.SECONDS);
         assertNotNull(message);
         assertFalse(message.hasKey());
-        Assert.assertEquals(message.getValue().getKey().key_a, "my-key");
-        Assert.assertEquals(message.getValue().getKey().key_b, Integer.MAX_VALUE);
+        Assert.assertEquals(message.getValue().getKey().keyA, "my-key");
+        Assert.assertEquals(message.getValue().getKey().keyB, Integer.MAX_VALUE);
         Assert.assertEquals(message.getValue().getValue(), "test");
     }
 
@@ -550,7 +550,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Files.write(file.toPath(), keySchema.encode(new TestKey("my-key", Integer.MAX_VALUE)));
 
         @Cleanup
-        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient.newConsumer(Schema.KeyValue(keySchema, Schema.STRING))
+        Consumer<KeyValue<TestKey, String>> consumer =
+                pulsarClient.newConsumer(Schema.KeyValue(keySchema, Schema.STRING))
                 .topic(topicName).subscriptionName("sub").subscribe();
 
         executor.execute(() -> {
@@ -574,8 +575,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         assertNotNull(message);
         // -k should not be considered
         assertFalse(message.hasKey());
-        Assert.assertEquals(message.getValue().getKey().key_a, "my-key");
-        Assert.assertEquals(message.getValue().getKey().key_b, Integer.MAX_VALUE);
+        Assert.assertEquals(message.getValue().getKey().keyA, "my-key");
+        Assert.assertEquals(message.getValue().getKey().keyB, Integer.MAX_VALUE);
     }
 
     private Properties initializeToolProperties() {

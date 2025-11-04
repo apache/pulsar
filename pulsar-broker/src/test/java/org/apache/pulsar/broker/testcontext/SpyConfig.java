@@ -112,6 +112,8 @@ public class SpyConfig {
      */
     private final SpyType namespaceService;
 
+    private final SpyType managedLedgerStorage;
+
     /**
      * Create a builder for SpyConfig with no spies by default.
      *
@@ -129,6 +131,11 @@ public class SpyConfig {
      */
     public static Builder builder(SpyType defaultSpyType) {
         Builder spyConfigBuilder = new Builder();
+        configureDefaults(spyConfigBuilder, defaultSpyType);
+        return spyConfigBuilder;
+    }
+
+    public static void configureDefaults(Builder spyConfigBuilder, SpyType defaultSpyType) {
         spyConfigBuilder.pulsarService(defaultSpyType);
         spyConfigBuilder.pulsarResources(defaultSpyType);
         spyConfigBuilder.brokerService(defaultSpyType);
@@ -136,6 +143,6 @@ public class SpyConfig {
         spyConfigBuilder.compactor(defaultSpyType);
         spyConfigBuilder.compactedServiceFactory(defaultSpyType);
         spyConfigBuilder.namespaceService(defaultSpyType);
-        return spyConfigBuilder;
+        spyConfigBuilder.managedLedgerStorage(defaultSpyType);
     }
 }

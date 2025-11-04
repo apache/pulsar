@@ -19,79 +19,63 @@
 package org.apache.pulsar.docs.tools;
 
 import static org.testng.Assert.assertEquals;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 public class CmdGenerateDocsTest {
 
-    @Parameters(commandDescription = "Options")
+    @Command
     public class Arguments {
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-n", "--name"}, description = "Name")
+        @Option(names = {"-n", "--name"}, description = "Name")
         private String name;
     }
 
     @Test
     public void testHelp() {
-        PrintStream oldStream = System.out;
-        try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream(2048);
-            PrintStream cacheStream = new PrintStream(baoStream);
-            System.setOut(cacheStream);
+        CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+        cmd.addCommand("test", new Arguments());
+        StringWriter stringWriter = new StringWriter();
+        cmd.getCommander().setOut(new PrintWriter(stringWriter));
+        cmd.run(new String[]{"-h"});
 
-            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-            cmd.addCommand("test", new Arguments());
-            cmd.run(new String[]{"-h"});
-
-            String message = baoStream.toString();
-            String rightMsg = "Usage: pulsar gen-doc [options]\n"
-                    + "  Options:\n"
-                    + "    -n, --command-names\n"
-                    + "      List of command names\n"
-                    + "      Default: []\n"
-                    + "    -h, --help\n"
-                    + "      Display help information\n"
-                    + "      Default: false\n"
-                    + System.lineSeparator();
-            assertEquals(rightMsg, message);
-        } finally {
-            System.setOut(oldStream);
-        }
+        String message = stringWriter.toString();
+        String rightMsg = "Usage: pulsar [-h] [-n=<commandNames>]... [COMMAND]\n"
+                + "  -h, --help   Display help information\n"
+                + "  -n, --command-names=<commandNames>\n"
+                + "               List of command names\n"
+                + "                 Default: []\n"
+                + "Commands:\n"
+                + "  test\n";
+        assertEquals(message, rightMsg);
     }
 
     @Test
     public void testGenerateDocs() {
-        PrintStream oldStream = System.out;
-        try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream(2048);
-            PrintStream cacheStream = new PrintStream(baoStream);
-            System.setOut(cacheStream);
+        CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+        cmd.addCommand("test", new Arguments());
+        StringWriter stringWriter = new StringWriter();
+        cmd.getCommander().setOut(new PrintWriter(stringWriter));
+        cmd.run(null);
 
-            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-            cmd.addCommand("test", new Arguments());
-            cmd.run(null);
-
-            String message = baoStream.toString();
-            String rightMsg = "# test\n\n"
-                    + "Options\n\n"
-                    + "\n"
-                    + "```shell\n"
-                    + "$ pulsar test options\n"
-                    + "```\n"
-                    + "\n"
-                    + "|Flag|Description|Default|\n"
-                    + "|---|---|---|\n"
-                    + "| `-h, --help` | Show this help message|false|\n"
-                    + "| `-n, --name` | Name|null|\n"
-                    + System.lineSeparator();
-            assertEquals(rightMsg, message);
-        } finally {
-            System.setOut(oldStream);
-        }
+        String message = stringWriter.toString();
+        String rightMsg = "# test\n\n"
+                + "\n"
+                + "\n"
+                + "```shell\n"
+                + "$ pulsar test options\n"
+                + "```\n"
+                + "\n"
+                + "|Flag|Description|Default|\n"
+                + "|---|---|---|\n"
+                + "| `-h, --help` | Show this help message|false|\n"
+                + "| `-n, --name` | Name|null|\n"
+                + System.lineSeparator();
+        assertEquals(message, rightMsg);
     }
 }

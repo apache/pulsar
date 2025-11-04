@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -130,12 +131,14 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String SCHEMA_VERSION = "X-Pulsar-Base64-schema-version-b64encoded";
     private static final String ENCRYPTION_PARAM = "X-Pulsar-Base64-encryption-param";
     private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
+    public static final String TXN_ABORTED = "X-Pulsar-txn-aborted";
+    public static final String TXN_UNCOMMITTED = "X-Pulsar-txn-uncommitted";
     // CHECKSTYLE.ON: MemberName
 
     public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
 
-    public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public TopicsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
     }
@@ -867,7 +870,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
-    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(String topic, String subName, int messagePosition) {
+    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(
+            String topic, String subName, int messagePosition, boolean showServerMarker,
+            TransactionIsolationLevel transactionIsolationLevel) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName,
@@ -879,7 +884,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessagesFromHttpResponse(tn.toString(), response));
+                            future.complete(getMessagesFromHttpResponse(tn.toString(), response,
+                                    showServerMarker, transactionIsolationLevel));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -894,28 +900,35 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
+    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+                                              boolean showServerMarker,
+                                              TransactionIsolationLevel transactionIsolationLevel)
             throws PulsarAdminException {
-        return sync(() -> peekMessagesAsync(topic, subName, numMessages));
+        return sync(() -> peekMessagesAsync(topic, subName, numMessages, showServerMarker, transactionIsolationLevel));
     }
 
     @Override
-    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int numMessages,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
-        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, 1);
+        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(),
+                future, 1, showServerMarker, transactionIsolationLevel);
         return future;
     }
 
     private void peekMessagesAsync(String topic, String subName, int numMessages,
-            List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage) {
+            List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
         if (numMessages <= 0) {
             future.complete(messages);
             return;
         }
 
         // if peeking first message succeeds, we know that the topic and subscription exists
-        peekNthMessage(topic, subName, nthMessage).handle((r, ex) -> {
+        peekNthMessage(topic, subName, nthMessage, showServerMarker, transactionIsolationLevel)
+                .handle((r, ex) -> {
             if (ex != null) {
                 // if we get a not found exception, it means that the position for the message we are trying to get
                 // does not exist. At this point, we can return the already found messages.
@@ -930,7 +943,8 @@ public class TopicsImpl extends BaseResource implements Topics {
             for (int i = 0; i < Math.min(r.size(), numMessages); i++) {
                 messages.add(r.get(i));
             }
-            peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future, nthMessage + 1);
+            peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future,
+                    nthMessage + 1, showServerMarker, transactionIsolationLevel);
             return null;
         });
     }
@@ -1253,6 +1267,13 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response) throws Exception {
+        return getMessagesFromHttpResponse(topic, response, true,
+                TransactionIsolationLevel.READ_UNCOMMITTED);
+    }
+
+    private List<Message<byte[]>> getMessagesFromHttpResponse(
+            String topic, Response response, boolean showServerMarker,
+            TransactionIsolationLevel transactionIsolationLevel) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             throw getApiException(response);
@@ -1284,7 +1305,32 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             Map<String, String> properties = new TreeMap<>();
             MultivaluedMap<String, Object> headers = response.getHeaders();
-            Object tmp = headers.getFirst(PUBLISH_TIME);
+            Object tmp = headers.getFirst(MARKER_TYPE);
+            if (tmp != null) {
+                if (!showServerMarker) {
+                    return new ArrayList<>();
+                } else {
+                    messageMetadata.setMarkerType(Integer.parseInt(tmp.toString()));
+                }
+            }
+
+            tmp = headers.getFirst(TXN_ABORTED);
+            if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
+                properties.put(TXN_ABORTED, tmp.toString());
+                if (transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
+                    return new ArrayList<>();
+                }
+            }
+
+            tmp = headers.getFirst(TXN_UNCOMMITTED);
+            if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
+                properties.put(TXN_UNCOMMITTED, tmp.toString());
+                if (transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
+                    return new ArrayList<>();
+                }
+            }
+
+            tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
                 messageMetadata.setPublishTime(DateFormatter.parse(tmp.toString()));
             }
@@ -1335,10 +1381,6 @@ public class TopicsImpl extends BaseResource implements Topics {
             tmp = headers.getFirst(PARTITION_KEY_B64_ENCODED);
             if (tmp != null) {
                 messageMetadata.setPartitionKeyB64Encoded(Boolean.parseBoolean(tmp.toString()));
-            }
-            tmp = headers.getFirst(MARKER_TYPE);
-            if (tmp != null) {
-                messageMetadata.setMarkerType(Integer.parseInt(tmp.toString()));
             }
             tmp = headers.getFirst(TXNID_LEAST_BITS);
             if (tmp != null) {
@@ -2775,6 +2817,32 @@ public class TopicsImpl extends BaseResource implements Topics {
                 return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);
             }
         });
+    }
+
+    @Override
+    public MessageId getMessageIdByIndex(String topicName, long index) throws PulsarAdminException {
+        return sync(() -> getMessageIdByIndexAsync(topicName, index));
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getMessageIdByIndexAsync(String topicName, long index) {
+        final CompletableFuture<MessageId> messageIdCompletableFuture = new CompletableFuture<>();
+        TopicName topic = validateTopic(topicName);
+        WebTarget path = topicPath(topic, "getMessageIdByIndex");
+        path = path.queryParam("index", index);
+        asyncGetRequest(path, new InvocationCallback<MessageIdImpl>(){
+
+            @Override
+            public void completed(MessageIdImpl messageId) {
+                messageIdCompletableFuture.complete(messageId);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                messageIdCompletableFuture.completeExceptionally(throwable);
+            }
+        });
+        return messageIdCompletableFuture;
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

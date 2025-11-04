@@ -47,6 +47,12 @@ public class Offloaders implements AutoCloseable {
     public void close() throws Exception {
         offloaders.forEach(offloader -> {
             try {
+                offloader.getRight().close();
+            } catch (Exception e) {
+                log.warn("Failed to close offloader '{}': {}",
+                        offloader.getRight().getClass(), e.getMessage());
+            }
+            try {
                 offloader.getLeft().close();
             } catch (IOException e) {
                 log.warn("Failed to close nar class loader for offloader '{}': {}",

@@ -20,7 +20,9 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -43,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -75,6 +78,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -84,6 +88,14 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SimpleLoadManagerImplTest {
+
+    public static final String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public static final String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public static final String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+
     LocalBookkeeperEnsemble bkEnsemble;
 
     URL url1;
@@ -127,6 +139,9 @@ public class SimpleLoadManagerImplTest {
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config1.setBrokerServicePortTls(Optional.of(0));
         config1.setAdvertisedAddress("localhost");
+        config1.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config1.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config1.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
@@ -148,6 +163,9 @@ public class SimpleLoadManagerImplTest {
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config2.setBrokerServicePortTls(Optional.of(0));
         config2.setWebServicePortTls(Optional.of(0));
+        config2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         config2.setAdvertisedAddress("localhost");
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
@@ -164,15 +182,33 @@ public class SimpleLoadManagerImplTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdownNow();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
 
-        admin1.close();
-        admin2.close();
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
 
-        pulsar2.close();
-        pulsar1.close();
+        if (pulsar2 != null) {
+            pulsar2.close();
+            pulsar2 = null;
+        }
+        if (pulsar1 != null) {
+            pulsar1.close();
+            pulsar1 = null;
+        }
 
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {
@@ -333,7 +369,8 @@ public class SimpleLoadManagerImplTest {
     public void testLoadReportParsing() throws Exception {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         reportData.setName("b1");
         SystemResourceUsage resource = new SystemResourceUsage();
         ResourceUsage resourceUsage = new ResourceUsage();
@@ -352,7 +389,8 @@ public class SimpleLoadManagerImplTest {
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
         @Cleanup("stop")
-        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
+        SimpleLoadManagerImpl loadManager =
+                spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
@@ -384,10 +422,12 @@ public class SimpleLoadManagerImplTest {
         stats.put("property/cluster/namespace2/0x00000000_0xFFFFFFFF", nsb2);
 
         Map<ResourceUnit, org.apache.pulsar.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport1.setSystemResourceUsage(systemResource);
         loadReport1.setBundleStats(stats);
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport2.setSystemResourceUsage(new SystemResourceUsage());
         loadReport2.setBundleStats(stats);
         loadReports.put(ru1, loadReport1);
@@ -471,9 +511,25 @@ public class SimpleLoadManagerImplTest {
         task1.run();
         verify(loadManager, times(1)).writeResourceQuotasToZooKeeper();
 
-        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager, null, null);
+        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager, null, null, null);
         task2.run();
         verify(loadManager, times(1)).doLoadShedding();
+    }
+
+    @Test
+    public void testMetadataServiceNotAvailable() {
+        LoadManager loadManager = mock(LoadManager.class);
+        AtomicReference<LoadManager> atomicLoadManager = new AtomicReference<>(loadManager);
+        ManagedLedgerFactoryImpl factory = mock(ManagedLedgerFactoryImpl.class);
+        doReturn(false).when(factory).isMetadataServiceAvailable();
+        LoadSheddingTask task2 = spy(new LoadSheddingTask(atomicLoadManager, null, null, factory));
+        task2.run();
+        verify(loadManager, times(0)).doLoadShedding();
+        verify(task2, times(1)).start();
+        doReturn(true).when(factory).isMetadataServiceAvailable();
+        task2.run();
+        verify(loadManager, times(1)).doLoadShedding();
+        verify(task2, times(2)).start();
     }
 
     @Test

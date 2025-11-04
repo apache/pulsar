@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -34,11 +36,14 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -168,7 +173,8 @@ public class TransactionProduceTest extends TransactionTestBase {
             List<Entry> entries = originTopicCursor.readEntries((int) originTopicCursor.getNumberOfEntries());
             Assert.assertEquals(messageCntPerPartition + 1, entries.size());
 
-            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
+            MessageMetadata messageMetadata =
+                    Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
             if (endAction) {
                 Assert.assertEquals(MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
             } else {
@@ -178,6 +184,39 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         Assert.assertEquals(0, messageSet.size());
         log.info("produce and {} test finished.", endAction ? "commit" : "abort");
+    }
+
+    @Test
+    public void testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish() throws Exception {
+        final String topic = NAMESPACE1 + "/testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish";
+        PulsarClient pulsarClient = this.pulsarClient;
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        PersistentTopic persistentTopic = getTopic(topic);
+        long lastMaxReadPositionMovedForwardTimestamp = persistentTopic.getLastMaxReadPositionMovedForwardTimestamp();
+
+        // transactional publish will not update lastMaxReadPositionMovedForwardTimestamp
+        producer.newMessage(txn).value("hello world".getBytes()).send();
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
+                == lastMaxReadPositionMovedForwardTimestamp);
+
+        // commit transaction will update lastMaxReadPositionMovedForwardTimestamp
+        txn.commit().get();
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
+                > lastMaxReadPositionMovedForwardTimestamp);
+    }
+
+    private PersistentTopic getTopic(String topic) throws ExecutionException, InterruptedException {
+        Optional<Topic> optionalTopic = getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(topic, true).get();
+        return (PersistentTopic) optionalTopic.get();
     }
 
     private void checkMessageId(List<CompletableFuture<MessageId>> futureList, boolean isFinished) {
@@ -211,9 +250,9 @@ public class TransactionProduceTest extends TransactionTestBase {
             if (partition >= 0) {
                 topic = TopicName.get(topic).toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
             }
-            return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
+            return getPulsarServiceList().get(0).getDefaultManagedLedgerFactory().openReadOnlyCursor(
                     TopicName.get(topic).getPersistenceNamingEncoding(),
-                    PositionImpl.EARLIEST, new ManagedLedgerConfig());
+                    PositionFactory.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {
             log.error("Failed to get origin topic readonly cursor.", e);
             Assert.fail("Failed to get origin topic readonly cursor.");
@@ -247,7 +286,6 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_COMMIT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -311,7 +349,6 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_ABORT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
@@ -354,7 +391,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         int pendingAckCount = 0;
         for (PulsarService pulsarService : getPulsarServiceList()) {
-            for (String key : pulsarService.getBrokerService().getTopics().keys()) {
+            for (String key : pulsarService.getBrokerService().getTopics().keySet()) {
                 if (key.contains(topic)) {
                     Field field = clazz.getDeclaredField("pendingAckHandle");
                     field.setAccessible(true);
@@ -365,8 +402,8 @@ public class TransactionProduceTest extends TransactionTestBase {
                     field = PendingAckHandleImpl.class.getDeclaredField("individualAckPositions");
                     field.setAccessible(true);
 
-                    Map<PositionImpl, MutablePair<PositionImpl, Long>> map =
-                            (Map<PositionImpl, MutablePair<PositionImpl, Long>>) field.get(pendingAckHandle);
+                    Map<Position, MutablePair<Position, Long>> map =
+                            (Map<Position, MutablePair<Position, Long>>) field.get(pendingAckHandle);
                     if (map != null) {
                         pendingAckCount += map.size();
                     }

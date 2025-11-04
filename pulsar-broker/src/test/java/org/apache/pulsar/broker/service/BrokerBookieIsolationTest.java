@@ -48,7 +48,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.PulsarService;
@@ -105,8 +105,12 @@ public class BrokerBookieIsolationTest {
     protected void cleanup() throws Exception {
         if (pulsarService != null) {
             pulsarService.close();
+            pulsarService = null;
         }
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     /**
@@ -227,35 +231,50 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml1 = (ManagedLedgerImpl) topic1.getManagedLedger();
+        // totalLedgers = totalPublish / totalEntriesPerLedger. (totalPublish = 100, totalEntriesPerLedger = 20.)
+        // The last ledger is full, a new empty ledger will be created.
+        // The ledger is created async, so adding a wait is needed.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml1.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml1.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), defaultBookies);
+        assertAffinityBookies(ledgerManager, ml1.getLedgersInfoAsList(), defaultBookies);
 
         // namespace: ns2
-        ml = (ManagedLedgerImpl) topic2.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml2.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml2.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml2.getLedgersInfoAsList(), isolatedBookies);
 
         // namespace: ns3
-        ml = (ManagedLedgerImpl) topic3.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml3 = (ManagedLedgerImpl) topic3.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml3.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml3.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml3.getLedgersInfoAsList(), isolatedBookies);
 
         // namespace: ns4
-        ml = (ManagedLedgerImpl) topic4.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml4 = (ManagedLedgerImpl) topic4.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml4.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml4.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml4.getLedgersInfoAsList(), isolatedBookies);
 
         ManagedLedgerClientFactory mlFactory =
-            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerStorage();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
@@ -274,16 +293,16 @@ public class BrokerBookieIsolationTest {
 
     private LedgerManager getLedgerManager(BookieImpl bookie1) throws IllegalAccessException {
         DbLedgerStorage ledgerStorage =
-                (DbLedgerStorage)FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
+                (DbLedgerStorage) FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
         SingleDirectoryDbLedgerStorage singleDirectoryDbLedgerStorage =
-                ((List<SingleDirectoryDbLedgerStorage>)FieldUtils
+                ((List<SingleDirectoryDbLedgerStorage>) FieldUtils
                         .readDeclaredField(ledgerStorage, "ledgerStorageList", true)).get(0);
         GarbageCollectorThread gcThread =
-                (GarbageCollectorThread)FieldUtils.readDeclaredField(singleDirectoryDbLedgerStorage, "gcThread", true);
+                (GarbageCollectorThread) FieldUtils.readDeclaredField(singleDirectoryDbLedgerStorage, "gcThread", true);
         ScanAndCompareGarbageCollector garbageCollector =
-                (ScanAndCompareGarbageCollector)FieldUtils.readDeclaredField(gcThread, "garbageCollector", true);
+                (ScanAndCompareGarbageCollector) FieldUtils.readDeclaredField(gcThread, "garbageCollector", true);
         LedgerManager ledgerManager =
-                (LedgerManager)FieldUtils.readDeclaredField(garbageCollector, "ledgerManager", true);
+                (LedgerManager) FieldUtils.readDeclaredField(garbageCollector, "ledgerManager", true);
         return ledgerManager;
     }
 
@@ -355,7 +374,8 @@ public class BrokerBookieIsolationTest {
                 .subscribe();
         consumer.close();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName)
+                .sendTimeout(5, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 20; i++) {
@@ -378,22 +398,25 @@ public class BrokerBookieIsolationTest {
         Awaitility.await().untilAsserted(() ->
                 Assert.assertTrue(ml.getConfig().getBookKeeperEnsemblePlacementPolicyProperties().size() > 0));
 
-        for (int i=0; i<80; i++) {
+        for (int i = 0; i < 80; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
         producer.close();
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
         // namespace: ns2
-        assertEquals(ml2.getLedgersInfoAsList().size(), totalLedgers);
-
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml2.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml2.getCurrentLedgerEntries(), 0);
+        });
         List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
         // validate ledgers' ensemble with affinity bookies
-        for (int i=1; i<ledgers.size();i++) {
+        // The second ledger will be created after the first ledger is full and the isolationGroup has not been set.
+        for (int i = 2; i < ledgers.size(); i++) {
             LedgerInfo lInfo = ledgers.get(i);
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
@@ -526,35 +549,47 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml1 = (ManagedLedgerImpl) topic1.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml1.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml1.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), defaultBookies);
+        assertAffinityBookies(ledgerManager, ml1.getLedgersInfoAsList(), defaultBookies);
 
         // namespace: ns2
-        ml = (ManagedLedgerImpl) topic2.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml2.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml2.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml2.getLedgersInfoAsList(), isolatedBookies);
 
         // namespace: ns3
-        ml = (ManagedLedgerImpl) topic3.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml3 = (ManagedLedgerImpl) topic3.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml3.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml3.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml3.getLedgersInfoAsList(), isolatedBookies);
 
         // namespace: ns4
-        ml = (ManagedLedgerImpl) topic4.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml4 = (ManagedLedgerImpl) topic4.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml4.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml4.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml4.getLedgersInfoAsList(), isolatedBookies);
 
         ManagedLedgerClientFactory mlFactory =
-                (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
+                (ManagedLedgerClientFactory) pulsarService.getManagedLedgerStorage();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
@@ -685,29 +720,39 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic2 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", totalPublish);
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml1 = (ManagedLedgerImpl) topic1.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml1.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml1.getCurrentLedgerEntries(), 0);
+        });
+
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), defaultBookies);
+        assertAffinityBookies(ledgerManager, ml1.getLedgersInfoAsList(), defaultBookies);
 
         // namespace: ns2
-        ml = (ManagedLedgerImpl) topic2.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml2.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml2.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml2.getLedgersInfoAsList(), isolatedBookies);
 
         // namespace: ns3
-        ml = (ManagedLedgerImpl) topic3.getManagedLedger();
-        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        ManagedLedgerImpl ml3 = (ManagedLedgerImpl) topic3.getManagedLedger();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml3.getLedgersInfoAsList().size(), totalLedgers + 1);
+            assertEquals(ml3.getCurrentLedgerEntries(), 0);
+        });
         // validate ledgers' ensemble with affinity bookies
-        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+        assertAffinityBookies(ledgerManager, ml3.getLedgersInfoAsList(), isolatedBookies);
 
         ManagedLedgerClientFactory mlFactory =
-            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerStorage();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
@@ -836,7 +881,8 @@ public class BrokerBookieIsolationTest {
                 .subscribe();
         consumer.close();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName)
+                .sendTimeout(5, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < totalPublish; i++) {

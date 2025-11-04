@@ -22,22 +22,25 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.COMPACT_LEDGER_EMPTY;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.NEWER_THAN_COMPACTED;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.findStartPoint;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.NonNull;
 
 
 public class PulsarTopicCompactionService implements TopicCompactionService {
@@ -67,7 +70,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition,
+    public CompletableFuture<List<Entry>> readCompactedEntries(@NonNull Position startPosition,
                                                                int numberOfEntriesToRead) {
         Objects.requireNonNull(startPosition);
         checkArgument(numberOfEntriesToRead > 0);
@@ -75,7 +78,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
         CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
         Objects.requireNonNull(compactedTopic.getCompactedTopicContextFuture()).thenCompose(
-                (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
+                (context) -> findStartPoint(startPosition, context.ledger.getLastAddConfirmed(),
                         context.cache).thenCompose((startPoint) -> {
                     if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
                         return CompletableFuture.completedFuture(Collections.emptyList());
@@ -100,33 +103,80 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<Entry> readLastCompactedEntry() {
-        return compactedTopic.readLastEntryOfCompactedLedger();
-    }
-
-    @Override
     public CompletableFuture<Position> getLastCompactedPosition() {
         return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon().orElse(null));
     }
 
     @Override
-    public CompletableFuture<Entry> findEntryByPublishTime(long publishTime) {
+    public CompletableFuture<Position> findEntryByPublishTime(long publishTime) {
         final Predicate<Entry> predicate = entry -> {
             return Commands.parseMessageMetadata(entry.getDataBuffer()).getPublishTime() >= publishTime;
         };
-        return compactedTopic.findFirstMatchEntry(predicate);
+        return compactedTopic.findFirstMatchEntry(predicate).thenApply(entry -> {
+            try {
+                return PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
+            } finally {
+                entry.release();
+            }
+        });
     }
 
     @Override
-    public CompletableFuture<Entry> findEntryByEntryIndex(long entryIndex) {
-        final Predicate<Entry> predicate = entry -> {
-            BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-            if (brokerEntryMetadata == null || !brokerEntryMetadata.hasIndex()) {
-                return false;
+    public CompletableFuture<MessagePosition> getLastMessagePosition() {
+        return compactedTopic.readLastEntryOfCompactedLedger().thenApply(entry -> {
+            if (entry == null) {
+                return MessagePosition.EARLIEST;
             }
-            return brokerEntryMetadata.getIndex() >= entryIndex;
-        };
-        return compactedTopic.findFirstMatchEntry(predicate);
+            try {
+                final var payload = entry.getDataBuffer();
+                final var metadata = Commands.parseMessageMetadata(payload);
+                final var batchSize = metadata.getNumMessagesInBatch();
+                final var publishTime = metadata.getPublishTime();
+                if (batchSize <= 1) {
+                    return new MessagePosition(entry.getLedgerId(), entry.getEntryId(), -1, publishTime);
+                }
+                final int compactedBatchIndexesCount = metadata.getCompactedBatchIndexesCount();
+                if (compactedBatchIndexesCount > 0) {
+                    final var batchIndex = metadata.getCompactedBatchIndexeAt(compactedBatchIndexesCount - 1);
+                    return new MessagePosition(entry.getLedgerId(), entry.getEntryId(), batchIndex, publishTime);
+                }
+                // Encrypted messages won't be compacted
+                if (metadata.getEncryptionKeysCount() > 0) {
+                    return new MessagePosition(entry.getLedgerId(), entry.getEntryId(), batchSize - 1, publishTime);
+                }
+                final ByteBuf uncompressedPayload;
+                if (metadata.hasCompression()) {
+                    final var codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
+                    final var uncompressedSize = metadata.getUncompressedSize();
+                    uncompressedPayload = codec.decode(payload, uncompressedSize);
+                } else {
+                    uncompressedPayload = payload.retain();
+                }
+                try {
+                    SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
+                    int batchIndex = -1;
+                    for (int i = 0; i < batchSize; i++){
+                        final var singleMessagePayload = Commands.deSerializeSingleMessageInBatch(payload,
+                                singleMessageMetadata, i, batchSize);
+                        singleMessagePayload.release();
+                        if (singleMessageMetadata.isCompactedOut()){
+                            continue;
+                        }
+                        batchIndex = i;
+                    }
+                    if (batchIndex < 0) {
+                        throw new IllegalStateException("No valid message in entry " + entry.getPosition());
+                    }
+                    return new MessagePosition(entry.getLedgerId(), entry.getEntryId(), batchIndex, publishTime);
+                } finally {
+                    uncompressedPayload.release();
+                }
+            } catch (IOException e) {
+                throw new CompletionException(e);
+            } finally {
+                entry.release();
+            }
+        });
     }
 
     public CompactedTopicImpl getCompactedTopic() {

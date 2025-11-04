@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.common.topics.TopicList;
-import org.apache.pulsar.metadata.api.NotificationType;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
+import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
+import org.apache.pulsar.metadata.api.NotificationType;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TopicListWatcherTest {
 
@@ -40,7 +41,8 @@ public class TopicListWatcherTest {
     );
 
     private static final long ID = 7;
-    private static final Pattern PATTERN = Pattern.compile("persistent://tenant/ns/topic\\d+");
+    private static final TopicsPattern PATTERN =
+            TopicsPatternFactory.create("tenant/ns/topic\\d+", TopicsPattern.RegexImplementation.RE2J);
 
 
     private TopicListService topicListService;
@@ -98,5 +100,4 @@ public class TopicListWatcherTest {
                 Arrays.asList("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2"),
                 watcher.getMatchingTopics());
     }
-
 }

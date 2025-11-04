@@ -98,7 +98,6 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName("integration-test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
         Awaitility.await().until(transferConsumer::isConnected);
         log.info("transfer consumer create finished");

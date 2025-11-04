@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
-
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
 
 public class LoadBalancerTestingUtils {
     public static NamespaceBundle[] makeBundles(final NamespaceBundleFactory nsFactory, final String property,

@@ -20,15 +20,20 @@ package org.apache.pulsar.broker.authorization;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -223,6 +228,16 @@ public interface AuthorizationProvider extends Closeable {
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
             String authDataJson);
 
+    default CompletableFuture<Void> grantPermissionAsync(List<GrantTopicPermissionOptions> options) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("grantPermissionAsync is not supported by the Authorization")));
+    }
+
+    default CompletableFuture<Void> revokePermissionAsync(List<RevokeTopicPermissionOptions> options) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("revokePermissionAsync is not supported by the Authorization")));
+    }
+
 
     /**
      * Revoke authorization-action permission on a topic to the given client.
@@ -369,5 +384,33 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on namespaceName %s is not supported by the Authorization",
                         namespaceName)));
+    }
+
+    default CompletableFuture<Boolean> allowBrokerOperationAsync(String clusterName,
+                                                                 String brokerId,
+                                                                 BrokerOperation brokerOperation,
+                                                                 String role,
+                                                                 AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowBrokerOperationAsync is not supported yet."));
+    }
+
+
+    default CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName,
+                                                                  ClusterOperation clusterOperation,
+                                                                  String role,
+                                                                  AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowClusterOperationAsync is not supported yet."));
+    }
+
+    default CompletableFuture<Boolean> allowClusterPolicyOperationAsync(String clusterName,
+                                                                        String role,
+                                                                        PolicyName policy,
+                                                                        PolicyOperation operation,
+                                                                        AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("ClusterPolicyOperation [" + policy.name() + "/" + operation.name() + "] "
+                                          + "is not supported by the Authorization provider you are using."));
     }
 }

@@ -22,14 +22,18 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   pulsarbot:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/pulsarbot')
     steps:
       - name: Execute pulsarbot command
         id: pulsarbot
         env:
-          GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master

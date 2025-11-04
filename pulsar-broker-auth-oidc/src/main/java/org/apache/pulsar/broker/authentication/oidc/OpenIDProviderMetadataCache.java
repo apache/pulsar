@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.authentication.oidc;
 
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_REFRESH_AFTER_WRITE_SECONDS;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE_DEFAULT;
-import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.incrementFailureMetric;
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -40,10 +40,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.asynchttpclient.AsyncHttpClient;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Class used to cache metadata responses from OpenID Providers.
@@ -51,13 +53,16 @@ import org.asynchttpclient.AsyncHttpClient;
 class OpenIDProviderMetadataCache {
 
     private final ObjectReader reader = new ObjectMapper().readerFor(OpenIDProviderMetadata.class);
+    private final AuthenticationProvider authenticationProvider;
     private final AsyncHttpClient httpClient;
     private final WellKnownApi wellKnownApi;
     private final AsyncLoadingCache<Optional<String>, OpenIDProviderMetadata> cache;
     private static final String WELL_KNOWN_OPENID_CONFIG = ".well-known/openid-configuration";
     private static final String SLASH_WELL_KNOWN_OPENID_CONFIG = "/" + WELL_KNOWN_OPENID_CONFIG;
 
-    OpenIDProviderMetadataCache(ServiceConfiguration config, AsyncHttpClient httpClient, ApiClient apiClient) {
+    OpenIDProviderMetadataCache(AuthenticationProvider authenticationProvider, ServiceConfiguration config,
+                                AsyncHttpClient httpClient, ApiClient apiClient) {
+        this.authenticationProvider = authenticationProvider;
         int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
         int refreshAfterWriteSeconds = getConfigValueAsInt(config, CACHE_REFRESH_AFTER_WRITE_SECONDS,
                 CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT);
@@ -73,10 +78,12 @@ class OpenIDProviderMetadataCache {
             }
         };
         this.cache = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
                 .buildAsync(loader);
+        CacheMetricsCollector.CAFFEINE.addCache("open-id-provider-metadata", cache);
     }
 
     /**
@@ -90,7 +97,7 @@ class OpenIDProviderMetadataCache {
      * @return the {@link OpenIDProviderMetadata} for the given issuer. Fail the completable future with
      * AuthenticationException if any exceptions occur while retrieving the metadata.
      */
-    CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForIssuer(@Nonnull String issuer) {
+    CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForIssuer(@NonNull String issuer) {
         return cache.get(Optional.of(issuer));
     }
 
@@ -124,10 +131,10 @@ class OpenIDProviderMetadataCache {
                         verifyIssuer(issuer, openIDProviderMetadata, false);
                         future.complete(openIDProviderMetadata);
                     } catch (AuthenticationException e) {
-                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PROVIDER_METADATA);
                         future.completeExceptionally(e);
                     } catch (Exception e) {
-                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PROVIDER_METADATA);
                         future.completeExceptionally(new AuthenticationException(
                                 "Error retrieving OpenID Provider Metadata at " + issuer + ": " + e.getMessage()));
                     }
@@ -151,7 +158,7 @@ class OpenIDProviderMetadataCache {
                 verifyIssuer(issClaim, openIDProviderMetadata, true);
                 future.complete(openIDProviderMetadata);
             } catch (AuthenticationException e) {
-                incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PROVIDER_METADATA);
                 future.completeExceptionally(e);
             }
             return future;
@@ -164,7 +171,7 @@ class OpenIDProviderMetadataCache {
             wellKnownApi.getServiceAccountIssuerOpenIDConfigurationAsync(new ApiCallback<>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
-                    incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                    authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PROVIDER_METADATA);
                     // We want the message and responseBody here: https://github.com/kubernetes-client/java/issues/2066.
                     future.completeExceptionally(new AuthenticationException(
                             "Error retrieving OpenID Provider Metadata from Kubernetes API server. Message: "
@@ -179,7 +186,7 @@ class OpenIDProviderMetadataCache {
                         OpenIDProviderMetadata openIDProviderMetadata = reader.readValue(result);
                         future.complete(openIDProviderMetadata);
                     } catch (Exception e) {
-                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PROVIDER_METADATA);
                         future.completeExceptionally(new AuthenticationException(
                                 "Error retrieving OpenID Provider Metadata from Kubernetes API Server: "
                                         + e.getMessage()));
@@ -197,7 +204,7 @@ class OpenIDProviderMetadataCache {
                 }
             });
         } catch (ApiException e) {
-            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+            authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PROVIDER_METADATA);
             future.completeExceptionally(new AuthenticationException(
                     "Error retrieving OpenID Provider Metadata from Kubernetes API server: " + e.getMessage()));
         }
@@ -217,14 +224,14 @@ class OpenIDProviderMetadataCache {
      * @param isK8s - whether the issuer is represented by the Kubernetes API server. This affects error reporting.
      * @throws AuthenticationException if the issuer does not exactly match the metadata issuer
      */
-    private void verifyIssuer(@Nonnull String issuer, OpenIDProviderMetadata metadata,
+    private void verifyIssuer(@NonNull String issuer, OpenIDProviderMetadata metadata,
                               boolean isK8s) throws AuthenticationException {
         if (!issuer.equals(metadata.getIssuer())) {
             if (isK8s) {
-                incrementFailureMetric(AuthenticationExceptionCode.UNSUPPORTED_ISSUER);
+                authenticationProvider.incrementFailureMetric(AuthenticationExceptionCode.UNSUPPORTED_ISSUER);
                 throw new AuthenticationException("Issuer not allowed: " + issuer);
             } else {
-                incrementFailureMetric(AuthenticationExceptionCode.ISSUER_MISMATCH);
+                authenticationProvider.incrementFailureMetric(AuthenticationExceptionCode.ISSUER_MISMATCH);
                 throw new AuthenticationException(String.format("Issuer URL mismatch: [%s] should match [%s]",
                         issuer, metadata.getIssuer()));
             }

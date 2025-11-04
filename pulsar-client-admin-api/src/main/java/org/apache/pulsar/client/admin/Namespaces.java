@@ -704,6 +704,34 @@ public interface Namespaces {
     CompletableFuture<Void> grantPermissionOnNamespaceAsync(String namespace, String role, Set<AuthAction> actions);
 
     /**
+     * Grant permissions on topics asynchronously.
+     * @param options
+     * @return
+     */
+    CompletableFuture<Void> grantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options);
+
+    /**
+     * Grant permissions on topics.
+     * @param options
+     * @throws PulsarAdminException
+     */
+    void grantPermissionOnTopics(List<GrantTopicPermissionOptions> options) throws PulsarAdminException;
+
+    /**
+     * Revoke permissions on topics asynchronously.
+     * @param options
+     * @return
+     */
+    CompletableFuture<Void> revokePermissionOnTopicsAsync(List<RevokeTopicPermissionOptions> options);
+
+    /**
+     * Revoke permissions on topics.
+     * @param options
+     * @throws PulsarAdminException
+     */
+    void revokePermissionOnTopics(List<RevokeTopicPermissionOptions> options) throws PulsarAdminException;
+
+    /**
      * Revoke permissions on a namespace.
      * <p/>
      * Revoke all permissions to a client role on a namespace.
@@ -823,6 +851,15 @@ public interface Namespaces {
     /**
      * Set the replication clusters for a namespace.
      * <p/>
+     * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
+     * <ul>
+     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the data
+     *     from the removed cluster.</li>
+     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
+     *     operating cluster's behavior. Geo-replication stops from the operating cluster to the
+     *     removed cluster, but existing data on the removed cluster is preserved.</li>
+     * </ul>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -849,6 +886,15 @@ public interface Namespaces {
 
     /**
      * Set the replication clusters for a namespace asynchronously.
+     * <p/>
+     * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
+     * <ul>
+     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the data
+     *     from the removed cluster.</li>
+     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
+     *     operating cluster's behavior. Geo-replication stops from the operating cluster to the
+     *     removed cluster, but existing data on the removed cluster is preserved.</li>
+     * </ul>
      * <p/>
      * Request example:
      *
@@ -4679,5 +4725,88 @@ public interface Namespaces {
      * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace.
      */
     boolean getDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the allowed clusters for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["use", "usw", "usc"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PreconditionFailedException
+     *             Namespace is not global
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getNamespaceAllowedClusters(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the allowed clusters for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["use", "usw", "usc"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<List<String>> getNamespaceAllowedClustersAsync(String namespace);
+
+    /**
+     * Set the allowed clusters for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>["us-west", "us-east", "us-cent"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusterIds
+     *            Pulsar Cluster Ids
+     *
+     * @throws ConflictException
+     *             Peer-cluster cannot be part of an allowed-cluster
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PreconditionFailedException
+     *             Namespace is not global
+     * @throws PreconditionFailedException
+     *             Invalid cluster ids
+     * @throws PulsarAdminException
+     *             The list of allowed clusters should include all replication clusters.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceAllowedClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException;
+
+    /**
+     * Set the allowed clusters for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>["us-west", "us-east", "us-cent"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusterIds
+     *            Pulsar Cluster Ids
+     */
+    CompletableFuture<Void> setNamespaceAllowedClustersAsync(String namespace, Set<String> clusterIds);
 
 }

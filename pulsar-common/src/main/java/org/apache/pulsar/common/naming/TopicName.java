@@ -19,15 +19,12 @@
 package org.apache.pulsar.common.naming;
 
 import com.google.common.base.Splitter;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 
@@ -53,13 +50,17 @@ public class TopicName implements ServiceUnitId {
 
     private final int partitionIndex;
 
-    private static final LoadingCache<String, TopicName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, TopicName>() {
-                @Override
-                public TopicName load(String name) throws Exception {
-                    return new TopicName(name);
-                }
-            });
+    private static final ConcurrentHashMap<String, TopicName> cache = new ConcurrentHashMap<>();
+
+    public static void clearIfReachedMaxCapacity(int maxCapacity) {
+        if (maxCapacity < 0) {
+            // Unlimited cache.
+            return;
+        }
+        if (cache.size() > maxCapacity) {
+            cache.clear();
+        }
+    }
 
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
@@ -78,11 +79,11 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String topic) {
-        try {
-            return cache.get(topic);
-        } catch (ExecutionException | UncheckedExecutionException e) {
-            throw (RuntimeException) e.getCause();
+        TopicName tp = cache.get(topic);
+        if (tp != null) {
+            return tp;
         }
+        return cache.computeIfAbsent(topic, k -> new TopicName(k));
     }
 
     public static TopicName getPartitionedTopicName(String topic) {
@@ -100,6 +101,14 @@ public class TopicName implements ServiceUnitId {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public static String getPartitionPattern(String topic) {
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "-partition-[0-9]+$";
+    }
+
+    public static String getPattern(String topic) {
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "$";
     }
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
@@ -162,9 +171,9 @@ public class TopicName implements ServiceUnitId {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
 
-
-            if (localName == null || localName.isEmpty()) {
-                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
+            if (StringUtils.isBlank(localName)) {
+                throw new IllegalArgumentException(String.format("Invalid topic name: %s. Topic local name must not"
+                        + " be blank.", completeTopicName));
             }
 
         } catch (NullPointerException e) {
@@ -358,17 +367,16 @@ public class TopicName implements ServiceUnitId {
         String localName;
         if (parts.size() == 4) {
             tenant = parts.get(0);
-            cluster = null;
             namespacePortion = parts.get(1);
             domain = parts.get(2);
-            localName = parts.get(3);
+            localName = Codec.decode(parts.get(3));
             return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
         } else if (parts.size() == 5) {
             tenant = parts.get(0);
             cluster = parts.get(1);
             namespacePortion = parts.get(2);
             domain = parts.get(3);
-            localName = parts.get(4);
+            localName = Codec.decode(parts.get(4));
             return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
         } else {
             throw new IllegalArgumentException("Invalid managedLedger name: " + mlName);
@@ -434,5 +442,79 @@ public class TopicName implements ServiceUnitId {
      */
     public boolean isV2() {
         return cluster == null;
+    }
+
+    /**
+     * Convert a topic name to a full topic name.
+     * In Pulsar, a full topic name is "<domain>://<tenant>/<namespace>/<local-topic>" (v2) or
+     * "<domain>://<tenant>/<cluster>/<namespace>/<local-topic>" (v1). However, for convenient, it's allowed for clients
+     * to pass a short topic name with v2 format:
+     * - "<local-topic>", which represents "persistent://public/default/<local-topic>"
+     * - "<tenant>/<namespace>/<local-topic>, which represents "persistent://<tenant>/<namespace>/<local-topic>"
+     *
+     * @param topic the topic name from client
+     * @return the full topic name.
+     */
+    public static String toFullTopicName(String topic) {
+        final int index = topic.indexOf("://");
+        if (index >= 0) {
+            TopicDomain.getEnum(topic.substring(0, index));
+            final List<String> parts = splitBySlash(topic.substring(index + "://".length()), 4);
+            if (parts.size() != 3 && parts.size() != 4) {
+                throw new IllegalArgumentException(topic + " is invalid");
+            }
+            if (parts.size() == 3) {
+                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1));
+                if (StringUtils.isBlank(parts.get(2))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+            } else {
+                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1), parts.get(2));
+                if (StringUtils.isBlank(parts.get(3))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+            }
+            return topic; // it's a valid full topic name
+        } else {
+            List<String> parts = splitBySlash(topic, 0);
+            if (parts.size() != 1 && parts.size() != 3) {
+                throw new IllegalArgumentException(topic + " is invalid");
+            }
+            if (parts.size() == 1) {
+                if (StringUtils.isBlank(parts.get(0))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+                return "persistent://public/default/" + parts.get(0);
+            } else {
+                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1));
+                if (StringUtils.isBlank(parts.get(2))) {
+                    throw new IllegalArgumentException(topic + " has blank local topic");
+                }
+                return "persistent://" + topic;
+            }
+        }
+    }
+
+    private static List<String> splitBySlash(String topic, int limit) {
+        final List<String> tokens = new ArrayList<>(3);
+        final int loopCount = (limit <= 0) ? Integer.MAX_VALUE : limit - 1;
+        int beginIndex = 0;
+        for (int i = 0; i < loopCount; i++) {
+            final int endIndex = topic.indexOf('/', beginIndex);
+            if (endIndex < 0) {
+                tokens.add(topic.substring(beginIndex));
+                return tokens;
+            } else if (endIndex > beginIndex) {
+                tokens.add(topic.substring(beginIndex, endIndex));
+            } else {
+                throw new IllegalArgumentException("Invalid topic name " + topic);
+            }
+            beginIndex = endIndex + 1;
+        }
+        if (beginIndex >= topic.length()) {
+            throw new IllegalArgumentException("Invalid topic name " + topic);
+        }
+        tokens.add(topic.substring(beginIndex));
+        return tokens;
     }
 }

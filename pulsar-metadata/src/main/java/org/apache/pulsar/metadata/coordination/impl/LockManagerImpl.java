@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -52,7 +52,7 @@ class LockManagerImpl<T> implements LockManager<T> {
     private final MetadataCache<T> cache;
     private final MetadataSerde<T> serde;
     private final FutureUtil.Sequencer<Void> sequencer;
-    private final ExecutorService executor;
+    private final ScheduledExecutorService executor;
 
     private enum State {
         Ready, Closed
@@ -60,13 +60,13 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     private State state = State.Ready;
 
-    LockManagerImpl(MetadataStoreExtended store, Class<T> clazz, ExecutorService executor) {
+    LockManagerImpl(MetadataStoreExtended store, Class<T> clazz, ScheduledExecutorService executor) {
         this(store, new JSONMetadataSerdeSimpleType<>(
                 TypeFactory.defaultInstance().constructSimpleType(clazz, null)),
                 executor);
     }
 
-    LockManagerImpl(MetadataStoreExtended store, MetadataSerde<T> serde, ExecutorService executor) {
+    LockManagerImpl(MetadataStoreExtended store, MetadataSerde<T> serde, ScheduledExecutorService executor) {
         this.store = store;
         this.cache = store.getMetadataCache(serde);
         this.serde = serde;
@@ -83,7 +83,7 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<ResourceLock<T>> acquireLock(String path, T value) {
-        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path);
+        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path, executor);
 
         CompletableFuture<ResourceLock<T>> result = new CompletableFuture<>();
         lock.acquire(value).thenRun(() -> {

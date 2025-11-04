@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import javax.servlet.http.HttpServletRequest;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import javax.servlet.http.HttpServletRequest;
+import lombok.Cleanup;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class FunctionWorkerRoutingTest {
 
@@ -37,8 +38,14 @@ public class FunctionWorkerRoutingTest {
         proxyConfig.setBrokerWebServiceURL(brokerUrl);
         proxyConfig.setFunctionWorkerWebServiceURL(functionWorkerUrl);
 
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         BrokerDiscoveryProvider discoveryProvider = mock(BrokerDiscoveryProvider.class);
-        AdminProxyHandler handler = new AdminProxyHandler(proxyConfig, discoveryProvider);
+        AdminProxyHandler handler = new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication);
 
         String funcUrl = handler.rewriteTarget(buildRequest("/admin/v3/functions/test/test"));
         Assert.assertEquals(funcUrl, String.format("%s/admin/v3/functions/%s/%s",

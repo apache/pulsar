@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import com.google.common.io.Resources;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -36,6 +34,13 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SimpleBrokerStartTest {
+
+    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+            .getPath();
+    private static final String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    private static final String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     public void testHasNICSpeed() throws Exception {
         if (!LinuxInfoUtils.isLinux()) {
@@ -57,6 +62,9 @@ public class SimpleBrokerStartTest {
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setAdvertisedAddress("localhost");
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
         boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
         if (hasNicSpeeds) {
             @Cleanup
@@ -85,16 +93,14 @@ public class SimpleBrokerStartTest {
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setAdvertisedAddress("localhost");
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
         boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
         if (!hasNicSpeeds) {
             @Cleanup
             PulsarService pulsarService = new PulsarService(config);
-            try {
-                pulsarService.start();
-                fail("unexpected behaviour");
-            } catch (PulsarServerException ex) {
-                assertTrue(ex.getCause() instanceof IllegalStateException);
-            }
+            pulsarService.start();
         }
     }
 

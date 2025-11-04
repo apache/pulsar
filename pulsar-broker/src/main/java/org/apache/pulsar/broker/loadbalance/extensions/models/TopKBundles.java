@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -68,15 +69,27 @@ public class TopKBundles {
     public void update(Map<String, NamespaceBundleStats> bundleStats, int topk) {
         arr.clear();
         try {
+            var conf = pulsar.getConfiguration();
             var isLoadBalancerSheddingBundlesWithPoliciesEnabled =
-                    pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+                    conf.isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+            Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
             for (var etr : bundleStats.entrySet()) {
                 String bundle = etr.getKey();
+                var stat = etr.getValue();
+
+                // skip zero traffic bundles
+                if (stat.msgThroughputIn + stat.msgThroughputOut == 0) {
+                    continue;
+                }
                 // TODO: do not filter system topic while shedding
-                if (NamespaceService.isSystemServiceNamespace(NamespaceBundle.getBundleNamespace(bundle))) {
+                String namespace = NamespaceBundle.getBundleNamespace(bundle);
+                if (NamespaceService.isSystemServiceNamespace(namespace)) {
                     continue;
                 }
                 if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled && hasPolicies(bundle)) {
+                    continue;
+                }
+                if (sheddingExcludedNamespaces.contains(namespace)) {
                     continue;
                 }
                 arr.add(etr);
@@ -99,7 +112,7 @@ public class TopKBundles {
         }
     }
 
-    static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
+    public static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
         int start = 0;
         int end = arr.size() - 1;
         int target = k - 1;

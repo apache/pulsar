@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.apache.pulsar.client.util.RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -54,7 +54,7 @@ public class SimpleProducerConsumerDisallowAutoCreateTopicTest extends ProducerC
     public void testClearErrorIfRetryTopicNotExists() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
         final String subName = "sub";
-        final String retryTopicName = topicName + "-" + subName + RETRY_GROUP_TOPIC_SUFFIX;
+        final String retryTopicName = RetryMessageUtil.getRetryTopic(topicName, subName);
         admin.topics().createNonPartitionedTopic(topicName);
         Consumer consumer = null;
         try {

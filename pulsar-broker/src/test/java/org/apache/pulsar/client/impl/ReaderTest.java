@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -26,28 +27,37 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
@@ -66,8 +76,9 @@ import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -76,7 +87,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-sub";
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -88,7 +99,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -111,7 +122,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         try (Producer<byte[]> producer = builder.create()) {
             Future<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
-                String key = "key"+i;
+                String key = "key" + i;
                 byte[] data = ("my-message-" + i).getBytes();
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
@@ -175,18 +186,17 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         List<TopicMessageId> topicMessageIds1 =  reader1.getLastMessageIds();
         assertEquals(topicMessageIds1.size(), 1);
         assertEquals(topicMessageIds1.get(0).getOwnerTopic(), topic1);
-        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getEntryId(), messageId1.getEntryId());
-        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getLedgerId(), messageId1.getLedgerId());
+        assertEquals(((MessageIdAdv) topicMessageIds1.get(0)).getEntryId(), messageId1.getEntryId());
+        assertEquals(((MessageIdAdv) topicMessageIds1.get(0)).getLedgerId(), messageId1.getLedgerId());
 
         List<TopicMessageId> topicMessageIds2 = reader2.getLastMessageIds();
         assertEquals(topicMessageIds2.size(), 2);
         for (TopicMessageId topicMessageId: topicMessageIds2) {
             if (topicMessageId.getOwnerTopic().equals(topic1)) {
-                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId1.getEntryId());
-                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId1.getLedgerId());
+                assertEquals(((MessageIdAdv) topicMessageId).getLedgerId(), messageId1.getLedgerId());
             } else {
-                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId2.getEntryId());
-                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId2.getLedgerId());
+                assertEquals(((MessageIdAdv) topicMessageId).getEntryId(), messageId2.getEntryId());
+                assertEquals(((MessageIdAdv) topicMessageId).getLedgerId(), messageId2.getLedgerId());
             }
         }
     }
@@ -197,21 +207,41 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         testReadMessages(topic, true);
     }
 
-    @Test
-    public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
+    @DataProvider
+    public static Object[][] seekBeforeHasMessageAvailable() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(timeOut = 20000, dataProvider = "seekBeforeHasMessageAvailable")
+    public void testReadMessageWithBatchingWithMessageInclusive(boolean seekBeforeHasMessageAvailable)
+            throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         Set<String> keys = publishMessages(topic, 10, true);
 
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
                                             .startMessageIdInclusive().readerName(subscription).create();
 
-        while (reader.hasMessageAvailable()) {
-            Assert.assertTrue(keys.remove(reader.readNext().getKey()));
+        if (seekBeforeHasMessageAvailable) {
+            reader.seek(0L); // it should seek to the earliest
         }
+
+        assertTrue(reader.hasMessageAvailable());
+        final Message<byte[]> msg = reader.readNext();
+        assertTrue(keys.remove(msg.getKey()));
         // start from latest with start message inclusive should only read the last message in batch
         assertEquals(keys.size(), 9);
-        Assert.assertFalse(keys.contains("key9"));
-        Assert.assertFalse(reader.hasMessageAvailable());
+
+        final MessageIdAdv msgId = (MessageIdAdv) msg.getMessageId();
+        if (seekBeforeHasMessageAvailable) {
+            assertEquals(msgId.getBatchIndex(), 0);
+            assertFalse(keys.contains("key0"));
+            assertTrue(reader.hasMessageAvailable());
+        } else {
+            assertEquals(msgId.getBatchIndex(), 9);
+            assertFalse(reader.hasMessageAvailable());
+            assertFalse(keys.contains("key9"));
+            assertFalse(reader.hasMessageAvailable());
+        }
     }
 
     private void testReadMessages(String topic, boolean enableBatch) throws Exception {
@@ -309,7 +339,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testReaderWithTimeLong() throws Exception {
         String ns = "my-property/my-ns";
-        String topic = "persistent://" + ns + "/testReadFromPartition";
+        String topic = "persistent://" + ns + "/testReaderWithTimeLong";
         RetentionPolicies retention = new RetentionPolicies(-1, -1);
         admin.namespaces().setRetention(ns, retention);
 
@@ -410,7 +440,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReaderHasMessageAvailable() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
+        final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable"
+                + System.currentTimeMillis();
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
@@ -813,4 +844,296 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         producer.close();
         admin.topics().delete(topic, false);
     }
+
+    @DataProvider
+    public static Object[][] initializeLastMessageIdInBroker() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "initializeLastMessageIdInBroker")
+    public void testHasMessageAvailableAfterSeek(boolean initializeLastMessageIdInBroker) throws Exception {
+        final String topic = "persistent://my-property/my-ns/test-has-message-available-after-seek";
+        @Cleanup Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                .startMessageId(MessageId.earliest).create();
+
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        producer.send("msg");
+
+        if (initializeLastMessageIdInBroker) {
+            assertTrue(reader.hasMessageAvailable());
+        } // else: lastMessageIdInBroker is earliest
+
+        reader.seek(MessageId.latest);
+        // lastMessageIdInBroker is the last message ID, while startMessageId is still earliest
+        assertFalse(reader.hasMessageAvailable());
+
+        producer.send("msg");
+        assertTrue(reader.hasMessageAvailable());
+    }
+
+    @Test(dataProvider = "initializeLastMessageIdInBroker")
+    public void testHasMessageAvailableAfterSeekTimestamp(boolean initializeLastMessageIdInBroker) throws Exception {
+        final String topic = "persistent://my-property/my-ns/test-has-message-available-after-seek-timestamp";
+
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        final long timestampBeforeSend = System.currentTimeMillis();
+        final MessageId sentMsgId = producer.send("msg");
+
+        final List<MessageId> messageIds = new ArrayList<>();
+        messageIds.add(MessageId.earliest);
+        messageIds.add(sentMsgId);
+        messageIds.add(MessageId.latest);
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageId(messageId).create();
+            if (initializeLastMessageIdInBroker) {
+                if (messageId == MessageId.earliest) {
+                    assertTrue(reader.hasMessageAvailable());
+                } else {
+                    assertFalse(reader.hasMessageAvailable());
+                }
+            } // else: lastMessageIdInBroker is earliest
+            reader.seek(System.currentTimeMillis());
+            assertFalse(reader.hasMessageAvailable());
+        }
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageId(messageId).create();
+            if (initializeLastMessageIdInBroker) {
+                if (messageId == MessageId.earliest) {
+                    assertTrue(reader.hasMessageAvailable());
+                } else {
+                    assertFalse(reader.hasMessageAvailable());
+                }
+            } // else: lastMessageIdInBroker is earliest
+            reader.seek(timestampBeforeSend);
+            assertTrue(reader.hasMessageAvailable());
+        }
+    }
+
+    @Test
+    public void testHasMessageAvailableAfterSeekTimestampWithMessageIdInclusive() throws Exception {
+        final String topic = "persistent://my-property/my-ns/"
+                + "testHasMessageAvailableAfterSeekTimestampWithMessageInclusive";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        final long timestampBeforeSend = System.currentTimeMillis();
+        final MessageId sentMsgId = producer.send("msg");
+
+        final List<MessageId> messageIds = new ArrayList<>();
+        messageIds.add(MessageId.earliest);
+        messageIds.add(sentMsgId);
+        messageIds.add(MessageId.latest);
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup
+            Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .startMessageId(messageId).create();
+            assertTrue(reader.hasMessageAvailable());
+
+            reader.seek(System.currentTimeMillis());
+            assertFalse(reader.hasMessageAvailable());
+            Message<String> message = reader.readNext(10, TimeUnit.SECONDS);
+            assertNull(message);
+        }
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup
+            Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .startMessageId(messageId).create();
+            assertTrue(reader.hasMessageAvailable());
+
+            reader.seek(timestampBeforeSend);
+            assertTrue(reader.hasMessageAvailable());
+        }
+    }
+
+    @Test
+    public void testReaderBuilderStateOnRetryFailure() throws Exception {
+        String ns = "my-property/my-ns";
+        String topic = "persistent://" + ns + "/testRetryReader";
+        RetentionPolicies retention = new RetentionPolicies(-1, -1);
+        admin.namespaces().setRetention(ns, retention);
+        String badUrl = "pulsar://bad-host:8080";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(badUrl).build();
+
+        ReaderBuilder<byte[]> readerBuilder = client.newReader().topic(topic).startMessageFromRollbackDuration(100,
+                TimeUnit.SECONDS);
+        for (int i = 0; i < 3; i++) {
+            try {
+                readerBuilder.createAsync().get(1, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                log.info("It should time out due to invalid url");
+            } catch (IllegalArgumentException e) {
+                fail("It should not fail with corrupt reader state");
+            }
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testReaderDecryptFailListenerException() {
+        final String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/my-ns/testReaderDecryptFailListenerException-"
+        );
+        // should throw exception if readerDecryptFailListener is set without setting a readerListener
+        assertThatThrownBy(
+                () -> pulsarClient.newReader().topic(topic)
+                        .readerDecryptFailListener(((reader, msg) -> {
+                        }))
+                        .startMessageId(MessageId.earliest)
+                        .create()
+        )
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("readerDecryptFailListener must be set with readerListener");
+
+        // should throw exception if readerDecryptFailListener was set with cryptoFailureAction
+        assertThatThrownBy(
+                () -> pulsarClient.newReader().topic(topic)
+                        .readerDecryptFailListener(((reader, msg) -> {
+                        }))
+                        .readerListener((reader, msg) -> {
+                        })
+                        .startMessageId(MessageId.latest)
+                        .cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
+                        .create()
+        )
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("readerDecryptFailListener cannot set with cryptoFailureAction");
+    }
+
+    @Test(timeOut = 20000)
+    public void testReaderDecryptFailListenerBehaviorWithReaderImpl() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/my-ns/testDecryptFailListenerBehaviorWithConsumerImpl"
+        );
+        admin.topics().createNonPartitionedTopic(topic);
+        ReaderImpl<byte[]> reader1 = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topic)
+                .readerDecryptFailListener(((r, msg) -> {
+                }))
+                .readerListener((r, msg) -> {
+                })
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        ReaderImpl<byte[]> reader2 = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topic)
+                .readerListener((reader, msg) -> {
+                })
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        // cryptoFailureAction should be null when readerDecryptFailListener is set
+        assertNull(reader1.getConsumer().conf.getCryptoFailureAction());
+        // cryptoFailureAction should be FAIL by default when readerDecryptFailListener is not set
+        assertEquals(reader2.getConsumer().conf.getCryptoFailureAction(), ConsumerCryptoFailureAction.FAIL);
+
+        reader1.close();
+        reader2.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testReaderDecryptFailListenerBehaviorWithMultiReaderImpl() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/my-ns/testDecryptFailListenerBehaviorWithConsumerImpl"
+        );
+        admin.topics().createPartitionedTopic(topic, 3);
+        MultiTopicsReaderImpl<byte[]> reader1 = (MultiTopicsReaderImpl<byte[]>) pulsarClient.newReader().topic(topic)
+                .readerDecryptFailListener(((r, msg) -> {
+                }))
+                .readerListener((r, msg) -> {
+                })
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        MultiTopicsReaderImpl<byte[]> reader2 = (MultiTopicsReaderImpl<byte[]>) pulsarClient.newReader().topic(topic)
+                .readerListener((reader, msg) -> {
+                })
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        // cryptoFailureAction should be null when readerDecryptFailListener is set
+        assertNull(reader1.getMultiTopicsConsumer().conf.getCryptoFailureAction());
+        // cryptoFailureAction should be FAIL by default when readerDecryptFailListener is not set
+        assertEquals(reader2.getMultiTopicsConsumer().conf.getCryptoFailureAction(), ConsumerCryptoFailureAction.FAIL);
+
+        reader1.close();
+        reader2.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReaderDecryptFailListenerReceiveMessage() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/my-ns/testReaderDecryptFailListenerReceiveMessage"
+        );
+        admin.topics().createNonPartitionedTopic(topic);
+        int totalMessages = 10;
+        CountDownLatch countDownLatch = new CountDownLatch(10);
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
+                .readerDecryptFailListener(((c, msg) -> {
+                    // all messages should come into this listener due to no crypto key is set in this consumer
+                    assertTrue(msg.getEncryptionCtx().isPresent());
+                    assertTrue(msg.getEncryptionCtx().get().isEncrypted());
+                    countDownLatch.countDown();
+                }))
+                .readerListener((c, msg) -> {
+                })
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", certFilePath);
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", certFilePath);
+                    }
+                }
+                return null;
+            }
+        }
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(new EncKeyReader())
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+        countDownLatch.await();
+
+        reader.close();
+        producer.close();
+    }
+
 }

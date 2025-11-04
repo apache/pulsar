@@ -387,7 +387,8 @@ public class ConsumerBuilderImplTest {
         List<TopicConsumerConfigurationData> topicConsumerConfigurationDataList = new ArrayList<>();
         when(consumerBuilderImpl.getConf().getTopicConfigurations()).thenReturn(topicConsumerConfigurationDataList);
 
-        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl.topicConfiguration(Pattern.compile("foo")).priorityLevel(1).build();
+        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl.topicConfiguration(Pattern
+                .compile("foo")).priorityLevel(1).build();
 
         assertThat(consumerBuilder).isSameAs(consumerBuilderImpl);
         assertThat(topicConsumerConfigurationDataList).hasSize(1);
@@ -447,7 +448,8 @@ public class ConsumerBuilderImplTest {
             + "    'autoScaledReceiverQueueSizeEnabled' : true\n"
             + "  }").replace("'", "\"");
 
-        Map<String, Object> conf = new ObjectMapper().readValue(jsonConf, new TypeReference<HashMap<String,Object>>() {});
+        Map<String, Object> conf = new ObjectMapper().readValue(jsonConf,
+                new TypeReference<HashMap<String, Object>>() {});
 
         MessageListener<byte[]> messageListener = (consumer, message) -> {};
         conf.put("messageListener", messageListener);
@@ -455,7 +457,7 @@ public class ConsumerBuilderImplTest {
         conf.put("consumerEventListener", consumerEventListener);
         RedeliveryBackoff negativeAckRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();
         conf.put("negativeAckRedeliveryBackoff", negativeAckRedeliveryBackoff);
-        RedeliveryBackoff ackTimeoutRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();;
+        RedeliveryBackoff ackTimeoutRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();
         conf.put("ackTimeoutRedeliveryBackoff", ackTimeoutRedeliveryBackoff);
         CryptoKeyReader cryptoKeyReader = DefaultCryptoKeyReader.builder().build();
         conf.put("cryptoKeyReader", cryptoKeyReader);
@@ -504,7 +506,7 @@ public class ConsumerBuilderImplTest {
         assertTrue(configurationData.isRetryEnable());
         assertFalse(configurationData.isAutoUpdatePartitions());
         assertEquals(configurationData.getAutoUpdatePartitionsIntervalSeconds(), 2);
-        assertTrue(configurationData.isReplicateSubscriptionState());
+        assertEquals(configurationData.getReplicateSubscriptionState(), Boolean.TRUE);
         assertTrue(configurationData.isResetIncludeHead());
         assertTrue(configurationData.isBatchIndexAckEnabled());
         assertTrue(configurationData.isAckReceiptEnabled());
@@ -550,7 +552,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getMaxPendingChunkedMessage(), 10);
         assertFalse(configurationData.isAutoAckOldestChunkedMessageOnQueueFull());
         assertEquals(configurationData.getExpireTimeOfIncompleteChunkedMessageMillis(), TimeUnit.MINUTES.toMillis(1));
-        assertEquals(configurationData.getCryptoFailureAction(), ConsumerCryptoFailureAction.FAIL);
+        assertNull(configurationData.getCryptoFailureAction());
         assertThat(configurationData.getProperties()).hasSize(1)
             .hasFieldOrPropertyWithValue("prop", "prop-value");
         assertFalse(configurationData.isReadCompacted());
@@ -564,9 +566,9 @@ public class ConsumerBuilderImplTest {
         assertFalse(configurationData.isRetryEnable());
         assertTrue(configurationData.isAutoUpdatePartitions());
         assertEquals(configurationData.getAutoUpdatePartitionsIntervalSeconds(), 60);
-        assertFalse(configurationData.isReplicateSubscriptionState());
+        assertNull(configurationData.getReplicateSubscriptionState());
         assertFalse(configurationData.isResetIncludeHead());
-        assertFalse(configurationData.isBatchIndexAckEnabled());
+        assertTrue(configurationData.isBatchIndexAckEnabled());
         assertFalse(configurationData.isAckReceiptEnabled());
         assertFalse(configurationData.isPoolMessages());
         assertFalse(configurationData.isStartPaused());
@@ -582,6 +584,38 @@ public class ConsumerBuilderImplTest {
         assertNull(configurationData.getBatchReceivePolicy());
         assertNull(configurationData.getKeySharedPolicy());
         assertNull(configurationData.getPayloadProcessor());
+    }
+
+    @Test
+    public void testReplicateSubscriptionState() {
+        ConsumerBuilderImpl<byte[]> consumerBuilder = createConsumerBuilder();
+        assertNull(consumerBuilder.getConf().getReplicateSubscriptionState());
+
+        consumerBuilder.replicateSubscriptionState(true);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.TRUE);
+
+        consumerBuilder.replicateSubscriptionState(false);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.FALSE);
+
+        Map<String, Object> conf = new HashMap<>();
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertNull(consumerBuilder.getConf().getReplicateSubscriptionState());
+
+        conf.put("replicateSubscriptionState", true);
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.TRUE);
+
+        conf.put("replicateSubscriptionState", false);
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.FALSE);
+
+        conf.put("replicateSubscriptionState", null);
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertNull(consumerBuilder.getConf().getReplicateSubscriptionState());
     }
 
     private ConsumerBuilderImpl<byte[]> createConsumerBuilder() {
@@ -603,7 +637,9 @@ public class ConsumerBuilderImplTest {
             .cryptoKeyReader(DefaultCryptoKeyReader.builder().build())
             .messageCrypto(new MessageCryptoBc("ctx1", true))
             .properties(properties)
-            .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("dlq").retryLetterTopic("retry").initialSubscriptionName("dlq-sub").maxRedeliverCount(1).build())
+            .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("dlq")
+                    .retryLetterTopic("retry").initialSubscriptionName("dlq-sub")
+                    .maxRedeliverCount(1).build())
             .batchReceivePolicy(BatchReceivePolicy.builder().maxNumBytes(1).build())
             .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
             .messagePayloadProcessor(createMockMessagePayloadProcessor());

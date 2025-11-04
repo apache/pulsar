@@ -49,6 +49,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -64,7 +66,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -75,6 +77,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
 
     private static final int TEST_TIMEOUT_MS = 30_000;
 
+    private Authentication proxyClientAuthentication;
     private ProxyService proxyService;
 
     @Override
@@ -110,6 +113,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
         return proxyConfig;
     }
 
@@ -130,7 +134,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         }
     }
 
-    @NotNull
+    @NonNull
     private InetSocketAddress getSourceBrokerInetAddress(TopicName topicName) throws PulsarAdminException {
         var srcBrokerUrl = admin.lookups().lookupTopic(topicName.toString());
         var serviceUri = ServiceURI.create(srcBrokerUrl);
@@ -149,8 +153,11 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
     @BeforeMethod(alwaysRun = true)
     public void proxySetup() throws Exception {
         var proxyConfig = initializeProxyConfig();
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
@@ -161,6 +168,9 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
     public void proxyCleanup() throws Exception {
         if (proxyService != null) {
             proxyService.close();
+        }
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
         }
     }
 

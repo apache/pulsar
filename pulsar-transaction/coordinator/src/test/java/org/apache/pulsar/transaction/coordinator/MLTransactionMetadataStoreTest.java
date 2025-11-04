@@ -124,7 +124,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 subscriptions.add(new TransactionSubscription("topic1", "sub1"));
                 subscriptions.add(new TransactionSubscription("topic2", "sub2"));
                 transactionMetadataStore.addAckedPartitionToTxn(txnID, subscriptions).get();
-                Assert.assertTrue(transactionMetadataStore.getTxnMeta(txnID).get().ackedPartitions().containsAll(subscriptions));
+                Assert.assertTrue(transactionMetadataStore.getTxnMeta(txnID).get()
+                        .ackedPartitions().containsAll(subscriptions));
 
                 transactionMetadataStore.addAckedPartitionToTxn(txnID, subscriptions).get();
                 assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(),
@@ -414,11 +415,15 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1));
                 FutureUtil.waitForAll(futureList).get();
 
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN, false));
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING,
+                        TxnStatus.OPEN, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING,
+                        TxnStatus.OPEN, false));
 
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false));
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED,
+                        TxnStatus.COMMITTING, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED,
+                        TxnStatus.ABORTING, false));
                 FutureUtil.waitForAll(futureList).get();
 
                 Field field = mlTransactionLog.getClass().getDeclaredField("cursor");
@@ -439,7 +444,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
      * TODO After the batch feature is dynamically switched，append tests that contain both batch and non-batch data.
      */
     @Test(dataProvider = "bufferedWriterConfigDataProvider")
-    public void testRecoverWhenDeleteFromCursor(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
+    public void testRecoverWhenDeleteFromCursor(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig)
+            throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
@@ -451,7 +457,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         @Cleanup("closeAsync")
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer,
+                DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         @Cleanup("closeAsync")
         MLTransactionMetadataStore transactionMetadataStore =
@@ -524,8 +531,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker {
 
         @Override
-        public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
-            return null;
+        public void addTransaction(long sequenceId, long timeout) {
         }
 
         @Override
@@ -547,7 +553,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public static class TransactionRecoverTrackerImpl implements TransactionRecoverTracker {
 
         @Override
-        public void updateTransactionStatus(long sequenceId, TxnStatus txnStatus) throws CoordinatorException.InvalidTxnStatusException {
+        public void updateTransactionStatus(long sequenceId, TxnStatus txnStatus)
+                throws CoordinatorException.InvalidTxnStatusException {
 
         }
 

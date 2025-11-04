@@ -19,11 +19,13 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 /**
  * A starter to start function worker.
@@ -31,35 +33,36 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 @Slf4j
 public class FunctionWorkerStarter {
 
+    @Command(name = "functions-worker", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class WorkerArguments {
-        @Parameter(
+        @Option(
             names = { "-c", "--conf" },
             description = "Configuration File for Function Worker")
         private String configFile;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
     }
 
+
     public static void main(String[] args) throws Exception {
         WorkerArguments workerArguments = new WorkerArguments();
-        JCommander commander = new JCommander(workerArguments);
-        commander.setProgramName("FunctionWorkerStarter");
+        CommandLine commander = new CommandLine(workerArguments);
+        commander.setCommandName("FunctionWorkerStarter");
 
-        // parse args by commander
-        commander.parse(args);
+        commander.parseArgs(args);
 
         if (workerArguments.help) {
-            commander.usage();
+            commander.usage(commander.getOut());
             return;
         }
 
         if (workerArguments.generateDocs) {
             CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-            cmd.addCommand("functions-worker", workerArguments);
+            cmd.addCommand("functions-worker", commander);
             cmd.run(null);
             return;
         }

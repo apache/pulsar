@@ -20,10 +20,6 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.RESOURCE_QUOTA_BASE_PATH;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -56,76 +52,72 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
  */
-public class LoadSimulationController {
+@Command(name = "simulation-controller",
+        description = "Provides a shell for the user to dictate how simulation clients should "
+        + "incur load.")
+public class LoadSimulationController extends CmdBase{
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
 
     // Input streams for each client to send commands through.
-    private final DataInputStream[] inputStreams;
+    private DataInputStream[] inputStreams;
 
     // Output streams for each client to receive information from.
-    private final DataOutputStream[] outputStreams;
+    private DataOutputStream[] outputStreams;
 
     // client host names.
-    private final String[] clients;
+    private String[] clients;
 
-    // Port clients are listening on.
-    private final int clientPort;
-
-    // The ZooKeeper cluster to run on.
-    private final String cluster;
-
-    private final Random random;
+    private Random random;
 
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
-    // JCommander arguments for starting a controller via main.
-    @Parameters(commandDescription = "Provides a shell for the user to dictate how simulation clients should "
-            + "incur load.")
-    private static class MainArguments {
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
+    // picocli arguments for starting a controller via main.
 
-        @Parameter(names = { "--cluster" }, description = "Cluster to test on", required = true)
-        String cluster;
+    @Option(names = { "--cluster" }, description = "Cluster to test on", required = true)
+    String cluster;
 
-        @Parameter(names = { "--clients" }, description = "Comma separated list of client hostnames", required = true)
-        String clientHostNames;
+    @Option(names = { "--clients" }, description = "Comma separated list of client hostnames", required = true)
+    String clientHostNames;
 
-        @Parameter(names = { "--client-port" }, description = "Port that the clients are listening on", required = true)
-        int clientPort;
-    }
+    @Option(names = { "--client-port" }, description = "Port that the clients are listening on", required = true)
+    int clientPort;
 
-    // JCommander arguments for accepting user input.
+
+    // picocli arguments for accepting user input.
     private static class ShellArguments {
-        @Parameter(description = "Command arguments:\n" + "trade tenant namespace topic\n"
+        @Parameters(description = "Command arguments:\n" + "trade tenant namespace topic\n"
                 + "change tenant namespace topic\n" + "stop tenant namespace topic\n"
                 + "trade_group tenant group_name num_namespaces\n" + "change_group tenant group_name\n"
                 + "stop_group tenant group_name\n" + "script script_name\n" + "copy tenant_name source_zk target_zk\n"
-                + "stream source_zk\n" + "simulate zk\n", required = true)
+                + "stream source_zk\n" + "simulate zk\n", arity = "1")
         List<String> commandArguments;
 
-        @Parameter(names = { "--rand-rate" }, description = "Choose message rate uniformly randomly from the next two "
+        @Option(names = { "--rand-rate" }, description = "Choose message rate uniformly randomly from the next two "
                 + "comma separated values (overrides --rate)")
         String rangeString = "";
 
-        @Parameter(names = { "--rate" }, description = "Messages per second")
+        @Option(names = { "--rate" }, description = "Messages per second")
         double rate = 1;
 
-        @Parameter(names = { "--rate-multiplier" }, description = "Multiplier to use for copying or streaming rates")
+        @Option(names = { "--rate-multiplier" }, description = "Multiplier to use for copying or streaming rates")
         double rateMultiplier = 1;
 
-        @Parameter(names = { "--separation" }, description = "Separation time in ms for trade_group actions "
+        @Option(names = { "--separation" }, description = "Separation time in ms for trade_group actions "
                 + "(0 for no separation)")
         int separation = 0;
 
-        @Parameter(names = { "--size" }, description = "Message size in bytes")
+        @Option(names = { "--size" }, description = "Message size in bytes")
         int size = 1024;
 
-        @Parameter(names = { "--topics-per-namespace" }, description = "Number of topics to create per namespace in "
+        @Option(names = { "--topics-per-namespace" }, description = "Number of topics to create per namespace in "
                 + "trade_group (total number of topics is num_namespaces X num_topics)")
         int topicsPerNamespace = 1;
     }
@@ -212,26 +204,11 @@ public class LoadSimulationController {
     }
 
     /**
-     * Create a LoadSimulationController with the given JCommander arguments.
+     * Create a LoadSimulationController with the given picocli arguments.
      *
-     * @param arguments
-     *            Arguments to create from.
      */
-    public LoadSimulationController(final MainArguments arguments) throws Exception {
-        random = new Random();
-        clientPort = arguments.clientPort;
-        cluster = arguments.cluster;
-        clients = arguments.clientHostNames.split(",");
-        final Socket[] sockets = new Socket[clients.length];
-        inputStreams = new DataInputStream[clients.length];
-        outputStreams = new DataOutputStream[clients.length];
-        log.info("Found {} clients:", clients.length);
-        for (int i = 0; i < clients.length; ++i) {
-            sockets[i] = new Socket(clients[i], clientPort);
-            inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
-            outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
-            log.info("Connected to {}", clients[i]);
-        }
+    public LoadSimulationController() throws Exception {
+        super("simulation-controller");
     }
 
     // Check that the expected number of application arguments matches the
@@ -318,7 +295,7 @@ public class LoadSimulationController {
         outputStream.writeDouble(arguments.rate);
     }
 
-    // Change producer settings for a given topic and JCommander arguments.
+    // Change producer settings for a given topic and picocli arguments.
     private void change(final ShellArguments arguments, final String topic, final int client) throws Exception {
         outputStreams[client].write(LoadSimulationClient.CHANGE_COMMAND);
         writeProducerOptions(outputStreams[client], arguments, topic);
@@ -360,7 +337,7 @@ public class LoadSimulationController {
         return clientWithTopic;
     }
 
-    // Trade using the arguments parsed via JCommander and the topic name.
+    // Trade using the arguments parsed via picocli and the topic name.
     private synchronized void trade(final ShellArguments arguments, final String topic, final int client)
             throws Exception {
         // Decide which client to send to randomly to preserve statelessness of
@@ -546,7 +523,7 @@ public class LoadSimulationController {
             // This controller will now stream rate changes from the given ZK.
             // Users wishing to stop this should Ctrl + C and use another
             // Controller to send new commands.
-            while (true) {}
+            Thread.currentThread().join();
         }
     }
 
@@ -632,9 +609,9 @@ public class LoadSimulationController {
         // Don't attempt to process blank input.
         if (args.length > 0 && !(args.length == 1 && args[0].isEmpty())) {
             final ShellArguments arguments = new ShellArguments();
-            final JCommander jc = new JCommander(arguments);
+            final CommandLine commander = new CommandLine(arguments);
             try {
-                jc.parse(args);
+                commander.parseArgs(args);
                 final String command = arguments.commandArguments.get(0);
                 switch (command) {
                 case "trade":
@@ -661,14 +638,13 @@ public class LoadSimulationController {
                     final List<String> commandArguments = arguments.commandArguments;
                     checkAppArgs(commandArguments.size() - 1, 1);
                     final String scriptName = commandArguments.get(1);
-                    final BufferedReader scriptReader = new BufferedReader(
-                            new InputStreamReader(new FileInputStream(Paths.get(scriptName).toFile())));
-                    String line = scriptReader.readLine();
-                    while (line != null) {
-                        read(line.split("\\s+"));
-                        line = scriptReader.readLine();
+                    try (BufferedReader scriptReader = new BufferedReader(
+                            new InputStreamReader(new FileInputStream(Paths.get(scriptName).toFile())))) {
+                        String line;
+                        while ((line = scriptReader.readLine()) != null) {
+                            read(line.split("\\s+"));
+                        }
                     }
-                    scriptReader.close();
                     break;
                 case "copy":
                     handleCopy(arguments);
@@ -687,8 +663,8 @@ public class LoadSimulationController {
                     log.info("ERROR: Unknown command \"{}\"", command);
                 }
             } catch (ParameterException ex) {
-                ex.printStackTrace();
-                jc.usage();
+                System.out.println(ex.getMessage());
+                commander.usage(commander.getOut());
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -698,9 +674,9 @@ public class LoadSimulationController {
     /**
      * Create a shell for the user to send commands to clients.
      */
-    public void run() throws Exception {
+    public void start() throws Exception {
         BufferedReader inReader = new BufferedReader(new InputStreamReader(System.in));
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             // Print the very simple prompt.
             System.out.println();
             System.out.print("> ");
@@ -711,20 +687,21 @@ public class LoadSimulationController {
     /**
      * Start a controller with command line arguments.
      *
-     * @param args
-     *            Arguments to pass in.
      */
-    public static void main(String[] args) throws Exception {
-        final MainArguments arguments = new MainArguments();
-        final JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf simulation-controller");
-        try {
-            jc.parse(args);
-        } catch (Exception ex) {
-            System.out.println(ex.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
+    @Override
+    public void run() throws Exception {
+        random = new Random();
+        clients = this.clientHostNames.split(",");
+        final Socket[] sockets = new Socket[clients.length];
+        inputStreams = new DataInputStream[clients.length];
+        outputStreams = new DataOutputStream[clients.length];
+        log.info("Found {} clients:", clients.length);
+        for (int i = 0; i < clients.length; ++i) {
+            sockets[i] = new Socket(clients[i], clientPort);
+            inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
+            outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
+            log.info("Connected to {}", clients[i]);
         }
-        (new LoadSimulationController(arguments)).run();
+        start();
     }
 }

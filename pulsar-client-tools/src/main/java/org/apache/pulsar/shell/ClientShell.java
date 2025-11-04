@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.shell;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameters;
 import java.util.Properties;
 import org.apache.pulsar.client.cli.PulsarClientTool;
+import org.apache.pulsar.internal.ShellCommandsProvider;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
 
 /**
  * Pulsar Client tool extension for Pulsar shell.
  */
-@Parameters(commandDescription = "Produce or consume messages on a specified topic")
+@Command(description = "Produce or consume messages on a specified topic")
 public class ClientShell extends PulsarClientTool implements ShellCommandsProvider {
 
     public ClientShell(Properties properties) {
         super(properties);
+        setCommandName(getName());
     }
 
     @Override
@@ -40,7 +42,7 @@ public class ClientShell extends PulsarClientTool implements ShellCommandsProvid
 
     @Override
     public String getServiceUrl() {
-        return rootParams.getServiceURL();
+        return super.getServiceUrl();
     }
 
     @Override
@@ -49,25 +51,7 @@ public class ClientShell extends PulsarClientTool implements ShellCommandsProvid
     }
 
     @Override
-    public void setupState(Properties properties) {
-        getJCommander().setProgramName(getName());
-    }
-
-    @Override
-    public void cleanupState(Properties properties) {
-        rootParams = new RootParams();
-        initRootParamsFromProperties(properties);
-        initJCommander();
-    }
-
-    @Override
-    public JCommander getJCommander() {
-        return jcommander;
-    }
-
-    @Override
-    public boolean runCommand(String[] args) throws Exception {
-        final int returnCode = run(args);
-        return returnCode == 0;
+    public CommandLine getCommander() {
+        return commander;
     }
 }

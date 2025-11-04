@@ -18,20 +18,15 @@
  */
 package org.apache.pulsar.broker.protocol;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.common.util.PortManager;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.InetSocketAddress;
@@ -45,9 +40,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
-import static org.testng.Assert.assertEquals;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.common.util.PortManager;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
@@ -127,12 +129,18 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        tempDirectory = Files.createTempDirectory("SimpleProtocolHandlerTest").toFile();
+        tempDirectory = configureProtocolHandler(conf, MyProtocolHandler.class.getName(), useSeparateThreadPool);
+        super.baseSetup();
+    }
+
+    static File configureProtocolHandler(ServiceConfiguration conf, String className, boolean useSeparateThreadPool)
+            throws Exception {
+        final var tempDirectory = Files.createTempDirectory("SimpleProtocolHandlerTest").toFile();
         conf.setUseSeparateThreadPoolForProtocolHandlers(useSeparateThreadPool);
         conf.setProtocolHandlerDirectory(tempDirectory.getAbsolutePath());
         conf.setMessagingProtocols(Collections.singleton("test"));
-        buildMockNarFile(tempDirectory);
-        super.baseSetup();
+        buildMockNarFile(tempDirectory, className);
+        return tempDirectory;
     }
 
     @Test
@@ -163,7 +171,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
         }
     }
 
-    private static void buildMockNarFile(File tempDirectory) throws Exception {
+    private static void buildMockNarFile(File tempDirectory, String className) throws Exception {
         File file = new File(tempDirectory, "temp.nar");
         try (ZipOutputStream zipfile = new ZipOutputStream(new FileOutputStream(file))) {
 
@@ -174,9 +182,9 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
             ZipEntry manifest = new ZipEntry("META-INF/services/"
                     + ProtocolHandlerUtils.PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE);
             zipfile.putNextEntry(manifest);
-            String yaml = "name: test\n" +
-                    "description: this is a test\n" +
-                    "handlerClass: " + MyProtocolHandler.class.getName() + "\n";
+            String yaml = "name: test\n"
+                    + "description: this is a test\n"
+                    + "handlerClass: " + className + "\n";
             zipfile.write(yaml.getBytes(StandardCharsets.UTF_8));
             zipfile.closeEntry();
         }

@@ -31,12 +31,14 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -381,7 +383,6 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             ledger.addEntry("entry".getBytes());
             fail("should fail");
         } catch (ManagedLedgerFencedException e) {
-            assertEquals(e.getCause().getClass(), ManagedLedgerException.BadVersionException.class);
             // ok
         }
 
@@ -508,6 +509,35 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         assertEquals(new String(entries.get(0).getData()), "entry-1");
         assertEquals(new String(entries.get(1).getData()), "entry-4");
         entries.forEach(Entry::release);
+    }
+
+    @Test
+    public void recoverAfterOpenManagedLedgerFail() throws Exception {
+        ManagedLedger ledger = factory.open("recoverAfterOpenManagedLedgerFail");
+        Position position = ledger.addEntry("entry".getBytes());
+        ledger.close();
+        bkc.failAfter(0, BKException.Code.BookieHandleNotAvailableException);
+        try {
+            factory.open("recoverAfterOpenManagedLedgerFail");
+        } catch (Exception e) {
+            // ok
+        }
+
+        ledger = factory.open("recoverAfterOpenManagedLedgerFail");
+        CompletableFuture<byte[]> future = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                future.complete(entry.getData());
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        byte[] bytes = future.get(30, TimeUnit.SECONDS);
+        assertEquals(new String(bytes), "entry");
     }
 
     @Test

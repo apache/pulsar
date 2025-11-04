@@ -75,7 +75,7 @@ class ProtocolHandlerUtils {
      */
     public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory,
                                                                String narExtractionDirectory) throws IOException {
-        Path path = Paths.get(handlersDirectory).toAbsolutePath();
+        Path path = Paths.get(handlersDirectory).toAbsolutePath().normalize();
         log.info("Searching for protocol handlers in {}", path);
 
         ProtocolHandlerDefinitions handlers = new ProtocolHandlerDefinitions();
@@ -119,7 +119,7 @@ class ProtocolHandlerUtils {
      */
     static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata,
                                                String narExtractionDirectory) throws IOException {
-        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
                 .parentClassLoader(ProtocolHandler.class.getClassLoader())

@@ -34,6 +34,7 @@ import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -58,13 +59,19 @@ public class BaseResources<T> {
 
     public BaseResources(MetadataStore store, Class<T> clazz, int operationTimeoutSec) {
         this.store = store;
-        this.cache = store.getMetadataCache(clazz);
+        this.cache = store.getMetadataCache(clazz, MetadataCacheConfig.builder()
+                .retryBackoff(MetadataCacheConfig.DEFAULT_RETRY_BACKOFF_BUILDER.setMandatoryStop(operationTimeoutSec,
+                        TimeUnit.SECONDS))
+                .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
 
     public BaseResources(MetadataStore store, TypeReference<T> typeRef, int operationTimeoutSec) {
         this.store = store;
-        this.cache = store.getMetadataCache(typeRef);
+        this.cache = store.getMetadataCache(typeRef, MetadataCacheConfig.builder()
+                .retryBackoff(MetadataCacheConfig.DEFAULT_RETRY_BACKOFF_BUILDER.setMandatoryStop(operationTimeoutSec,
+                        TimeUnit.SECONDS))
+                .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
 
@@ -197,22 +204,21 @@ public class BaseResources<T> {
     }
 
     protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
-        return cache.exists(path).thenCompose(exists -> {
-            if (!exists) {
-                return CompletableFuture.completedFuture(null);
+        log.info("Deleting path: {}", path);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cache.delete(path).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                log.info("Path {} did not exist in metadata store", path);
+                future.complete(null);
+            } else if (ex != null) {
+                log.info("Failed to delete path from metadata store: {}", path, ex);
+                future.completeExceptionally(ex);
+            } else {
+                log.info("Deleted path from metadata store: {}", path);
+                future.complete(null);
             }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            cache.delete(path).whenComplete((ignore, ex) -> {
-                if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                    future.complete(null);
-                } else if (ex != null) {
-                    future.completeExceptionally(ex);
-                } else {
-                    future.complete(null);
-                }
-            });
-            return future;
         });
+        return future;
     }
 
     protected boolean exists(String path) throws MetadataStoreException {

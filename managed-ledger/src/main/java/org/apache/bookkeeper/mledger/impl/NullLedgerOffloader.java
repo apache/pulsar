@@ -70,4 +70,9 @@ public class NullLedgerOffloader implements LedgerOffloader {
     public void close() {
 
     }
+
+    @Override
+    public boolean isAppendable() {
+        return false;
+    }
 }

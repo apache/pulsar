@@ -20,8 +20,6 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -48,21 +46,35 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
+@Command(name = "compact-topic", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class CompactorTool {
 
     private static class Arguments {
-        @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
+        public enum CompactorType {
+            PUBLISHING,
+            EVENT_TIME
+        }
+
+        @Option(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile = "conf/broker.conf";
 
-        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
+        @Option(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
+
+        @Option(names = {"-ct", "--compactor-type"}, description = "Choose compactor type, "
+                + "valid types are [PUBLISHING, EVENT_TIME]")
+        private CompactorType compactorType = CompactorType.PUBLISHING;
     }
 
     public static PulsarClient createClient(ServiceConfiguration brokerConfig) throws PulsarClientException {
@@ -83,7 +95,9 @@ public class CompactorTool {
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled())
+                    .sslFactoryPlugin(brokerConfig.getBrokerClientSslFactoryPlugin())
+                    .sslFactoryPluginParams(brokerConfig.getBrokerClientSslFactoryPluginParams());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientBuilder.useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
@@ -107,13 +121,11 @@ public class CompactorTool {
 
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
-        JCommander jcommander = new JCommander(arguments);
-        jcommander.setProgramName("PulsarTopicCompactor");
-
-        // parse args by JCommander
-        jcommander.parse(args);
+        CommandLine commander = new CommandLine(arguments);
+        commander.setCommandName("PulsarTopicCompactor");
+        commander.parseArgs(args);
         if (arguments.help) {
-            jcommander.usage();
+            commander.usage(commander.getOut());
             System.exit(0);
         }
 
@@ -126,7 +138,7 @@ public class CompactorTool {
 
         // init broker config
         if (isBlank(arguments.brokerConfigFile)) {
-            jcommander.usage();
+            commander.usage(commander.getOut());
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
         }
 
@@ -164,12 +176,22 @@ public class CompactorTool {
                 new DefaultThreadFactory("compactor-io"));
 
         @Cleanup
-        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
+        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null).get();
 
         @Cleanup
         PulsarClient pulsar = createClient(brokerConfig);
 
-        Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
+        Compactor compactor = null;
+
+        switch (arguments.compactorType) {
+            case PUBLISHING:
+                compactor = new PublishingOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                break;
+            case EVENT_TIME:
+                compactor = new EventTimeOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                break;
+        }
+
         long ledgerId = compactor.compact(arguments.topic).get();
         log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
     }

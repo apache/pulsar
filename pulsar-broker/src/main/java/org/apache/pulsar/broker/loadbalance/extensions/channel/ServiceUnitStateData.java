@@ -34,7 +34,7 @@ public record ServiceUnitStateData(
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
-        if (StringUtils.isBlank(dstBroker) && StringUtils.isBlank(sourceBroker)) {
+        if (state != ServiceUnitState.Free && StringUtils.isBlank(dstBroker) && StringUtils.isBlank(sourceBroker)) {
             throw new IllegalArgumentException("Empty broker");
         }
     }

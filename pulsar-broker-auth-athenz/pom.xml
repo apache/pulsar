@@ -26,12 +26,13 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-auth-athenz</artifactId>
   <packaging>jar</packaging>
   <description>Athenz authentication plugin for broker</description>
+  <name>Pulsar Broker Auth Athenz</name>
 
   <dependencies>
 

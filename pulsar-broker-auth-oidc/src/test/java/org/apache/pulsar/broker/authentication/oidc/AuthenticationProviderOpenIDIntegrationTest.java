@@ -75,6 +75,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     // These are the kid values for JWKs in the /keys endpoint
     String validJwk = "valid";
     String invalidJwk = "invalid";
+    String validJwkWithoutAlg = "valid_without_alg";
 
     // The valid issuer
     String issuer;
@@ -169,7 +170,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         // Set up JWKS endpoint with a valid and an invalid public key
         // The url matches are for both the normal and the k8s endpoints
         server.stubFor(
-                get(urlMatching( "/keys|/k8s/openid/v1/jwks/"))
+                get(urlMatching("/keys|/k8s/openid/v1/jwks/"))
                         .willReturn(aResponse()
                                 .withHeader("Content-Type", "application/json")
                                 .withBody(
@@ -188,10 +189,16 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                                 "kty":"RSA",
                                                 "n":"invalid-key",
                                                 "e":"AQAB"
+                                                },
+                                                {
+                                                "kid":"%s",
+                                                "kty":"RSA",
+                                                "n":"%s",
+                                                "e":"%s"
                                                 }
                                             ]
                                         }
-                                        """.formatted(validJwk, n, e, invalidJwk))));
+                                        """.formatted(validJwk, n, e, invalidJwk, validJwkWithoutAlg, n, e))));
 
         server.stubFor(
                 get(urlEqualTo("/missing-kid/.well-known/openid-configuration"))
@@ -208,7 +215,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         // Note that the state machine is circular to make it easier to verify the two code paths that rely on
         // this logic.
         server.stubFor(
-                get(urlMatching( "/missing-kid/keys"))
+                get(urlMatching("/missing-kid/keys"))
                         .inScenario("Changing KIDs")
                         .whenScenarioStateIs(Scenario.STARTED)
                         .willSetStateTo("serve-kid")
@@ -216,7 +223,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("{\"keys\":[]}")));
         server.stubFor(
-                get(urlMatching( "/missing-kid/keys"))
+                get(urlMatching("/missing-kid/keys"))
                         .inScenario("Changing KIDs")
                         .whenScenarioStateIs("serve-kid")
                         .willSetStateTo(Scenario.STARTED)
@@ -253,7 +260,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Files.write(Path.of(System.getenv("KUBECONFIG")), kubeConfig.getBytes());
 
         provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @AfterClass
@@ -276,6 +283,14 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     }
 
     @Test
+    public void testTokenWithValidJWKWithoutAlg() throws Exception {
+        String role = "superuser";
+        // test with a key in JWK that does not have an "alg" field. "alg" is optional in the JWK spec
+        String token = generateToken(validJwkWithoutAlg, issuer, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+    }
+
+    @Test
     public void testTokenWithTrailingSlashAndValidJWK() throws Exception {
         String role = "superuser";
         String token = generateToken(validJwk, issuer + "/trailing-slash/", role, "allowed-audience", 0L, 0L, 10000L);
@@ -285,7 +300,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     @Test
     public void testTokenWithInvalidJWK() throws Exception {
         String role = "superuser";
-        String token = generateToken(invalidJwk, issuer, role, "allowed-audience",0L, 0L, 10000L);
+        String token = generateToken(invalidJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
             fail("Expected exception");
@@ -321,7 +336,8 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     @Test
     public void testTokenWithInvalidIssuer() throws Exception {
         String role = "superuser";
-        String token = generateToken(validJwk, "https://not-an-allowed-issuer.com", role, "allowed-audience", 0L, 0L, 10000L);
+        String token = generateToken(validJwk, "https://not-an-allowed-issuer.com", role,
+                "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
             fail("Expected exception");
@@ -343,7 +359,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuerWithMissingKid, role, "allowed-audience", 0L, 0L, 10000L);
@@ -364,7 +380,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuerWithMissingKid, role, "allowed-audience", 0L, 0L, 10000L);
@@ -392,7 +408,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         // We use the normal issuer on the token because the /k8s endpoint is configured via the kube config file
@@ -426,7 +442,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
@@ -453,7 +469,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
@@ -484,7 +500,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
@@ -547,7 +563,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ACCEPTED_TIME_LEEWAY_SECONDS, "10");
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 0L);
@@ -620,7 +636,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT with a custom claim
         HashMap<String, Object> claims = new HashMap();
@@ -641,7 +657,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT without the "test" claim, which should cause the authentication to fail
         String token = generateToken(validJwk, issuer, "not-my-role", "allowed-audience", 0L,

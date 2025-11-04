@@ -141,7 +141,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
             MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
             if (lastMsgId != null) {
-                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId(), "lastMsgId: " + lastMsgId + " -- msgId: " + msgId);
+                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId(), "lastMsgId: "
+                        + lastMsgId + " -- msgId: " + msgId);
             }
             lastMsgId = msgId;
         }
@@ -163,7 +164,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled)
+            throws PulsarClientException, ExecutionException, InterruptedException {
         String topic = "persistent://my-property/my-ns/async-unack-redelivery";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -213,10 +215,10 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     }
 
     /**
-     * Validates broker should dispatch messages to consumer which still has the permit to consume more messages.
-     * 
-     * @throws Exception
-     */
+    * Validates broker should dispatch messages to consumer which still has the permit to consume more messages.
+    *
+    * @throws Exception
+    */
     @Test
     public void testConsumerWithPermitReceiveBatchMessages() throws Exception {
 
@@ -225,7 +227,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         final int queueSize = 10;
         int batchSize = 100;
         String subName = "my-subscriber-name";
-        String topicName = "permitReceiveBatchMessages"+(UUID.randomUUID().toString());
+        String topicName = "permitReceiveBatchMessages" + (UUID.randomUUID().toString());
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
                 .subscribe();
@@ -423,5 +425,29 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         } else {
             assertTrue(values.isEmpty());
         }
+    }
+
+    @Test
+    public void testRedeliverMessagesWithoutValue() throws Exception {
+        String topic = "persistent://my-property/my-ns/testRedeliverMessagesWithoutValue";
+        @Cleanup Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .enableRetry(true)
+                .subscribe();
+        @Cleanup Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(true)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key("messages without value").send();
+        }
+
+        Message<Integer> message = consumer.receive();
+        consumer.reconsumeLater(message, 2, TimeUnit.SECONDS);
+        for (int i = 0; i < 9; i++) {
+            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        assertTrue(consumer.receive(5, TimeUnit.SECONDS).getTopicName().contains("sub-RETRY"));
     }
 }

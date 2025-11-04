@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.cli.converters;
 
-import com.beust.jcommander.ParameterException;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToIntegerConverter;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import picocli.CommandLine.TypeConversionException;
 
 public class ByteConversionTest {
 
@@ -59,37 +60,33 @@ public class ByteConversionTest {
     }
 
     @Test(dataProvider = "successfulByteUnitUtilTestCases")
-    public void testSuccessfulByteUnitToLongConverter(String input, long expected) {
-        ByteUnitToLongConverter converter = new ByteUnitToLongConverter("optionName");
+    public void testSuccessfulByteUnitToLongConverter(String input, long expected) throws Exception{
+        ByteUnitToLongConverter converter = new ByteUnitToLongConverter();
         assertEquals(converter.convert(input), Long.valueOf(expected));
     }
 
     @Test(dataProvider = "successfulByteUnitUtilTestCases")
-    public void testSuccessfulByteUnitIntegerConverter(String input, long expected) {
-        ByteUnitIntegerConverter converter = new ByteUnitIntegerConverter("optionName");
+    public void testSuccessfulByteUnitIntegerConverter(String input, long expected) throws Exception {
+        ByteUnitToIntegerConverter converter = new ByteUnitToIntegerConverter();
         // Since the converter returns an Integer, we need to cast expected to int
         assertEquals(converter.convert(input), Integer.valueOf((int) expected));
     }
 
     @Test(dataProvider = "failingByteUnitUtilTestCases")
     public void testFailedByteUnitUtilConversion(String input) {
-        if (input.isEmpty()) {
-            assertThrows(IllegalArgumentException.class, () -> ByteUnitUtil.validateSizeString(input));
-        } else {
-            assertThrows(ParameterException.class, () -> ByteUnitUtil.validateSizeString(input));
-        }
+        assertThrows(IllegalArgumentException.class, () -> ByteUnitUtil.validateSizeString(input));
     }
 
     @Test(dataProvider = "failingByteUnitUtilTestCases")
     public void testFailedByteUnitToLongConverter(String input) {
-        ByteUnitToLongConverter converter = new ByteUnitToLongConverter("optionName");
-        assertThrows(ParameterException.class, () -> converter.convert(input));
+        ByteUnitToLongConverter converter = new ByteUnitToLongConverter();
+        assertThrows(TypeConversionException.class, () -> converter.convert(input));
     }
 
     @Test(dataProvider = "failingByteUnitUtilTestCases")
     public void testFailedByteUnitIntegerConverter(String input) {
-        ByteUnitIntegerConverter converter = new ByteUnitIntegerConverter("optionName");
-        assertThrows(ParameterException.class, () -> converter.convert(input));
+        ByteUnitToIntegerConverter converter = new ByteUnitToIntegerConverter();
+        assertThrows(TypeConversionException.class, () -> converter.convert(input));
     }
 }
 

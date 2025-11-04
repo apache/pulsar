@@ -77,7 +77,7 @@ public class CustomCommandFactoryProvider {
     private static CustomCommandFactoryDefinitions searchForCustomCommandFactories(String directory,
                                                                        String narExtractionDirectory)
             throws IOException {
-        Path path = Paths.get(directory).toAbsolutePath();
+        Path path = Paths.get(directory).toAbsolutePath().normalize();
         log.debug("Searching for command factories  in {}", path);
 
         CustomCommandFactoryDefinitions customCommandFactoryDefinitions = new CustomCommandFactoryDefinitions();
@@ -142,7 +142,7 @@ public class CustomCommandFactoryProvider {
     private static CustomCommandFactory load(CustomCommandFactoryMetaData metadata,
                                                    String narExtractionDirectory)
             throws IOException {
-        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
                 .parentClassLoader(CustomCommandFactory.class.getClassLoader())

@@ -67,7 +67,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
     }
 
     @Test
-    public void TestConsumedLedgersTrim() throws Exception {
+    public void testConsumedLedgersTrim() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(1);
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/TestConsumedLedgersTrim";
@@ -97,11 +97,13 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(managedLedger.getLedgersInfoAsList().size() - 1, msgNum / 2);
+        });
 
         //no traffic, unconsumed ledger will be retained
         Thread.sleep(1200);
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size() - 1, msgNum / 2);
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
@@ -186,7 +188,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
     }
 
     @Test
-    public void TestAdminTrimLedgers() throws Exception {
+    public void testAdminTrimLedgers() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(Integer.MAX_VALUE / 2);
         conf.setDefaultNumberOfNamespaceBundles(1);
         super.baseSetup();

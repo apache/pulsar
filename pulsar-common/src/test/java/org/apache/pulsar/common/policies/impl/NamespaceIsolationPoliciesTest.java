@@ -40,12 +40,17 @@ import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationPoliciesTest {
 
-    private final String defaultJson =
-            "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"},\"policy_type\":\"min_available\"}}}";
+    private final String defaultJson = "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],"
+            + "\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],"
+            + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
+            + "\"auto_failover_policy\":{\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"},"
+            + "\"policy_type\":\"min_available\"}}}";
 
     @Test
     public void testJsonSerialization() throws Exception {
@@ -64,7 +69,11 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(new String(secondaryBrokersJson), "[\"prod1-broker.*.use.example.com\"]");
 
         byte[] outJson = jsonMapperForWriter.writeValueAsBytes(policies.getPolicies());
-        assertEquals(new String(outJson), this.defaultJson);
+        JSONAssert.assertEquals(
+                new String(outJson),
+                this.defaultJson,
+                JSONCompareMode.STRICT
+        );
 
         Map<String, String> parameters = new HashMap<>();
         parameters.put("min_limit", "1");
@@ -131,7 +140,11 @@ public class NamespaceIsolationPoliciesTest {
     public void testSetPolicy() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         // set a new policy
-        String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,\"usage_threshold\":80}}}";
+        String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],"
+                + "\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],"
+                + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
+                + "\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,"
+                + "\"usage_threshold\":80}}}";
         String newPolicyName = "policy2";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         NamespaceIsolationDataImpl nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),

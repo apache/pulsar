@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -56,6 +57,7 @@ import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.net.ServiceURI;
@@ -91,6 +93,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final ResourceQuotas resourceQuotas;
     private final ClientConfigurationData clientConfigData;
     private final Client client;
+    @Getter
     private final AsyncHttpConnector asyncHttpConnector;
     private final String serviceUrl;
     private final Lookup lookups;
@@ -106,6 +109,13 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
                            ClassLoader clientBuilderClassLoader) throws PulsarClientException {
+        this(serviceUrl, clientConfigData, clientBuilderClassLoader, true, null);
+    }
+
+    public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
+                           ClassLoader clientBuilderClassLoader, boolean acceptGzipCompression,
+                           PulsarClientSharedResourcesImpl sharedResources)
+            throws PulsarClientException {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
 
         this.clientConfigData = clientConfigData;
@@ -119,7 +129,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         }
 
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
-                clientConfigData.getAutoCertRefreshSeconds());
+                clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression);
 
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
@@ -151,31 +161,31 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 Math.toIntExact(clientConfigData.getConnectionTimeoutMs()),
                 Math.toIntExact(clientConfigData.getReadTimeoutMs()),
                 Math.toIntExact(clientConfigData.getRequestTimeoutMs()),
-                clientConfigData.getAutoCertRefreshSeconds());
+                clientConfigData.getAutoCertRefreshSeconds(), sharedResources);
 
-        long readTimeoutMs = clientConfigData.getReadTimeoutMs();
-        this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
-        this.brokers = new BrokersImpl(root, auth, readTimeoutMs);
-        this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
-        this.proxyStats = new ProxyStatsImpl(root, auth, readTimeoutMs);
-        this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
-        this.resourcegroups = new ResourceGroupsImpl(root, auth, readTimeoutMs);
-        this.properties = new TenantsImpl(root, auth, readTimeoutMs);
-        this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
-        this.topics = new TopicsImpl(root, auth, readTimeoutMs);
-        this.localTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, false);
-        this.globalTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, true);
-        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
-        this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
-        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs, topics);
-        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.sources = new SourcesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.sinks = new SinksImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.worker = new WorkerImpl(root, auth, readTimeoutMs);
-        this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
-        this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
-        this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.transactions = new TransactionsImpl(root, auth, readTimeoutMs);
+        long requestTimeoutMs = clientConfigData.getRequestTimeoutMs();
+        this.clusters = new ClustersImpl(root, auth, requestTimeoutMs);
+        this.brokers = new BrokersImpl(root, auth, requestTimeoutMs);
+        this.brokerStats = new BrokerStatsImpl(root, auth, requestTimeoutMs);
+        this.proxyStats = new ProxyStatsImpl(root, auth, requestTimeoutMs);
+        this.tenants = new TenantsImpl(root, auth, requestTimeoutMs);
+        this.resourcegroups = new ResourceGroupsImpl(root, auth, requestTimeoutMs);
+        this.properties = new TenantsImpl(root, auth, requestTimeoutMs);
+        this.namespaces = new NamespacesImpl(root, auth, requestTimeoutMs);
+        this.topics = new TopicsImpl(root, auth, requestTimeoutMs);
+        this.localTopicPolicies = new TopicPoliciesImpl(root, auth, requestTimeoutMs, false);
+        this.globalTopicPolicies = new TopicPoliciesImpl(root, auth, requestTimeoutMs, true);
+        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, requestTimeoutMs);
+        this.resourceQuotas = new ResourceQuotasImpl(root, auth, requestTimeoutMs);
+        this.lookups = new LookupImpl(root, auth, useTls, requestTimeoutMs, topics);
+        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
+        this.sources = new SourcesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
+        this.sinks = new SinksImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
+        this.worker = new WorkerImpl(root, auth, requestTimeoutMs);
+        this.schemas = new SchemasImpl(root, auth, requestTimeoutMs);
+        this.bookies = new BookiesImpl(root, auth, requestTimeoutMs);
+        this.packages = new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
+        this.transactions = new TransactionsImpl(root, auth, requestTimeoutMs);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);

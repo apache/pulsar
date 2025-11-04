@@ -122,7 +122,7 @@ public class EntryFilterProvider implements AutoCloseable {
 
     private void initialize() throws IOException {
         final String entryFiltersDirectory = serviceConfiguration.getEntryFiltersDirectory();
-        Path path = Paths.get(entryFiltersDirectory).toAbsolutePath();
+        Path path = Paths.get(entryFiltersDirectory).toAbsolutePath().normalize();
         log.info("Searching for entry filters in {}", path);
 
 
@@ -197,7 +197,8 @@ public class EntryFilterProvider implements AutoCloseable {
                         + " does not implement entry filter interface");
             }
             EntryFilter pi = (EntryFilter) filter;
-            return new EntryFilterWithClassLoader(pi, ncl);
+            // the classloader is shared with the broker, the instance doesn't own it
+            return new EntryFilterWithClassLoader(pi, ncl, false);
         } catch (Throwable e) {
             if (e instanceof IOException) {
                 throw (IOException) e;
@@ -216,7 +217,7 @@ public class EntryFilterProvider implements AutoCloseable {
         return cachedClassLoaders
                 .computeIfAbsent(absolutePath, narFilePath -> {
                     try {
-                        final File narFile = archivePath.toAbsolutePath().toFile();
+                        final File narFile = archivePath.toAbsolutePath().normalize().toFile();
                         return NarClassLoaderBuilder.builder()
                                 .narFile(narFile)
                                 .parentClassLoader(EntryFilter.class.getClassLoader())

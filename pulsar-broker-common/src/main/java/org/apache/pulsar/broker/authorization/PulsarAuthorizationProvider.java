@@ -24,18 +24,24 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
+import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -249,6 +255,80 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     });
         });
+    }
+
+    public CompletableFuture<Void> grantPermissionAsync(List<GrantTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> getPoliciesReadOnlyAsync())
+                .thenCompose(readonly -> {
+                    if (readonly) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        }
+                        throw new IllegalStateException("policies are in readonly mode");
+                    }
+                    TopicName topicName = TopicName.get(options.get(0).getTopic());
+                    return pulsarResources.getNamespaceResources()
+                            .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
+                                options.stream().forEach(o -> {
+                                    final String topicUri = TopicName.get(o.getTopic()).toString();
+                                    policies.auth_policies.getTopicAuthentication()
+                                            .computeIfAbsent(topicUri, __ -> new HashMap<>())
+                                            .put(o.getRole(), o.getActions());
+                                });
+                                return policies;
+                            }).whenComplete((__, ex) -> {
+                                if (ex != null) {
+                                    log.error("Failed to grant permissions for {}", options);
+                                } else {
+                                    log.info("Successfully granted access for {}", options);
+                                }
+                            });
+                });
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionAsync(List<RevokeTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> getPoliciesReadOnlyAsync())
+                .thenCompose(readonly -> {
+                    if (readonly) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        }
+                        throw new IllegalStateException("policies are in readonly mode");
+                    }
+                    TopicName topicName = TopicName.get(options.get(0).getTopic());
+                    return pulsarResources.getNamespaceResources()
+                            .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
+                                options.stream().forEach(o -> {
+                                    final String topicUri = TopicName.get(o.getTopic()).toString();
+                                    policies.auth_policies.getTopicAuthentication()
+                                            .computeIfPresent(topicUri, (topicNameUri, roles) -> {
+                                                roles.remove(o.getRole());
+                                                if (roles.isEmpty()) {
+                                                    return  null;
+                                                }
+                                                return roles;
+                                            });
+                                });
+                                return policies;
+                            }).whenComplete((__, ex) -> {
+                                if (ex != null) {
+                                    log.error("Failed to revoke permissions for {}", options, ex);
+                                } else {
+                                    log.info("Successfully revoke permissions for {}", options);
+                                }
+                            });
+                 });
+    }
+
+    private CompletableFuture<Void> checkNamespace(Stream<String> namespaces) {
+        boolean sameNamespace = namespaces.distinct().count() == 1;
+        if (!sameNamespace) {
+            throw new IllegalArgumentException("The namespace should be the same");
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -597,6 +677,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case COMPACT:
                             case OFFLOAD:
                             case UNLOAD:
+                            case TRIM_TOPIC:
                             case DELETE_METADATA:
                             case UPDATE_METADATA:
                             case ADD_BUNDLE_RANGE:
@@ -609,6 +690,13 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     }
                 });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowBrokerOperationAsync(String clusterName, String brokerId,
+                                                                BrokerOperation brokerOperation, String role,
+                                                                AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf);
     }
 
     @Override
@@ -772,5 +860,19 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     });
         });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, ClusterOperation clusterOperation,
+                                                                 String role, AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowClusterPolicyOperationAsync(String clusterName, String role,
+                                                                       PolicyName policy,
+                                                                       PolicyOperation operation,
+                                                                       AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf);
     }
 }

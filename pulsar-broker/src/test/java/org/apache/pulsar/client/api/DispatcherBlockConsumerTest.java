@@ -29,7 +29,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,14 +48,11 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -661,7 +657,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     }
 
     /**
-     * </pre>
+     * <pre>
      * verifies perBroker dispatching blocking. A. maxUnAckPerBroker = 200, maxUnAckPerDispatcher = 20 Now, it tests
      * with 3 subscriptions.
      *
@@ -703,11 +699,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             stopBroker();
             startBroker();
 
-            Field field = BrokerService.class.getDeclaredField("blockedDispatchers");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers =
-                    (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field.get(pulsar.getBrokerService());
+            final var blockedDispatchers = pulsar.getBrokerService().getBlockedDispatchers();
 
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = maxUnAckPerBroker * 3;
@@ -764,7 +756,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
             assertNotEquals(messages1.size(), totalProducedMsgs);
             @Cleanup
-            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
@@ -783,7 +775,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             consumer2Sub1.close();
             // (1.c) verify that dispatcher is part of blocked dispatcher
             assertEquals(blockedDispatchers.size(), 1);
-            String dispatcherName = blockedDispatchers.values().get(0).getName();
+            String dispatcherName = blockedDispatchers.stream().findFirst().orElseThrow().getName();
             String subName = dispatcherName.substring(dispatcherName.lastIndexOf("/") + 2, dispatcherName.length());
             assertEquals(subName, subscriberName1);
             timestamps.add(System.currentTimeMillis());
@@ -918,10 +910,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             stopBroker();
             startBroker();
 
-            Field field = BrokerService.class.getDeclaredField("blockedDispatchers");
-            field.setAccessible(true);
-            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers =
-                    (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field.get(pulsar.getBrokerService());
+            final var blockedDispatchers = pulsar.getBrokerService().getBlockedDispatchers();
 
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = maxUnAckPerBroker * 3;
@@ -974,7 +963,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertNotEquals(messages1.size(), totalProducedMsgs);
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
             @Cleanup
-            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -992,7 +981,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             consumer2Sub1.close();
             // (1.c) verify that dispatcher is part of blocked dispatcher
             assertEquals(blockedDispatchers.size(), 1);
-            String dispatcherName = blockedDispatchers.values().get(0).getName();
+            String dispatcherName = blockedDispatchers.stream().findFirst().orElseThrow().getName();
             String subName = dispatcherName.substring(dispatcherName.lastIndexOf("/") + 2, dispatcherName.length());
             assertEquals(subName, subscriberName1);
 

@@ -75,7 +75,7 @@ public class BrokerInterceptorUtils {
      */
     public BrokerInterceptorDefinitions searchForInterceptors(String interceptorsDirectory,
                                                               String narExtractionDirectory) throws IOException {
-        Path path = Paths.get(interceptorsDirectory).toAbsolutePath();
+        Path path = Paths.get(interceptorsDirectory).toAbsolutePath().normalize();
         log.info("Searching for broker interceptors in {}", path);
 
         BrokerInterceptorDefinitions interceptors = new BrokerInterceptorDefinitions();
@@ -119,7 +119,7 @@ public class BrokerInterceptorUtils {
      */
     BrokerInterceptorWithClassLoader load(BrokerInterceptorMetadata metadata, String narExtractionDirectory)
             throws IOException {
-        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
                 .parentClassLoader(BrokerInterceptorUtils.class.getClassLoader())

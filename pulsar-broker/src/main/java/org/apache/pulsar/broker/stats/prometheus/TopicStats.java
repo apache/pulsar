@@ -25,28 +25,47 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 class TopicStats {
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER)
     int subscriptionsCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.PRODUCER_COUNTER)
     int producersCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.CONSUMER_COUNTER)
     int consumersCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_IN_COUNTER)
     double rateIn;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER)
     double rateOut;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_IN_COUNTER)
     double throughputIn;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_OUT_COUNTER)
     double throughputOut;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_IN_COUNTER)
     long msgInCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_IN_COUNTER)
     long bytesInCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER)
     long msgOutCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_OUT_COUNTER)
     long bytesOutCounter;
+    long systemTopicBytesInCounter;
+    long bytesOutInternalCounter;
+    @PulsarDeprecatedMetric // Can be derived from MESSAGE_IN_COUNTER and BYTES_IN_COUNTER
     double averageMsgSize;
 
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long ongoingTxnCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long abortedTxnCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long committedTxnCount;
 
     public long msgBacklog;
@@ -291,6 +310,8 @@ class TopicStats {
                     subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
                     subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_in_replay",
+                    subsStats.msgInReplay, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_msg_rate_redeliver",
                     subsStats.msgRateRedeliver, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_unacked_messages",
@@ -339,9 +360,36 @@ class TopicStats {
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_rescheduled_msg_count",
                     subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
-            writeSubscriptionMetric(stream, "pulsar_delayed_message_index_size_bytes",
+            writeSubscriptionMetric(stream, "pulsar_subscription_delayed_message_index_size_bytes",
                     subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
+
+            // write dispatch throttling metrics with `reason` labels to identify specific throttling
+            // causes: by subscription limit, by topic limit, or by broker limit.
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_msg_events",
+                    subsStats.dispatchThrottledMsgEventsBySubscriptionLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "subscription");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_bytes_events",
+                    subsStats.dispatchThrottledBytesEventsBySubscriptionLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "subscription");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_msg_events",
+                    subsStats.dispatchThrottledMsgEventsByTopicLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "topic");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_bytes_events",
+                    subsStats.dispatchThrottledBytesEventsByTopicLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "topic");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_msg_events",
+                    subsStats.dispatchThrottledMsgEventsByBrokerLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "broker");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_bytes_events",
+                    subsStats.dispatchThrottledBytesEventsByBrokerLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "broker");
 
             final String[] subscriptionLabel = {"subscription", sub};
             for (TopicMetricBean topicMetricBean : subsStats.bucketDelayedIndexStats.values()) {
@@ -388,6 +436,8 @@ class TopicStats {
                 writeMetric(stream, "pulsar_replication_backlog", replStats.replicationBacklog,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_connected_count", replStats.connectedCount,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_disconnected_count", replStats.disconnectedCount,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_rate_expired", replStats.msgRateExpired,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
@@ -507,7 +557,9 @@ class TopicStats {
     static void writeTopicMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                  String namespace, String topic, boolean splitTopicAndPartitionIndexLabel,
                                  String... extraLabelsAndValues) {
-        String[] labelsAndValues = new String[splitTopicAndPartitionIndexLabel ? 8 : 6];
+        int baseLabelCount = splitTopicAndPartitionIndexLabel ? 8 : 6;
+        String[] labelsAndValues =
+                new String[baseLabelCount + (extraLabelsAndValues != null ? extraLabelsAndValues.length : 0)];
         labelsAndValues[0] = "cluster";
         labelsAndValues[1] = cluster;
         labelsAndValues[2] = "namespace";
@@ -527,7 +579,11 @@ class TopicStats {
         } else {
             labelsAndValues[5] = topic;
         }
-        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
-        stream.writeSample(metricName, value, labels);
+        if (extraLabelsAndValues != null) {
+            for (int i = 0; i < extraLabelsAndValues.length; i++) {
+                labelsAndValues[baseLabelCount + i] = extraLabelsAndValues[i];
+            }
+        }
+        stream.writeSample(metricName, value, labelsAndValues);
     }
 }

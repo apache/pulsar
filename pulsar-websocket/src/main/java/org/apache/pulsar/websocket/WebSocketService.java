@@ -19,11 +19,15 @@
 package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.Constants.WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -41,11 +45,10 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -73,9 +76,9 @@ public class WebSocketService implements Closeable {
     private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
 
     private ClusterData localCluster;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> topicReaderMap;
+    private final Map<String, Set<ProducerHandler>> topicProducerMap = new ConcurrentHashMap<>();
+    private final Map<String, Set<ConsumerHandler>> topicConsumerMap = new ConcurrentHashMap<>();
+    private final Map<String, Set<ReaderHandler>> topicReaderMap = new ConcurrentHashMap<>();
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
@@ -88,17 +91,6 @@ public class WebSocketService implements Closeable {
                 .newScheduledThreadPool(config.getWebSocketNumServiceThreads(),
                         new DefaultThreadFactory("pulsar-websocket"));
         this.localCluster = localCluster;
-        this.topicProducerMap =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashSet<ProducerHandler>>newBuilder()
-                        .build();
-        this.topicConsumerMap =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashSet<ConsumerHandler>>newBuilder()
-                        .build();
-        this.topicReaderMap =
-                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ReaderHandler>>newBuilder()
-                        .build();
         this.proxyStats = new ProxyStats(this);
     }
 
@@ -195,7 +187,8 @@ public class WebSocketService implements Closeable {
 
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
-                .memoryLimit(0, SizeUnit.BYTES)
+                .memoryLimit(SizeUnit.MEGA_BYTES.toBytes(config.getWebSocketPulsarClientMemoryLimitInMB()),
+                        SizeUnit.BYTES)
                 .statsInterval(0, TimeUnit.SECONDS) //
                 .enableTls(config.isTlsEnabled()) //
                 .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
@@ -203,6 +196,9 @@ public class WebSocketService implements Closeable {
                 .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
                 .ioThreads(config.getWebSocketNumIoThreads()) //
                 .connectionsPerBroker(config.getWebSocketConnectionsPerBroker());
+        if (clientBuilder instanceof  ClientBuilderImpl) {
+            ((ClientBuilderImpl) clientBuilder).originalPrincipal(WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE);
+        }
 
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
@@ -287,11 +283,11 @@ public class WebSocketService implements Closeable {
     public boolean addProducer(ProducerHandler producer) {
         return topicProducerMap
                 .computeIfAbsent(producer.getProducer().getTopic(),
-                        topic -> ConcurrentOpenHashSet.<ProducerHandler>newBuilder().build())
+                        topic -> ConcurrentHashMap.newKeySet())
                 .add(producer);
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> getProducers() {
+    public Map<String, Set<ProducerHandler>> getProducers() {
         return topicProducerMap;
     }
 
@@ -305,12 +301,11 @@ public class WebSocketService implements Closeable {
 
     public boolean addConsumer(ConsumerHandler consumer) {
         return topicConsumerMap
-                .computeIfAbsent(consumer.getConsumer().getTopic(), topic ->
-                        ConcurrentOpenHashSet.<ConsumerHandler>newBuilder().build())
+                .computeIfAbsent(consumer.getConsumer().getTopic(), topic -> ConcurrentHashMap.newKeySet())
                 .add(consumer);
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> getConsumers() {
+    public Map<String, Set<ConsumerHandler>> getConsumers() {
         return topicConsumerMap;
     }
 
@@ -323,12 +318,11 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addReader(ReaderHandler reader) {
-        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic ->
-                ConcurrentOpenHashSet.<ReaderHandler>newBuilder().build())
+        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> ConcurrentHashMap.newKeySet())
                 .add(reader);
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> getReaders() {
+    public Map<String, Set<ReaderHandler>> getReaders() {
         return topicReaderMap;
     }
 

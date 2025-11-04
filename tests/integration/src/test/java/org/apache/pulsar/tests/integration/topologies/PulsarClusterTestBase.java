@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import static java.util.stream.Collectors.joining;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.DataProvider;
-
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
@@ -86,6 +85,20 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         };
     }
 
+    @DataProvider
+    public Object[][] serviceUrlAndTopicDomain() {
+        return new Object[][] {
+                {
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
+                        TopicDomain.persistent
+                },
+                {
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
+                        TopicDomain.non_persistent
+                },
+        };
+    }
+
     protected PulsarAdmin pulsarAdmin;
 
     protected PulsarCluster pulsarCluster;
@@ -127,6 +140,10 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     }
 
     protected void setupCluster(PulsarClusterSpec spec) throws Exception {
+        setupCluster(spec, true);
+    }
+
+    protected void setupCluster(PulsarClusterSpec spec, boolean doInit) throws Exception {
         incrementSetupNumber();
         log.info("Setting up cluster {} with {} bookies, {} brokers",
                 spec.clusterName(), spec.numBookies(), spec.numBrokers());
@@ -135,7 +152,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
         beforeStartCluster();
 
-        pulsarCluster.start();
+        pulsarCluster.start(doInit);
 
         pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
 

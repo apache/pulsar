@@ -23,7 +23,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.ByteArrayInputStream;
@@ -35,6 +34,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -44,6 +44,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
@@ -52,7 +53,7 @@ public class ServiceConfigurationTest {
     final String fileName = "configurations/pulsar_broker_test.conf"; // test-resource file
 
     /**
-     * test {@link ServiceConfiguration} initialization
+     * test {@link ServiceConfiguration} initialization.
      *
      * @throws Exception
      */
@@ -66,7 +67,8 @@ public class ServiceConfigurationTest {
         assertTrue(config.getBrokerServicePort().isPresent()
                 && config.getBrokerServicePort().get().equals(brokerServicePort));
         assertEquals(config.getBootstrapNamespaces().get(1), "ns2");
-        assertEquals(config.getBrokerDeleteInactiveTopicsMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        assertEquals(config.getBrokerDeleteInactiveTopicsMode(),
+                InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         assertEquals(config.getDefaultNamespaceBundleSplitAlgorithm(), "topic_count_equally_divide");
         assertEquals(config.getSupportedNamespaceBundleSplitAlgorithms().size(), 1);
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
@@ -74,6 +76,14 @@ public class ServiceConfigurationTest {
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
         assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
         assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
+        assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
+        assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
+        assertEquals(config.getPulsarChannelWriteBufferHighWaterMark(), 60000);
+        assertEquals(config.getPulsarChannelWriteBufferLowWaterMark(), 120000);
+        assertEquals(config.isPulsarChannelPauseReceivingRequestsIfUnwritable(), true);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownMs(), 10_000);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownRateLimitPermits(), 100);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownRateLimitPeriodMs(), 200);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
@@ -115,8 +125,8 @@ public class ServiceConfigurationTest {
         PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
     }
 
-    private InputStream updateProp(String zookeeperServer, String brokerServicePort, String namespace, double backlogQuotaGB)
-            throws IOException {
+    private InputStream updateProp(String zookeeperServer, String brokerServicePort, String namespace,
+                                   double backlogQuotaGB) throws IOException {
         Objects.requireNonNull(fileName);
         Properties properties = new Properties();
         InputStream stream = this.getClass().getClassLoader().getResourceAsStream(fileName);
@@ -124,8 +134,9 @@ public class ServiceConfigurationTest {
         properties.setProperty("zookeeperServers", zookeeperServer);
         properties.setProperty("brokerServicePort", brokerServicePort);
         properties.setProperty("backlogQuotaDefaultLimitGB", "" + backlogQuotaGB);
-        if (namespace != null)
+        if (namespace != null) {
             properties.setProperty("bootstrapNamespaces", namespace);
+        }
         StringWriter writer = new StringWriter();
         properties.list(new PrintWriter(writer));
         return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
@@ -162,8 +173,8 @@ public class ServiceConfigurationTest {
 
     @Test
     public void testGlobalZookeeper() throws Exception {
-        String confFile = "metadataStoreUrl=zk1:2181\n" +
-                "globalZookeeperServers=zk2:2182\n"
+        String confFile = "metadataStoreUrl=zk1:2181\n"
+                + "globalZookeeperServers=zk2:2182\n"
                 ;
         @Cleanup
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -178,8 +189,8 @@ public class ServiceConfigurationTest {
 
     @Test
     public void testConfigurationStore() throws Exception {
-        String confFile = "metadataStoreUrl=zk1:2181\n" +
-                "configurationStoreServers=zk2:2182\n"
+        String confFile = "metadataStoreUrl=zk1:2181\n"
+                + "configurationStoreServers=zk2:2182\n"
                 ;
         @Cleanup
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -194,8 +205,8 @@ public class ServiceConfigurationTest {
 
     @Test
     public void testConfigurationMetadataStoreUrl() throws Exception {
-        String confFile = "metadataStoreUrl=zk1:2181\n" +
-                "configurationMetadataStoreUrl=zk2:2182\n"
+        String confFile = "metadataStoreUrl=zk1:2181\n"
+                + "configurationMetadataStoreUrl=zk2:2182\n"
                 ;
         @Cleanup
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -210,9 +221,9 @@ public class ServiceConfigurationTest {
 
     @Test
     public void testBookkeeperMetadataStore() throws Exception {
-        String confFile = "metadataStoreUrl=zk1:2181\n" +
-                "configurationMetadataStoreUrl=zk2:2182\n" +
-                "bookkeeperMetadataServiceUri=xx:other-system\n";
+        String confFile = "metadataStoreUrl=zk1:2181\n"
+                + "configurationMetadataStoreUrl=zk2:2182\n"
+                + "bookkeeperMetadataServiceUri=xx:other-system\n";
         @Cleanup
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
         final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
@@ -227,10 +238,13 @@ public class ServiceConfigurationTest {
     @Test
     public void testConfigFileDefaults() throws Exception {
         try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
-            final ServiceConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), ServiceConfiguration.class);
-            final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            final ServiceConfiguration javaConfig =
+                    PulsarConfigurationLoader.create(new Properties(), ServiceConfiguration.class);
+            final ServiceConfiguration fileConfig =
+                    PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
             List<String> toSkip = Arrays.asList("properties", "class", "metadataStoreBackedByZookeeper");
-            for (PropertyDescriptor pd : Introspector.getBeanInfo(ServiceConfiguration.class).getPropertyDescriptors()) {
+            for (PropertyDescriptor pd : Introspector.getBeanInfo(ServiceConfiguration.class)
+                    .getPropertyDescriptors()) {
                 if (pd.getReadMethod() == null || toSkip.contains(pd.getName())) {
                     continue;
                 }
@@ -238,7 +252,8 @@ public class ServiceConfigurationTest {
                 final Object javaValue = pd.getReadMethod().invoke(javaConfig);
                 final Object fileValue = pd.getReadMethod().invoke(fileConfig);
                 assertTrue(Objects.equals(javaValue, fileValue), "property '"
-                        + key + "' conf/broker.conf default value doesn't match java default value\nConf: "+ fileValue + "\nJava: " + javaValue);
+                        + key + "' conf/broker.conf default value doesn't match java default value\nConf: "
+                        + fileValue + "\nJava: " + javaValue);
             }
         }
     }
@@ -246,12 +261,13 @@ public class ServiceConfigurationTest {
     @Test
     public void testBookKeeperClientIoThreads() throws Exception {
         try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
-            final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            final ServiceConfiguration fileConfig =
+                    PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
             assertFalse(fileConfig.isBookkeeperClientSeparatedIoThreadsEnabled());
             assertEquals(fileConfig.getBookkeeperClientNumIoThreads(), Runtime.getRuntime().availableProcessors() * 2);
         }
-        String confFile = "bookkeeperClientNumIoThreads=1\n" +
-                "bookkeeperClientSeparatedIoThreadsEnabled=true\n";
+        String confFile = "bookkeeperClientNumIoThreads=1\n"
+                + "bookkeeperClientSeparatedIoThreadsEnabled=true\n";
         try (InputStream stream = new ByteArrayInputStream(confFile.getBytes())) {
             final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
             assertTrue(conf.isBookkeeperClientSeparatedIoThreadsEnabled());
@@ -291,6 +307,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1024 * 1024 * 4);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 1);
             assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), false);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), true);
         }
         // pulsar_broker_test.conf.
         try (InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(fileName)) {
@@ -304,6 +321,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 55);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 66);
             assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), true);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), false);
         }
         // string input stream.
         StringBuilder stringBuilder = new StringBuilder();
@@ -316,7 +334,8 @@ public class ServiceConfigurationTest {
         stringBuilder.append("transactionPendingAckBatchedWriteMaxSize=1025").append(System.lineSeparator());
         stringBuilder.append("transactionPendingAckBatchedWriteMaxDelayInMillis=20").append(System.lineSeparator());
         stringBuilder.append("dispatcherPauseOnAckStatePersistentEnabled=true").append(System.lineSeparator());
-        try(ByteArrayInputStream inputStream =
+        stringBuilder.append("createTopicToRemoteClusterForReplication=false").append(System.lineSeparator());
+        try (ByteArrayInputStream inputStream =
                     new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
             configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
             assertTrue(configuration.isTransactionLogBatchedWriteEnabled());
@@ -328,6 +347,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1025);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
             assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), true);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), false);
         }
     }
 
@@ -344,7 +364,7 @@ public class ServiceConfigurationTest {
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("transactionBufferSnapshotSegmentSize=262144").append(System.lineSeparator());
         stringBuilder.append("transactionBufferSegmentedSnapshotEnabled = false").append(System.lineSeparator());
-        try(ByteArrayInputStream inputStream =
+        try (ByteArrayInputStream inputStream =
                     new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
             configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
             assertEquals(configuration.getTransactionBufferSnapshotSegmentSize(), 262144);
@@ -374,5 +394,47 @@ public class ServiceConfigurationTest {
         properties.setProperty("allowAutoTopicCreationType", "non-partitioned");
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(conf.getAllowAutoTopicCreationType(), TopicType.NON_PARTITIONED);
+    }
+
+    @Test
+    public void testTopicNameCacheConfiguration() throws Exception {
+        ServiceConfiguration conf;
+        final Properties properties = new Properties();
+        properties.setProperty("maxSecondsToClearTopicNameCache", "2");
+        properties.setProperty("topicNameCacheMaxCapacity", "100");
+        conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 2);
+        assertEquals(conf.getTopicNameCacheMaxCapacity(), 100);
+    }
+
+    @Test
+    public void testLookupProperties() throws Exception {
+        var confFile = "lookup.key1=value1\nkey=value\nlookup.key2=value2";
+        var conf = (ServiceConfiguration) PulsarConfigurationLoader.create(
+                new ByteArrayInputStream(confFile.getBytes()), ServiceConfiguration.class);
+        assertEquals(conf.lookupProperties(), Map.of("lookup.key1", "value1", "lookup.key2", "value2"));
+
+        confFile = confFile + "\nlookupPropertyPrefix=lookup.key2";
+        conf = PulsarConfigurationLoader.create(new ByteArrayInputStream(confFile.getBytes()),
+                ServiceConfiguration.class);
+        assertEquals(conf.lookupProperties(), Map.of("lookup.key2", "value2"));
+    }
+
+    @Test
+    public void testTopicsPatternRegexImplementationOptions() throws IOException {
+        ServiceConfiguration conf = loadConfString("topicsPatternRegexImplementation=RE2J_WITH_JDK_FALLBACK");
+        assertEquals(conf.getTopicsPatternRegexImplementation(),
+                TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK);
+        conf = loadConfString("topicsPatternRegexImplementation=JDK");
+        assertEquals(conf.getTopicsPatternRegexImplementation(),
+                TopicsPattern.RegexImplementation.JDK);
+        conf = loadConfString("topicsPatternRegexImplementation=RE2J");
+        assertEquals(conf.getTopicsPatternRegexImplementation(),
+                TopicsPattern.RegexImplementation.RE2J);
+    }
+
+    private static ServiceConfiguration loadConfString(String confString) throws IOException {
+        return PulsarConfigurationLoader.create(new ByteArrayInputStream(confString.getBytes(StandardCharsets.UTF_8)),
+                ServiceConfiguration.class);
     }
 }

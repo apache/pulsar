@@ -24,14 +24,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
-import java.util.regex.Pattern;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.slf4j.Logger;
@@ -42,13 +44,18 @@ public class TopicListService {
 
     public static class TopicListWatcher implements BiConsumer<String, NotificationType> {
 
+        /** Topic names which are matching, the topic name contains the partition suffix. **/
         private final List<String> matchingTopics;
         private final TopicListService topicListService;
         private final long id;
-        private final Pattern topicsPattern;
+        /** The regexp for the topic name(not contains partition suffix). **/
+        private final TopicsPattern topicsPattern;
 
+        /***
+         * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+         */
         public TopicListWatcher(TopicListService topicListService, long id,
-                                Pattern topicsPattern, List<String> topics) {
+                                TopicsPattern topicsPattern, List<String> topics) {
             this.topicListService = topicListService;
             this.id = id;
             this.topicsPattern = topicsPattern;
@@ -59,9 +66,15 @@ public class TopicListService {
             return matchingTopics;
         }
 
+        /***
+         * @param topicName topic name which contains partition suffix.
+         */
         @Override
         public void accept(String topicName, NotificationType notificationType) {
-            if (topicsPattern.matcher(topicName).matches()) {
+            String partitionedTopicName = TopicName.get(topicName).getPartitionedTopicName();
+            String domainLessTopicName = TopicList.removeTopicDomainScheme(partitionedTopicName);
+
+            if (topicsPattern.matches(domainLessTopicName)) {
                 List<String> newTopics;
                 List<String> deletedTopics;
                 if (notificationType == NotificationType.Deleted) {
@@ -109,21 +122,42 @@ public class TopicListService {
         }
     }
 
-    public void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId, Pattern topicsPattern,
-                                     String topicsHash, Semaphore lookupSemaphore) {
+    /***
+     * @param topicsPatternString The regexp for the topic name
+     */
+    public void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId,
+                                     String topicsPatternString,
+                                     TopicsPattern.RegexImplementation topicsPatternRegexImplementation,
+                                     String topicsHash,
+                                     Semaphore lookupSemaphore) {
+        // remove the domain scheme from the topic pattern
+        topicsPatternString = TopicList.removeTopicDomainScheme(topicsPatternString);
 
-        if (!enableSubscriptionPatternEvaluation || topicsPattern.pattern().length() > maxSubscriptionPatternLength) {
+        if (!enableSubscriptionPatternEvaluation || topicsPatternString.length() > maxSubscriptionPatternLength) {
             String msg = "Unable to create topic list watcher: ";
             if (!enableSubscriptionPatternEvaluation) {
                 msg += "Evaluating subscription patterns is disabled.";
             } else {
                 msg += "Pattern longer than maximum: " + maxSubscriptionPatternLength;
             }
-            log.warn("[{}] {} on namespace {}", connection.getRemoteAddress(), msg, namespaceName);
+            log.warn("[{}] {} on namespace {}", connection.toString(), msg, namespaceName);
             connection.getCommandSender().sendErrorResponse(requestId, ServerError.NotAllowedError, msg);
             lookupSemaphore.release();
             return;
         }
+
+        TopicsPattern topicsPattern;
+        try {
+            topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
+        } catch (Exception e) {
+            log.warn("[{}] Unable to create topic list watcher: Invalid pattern: {} on namespace {}",
+                    connection.toString(), topicsPatternString, namespaceName);
+            connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
+                    "Invalid topics pattern: " + e.getMessage());
+            lookupSemaphore.release();
+            return;
+        }
+
         CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
         CompletableFuture<TopicListWatcher> existingWatcherFuture = watchers.putIfAbsent(watcherId, watcherFuture);
 
@@ -132,14 +166,14 @@ public class TopicListService {
                 TopicListWatcher watcher = existingWatcherFuture.getNow(null);
                 log.info("[{}] Watcher with the same id is already created:"
                                 + " watcherId={}, watcher={}",
-                        connection.getRemoteAddress(), watcherId, watcher);
+                        connection.toString(), watcherId, watcher);
                 watcherFuture = existingWatcherFuture;
             } else {
                 // There was an early request to create a watcher with the same watcherId. This can happen when
                 // client timeout is lower the broker timeouts. We need to wait until the previous watcher
                 // creation request either completes or fails.
                 log.warn("[{}] Watcher with id is already present on the connection,"
-                        + " consumerId={}", connection.getRemoteAddress(), watcherId);
+                        + " consumerId={}", connection.toString(), watcherId);
                 ServerError error;
                 if (!existingWatcherFuture.isDone()) {
                     error = ServerError.ServiceNotReady;
@@ -167,14 +201,14 @@ public class TopicListService {
                     if (log.isDebugEnabled()) {
                         log.debug(
                                 "[{}] Received WatchTopicList for namespace [//{}] by {}",
-                                connection.getRemoteAddress(), namespaceName, requestId);
+                                connection.toString(), namespaceName, requestId);
                     }
                     connection.getCommandSender().sendWatchTopicListSuccess(requestId, watcherId, hash, topicList);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
                     log.warn("[{}] Error WatchTopicList for namespace [//{}] by {}",
-                            connection.getRemoteAddress(), namespaceName, requestId);
+                            connection.toString(), namespaceName, requestId);
                     connection.getCommandSender().sendErrorResponse(requestId,
                             BrokerServiceException.getClientErrorCode(
                                     new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
@@ -184,9 +218,11 @@ public class TopicListService {
                 });
     }
 
-
+    /***
+     * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+     */
     public void initializeTopicsListWatcher(CompletableFuture<TopicListWatcher> watcherFuture,
-            NamespaceName namespace, long watcherId, Pattern topicsPattern) {
+            NamespaceName namespace, long watcherId, TopicsPattern topicsPattern) {
         namespaceService.getListOfPersistentTopics(namespace).
                 thenApply(topics -> {
                     TopicListWatcher watcher = new TopicListWatcher(this, watcherId, topicsPattern, topics);
@@ -199,7 +235,7 @@ public class TopicListService {
                     } else {
                         if (!watcherFuture.complete(watcher)) {
                             log.warn("[{}] Watcher future was already completed. Deregistering watcherId={}.",
-                                    connection.getRemoteAddress(), watcherId);
+                                    connection.toString(), watcherId);
                             topicResources.deregisterPersistentTopicListener(watcher);
                         }
                     }
@@ -218,7 +254,7 @@ public class TopicListService {
         CompletableFuture<TopicListWatcher> watcherFuture = watchers.get(watcherId);
         if (watcherFuture == null) {
             log.info("[{}] TopicListWatcher was not registered on the connection: {}",
-                    watcherId, connection.getRemoteAddress());
+                    watcherId, connection.toString());
             return;
         }
 
@@ -228,14 +264,14 @@ public class TopicListService {
             // watcher future as failed and we can tell the client the close operation was successful. When the actual
             // create operation will complete, the new watcher will be discarded.
             log.info("[{}] Closed watcher before its creation was completed. watcherId={}",
-                    connection.getRemoteAddress(), watcherId);
+                    connection.toString(), watcherId);
             watchers.remove(watcherId);
             return;
         }
 
         if (watcherFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed watcher that already failed to be created. watcherId={}",
-                    connection.getRemoteAddress(), watcherId);
+                    connection.toString(), watcherId);
             watchers.remove(watcherId);
             return;
         }
@@ -243,9 +279,13 @@ public class TopicListService {
         // Proceed with normal watcher close
         topicResources.deregisterPersistentTopicListener(watcherFuture.getNow(null));
         watchers.remove(watcherId);
-        log.info("[{}] Closed watcher, watcherId={}", connection.getRemoteAddress(), watcherId);
+        log.info("[{}] Closed watcher, watcherId={}", connection.toString(), watcherId);
     }
 
+    /**
+     * @param deletedTopics topic names deleted(contains the partition suffix).
+     * @param newTopics topics names added(contains the partition suffix).
+     */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics) {
         connection.getCommandSender().sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash);

@@ -93,54 +93,73 @@ public class UnloadManagerTest {
     public void testSuccess() throws IllegalAccessException, ExecutionException, InterruptedException {
         UnloadCounter counter = new UnloadCounter();
         UnloadManager manager = new UnloadManager(counter, "mockBrokerId");
+        String dstBroker = "broker-2";
+        String srcBroker = "broker-1";
+        String bundle = "bundle-1";
         var unloadDecision =
-                new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
+                new UnloadDecision(new Unload(srcBroker, bundle), Success, Admin);
         CompletableFuture<Void> future =
                 manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
+                        bundle, unloadDecision, 5, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Assigning, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Assigning, null, srcBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Deleted, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Deleted, null, srcBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Splitting, null, srcBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Releasing, null, srcBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Init, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, null, srcBroker, true, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Free, "broker-1", VERSION_ID_INIT), null);
+        // Success with Init state.
+        manager.handleEvent(bundle, null, null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 1);
 
         // Success with Owned state.
         future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
+                bundle, unloadDecision, 5, TimeUnit.SECONDS);
         inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
-
         assertEquals(inFlightUnloadRequestMap.size(), 1);
-
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, null, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequestMap.size(), 1);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, srcBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
-
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 2);
+
+        // Success with Free state.
+        future = manager.waitAsync(CompletableFuture.completedFuture(null),
+                bundle, unloadDecision, 5, TimeUnit.SECONDS);
+        inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
+        assertEquals(inFlightUnloadRequestMap.size(), 1);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, srcBroker, true, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequestMap.size(), 1);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, srcBroker, false, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequestMap.size(), 0);
+        future.get();
+        assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 3);
+
+
     }
 
     @Test
@@ -157,7 +176,7 @@ public class UnloadManagerTest {
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
         manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", VERSION_ID_INIT),
+                new ServiceUnitStateData(ServiceUnitState.Owned, null, "broker-1", VERSION_ID_INIT),
                 new IllegalStateException("Failed stage."));
 
         try {
@@ -180,7 +199,7 @@ public class UnloadManagerTest {
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
                 manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision,5, TimeUnit.SECONDS);
+                        "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
         manager.close();

@@ -244,29 +244,33 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.82.jar
+ * Picocli
+     - info.picocli-picocli-4.7.5.jar
+     - info.picocli-picocli-shell-jline3-4.7.5.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.14.2.jar
-     - com.fasterxml.jackson.core-jackson-core-2.14.2.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.14.2.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.14.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.14.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.14.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.14.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.14.2.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.14.2.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.14.2.jar
-     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.14.2.jar
- * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.17.2.jar
+     - com.fasterxml.jackson.core-jackson-core-2.17.2.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.17.2.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.17.2.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.17.2.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.17.2.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.17.2.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.17.2.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.17.2.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.17.2.jar
+     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.17.2.jar
+ * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.9.0.jar
- * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.3.jar
+ * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.59.2.jar
+ * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
     - com.google.code.gson-gson-2.8.9.jar
     - io.gsonfire-gson-fire-1.8.5.jar
  * Guava
-    - com.google.guava-guava-32.1.2-jre.jar
-    - com.google.guava-failureaccess-1.0.1.jar
+    - com.google.guava-guava-33.4.8-jre.jar
+    - com.google.guava-failureaccess-1.0.3.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.3.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.6.jar
@@ -278,47 +282,48 @@ The Apache Software License, Version 2.0
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
  * Apache Commons
-    - commons-cli-commons-cli-1.5.0.jar
-    - commons-codec-commons-codec-1.15.jar
-    - commons-configuration-commons-configuration-1.10.jar
-    - commons-io-commons-io-2.8.0.jar
-    - commons-lang-commons-lang-2.6.jar
-    - commons-logging-commons-logging-1.1.1.jar
+    - commons-beanutils-commons-beanutils-1.11.0.jar
+    - commons-cli-commons-cli-1.9.0.jar
+    - commons-codec-commons-codec-1.18.0.jar
+    - commons-io-commons-io-2.19.0.jar
+    - commons-logging-commons-logging-1.3.5.jar
+    - commons-collections-commons-collections-3.2.2.jar
     - org.apache.commons-commons-collections4-4.4.jar
-    - org.apache.commons-commons-compress-1.21.jar
-    - org.apache.commons-commons-lang3-3.11.jar
-    - org.apache.commons-commons-text-1.10.0.jar
+    - org.apache.commons-commons-compress-1.27.1.jar
+    - org.apache.commons-commons-configuration2-2.12.0.jar
+    - org.apache.commons-commons-lang3-3.18.0.jar
+    - org.apache.commons-commons-text-1.13.1.jar
  * Netty
-    - io.netty-netty-buffer-4.1.105.Final.jar
-    - io.netty-netty-codec-4.1.105.Final.jar
-    - io.netty-netty-codec-dns-4.1.105.Final.jar
-    - io.netty-netty-codec-http-4.1.105.Final.jar
-    - io.netty-netty-codec-http2-4.1.105.Final.jar
-    - io.netty-netty-codec-socks-4.1.105.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.105.Final.jar
-    - io.netty-netty-common-4.1.105.Final.jar
-    - io.netty-netty-handler-4.1.105.Final.jar
-    - io.netty-netty-handler-proxy-4.1.105.Final.jar
-    - io.netty-netty-resolver-4.1.105.Final.jar
-    - io.netty-netty-resolver-dns-4.1.105.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.105.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.105.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.105.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.1.105.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.105.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.105.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.1.105.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.105.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.61.Final.jar
-    - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.24.Final.jar
-    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.24.Final-linux-x86_64.jar
-    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.24.Final-linux-aarch_64.jar
+    - io.netty-netty-buffer-4.1.128.Final.jar
+    - io.netty-netty-codec-4.1.128.Final.jar
+    - io.netty-netty-codec-dns-4.1.128.Final.jar
+    - io.netty-netty-codec-http-4.1.128.Final.jar
+    - io.netty-netty-codec-http2-4.1.128.Final.jar
+    - io.netty-netty-codec-socks-4.1.128.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.128.Final.jar
+    - io.netty-netty-common-4.1.128.Final.jar
+    - io.netty-netty-handler-4.1.128.Final.jar
+    - io.netty-netty-handler-proxy-4.1.128.Final.jar
+    - io.netty-netty-resolver-4.1.128.Final.jar
+    - io.netty-netty-resolver-dns-4.1.128.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.128.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.128.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.128.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.1.128.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.128.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.128.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.128.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.1.128.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.74.Final.jar
+    - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.26.Final.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.26.Final-linux-x86_64.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.26.Final-linux-aarch_64.jar
  * Prometheus client
     - io.prometheus.jmx-collector-0.16.1.jar
     - io.prometheus-simpleclient-0.16.0.jar
@@ -333,77 +338,84 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_tracer_common-0.16.0.jar
     - io.prometheus-simpleclient_tracer_otel-0.16.0.jar
     - io.prometheus-simpleclient_tracer_otel_agent-0.16.0.jar
+ * Prometheus exporter
+    - io.prometheus-prometheus-metrics-config-1.3.4.jar
+    - io.prometheus-prometheus-metrics-exporter-common-1.3.4.jar
+    - io.prometheus-prometheus-metrics-exporter-httpserver-1.3.4.jar
+    - io.prometheus-prometheus-metrics-exposition-formats-1.3.4.jar
+    - io.prometheus-prometheus-metrics-model-1.3.4.jar
+    - io.prometheus-prometheus-metrics-exposition-textformats-1.3.4.jar
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
-    - org.apache.logging.log4j-log4j-api-2.18.0.jar
-    - org.apache.logging.log4j-log4j-core-2.18.0.jar
-    - org.apache.logging.log4j-log4j-slf4j-impl-2.18.0.jar
-    - org.apache.logging.log4j-log4j-web-2.18.0.jar
+    - org.apache.logging.log4j-log4j-api-2.23.1.jar
+    - org.apache.logging.log4j-log4j-core-2.23.1.jar
+    - org.apache.logging.log4j-log4j-slf4j2-impl-2.23.1.jar
+    - org.apache.logging.log4j-log4j-web-2.23.1.jar
  * Java Native Access JNA
     - net.java.dev.jna-jna-jpms-5.12.1.jar
     - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.16.3.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.16.3.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.16.3.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.16.3.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.16.3.jar
-    - org.apache.bookkeeper-circe-checksum-4.16.3.jar
-    - org.apache.bookkeeper-cpu-affinity-4.16.3.jar
-    - org.apache.bookkeeper-statelib-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-api-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-common-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-server-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.16.3.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.16.3.jar
-    - org.apache.bookkeeper.http-http-server-4.16.3.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.16.3.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.16.3.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.16.3.jar
-    - org.apache.distributedlog-distributedlog-common-4.16.3.jar
-    - org.apache.distributedlog-distributedlog-core-4.16.3-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.16.3.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.16.3.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.16.3.jar
-    - org.apache.bookkeeper-bookkeeper-slogger-api-4.16.3.jar
-    - org.apache.bookkeeper-bookkeeper-slogger-slf4j-4.16.3.jar
-    - org.apache.bookkeeper-native-io-4.16.3.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.17.2.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.17.2.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.17.2.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.17.2.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.17.2.jar
+    - org.apache.bookkeeper-circe-checksum-4.17.2.jar
+    - org.apache.bookkeeper-cpu-affinity-4.17.2.jar
+    - org.apache.bookkeeper-statelib-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-api-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-common-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-server-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.17.2.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.17.2.jar
+    - org.apache.bookkeeper.http-http-server-4.17.2.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.17.2.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.17.2.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.17.2.jar
+    - org.apache.distributedlog-distributedlog-common-4.17.2.jar
+    - org.apache.distributedlog-distributedlog-core-4.17.2-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.17.2.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.17.2.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.17.2.jar
+    - org.apache.bookkeeper-bookkeeper-slogger-api-4.17.2.jar
+    - org.apache.bookkeeper-bookkeeper-slogger-slf4j-4.17.2.jar
+    - org.apache.bookkeeper-native-io-4.17.2.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.13.jar
     - org.apache.httpcomponents-httpcore-4.4.15.jar
  * AirCompressor
-    - io.airlift-aircompressor-0.20.jar
+    - io.airlift-aircompressor-0.27.jar
  * AsyncHttpClient
-    - org.asynchttpclient-async-http-client-2.12.1.jar
-    - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
+    - org.asynchttpclient-async-http-client-2.12.4.jar
+    - org.asynchttpclient-async-http-client-netty-utils-2.12.4.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-http-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-io-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-security-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-server-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-util-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.53.v20231009.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.53.v20231009.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.53.v20231009.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.53.v20231009.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.53.v20231009.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.53.v20231009.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.53.v20231009.jar
-    - org.eclipse.jetty-jetty-alpn-server-9.4.53.v20231009.jar
+    - org.eclipse.jetty-jetty-client-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-http-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-io-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-security-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-server-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-util-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-util-ajax-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.58.v20250814.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-alpn-server-9.4.58.v20250814.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.24.0.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.38.0.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp3
      - com.squareup.okhttp3-logging-interceptor-4.9.3.jar
@@ -419,39 +431,45 @@ The Apache Software License, Version 2.0
      - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
-    - io.grpc-grpc-all-1.55.3.jar
-    - io.grpc-grpc-auth-1.55.3.jar
-    - io.grpc-grpc-context-1.55.3.jar
-    - io.grpc-grpc-core-1.55.3.jar
-    - io.grpc-grpc-netty-1.55.3.jar
-    - io.grpc-grpc-protobuf-1.55.3.jar
-    - io.grpc-grpc-protobuf-lite-1.55.3.jar
-    - io.grpc-grpc-stub-1.55.3.jar
-    - io.grpc-grpc-alts-1.55.3.jar
-    - io.grpc-grpc-api-1.55.3.jar
-    - io.grpc-grpc-grpclb-1.55.3.jar
-    - io.grpc-grpc-netty-shaded-1.55.3.jar
-    - io.grpc-grpc-services-1.55.3.jar
-    - io.grpc-grpc-xds-1.55.3.jar
-    - io.grpc-grpc-rls-1.55.3.jar
-    - io.grpc-grpc-servlet-1.55.3.jar
-    - io.grpc-grpc-servlet-jakarta-1.55.3.jar
+    - io.grpc-grpc-all-1.75.0.jar
+    - io.grpc-grpc-auth-1.75.0.jar
+    - io.grpc-grpc-context-1.75.0.jar
+    - io.grpc-grpc-core-1.75.0.jar
+    - io.grpc-grpc-protobuf-1.75.0.jar
+    - io.grpc-grpc-protobuf-lite-1.75.0.jar
+    - io.grpc-grpc-stub-1.75.0.jar
+    - io.grpc-grpc-alts-1.75.0.jar
+    - io.grpc-grpc-api-1.75.0.jar
+    - io.grpc-grpc-grpclb-1.75.0.jar
+    - io.grpc-grpc-netty-shaded-1.75.0.jar
+    - io.grpc-grpc-services-1.75.0.jar
+    - io.grpc-grpc-xds-1.75.0.jar
+    - io.grpc-grpc-rls-1.75.0.jar
+    - io.grpc-grpc-servlet-1.75.0.jar
+    - io.grpc-grpc-servlet-jakarta-1.75.0.jar
+    - io.grpc-grpc-util-1.60.0.jar
+    - io.grpc-grpc-opentelemetry-1.75.0.jar
+    - io.grpc-grpc-gcp-csm-observability-1.75.0.jar
+    - io.grpc-grpc-inprocess-1.75.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.26.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.28.0.jar
     - io.opencensus-opencensus-contrib-http-util-0.28.0.jar
-    - io.opencensus-opencensus-proto-0.2.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
-    - net.jodah-failsafe-2.4.4.jar
+    - dev.failsafe-failsafe-3.3.2.jar
+  * Byte Buddy
+    - net.bytebuddy-byte-buddy-1.17.7.jar
+  * zt-zip
+    - org.zeroturnaround-zt-zip-1.17.jar
   * Apache Avro
-    - org.apache.avro-avro-1.11.3.jar
-    - org.apache.avro-avro-protobuf-1.11.3.jar
+    - org.apache.avro-avro-1.12.0.jar
+    - org.apache.avro-avro-protobuf-1.12.0.jar
   * Apache Curator
-    - org.apache.curator-curator-client-5.1.0.jar
-    - org.apache.curator-curator-framework-5.1.0.jar
-    - org.apache.curator-curator-recipes-5.1.0.jar
+    - org.apache.curator-curator-client-5.7.1.jar
+    - org.apache.curator-curator-framework-5.7.1.jar
+    - org.apache.curator-curator-recipes-5.7.1.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
@@ -465,46 +483,74 @@ The Apache Software License, Version 2.0
     - io.dropwizard.metrics-metrics-jmx-4.1.12.1.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
+  * Oxia
+    - io.github.oxia-db-oxia-client-api-0.7.0.jar
+    - io.github.oxia-db-oxia-client-0.7.0.jar
+  * OpenHFT
+    - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
     - io.jsonwebtoken-jjwt-api-0.11.1.jar
     - io.jsonwebtoken-jjwt-impl-0.11.1.jar
     - io.jsonwebtoken-jjwt-jackson-0.11.1.jar
   * JCTools - Java Concurrency Tools for the JVM
-    - org.jctools-jctools-core-2.1.2.jar
+    - org.jctools-jctools-core-4.0.5.jar
   * Vertx
-    - io.vertx-vertx-auth-common-4.3.8.jar
-    - io.vertx-vertx-bridge-common-4.3.8.jar
-    - io.vertx-vertx-core-4.3.8.jar
-    - io.vertx-vertx-web-4.3.8.jar
-    - io.vertx-vertx-web-common-4.3.8.jar
-    - io.vertx-vertx-grpc-4.3.5.jar
+    - io.vertx-vertx-auth-common-4.5.22.jar
+    - io.vertx-vertx-bridge-common-4.5.22.jar
+    - io.vertx-vertx-core-4.5.22.jar
+    - io.vertx-vertx-web-4.5.22.jar
+    - io.vertx-vertx-web-common-4.5.22.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.9.1.jar
-    - org.apache.zookeeper-zookeeper-jute-3.9.1.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.1.jar
+    - org.apache.zookeeper-zookeeper-3.9.4.jar
+    - org.apache.zookeeper-zookeeper-jute-3.9.4.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.4.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar
-    - com.google.auto.value-auto-value-annotations-1.9.jar
-    - com.google.re2j-re2j-1.6.jar
-  * Jetcd
-    - io.etcd-jetcd-api-0.7.5.jar
-    - io.etcd-jetcd-common-0.7.5.jar
-    - io.etcd-jetcd-core-0.7.5.jar
-    - io.etcd-jetcd-grpc-0.7.5.jar
+    - com.google.auto.value-auto-value-annotations-1.11.0.jar
+    - com.google.re2j-re2j-1.8.jar
+  * Jetcd - shaded
   * IPAddress
-    - com.github.seancfoley-ipaddress-5.3.3.jar
+    - com.github.seancfoley-ipaddress-5.5.0.jar
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-0.9.44.jar
+    - org.roaringbitmap-RoaringBitmap-1.2.0.jar
+  * OpenTelemetry
+    - io.opentelemetry-opentelemetry-api-1.45.0.jar
+    - io.opentelemetry-opentelemetry-api-incubator-1.45.0-alpha.jar
+    - io.opentelemetry-opentelemetry-context-1.45.0.jar
+    - io.opentelemetry-opentelemetry-exporter-common-1.45.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-1.45.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.45.0.jar
+    - io.opentelemetry-opentelemetry-exporter-prometheus-1.45.0-alpha.jar
+    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.45.0.jar
+    - io.opentelemetry-opentelemetry-sdk-1.45.0.jar
+    - io.opentelemetry-opentelemetry-sdk-common-1.45.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.45.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.45.0.jar
+    - io.opentelemetry-opentelemetry-sdk-logs-1.45.0.jar
+    - io.opentelemetry-opentelemetry-sdk-metrics-1.45.0.jar
+    - io.opentelemetry-opentelemetry-sdk-trace-1.45.0.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.6.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.6-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.6-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.6-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.6-alpha.jar
+    - io.opentelemetry.semconv-opentelemetry-semconv-1.29.0-alpha.jar
+    - com.google.cloud.opentelemetry-detector-resources-support-0.33.0.jar
+    - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.48.0-alpha.jar
+  * Spotify completable-futures
+    - com.spotify-completable-futures-0.3.6.jar
+  * JSpecify
+    - org.jspecify-jspecify-1.0.0.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
-    - com.google.auth-google-auth-library-credentials-1.4.0.jar -- ../licenses/LICENSE-google-auth-library.txt
-    - com.google.auth-google-auth-library-oauth2-http-1.4.0.jar -- ../licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-credentials-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-oauth2-http-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- ../licenses/LICENSE-JLine.txt
@@ -516,8 +562,8 @@ BSD 2-Clause License
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-0.9.0.jar -- ../licenses/LICENSE-SemVer.txt
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
-    - org.slf4j-slf4j-api-1.7.32.jar
-    - org.slf4j-jcl-over-slf4j-1.7.32.jar
+    - org.slf4j-slf4j-api-2.0.13.jar
+    - org.slf4j-jcl-over-slf4j-2.0.13.jar
  * The Checker Framework
     - org.checkerframework-checker-qual-3.33.0.jar
  * oshi
@@ -527,17 +573,14 @@ MIT License
     - com.auth0-jwks-rsa-0.22.0.jar
 Protocol Buffers License
  * Protocol Buffers
-   - com.google.protobuf-protobuf-java-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
-   - com.google.protobuf-protobuf-java-util-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-3.25.5.jar -- ../licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-util-3.25.5.jar -- ../licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
-    - javax.annotation-javax.annotation-api-1.3.2.jar
-    - com.sun.activation-javax.activation-1.2.0.jar
-    - javax.xml.bind-jaxb-api-2.3.1.jar
+    - com.sun.activation-jakarta.activation-1.2.2.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
- * Java Web Service REST API -- javax.ws.rs-javax.ws.rs-api-2.1.jar
  * HK2 - Dependency Injection Kernel
     - org.glassfish.hk2-hk2-api-2.6.1.jar
     - org.glassfish.hk2-hk2-locator-2.6.1.jar
@@ -545,16 +588,16 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.hk2-osgi-resource-locator-1.0.3.jar
     - org.glassfish.hk2.external-aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - org.glassfish.jersey.containers-jersey-container-servlet-2.34.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.34.jar
-    - org.glassfish.jersey.core-jersey-client-2.34.jar
-    - org.glassfish.jersey.core-jersey-common-2.34.jar
-    - org.glassfish.jersey.core-jersey-server-2.34.jar
-    - org.glassfish.jersey.ext-jersey-entity-filtering-2.34.jar
-    - org.glassfish.jersey.media-jersey-media-json-jackson-2.34.jar
-    - org.glassfish.jersey.media-jersey-media-multipart-2.34.jar
-    - org.glassfish.jersey.inject-jersey-hk2-2.34.jar
- * Mimepull -- org.jvnet.mimepull-mimepull-1.9.13.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-2.42.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.42.jar
+    - org.glassfish.jersey.core-jersey-client-2.42.jar
+    - org.glassfish.jersey.core-jersey-common-2.42.jar
+    - org.glassfish.jersey.core-jersey-server-2.42.jar
+    - org.glassfish.jersey.ext-jersey-entity-filtering-2.42.jar
+    - org.glassfish.jersey.media-jersey-media-json-jackson-2.42.jar
+    - org.glassfish.jersey.media-jersey-media-multipart-2.42.jar
+    - org.glassfish.jersey.inject-jersey-hk2-2.42.jar
+ * Mimepull -- org.jvnet.mimepull-mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
@@ -575,10 +618,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk18on-1.75.jar
-    - org.bouncycastle-bcprov-ext-jdk18on-1.75.jar
-    - org.bouncycastle-bcprov-jdk18on-1.75.jar
-    - org.bouncycastle-bcutil-jdk18on-1.75.jar
+    - org.bouncycastle-bcpkix-jdk18on-1.81.jar
+    - org.bouncycastle-bcprov-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcutil-jdk18on-1.81.jar
 
 ------------------------
 

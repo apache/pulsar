@@ -27,13 +27,13 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>29</version>
+    <version>35</version>
     <relativePath/>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-bom</artifactId>
-  <version>3.3.0-SNAPSHOT</version>
+  <version>4.2.0-SNAPSHOT</version>
   <name>Pulsar BOM</name>
   <description>Pulsar (Bill of Materials)</description>
 
@@ -81,7 +81,7 @@
     <maven.compiler.target>17</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2025-09-01T03:46:57Z</project.build.outputTimestamp>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
@@ -213,21 +213,6 @@
       <dependency>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-cli-utils</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-client-1x-base</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-client-1x</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-client-2x-shaded</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -493,11 +478,6 @@
       <dependency>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-io-hbase</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-io-hdfs2</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

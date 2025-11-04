@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -62,8 +64,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -107,10 +107,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private final Set<String> bundleGainsCache;
     private final Set<String> bundleLossesCache;
 
-    // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
-    // Used to distribute bundles within a namespace evenly across brokers.
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String,
-            ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
+    private final BundleRangeCache brokerToNamespaceToBundleRange = new BundleRangeCache();
 
     // CPU usage per msg/sec
     private double realtimeCpuLoadFactor = 0.025;
@@ -205,10 +202,6 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         bundleLossesCache = new HashSet<>();
         brokerCandidateCache = new HashSet<>();
         availableBrokersCache = new HashSet<>();
-        brokerToNamespaceToBundleRange =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
-                        .build();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerId) {
@@ -820,7 +813,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     minLoadPercentage = loadPercentage;
                 } else {
                     if ((unboundedRanks ? ranking.compareMessageRateTo(selectedRanking)
-                            : ranking.compareTo(selectedRanking)) < 0) {
+                            : ranking.compareToOtherRanking(selectedRanking)) < 0) {
                         minLoadPercentage = loadPercentage;
                         selectedRU = candidate;
                         selectedRanking = ranking;
@@ -853,14 +846,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 ResourceQuota quota = this.getResourceQuota(serviceUnitId);
                 // Add preallocated bundle range so incoming bundles from the same namespace are not assigned to the
                 // same broker.
-                brokerToNamespaceToBundleRange
-                        .computeIfAbsent(selectedRU.getResourceId(),
-                                k -> ConcurrentOpenHashMap.<String,
-                                        ConcurrentOpenHashSet<String>>newBuilder()
-                                        .build())
-                        .computeIfAbsent(namespaceName, k ->
-                                ConcurrentOpenHashSet.<String>newBuilder().build())
-                        .add(bundleRange);
+                brokerToNamespaceToBundleRange.add(selectedRU.getResourceId(), namespaceName, bundleRange);
                 ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
                 resourceUnitRankings.put(selectedRU, ranking);
             }
@@ -1272,15 +1258,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             final String broker = resourceUnit.getResourceId();
             final Set<String> loadedBundles = ranking.getLoadedBundles();
             final Set<String> preallocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
-                    brokerToNamespaceToBundleRange
-                            .computeIfAbsent(broker,
-                                    k -> ConcurrentOpenHashMap.<String,
-                                            ConcurrentOpenHashSet<String>>newBuilder()
-                                            .build());
-            namespaceToBundleRange.clear();
-            LoadManagerShared.fillNamespaceToBundlesMap(loadedBundles, namespaceToBundleRange);
-            LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundles, namespaceToBundleRange);
+            brokerToNamespaceToBundleRange.reloadFromBundles(broker,
+                    Stream.of(loadedBundles, preallocatedBundles).flatMap(Collection::stream));
         });
     }
 

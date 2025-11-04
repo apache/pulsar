@@ -18,63 +18,42 @@
  */
 package org.apache.pulsar.broker.tools;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.bookkeeper.tools.framework.Cli;
-import org.apache.bookkeeper.tools.framework.CliCommand;
-import org.apache.bookkeeper.tools.framework.CliFlags;
-import org.apache.bookkeeper.tools.framework.CliSpec;
+import java.util.concurrent.Callable;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * The command to generate documents of broker-tool.
  */
-public class GenerateDocsCommand extends CliCommand<CliFlags, GenerateDocsCommand.GenDocFlags> {
+@Command(name = "gen-doc", description = "Generate documents of broker-tool")
+public class GenerateDocsCommand implements Callable<Integer> {
+    @Option(
+            names = {"-n", "--command-names"},
+            description = "List of command names",
+            arity = "0..1"
+    )
+    private List<String> commandNames = new ArrayList<>();
+    private final CommandLine rootCmd;
 
-    private static final String NAME = "gen-doc";
-    private static final String DESC = "Generate documents of broker-tool";
-
-    /**
-     * The CLI flags of gen docs command.
-     */
-    protected static class GenDocFlags extends CliFlags {
-        @Parameter(
-                names = {"-n", "--command-names"},
-                description = "List of command names"
-        )
-        private List<String> commandNames = new ArrayList<>();
-    }
-
-    public GenerateDocsCommand() {
-        super(CliSpec.<GenDocFlags>newBuilder()
-                .withName(NAME)
-                .withDescription(DESC)
-                .withFlags(new GenDocFlags())
-                .build());
+    public GenerateDocsCommand(CommandLine rootCmd) {
+        this.rootCmd = rootCmd;
     }
 
     @Override
-    public Boolean apply(CliFlags globalFlags, String[] args) {
-        CliSpec<GenDocFlags> newSpec = CliSpec.newBuilder(spec)
-                .withRunFunc(cmdFlags -> apply(cmdFlags))
-                .build();
-        return 0 == Cli.runCli(newSpec, args);
-    }
-
-    private boolean apply(GenerateDocsCommand.GenDocFlags flags) {
+    public Integer call() throws Exception {
         CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-        JCommander commander = new JCommander();
-        commander.addCommand("load-report", new LoadReportCommand.Flags());
-        cmd.addCommand("broker-tool", commander);
-        if (flags.commandNames.isEmpty()) {
+        cmd.addCommand("broker-tool", rootCmd);
+        if (commandNames.isEmpty()) {
             cmd.run(null);
         } else {
-            ArrayList<String> args = new ArrayList(flags.commandNames);
+            ArrayList<String> args = new ArrayList(commandNames);
             args.add(0, "-n");
             cmd.run(args.toArray(new String[0]));
         }
-        return true;
+        return 0;
     }
 }

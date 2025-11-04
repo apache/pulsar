@@ -18,8 +18,10 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -36,6 +38,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
@@ -374,6 +377,8 @@ public interface ManagedLedger {
      */
     long getNumberOfEntries();
 
+    long getNumberOfEntries(Range<Position> range);
+
     /**
      * Get the total number of active entries for this managed ledger.
      *
@@ -417,6 +422,23 @@ public interface ManagedLedger {
     long getOffloadedSize();
 
     /**
+     * Resets the exception thrown by the PayloadProcessor during an add entry operation to null.
+     * <p>
+     * **Context:** When an add entry operation fails due to an interceptor, all subsequent incoming add entry
+     * operations will also fail. This behavior ensures message ordering and consistency.
+     * <p>
+     * **Important:** This method MUST only be called after all pending add operations are fully completed
+     * (e.g., after a Topic is unfenced). Calling it prematurely will prevent the Managed Ledger (ML)
+     * from being able to write indefinitely.
+     * <p>
+     * **Implementation Note:** Downstream projects that support the ML PayloadProcessor should implement
+     * this method. Otherwise, do not implement it.
+     */
+    default void unfenceForInterceptorException() {
+        // Default implementation does nothing
+    }
+
+    /**
      * Get last offloaded ledgerId. If no offloaded yet, it returns 0.
      *
      * @return last offloaded ledgerId
@@ -440,6 +462,41 @@ public interface ManagedLedger {
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
     CompletableFuture<Position> asyncMigrate();
+
+
+    /**
+     * Add a property to the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to add
+     * @param value    the value of the property to add
+     * @return
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value);
+
+    /**
+     * Remove a property from the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to remove
+     * @return
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key);
+
+    /**
+     * Get the value of the specified property from the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to get
+     * @return the value of the property
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key);
 
     /**
      * Terminate the managed ledger and return the last committed entry.
@@ -523,8 +580,9 @@ public interface ManagedLedger {
     /**
      * Get the slowest consumer.
      *
-     * @return the slowest consumer
+     * @return the slowest consumer or null if there is no consumer
      */
+    @Nullable
     ManagedCursor getSlowestConsumer();
 
     /**
@@ -632,6 +690,11 @@ public interface ManagedLedger {
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 
     /**
+     * Rollover cursors in background if needed.
+     */
+    default void rolloverCursorsInBackground() {}
+
+    /**
      * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
      * used to delete information about this ledger in the ManagedCursor.
      */
@@ -691,4 +754,55 @@ public interface ManagedLedger {
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    /**
+     * Get managed ledger attributes.
+     */
+    default ManagedLedgerAttributes getManagedLedgerAttributes() {
+        return new ManagedLedgerAttributes(this);
+    }
+
+    void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Get all the managed ledgers.
+     */
+    NavigableMap<Long, LedgerInfo> getLedgersInfo();
+
+    Position getNextValidPosition(Position position);
+
+    Position getPreviousPosition(Position position);
+
+    long getEstimatedBacklogSize(Position position);
+
+    Position getPositionAfterN(Position startPosition, long n, PositionBound startRange);
+
+    int getPendingAddEntriesCount();
+
+    long getCacheSize();
+
+    default CompletableFuture<Position> getLastDispatchablePosition(final Predicate<Entry> predicate,
+                                                                    final Position startPosition) {
+        return CompletableFuture.completedFuture(PositionFactory.EARLIEST);
+    }
+
+    Position getFirstPosition();
+
+    /**
+     * Get the timestamp in milliseconds of the last successful add entry operation.
+     *
+     * @return the last add entry time in milliseconds
+     */
+    default long getLastAddEntryTime() {
+        return 0;
+    }
+
+    /**
+     * Get the creation timestamp of the managed ledger metadata, or 0 if not available.
+     *
+     * @return the creation timestamp in milliseconds, or 0 if not available
+     */
+    default long getMetadataCreationTimestamp() {
+        return 0;
+    }
 }

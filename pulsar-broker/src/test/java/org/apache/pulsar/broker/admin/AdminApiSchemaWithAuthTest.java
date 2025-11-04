@@ -120,6 +120,7 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), PRODUCE_TOKEN)
                 .build();
+        admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().grantPermission(topicName, "consumer", EnumSet.of(AuthAction.consume));
         admin.topics().grantPermission(topicName, "producer", EnumSet.of(AuthAction.produce));
 
@@ -131,21 +132,23 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));
         SchemaInfo readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName);
-        ((SchemaInfoImpl)readSi).setTimestamp(0);
+        ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName, 0));
         readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName, 0);
-        ((SchemaInfoImpl)readSi).setTimestamp(0);
+        ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
         List<SchemaInfo> allSchemas = adminWithConsumePermission.schemas().getAllSchemas(topicName);
         assertEquals(allSchemas.size(), 1);
 
         SchemaInfo schemaInfo2 = Schema.BOOL.getSchemaInfo();
-        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().testCompatibility(topicName, schemaInfo2));
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas()
+                .testCompatibility(topicName, schemaInfo2));
         assertTrue(adminWithAdminPermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility());
 
-        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getVersionBySchema(topicName, si));
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas()
+                .getVersionBySchema(topicName, si));
         Long versionBySchema = adminWithConsumePermission.schemas().getVersionBySchema(topicName, si);
         assertEquals(versionBySchema, Long.valueOf(0L));
 

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
@@ -28,10 +30,12 @@ import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -44,6 +48,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipException;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -51,10 +57,13 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.web.RateLimitingFilter.Result;
+import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.LimitType;
+import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.UsageType;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -84,26 +93,39 @@ public class WebServiceTest {
 
     private PulsarTestContext pulsarTestContext;
     private PulsarService pulsar;
-    private String BROKER_LOOKUP_URL;
-    private String BROKER_LOOKUP_URL_TLS;
+    private String brokerLookUpUrl;
+    private String brokerLookUpUrlTls;
 
-    private final static String CA_CERT_FILE_PATH =
+    private static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    private final static String BROKER_CERT_FILE_PATH =
+    private static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private final static String BROKER_KEY_FILE_PATH =
+    private static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private final static String CLIENT_CERT_FILE_PATH =
+    private static final String CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private final static String CLIENT_KEY_FILE_PATH =
+    private static final String CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
 
 
     @Test
     public void testWebExecutorMetrics() throws Exception {
         setupEnv(true, false, false, false, -1, false);
+
+        var otelMetrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.LIMIT_COUNTER, LimitType.MAX.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.LIMIT_COUNTER, LimitType.MIN.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.ACTIVE.attributes,
+                value -> assertThat(value).isNotNegative());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.CURRENT.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.IDLE.attributes,
+                value -> assertThat(value).isNotNegative());
+
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -154,7 +176,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is enabled, WebServcie is available both on HTTP and HTTPS.
+     * Test that if enableTls option is enabled, WebService is available both on HTTP and HTTPS.
      *
      * @throws Exception
      */
@@ -176,7 +198,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is disabled, WebServcie is available only on HTTP.
+     * Test that if enableTls option is disabled, WebService is available only on HTTP.
      *
      * @throws Exception
      */
@@ -199,7 +221,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option and allowInsecure option are enabled, WebServcie requires trusted/untrusted client
+     * Test that if enableAuth option and allowInsecure option are enabled, WebService requires trusted/untrusted client
      * certificate.
      *
      * @throws Exception
@@ -223,7 +245,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option is enabled, WebServcie requires trusted client certificate.
+     * Test that if enableAuth option is enabled, WebService requires trusted client certificate.
      *
      * @throws Exception
      */
@@ -249,11 +271,28 @@ public class WebServiceTest {
     public void testRateLimiting() throws Exception {
         setupEnv(false, false, false, false, 10.0, false);
 
+        // setupEnv makes a HTTP call to create the cluster.
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.ACCEPTED.attributes, 1);
+        assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
+                .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
+                .hasLongSumSatisfying(
+                        sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
+
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
             makeHttpRequest(false, false);
             Thread.sleep(200);
         }
+
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.ACCEPTED.attributes, 6);
+        assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
+                .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
+                .hasLongSumSatisfying(
+                        sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
 
         try {
             for (int i = 0; i < 500; i++) {
@@ -264,6 +303,12 @@ public class WebServiceTest {
         } catch (IOException e) {
             assertTrue(e.getMessage().contains("429"));
         }
+
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(6));
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.REJECTED.attributes, value -> assertThat(value).isPositive());
     }
 
     @Test
@@ -321,7 +366,8 @@ public class WebServiceTest {
 
         // Create local cluster
         String localCluster = "test";
-        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster, ClusterDataImpl.builder().build());
+        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster,
+                ClusterDataImpl.builder().build());
         TenantInfo info2 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
@@ -354,6 +400,71 @@ public class WebServiceTest {
         assertEquals(res.getResponseBody(), "ok");
     }
 
+    @Test
+    public void testCompressOutputMetricsInPrometheus() throws Exception {
+        setupEnv(true, false, false, false, -1, false);
+
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
+
+        URL url = new URL(metricsUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Accept-Encoding", "gzip");
+
+        StringBuilder content = new StringBuilder();
+
+        try (InputStream inputStream = connection.getInputStream()) {
+            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                // Process the decompressed content
+                int data;
+                while ((data = gzipInputStream.read()) != -1) {
+                    content.append((char) data);
+                }
+            }
+
+            log.info("Response Content: {}", content);
+            assertTrue(content.toString().contains("process_cpu_seconds_total"));
+        } catch (IOException e) {
+            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            fail();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    @Test
+    public void testUnCompressOutputMetricsInPrometheus() throws Exception {
+        setupEnv(true, false, false, false, -1, false);
+
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
+
+        URL url = new URL(metricsUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        StringBuilder content = new StringBuilder();
+
+        try (InputStream inputStream = connection.getInputStream()) {
+            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                fail();
+            } catch (IOException e) {
+                assertTrue(e instanceof ZipException);
+            }
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line + "\n");
+            }
+        } finally {
+            connection.disconnect();
+        }
+
+        log.info("Response Content: {}", content);
+
+        assertTrue(content.toString().contains("process_cpu_seconds_total"));
+    }
+
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
         InputStream response = null;
         try {
@@ -375,9 +486,9 @@ public class WebServiceTest {
                 SSLContext sslCtx = SSLContext.getInstance("TLS");
                 sslCtx.init(keyManagers, trustManagers, new SecureRandom());
                 HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
-                response = new URL(BROKER_LOOKUP_URL_TLS).openStream();
+                response = new URL(brokerLookUpUrlTls).openStream();
             } else {
-                response = new URL(BROKER_LOOKUP_URL).openStream();
+                response = new URL(brokerLookUpUrl).openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
             log.info("Response: {}", resp);
@@ -429,17 +540,18 @@ public class WebServiceTest {
         pulsarTestContext = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(config)
+                .enableOpenTelemetry(true)
                 .build();
 
         pulsar = pulsarTestContext.getPulsarService();
 
-        String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
-        String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
-        String serviceUrl = BROKER_URL_BASE;
+        String brokerUrlBase = "http://localhost:" + pulsar.getListenPortHTTP().get();
+        String brokerUrlBaseTls = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
+        String serviceUrl = brokerUrlBase;
 
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder();
         if (enableTls && enableAuth) {
-            serviceUrl = BROKER_URL_BASE_TLS;
+            serviceUrl = brokerUrlBaseTls;
 
             Map<String, String> authParams = new HashMap<>();
             authParams.put("tlsCertFile", CLIENT_CERT_FILE_PATH);
@@ -448,9 +560,9 @@ public class WebServiceTest {
             adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
         }
 
-        BROKER_LOOKUP_URL = BROKER_URL_BASE
+        brokerLookUpUrl = brokerUrlBase
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-        BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
+        brokerLookUpUrlTls = brokerUrlBaseTls
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
         @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();

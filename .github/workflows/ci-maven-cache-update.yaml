@@ -43,13 +43,14 @@ on:
 
 env:
   MAVEN_OPTS: -Xss1500k -Xmx1024m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  JDK_DISTRIBUTION: corretto
 
 jobs:
   update-maven-dependencies-cache:
     name: Update Maven dependency cache for ${{ matrix.name }}
     env:
       JOB_NAME: Update Maven dependency cache for ${{ matrix.name }}
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 45
 
@@ -58,16 +59,16 @@ jobs:
       matrix:
         include:
           - name: all modules
-            runs-on: ubuntu-22.04
+            runs-on: ubuntu-24.04
             cache_name: 'm2-dependencies-all'
             mvn_arguments: ''
 
           - name: all modules - macos
-            runs-on: macos-11
+            runs-on: macos-latest
             cache_name: 'm2-dependencies-all'
 
           - name: core-modules
-            runs-on: ubuntu-22.04
+            runs-on: ubuntu-24.04
             cache_name: 'm2-dependencies-core-modules'
             mvn_arguments: '-Pcore-modules,-main'
 
@@ -106,7 +107,7 @@ jobs:
         uses: actions/setup-java@v4
         if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: 17
 
       - name: Download dependencies

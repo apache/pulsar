@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(false);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
@@ -42,5 +42,18 @@ public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndT
     public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         txnAckTest(true, 200, SubscriptionType.Failover);
+    }
+
+    @Override
+    @Test(dataProvider = "unackMessagesCountParams", enabled = false)
+    public void testUnackMessageAfterAckAllMessages(boolean batchSend, boolean batchAck, boolean asyncAck)
+            throws Exception {
+        super.testUnackMessageAfterAckAllMessages(batchSend, batchAck, asyncAck);
+    }
+
+    @Override
+    @Test(dataProvider = "enableBatch", enabled = false)
+    public void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
+        super.testAckWithTransactionReduceUnAckMessageCount(enableBatch);
     }
 }

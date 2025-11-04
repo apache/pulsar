@@ -55,7 +55,9 @@ import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.mockito.Mockito;
@@ -70,7 +72,7 @@ public class AuthenticationProviderTokenTest {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         try {
-            provider.initialize(new ServiceConfiguration());
+            provider.initialize(AuthenticationProvider.Context.builder().config(new ServiceConfiguration()).build());
             fail("should have failed");
         } catch (IOException e) {
             // Expected, secret key was not defined
@@ -107,13 +109,14 @@ public class AuthenticationProviderTokenTest {
         String privateKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
         String publicKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
 
-        String token = AuthTokenUtils.createToken(AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey), SignatureAlgorithm.RS256),
+        String token = AuthTokenUtils.createToken(
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey), SignatureAlgorithm.RS256),
                 SUBJECT,
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parserBuilder()
-                .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
+        Jwt<?, Claims> jwt = Jwts.parserBuilder().setSigningKey(
+                AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
                 .build()
                 .parse(token);
 
@@ -135,7 +138,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         try {
             provider.authenticate(new AuthenticationDataSource() {
@@ -249,7 +252,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @Test
@@ -268,7 +271,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
 
@@ -303,7 +306,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
 
@@ -335,7 +338,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
 
@@ -370,10 +373,11 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
@@ -413,11 +417,11 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
-
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, authRole);
@@ -460,10 +464,11 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.ES256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.ES256);
         String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
@@ -484,8 +489,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenNoJwtPassed() throws AuthenticationException {
+    public void testAuthenticateWhenNoJwtPassed() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public boolean hasDataFromCommand() {
@@ -500,8 +508,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenAuthorizationHeaderNotExist() throws AuthenticationException {
+    public void testAuthenticateWhenAuthorizationHeaderNotExist() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -516,8 +527,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenAuthHeaderValuePrefixIsInvalid() throws AuthenticationException {
+    public void testAuthenticateWhenAuthHeaderValuePrefixIsInvalid() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -532,8 +546,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenJwtIsBlank() throws AuthenticationException {
+    public void testAuthenticateWhenJwtIsBlank() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -559,7 +576,7 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
 
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -582,7 +599,7 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
 
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -594,7 +611,7 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
 
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -606,7 +623,7 @@ public class AuthenticationProviderTokenTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
 
-        new AuthenticationProviderToken().initialize(conf);
+        new AuthenticationProviderToken().initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -618,7 +635,7 @@ public class AuthenticationProviderTokenTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
 
-        new AuthenticationProviderToken().initialize(conf);
+        new AuthenticationProviderToken().initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -633,7 +650,7 @@ public class AuthenticationProviderTokenTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
 
-        new AuthenticationProviderToken().initialize(conf);
+        new AuthenticationProviderToken().initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -645,7 +662,7 @@ public class AuthenticationProviderTokenTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
 
-        new AuthenticationProviderToken().initialize(conf);
+        new AuthenticationProviderToken().initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -657,7 +674,7 @@ public class AuthenticationProviderTokenTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
 
-        new AuthenticationProviderToken().initialize(conf);
+        new AuthenticationProviderToken().initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
 
@@ -676,7 +693,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Create a token that will expire in 3 seconds
         String expiringToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
@@ -709,7 +726,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Create a token that is already expired
         String expiringToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
@@ -718,7 +735,7 @@ public class AuthenticationProviderTokenTest {
         AuthData expiredAuthData = AuthData.of(expiringToken.getBytes());
 
         // It is important that this call doesn't fail because we no longer authenticate the auth data at construction
-        AuthenticationState authState = provider.newAuthState(expiredAuthData,null, null);
+        AuthenticationState authState = provider.newAuthState(expiredAuthData, null, null);
         // The call to authenticate the token is the call that fails
         assertThrows(AuthenticationException.class, () -> authState.authenticate(expiredAuthData));
     }
@@ -828,10 +845,11 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, Arrays.asList(authRole, "other-role"));
@@ -877,7 +895,7 @@ public class AuthenticationProviderTokenTest {
                 );
         Mockito.when(mockConf.getProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX)).thenReturn(prefix);
 
-        provider.initialize(mockConf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(mockConf).build());
 
         // Each property is fetched only once. Prevent multiple fetches.
         Mockito.verify(mockConf, Mockito.times(1)).getProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX);
@@ -908,7 +926,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
@@ -934,7 +952,7 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
@@ -960,9 +978,9 @@ public class AuthenticationProviderTokenTest {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
-        AuthenticationState authState = provider.newAuthState(null,null, null);
+        AuthenticationState authState = provider.newAuthState(null, null, null);
 
         // Haven't authenticated yet, so cannot get role when using constructor with no auth data
         assertThrows(AuthenticationException.class, authState::getAuthRole);
@@ -1004,7 +1022,7 @@ public class AuthenticationProviderTokenTest {
     }
 
     private static void testTokenAudienceWithDifferentConfig(Properties properties,
-                                                             String audienceClaim, List<String> audiences) throws Exception {
+                                                        String audienceClaim, List<String> audiences) throws Exception {
         @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -1016,7 +1034,7 @@ public class AuthenticationProviderTokenTest {
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFile.toString());
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String token = createTokenWithAudience(secretKey, audienceClaim, audiences);
 

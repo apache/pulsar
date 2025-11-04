@@ -26,7 +26,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -115,6 +114,40 @@ public class ConsumerAckTest extends ProducerConsumerBase {
         } catch (ExecutionException e) {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
         }
+    }
+    @Test(timeOut = 30000)
+    public void testAckReceipt() throws Exception {
+        String topic = "testAckReceipt";
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .isAckReceiptEnabled(true)
+                .subscribe();
+        for (int i = 0; i < 10; i++) {
+            producer.send(i);
+        }
+        Message<Integer> message = consumer.receive();
+        MessageId messageId = message.getMessageId();
+        consumer.acknowledgeCumulativeAsync(messageId).get();
+        consumer.acknowledgeCumulativeAsync(messageId).get();
+        consumer.close();
+        @Cleanup
+        ConsumerImpl<Integer> consumer2 = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .isAckReceiptEnabled(true)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
+        message = consumer2.receive();
+        messageId = message.getMessageId();
+        consumer2.acknowledgeCumulativeAsync(messageId).get();
+        consumer2.acknowledgeCumulativeAsync(messageId).get();
     }
 
     @Test

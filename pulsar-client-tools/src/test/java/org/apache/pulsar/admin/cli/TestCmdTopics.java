@@ -33,14 +33,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import lombok.Cleanup;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -50,6 +50,8 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -132,19 +134,19 @@ public class TestCmdTopics {
         assertEquals(admin.topics().getList("test", TopicDomain.persistent), topicList);
 
         CmdTopics cmd = new CmdTopics(() -> admin);
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setOut(printWriter);
 
-        PrintStream defaultSystemOut = System.out;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); PrintStream ps = new PrintStream(out)) {
-            System.setOut(ps);
-            cmd.run("list public/default".split("\\s+"));
-            Assert.assertEquals(out.toString(), String.join("\n", topicList) + "\n");
-        } finally {
-            System.setOut(defaultSystemOut);
-        }
-   }
+        cmd.run("list public/default".split("\\s+"));
+        Assert.assertEquals(stringWriter.toString(), String.join("\n", topicList) + "\n");
+    }
+
     @Test
     public void testPartitionedLookup() throws Exception {
-        partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
+        partitionedLookup.topicName = "persistent://public/default/my-topic";
         partitionedLookup.run();
         StringBuilder topic = new StringBuilder();
         topic.append(PERSISTENT_TOPIC_URL);
@@ -158,7 +160,7 @@ public class TestCmdTopics {
 
     @Test
     public void testPartitionedLookupSortByBroker() throws Exception {
-        partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
+        partitionedLookup.topicName = "persistent://public/default/my-topic";
         partitionedLookup.run();
         StringBuilder topic = new StringBuilder();
         topic.append(PERSISTENT_TOPIC_URL);
@@ -173,7 +175,7 @@ public class TestCmdTopics {
     @Test
     public void testRunDeleteSingleTopic() throws PulsarAdminException, IOException {
         // Setup: Specify a single topic to delete
-        deleteCmd.params = List.of("persistent://tenant/namespace/topic");
+        deleteCmd.topic = "persistent://tenant/namespace/topic";
 
         // Act: Run the delete command
         deleteCmd.run();
@@ -185,7 +187,7 @@ public class TestCmdTopics {
     @Test
     public void testRunDeleteMultipleTopics() throws PulsarAdminException, IOException {
         // Setup: Specify a regex to delete multiple topics
-        deleteCmd.params = List.of("persistent://tenant/namespace/.*");
+        deleteCmd.topic = "persistent://tenant/namespace/.*";
         deleteCmd.regex = true;
 
         // Mock: Simulate the return of multiple topics that match the regex
@@ -212,7 +214,7 @@ public class TestCmdTopics {
         Files.write(tempFile, topics);
 
         // Setup: Specify the temporary file as input for the delete command
-        deleteCmd.params = List.of(tempFile.toString());
+        deleteCmd.topic = tempFile.toString();
         deleteCmd.readFromFile = true;
 
         // Act: Run the delete command
@@ -239,7 +241,7 @@ public class TestCmdTopics {
         Files.write(tempFile, topics);
 
         // Setup: Specify the temporary file as input for the delete command
-        deleteCmd.params = List.of(tempFile.toString());
+        deleteCmd.topic = tempFile.toString();
         deleteCmd.readFromFile = true;
 
         // Act: Run the delete command
@@ -260,4 +262,50 @@ public class TestCmdTopics {
         mockTopics = mock(Topics.class);
     }
 
+    @Test
+    public void testSetRetentionCmd() throws Exception {
+        cmdTopics.run("set-retention public/default/topic -s 2T -t 200d".split("\\s+"));
+        verify(mockTopics, times(1)).setRetention("persistent://public/default/topic",
+                new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
+    }
+
+    @Test
+    public void testSetPersistenceWithDefaultMarkDeleteRate() throws Exception {
+        // Test that the default value is now -1 (unset) instead of 0
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithNegativeMarkDeleteRate() throws Exception {
+        // Test that negative values are now allowed (previously would throw exception)
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -5.0".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -5.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithZeroMarkDeleteRate() throws Exception {
+        // Test that zero is still allowed
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r 0".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, 0.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithPositiveMarkDeleteRate() throws Exception {
+        // Test that positive values still work
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r 10.5".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, 10.5, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithUnsetMarkDeleteRate() throws Exception {
+        // Test explicitly setting to -1 (unset)
+        cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -1".split("\\s+"));
+        verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
 }

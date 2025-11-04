@@ -90,7 +90,8 @@ public class TestZKServer implements AutoCloseable {
 
     @SneakyThrows
     private static ContainerManager getContainerManager(ZooKeeperServerMain zooKeeperServerMain) {
-        ContainerManager containerManager = readField(ZooKeeperServerMain.class, "containerManager", zooKeeperServerMain);
+        ContainerManager containerManager = readField(ZooKeeperServerMain.class,
+                "containerManager", zooKeeperServerMain);
         return containerManager;
     }
 
@@ -131,6 +132,7 @@ public class TestZKServer implements AutoCloseable {
     public void stop() throws Exception {
         if (zooKeeperServerEmbedded != null) {
             zooKeeperServerEmbedded.close();
+            zooKeeperServerEmbedded = null;
         }
         log.info("Stopped test ZK server");
     }

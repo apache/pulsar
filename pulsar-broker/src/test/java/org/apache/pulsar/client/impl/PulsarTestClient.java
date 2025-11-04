@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 
@@ -79,8 +80,9 @@ public class PulsarTestClient extends PulsarClientImpl {
                 new DefaultThreadFactory("pulsar-test-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
-        ConnectionPool connectionPool = new ConnectionPool(clientConfigurationData, eventLoopGroup,
-                () -> clientCnxSupplierReference.get().get());
+        ConnectionPool connectionPool =
+                new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
+                () -> clientCnxSupplierReference.get().get(), null);
 
         return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,
                 clientCnxSupplierReference);
@@ -89,7 +91,7 @@ public class PulsarTestClient extends PulsarClientImpl {
     private PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                              AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
             throws PulsarClientException {
-        super(conf, eventLoopGroup, cnxPool);
+        super(conf, eventLoopGroup, cnxPool, null, null, null, null, null, new DnsResolverGroupImpl(conf));
         // workaround initialization order issue so that ClientCnx can be created in this class
         clientCnxSupplierReference.set(this::createClientCnx);
     }
@@ -101,7 +103,7 @@ public class PulsarTestClient extends PulsarClientImpl {
      * @return new ClientCnx instance
      */
     protected ClientCnx createClientCnx() {
-        return new ClientCnx(conf, eventLoopGroup) {
+        return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
             @Override
             public int getRemoteEndpointProtocolVersion() {
                 return overrideRemoteEndpointProtocolVersion != 0

@@ -19,14 +19,15 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
+import io.opentelemetry.api.common.Attributes;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
@@ -34,6 +35,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
@@ -60,11 +63,33 @@ public class HttpLookupService implements LookupService {
     private static final String BasePathV1 = "lookup/v2/destination/";
     private static final String BasePathV2 = "lookup/v2/topic/";
 
-    public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
+    private final LatencyHistogram histoGetBroker;
+    private final LatencyHistogram histoGetTopicMetadata;
+    private final LatencyHistogram histoGetSchema;
+    private final LatencyHistogram histoListTopics;
+
+    @Deprecated
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, null, null);
+    }
+
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup, Timer timer,
+                             NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf, eventLoopGroup);
+        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
+
+        LatencyHistogram histo = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
+                "Duration of lookup operations", null,
+                Attributes.builder().put("pulsar.lookup.transport-type", "http").build());
+        histoGetBroker = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "topic").build());
+        histoGetTopicMetadata =
+                histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "metadata").build());
+        histoGetSchema = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "schema").build());
+        histoListTopics = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "list-topics").build());
     }
 
     @Override
@@ -84,8 +109,18 @@ public class HttpLookupService implements LookupService {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
         String path = basePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
-        return httpClient.get(path, LookupData.class)
-                .thenCompose(lookupData -> {
+
+        long startTime = System.nanoTime();
+        CompletableFuture<LookupData> httpFuture = httpClient.get(path, LookupData.class);
+
+        httpFuture.thenRun(() -> {
+            histoGetBroker.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoGetBroker.recordFailure(System.nanoTime() - startTime);
+            return null;
+        });
+
+        return httpFuture.thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
             URI uri = null;
             try {
@@ -110,11 +145,29 @@ public class HttpLookupService implements LookupService {
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * @param useFallbackForNonPIP344Brokers HttpLookupService ignores this parameter
+     */
     @Override
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
+        long startTime = System.nanoTime();
+
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
-        return httpClient.get(String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",
+        CompletableFuture<PartitionedTopicMetadata> httpFuture =  httpClient.get(
+                String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation="
+                        + metadataAutoCreationEnabled,
                 PartitionedTopicMetadata.class);
+
+        httpFuture.thenRun(() -> {
+            histoGetTopicMetadata.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoGetTopicMetadata.recordFailure(System.nanoTime() - startTime);
+            return null;
+        });
+
+        return httpFuture;
     }
 
     @Override
@@ -130,6 +183,8 @@ public class HttpLookupService implements LookupService {
     @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                       String topicsPattern, String topicsHash) {
+        long startTime = System.nanoTime();
+
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
 
         String format = namespace.isV2()
@@ -137,21 +192,21 @@ public class HttpLookupService implements LookupService {
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
-                List<String> result = new ArrayList<>();
-                // do not keep partition part of topic name
-                Arrays.asList(topics).forEach(topic -> {
-                    String filtered = TopicName.get(topic).getPartitionedTopicName();
-                    if (!result.contains(filtered)) {
-                        result.add(filtered);
-                    }
-                });
-                future.complete(new GetTopicsResult(result, topicsHash, false, true));
+                future.complete(new GetTopicsResult(topics));
             }).exceptionally(ex -> {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
                 future.completeExceptionally(cause);
                 return null;
             });
+
+        future.thenRun(() -> {
+            histoListTopics.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoListTopics.recordFailure(System.nanoTime() - startTime);
+            return null;
+        });
+
         return future;
     }
 
@@ -162,6 +217,7 @@ public class HttpLookupService implements LookupService {
 
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
+        long startTime = System.nanoTime();
         CompletableFuture<Optional<SchemaInfo>> future = new CompletableFuture<>();
 
         String schemaName = topicName.getSchemaName();
@@ -199,6 +255,13 @@ public class HttpLookupService implements LookupService {
                         cause);
                 future.completeExceptionally(cause);
             }
+            return null;
+        });
+
+        future.thenRun(() -> {
+            histoGetSchema.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoGetSchema.recordFailure(System.nanoTime() - startTime);
             return null;
         });
         return future;

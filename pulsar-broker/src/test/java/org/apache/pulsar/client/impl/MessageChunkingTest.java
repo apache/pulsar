@@ -37,8 +37,8 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -163,7 +164,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertTrue(producerStats.getChunkedMessageRate() > 0);
 
         ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
+        Position readPosition = mcursor.getReadPosition();
 
         for (MessageId msgId : msgIds) {
             consumer.acknowledge(msgId);
@@ -269,7 +270,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
+        Position readPosition = mcursor.getReadPosition();
 
         consumer.acknowledgeCumulative(lastMsgId);
 
@@ -448,7 +449,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
-     * Validate that chunking is not supported with batching and non-persistent topic
+     * Validate that chunking is not supported with batching and non-persistent topic.
      *
      * @throws Exception
      */
@@ -491,7 +492,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
-        TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
+        TypedMessageBuilderImpl<byte[]> msg =
+                (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
         MessageMetadata msgMetadata = msg.getMetadataBuilder();
         msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L)
@@ -499,7 +501,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         MessageImpl msgImpl = ((MessageImpl<byte[]>) msg.getMessage());
         msgImpl.setSchemaState(SchemaState.Ready);
-        OpSendMsg op = OpSendMsg.create(msgImpl, cmd, 1, null);
+        OpSendMsg op = OpSendMsg.create(LatencyHistogram.NOOP, msgImpl, cmd, 1, null);
         producer.processOpSendMsg(op);
 
         retryStrategically((test) -> {
@@ -560,8 +562,12 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
     }
 
+    interface ThrowingBiConsumer<T, K> {
+        void accept(T t, K u) throws Exception;
+    }
+
     @Test
-    public void testSeekChunkMessages() throws PulsarClientException {
+    public void testSeekChunkMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
@@ -611,14 +617,17 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader()
-                .topic(topicName)
-                .startMessageIdInclusive()
-                .startMessageId(msgIds.get(1))
-                .create();
-
-        Message<byte[]> readMsg = reader.readNext(5, TimeUnit.SECONDS);
-        assertEquals(msgIds.get(1), readMsg.getMessageId());
+        ThrowingBiConsumer<Boolean, MessageId> assertStartMessageId = (inclusive, expectedFirstMsgId) -> {
+            final var builder = pulsarClient.newReader().topic(topicName).startMessageId(msgIds.get(1));
+            if (inclusive) {
+                builder.startMessageIdInclusive();
+            }
+            @Cleanup final var reader = builder.create();
+            final var readMsg = reader.readNext(5, TimeUnit.SECONDS);
+            assertEquals(expectedFirstMsgId, readMsg.getMessageId());
+        };
+        assertStartMessageId.accept(true, msgIds.get(1));
+        assertStartMessageId.accept(false, msgIds.get(2));
 
         consumer1.close();
         consumer2.close();
