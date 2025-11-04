@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabled;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -53,9 +53,9 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
         super(schemaInfo);
         this.pojoClassLoader = pojoClassLoader;
-        boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
+        boolean jsr310ConversionEnabled = getJsr310ConversionEnabled(schemaInfo);
         setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader,
-                getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
+                getJsr310ConversionEnabled(schemaInfo)));
         setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
     }
 

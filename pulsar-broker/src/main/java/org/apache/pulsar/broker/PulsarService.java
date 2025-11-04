@@ -143,6 +143,7 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.impl.DnsResolverGroupImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -266,6 +267,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
     private final ExecutorProvider brokerClientSharedLookupExecutorProvider;
+    private final DnsResolverGroupImpl brokerClientSharedDnsResolverGroup;
 
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
@@ -398,6 +400,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
         this.brokerClientSharedLookupExecutorProvider =
                 new ScheduledExecutorProvider(1, "broker-client-shared-lookup-executor");
+        this.brokerClientSharedDnsResolverGroup =
+                new DnsResolverGroupImpl(
+                        loadBrokerClientProperties(new ClientConfigurationData()));
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
@@ -697,6 +702,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedLookupExecutorProvider.shutdownNow();
+            brokerClientSharedDnsResolverGroup.close();
             brokerClientSharedTimer.stop();
             if (monotonicClock instanceof AutoCloseable c) {
                 c.close();
@@ -1719,7 +1725,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
                 .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
-                .lookupExecutorProvider(brokerClientSharedLookupExecutorProvider);
+                .lookupExecutorProvider(brokerClientSharedLookupExecutorProvider)
+                .dnsResolverGroup(brokerClientSharedDnsResolverGroup);
         if (customizer != null) {
             customizer.accept(pulsarClientImplBuilder);
         }
@@ -1748,10 +1755,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
         // See https://github.com/apache/pulsar/issues/8509 for more information.
-        Map<String, Object> overrides = PropertiesUtils
-                .filterAndMapProperties(this.getConfiguration().getProperties(), "brokerClient_");
-        ClientConfigurationData conf =
-                ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
+        ClientConfigurationData conf = loadBrokerClientProperties(initialConf);
 
         // Disabled auto release useless connections
         // The automatic release connection feature is not yet perfect for transaction scenarios, so turn it
@@ -1794,6 +1798,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     this.getConfiguration().getBrokerClientAuthenticationPlugin(),
                     this.getConfiguration().getBrokerClientAuthenticationParameters()));
         }
+        return conf;
+    }
+
+    // load plain brokerClient_ properties without complete initialization
+    private ClientConfigurationData loadBrokerClientProperties(ClientConfigurationData initialConf) {
+        Map<String, Object> overrides = PropertiesUtils
+                .filterAndMapProperties(this.getConfiguration().getProperties(), "brokerClient_");
+        ClientConfigurationData conf =
+                ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
         return conf;
     }
 

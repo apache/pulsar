@@ -39,6 +39,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaIdUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -101,7 +102,8 @@ public class ExternalSchemaTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < messageCount; i++) {
             Message<Schemas.PersonFour> message = consumer.receive();
             assertTrue(message.getSchemaId().isPresent());
-            assertEquals(message.getSchemaId().get(), MockExternalJsonSchema.MOCK_SCHEMA_ID);
+            assertEquals(message.getSchemaId().get(),
+                    SchemaIdUtil.addMagicHeader(MockExternalJsonSchema.MOCK_SCHEMA_ID, false));
             assertEquals(message.getData(), MOCK_SCHEMA_DATA);
             assertNull(message.getValue());
             Assert.assertNotNull(message);
@@ -109,7 +111,7 @@ public class ExternalSchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 1000 * 5)
-    public void testConflictKvSchema() throws Exception {
+    public void testConflictKvSchema() {
         var externalJsonSchema = new MockExternalJsonSchema<>(Schemas.PersonFour.class);
         try {
             Schema.KeyValue(externalJsonSchema, Schema.JSON(Schemas.PersonFour.class), KeyValueEncodingType.SEPARATED);
@@ -169,8 +171,9 @@ public class ExternalSchemaTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < messageCount; i++) {
             var message = consumer.receive();
             assertTrue(message.getSchemaId().isPresent());
-            assertEquals(message.getSchemaId().get(), KeyValue.generateKVSchemaId(
-                    MockExternalJsonSchema.MOCK_KEY_SCHEMA_ID, MockExternalJsonSchema.MOCK_SCHEMA_ID));
+            var kvSchemaId = KeyValue.generateKVSchemaId(
+                    MockExternalJsonSchema.MOCK_KEY_SCHEMA_ID, MockExternalJsonSchema.MOCK_SCHEMA_ID);
+            assertEquals(message.getSchemaId().get(), SchemaIdUtil.addMagicHeader(kvSchemaId, true));
 
             if (KeyValueEncodingType.INLINE.equals(encodingType)) {
                 ByteBuf buf = Unpooled.wrappedBuffer(message.getData());
@@ -226,8 +229,8 @@ public class ExternalSchemaTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < messageCount; i++) {
             var message = consumer.receive();
             assertTrue(message.getSchemaId().isPresent());
-            assertEquals(message.getSchemaId().get(), KeyValue.generateKVSchemaId(
-                    new byte[0], MockExternalJsonSchema.MOCK_SCHEMA_ID));
+            var kvSchemaId = KeyValue.generateKVSchemaId(new byte[0], MockExternalJsonSchema.MOCK_SCHEMA_ID);
+            assertEquals(message.getSchemaId().get(), SchemaIdUtil.addMagicHeader(kvSchemaId, true));
             var keyBytes = ("index-" + i).getBytes();
 
             if (KeyValueEncodingType.INLINE.equals(encodingType)) {

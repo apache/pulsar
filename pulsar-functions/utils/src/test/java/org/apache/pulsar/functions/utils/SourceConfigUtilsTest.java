@@ -40,6 +40,9 @@ import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 /**
@@ -115,13 +118,14 @@ public class SourceConfigUtilsTest {
     }
 
     @Test
-    public void testBatchConfigMergeEqual() {
+    public void testBatchConfigMergeEqual() throws JSONException {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         SourceConfig newSourceConfig = createSourceConfigWithBatch();
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
+                new Gson().toJson(mergedConfig),
+                JSONCompareMode.STRICT
         );
     }
 
