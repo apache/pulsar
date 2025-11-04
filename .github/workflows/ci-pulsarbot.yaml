@@ -59,7 +59,7 @@ jobs:
             const parts = commentBody.split(/\s+/);
             const sub = (parts[1] || '').toLowerCase();
             const arg = parts.length > 2 ? parts.slice(2).join(' ') : '';
-            const supported = ['rerun', 'stop', 'cancel'];
+            const supported = ['rerun', 'stop', 'cancel', 'rerun-failure-checks'];
             if (!supported.includes(sub)) {
               console.log(`Unsupported command '${sub}'. Supported: '/pulsarbot rerun [jobName?]', '/pulsarbot stop', '/pulsarbot cancel'.`);
               return;
