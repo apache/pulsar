@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +48,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -319,12 +321,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
         FieldUtils.writeDeclaredField(topicPoliciesService, "policiesCache", spyPoliciesCache, true);
 
-        Awaitility.await().untilAsserted(() -> Assertions.assertThat(
+        Awaitility.await().untilAsserted(() -> assertThat(
                 TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService, TopicName.get(topic))).isNull());
 
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
         Awaitility.await().untilAsserted(() -> {
-                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
                         TopicName.get(topic))).isNotNull();
             });
 
@@ -420,5 +422,51 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(service.getPoliciesCacheInit(namespaceName));
         service.prepareInitPoliciesCacheAsync(namespaceName).get();
         admin.namespaces().deleteNamespace(NAMESPACE5);
+    }
+
+    @Test
+    public void testCreateNamespaceEventsSystemTopicFactoryException() throws Exception {
+        final String namespace = "system-topic/namespace-6";
+
+        admin.namespaces().createNamespace(namespace);
+
+        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace), "topic-1");
+
+        SystemTopicBasedTopicPoliciesService service =
+            Mockito.spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
+
+        // inject exception when create NamespaceEventsSystemTopicFactory
+        Mockito.doThrow(new RuntimeException("test exception"))
+                .doCallRealMethod()
+                .when(service)
+            .getNamespaceEventsSystemTopicFactory();
+
+        CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture;
+        Optional<TopicPolicies> topicPoliciesOptional;
+        try {
+            topicPoliciesFuture =
+            service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+            topicPoliciesOptional = topicPoliciesFuture.join();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("test exception"));
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(service.updateTopicPoliciesAsync(topicName, false, false, topicPolicies ->
+                    topicPolicies.setMaxConsumerPerTopic(10)))
+                    .succeedsWithin(Duration.ofSeconds(2));
+        });
+
+        topicPoliciesFuture =
+            service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+        topicPoliciesOptional = topicPoliciesFuture.join();
+
+        Assert.assertNotNull(topicPoliciesOptional);
+        Assert.assertTrue(topicPoliciesOptional.isPresent());
+
+        TopicPolicies topicPolicies = topicPoliciesOptional.get();
+        Assert.assertNotNull(topicPolicies);
+        Assert.assertEquals(topicPolicies.getMaxConsumerPerTopic(), 10);
     }
 }
