@@ -288,7 +288,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     } else {
                         log.error("[{}]Failed to change state of transaction buffer to Ready from NoSnapshot",
                                 topic.getName());
-                        firstSnapshottingFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
+                        firstSnapshottingFuture.completeExceptionally(new BrokerServiceException
+                                .ServiceUnitNotReadyException(
                                 "Transaction Buffer take first snapshot failed, the current state is: " + getState()));
                     }
                 }).exceptionally(exception -> {
