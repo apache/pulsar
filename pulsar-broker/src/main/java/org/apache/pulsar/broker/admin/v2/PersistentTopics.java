@@ -877,7 +877,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isConflictException(ex)) {
                         log.error("[{}][{}] Failed to update partition to {}",
                                 clientAppId(), topicName, numPartitions, ex);
                     }
