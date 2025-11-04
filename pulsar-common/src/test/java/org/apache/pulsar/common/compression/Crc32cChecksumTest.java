@@ -20,17 +20,14 @@ package org.apache.pulsar.common.compression;
 
 import static com.scurrilous.circe.params.CrcParameters.CRC32C;
 import static org.testng.Assert.assertEquals;
-
-import org.testng.annotations.Test;
-
 import com.scurrilous.circe.IncrementalIntHash;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import com.scurrilous.circe.checksum.Crc32cSse42Provider;
 import com.scurrilous.circe.crc.StandardCrcProvider;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import org.testng.annotations.Test;
 
 public class Crc32cChecksumTest {
 

@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
+import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -66,7 +68,6 @@ import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
-import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -96,6 +97,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     protected final String topic;
+    protected final NamespaceName namespace;
 
     // Reference to the CompletableFuture returned when creating this topic in BrokerService.
     // Used to safely remove the topic from BrokerService's cache by ensuring we remove the exact
@@ -114,6 +116,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
+    @VisibleForTesting
+    @Getter
     protected volatile boolean isFenced;
 
     protected final HierarchyTopicPolicies topicPolicies;
@@ -180,6 +184,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
+        this.namespace = TopicName.get(topic).getNamespaceObject();
         this.clock = brokerService.getClock();
         this.brokerService = brokerService;
         this.producers = new ConcurrentHashMap<>();
@@ -191,7 +196,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         updateTopicPolicyByBrokerConfig();
 
         this.lastActive = System.nanoTime();
-        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock());
+        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock(),
+            producer -> {
+                producer.getCnx().getThrottleTracker().markThrottled(ThrottleType.TopicPublishRate);
+            }, producer -> {
+                producer.getCnx().getThrottleTracker().unmarkThrottled(ThrottleType.TopicPublishRate);
+            });
         updateActiveRateLimiters();
 
         additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
@@ -811,84 +821,28 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                                     "Topic has an existing exclusive producer: " + exclusiveProducerName));
                 } else if (!producers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
-                } else if (producer.getTopicEpoch().isPresent()
-                        && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
-                    // If a producer reconnects, but all the topic epoch has already moved forward, this producer needs
-                    // to be fenced, because a new producer had been present in between.
-                    return FutureUtil.failedFuture(new ProducerFencedException(
-                            String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
-                                    topicEpoch.get(), producer.getTopicEpoch().get())));
-                } else {
-                    // There are currently no existing producers
-                    hasExclusiveProducer = true;
-                    exclusiveProducerName = producer.getProducerName();
-
-                    CompletableFuture<Long> future;
-                    if (producer.getTopicEpoch().isPresent()) {
-                        future = setTopicEpoch(producer.getTopicEpoch().get());
-                    } else {
-                        future = incrementTopicEpoch(topicEpoch);
-                    }
-                    future.exceptionally(ex -> {
-                        hasExclusiveProducer = false;
-                        exclusiveProducerName = null;
-                        return null;
+                }
+                return handleTopicEpochForExclusiveProducer(producer);
+            case ExclusiveWithFencing:
+                if (hasExclusiveProducer || !producers.isEmpty()) {
+                    // clear all waiting producers
+                    // otherwise closing any producer will trigger the promotion
+                    // of the next pending producer
+                    List<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducersCopy =
+                            new ArrayList<>(waitingExclusiveProducers);
+                    waitingExclusiveProducers.clear();
+                    waitingExclusiveProducersCopy.forEach((Pair<Producer,
+                                                           CompletableFuture<Optional<Long>>> handle) -> {
+                        log.info("[{}] Failing waiting producer {}", topic, handle.getKey());
+                        handle.getValue().completeExceptionally(new ProducerFencedException("Fenced out"));
+                        handle.getKey().close(true);
                     });
-
-                    return future.thenApply(epoch -> {
-                        topicEpoch = Optional.of(epoch);
-                        return topicEpoch;
+                    producers.forEach((k, currentProducer) -> {
+                        log.info("[{}] Fencing out producer {}", topic, currentProducer);
+                        currentProducer.close(true);
                     });
                 }
-                case ExclusiveWithFencing:
-                    if (hasExclusiveProducer || !producers.isEmpty()) {
-                        // clear all waiting producers
-                        // otherwise closing any producer will trigger the promotion
-                        // of the next pending producer
-                        List<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducersCopy =
-                                new ArrayList<>(waitingExclusiveProducers);
-                        waitingExclusiveProducers.clear();
-                        waitingExclusiveProducersCopy.forEach((Pair<Producer,
-                                                               CompletableFuture<Optional<Long>>> handle) -> {
-                            log.info("[{}] Failing waiting producer {}", topic, handle.getKey());
-                            handle.getValue().completeExceptionally(new ProducerFencedException("Fenced out"));
-                            handle.getKey().close(true);
-                        });
-                        producers.forEach((k, currentProducer) -> {
-                            log.info("[{}] Fencing out producer {}", topic, currentProducer);
-                            currentProducer.close(true);
-                        });
-                    }
-                    if (producer.getTopicEpoch().isPresent()
-                            && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
-                        // If a producer reconnects, but all the topic epoch has already moved forward,
-                        // this producer needs to be fenced, because a new producer had been present in between.
-                        hasExclusiveProducer = false;
-                        return FutureUtil.failedFuture(new ProducerFencedException(
-                                String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
-                                        topicEpoch.get(), producer.getTopicEpoch().get())));
-                    } else {
-                        // There are currently no existing producers
-                        hasExclusiveProducer = true;
-                        exclusiveProducerName = producer.getProducerName();
-
-                        CompletableFuture<Long> future;
-                        if (producer.getTopicEpoch().isPresent()) {
-                            future = setTopicEpoch(producer.getTopicEpoch().get());
-                        } else {
-                            future = incrementTopicEpoch(topicEpoch);
-                        }
-                        future.exceptionally(ex -> {
-                            hasExclusiveProducer = false;
-                            exclusiveProducerName = null;
-                            return null;
-                        });
-
-                        return future.thenApply(epoch -> {
-                            topicEpoch = Optional.of(epoch);
-                            return topicEpoch;
-                        });
-                    }
+                return handleTopicEpochForExclusiveProducer(producer);
             case WaitForExclusive: {
                 if (hasExclusiveProducer || !producers.isEmpty()) {
                     CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
@@ -896,35 +850,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                     waitingExclusiveProducers.add(Pair.of(producer, future));
                     producerQueuedFuture.complete(null);
                     return future;
-                } else if (producer.getTopicEpoch().isPresent()
-                        && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
-                    // If a producer reconnects, but all the topic epoch has already moved forward, this producer needs
-                    // to be fenced, because a new producer had been present in between.
-                    return FutureUtil.failedFuture(new ProducerFencedException(
-                            String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
-                                    topicEpoch.get(), producer.getTopicEpoch().get())));
-                } else {
-                    // There are currently no existing producers
-                    hasExclusiveProducer = true;
-                    exclusiveProducerName = producer.getProducerName();
-
-                    CompletableFuture<Long> future;
-                    if (producer.getTopicEpoch().isPresent()) {
-                        future = setTopicEpoch(producer.getTopicEpoch().get());
-                    } else {
-                        future = incrementTopicEpoch(topicEpoch);
-                    }
-                    future.exceptionally(ex -> {
-                        hasExclusiveProducer = false;
-                        exclusiveProducerName = null;
-                        return null;
-                    });
-
-                    return future.thenApply(epoch -> {
-                        topicEpoch = Optional.of(epoch);
-                        return topicEpoch;
-                    });
                 }
+                return handleTopicEpochForExclusiveProducer(producer);
             }
 
             default:
@@ -940,6 +867,37 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         }
     }
 
+    private CompletableFuture<Optional<Long>> handleTopicEpochForExclusiveProducer(Producer producer) {
+        if (producer.getTopicEpoch().isPresent()
+                && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
+            // If a producer reconnects, but all the topic epoch has already moved forward, this producer needs
+            // to be fenced, because a new producer had been present in between.
+            return FutureUtil.failedFuture(new ProducerFencedException(
+                    String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
+                            topicEpoch.get(), producer.getTopicEpoch().get())));
+        }
+        // There are currently no existing producers
+        hasExclusiveProducer = true;
+        exclusiveProducerName = producer.getProducerName();
+
+        CompletableFuture<Long> future;
+        if (producer.getTopicEpoch().isPresent()) {
+            future = setTopicEpoch(producer.getTopicEpoch().get());
+        } else {
+            future = incrementTopicEpoch(topicEpoch);
+        }
+        future.exceptionally(ex -> {
+            hasExclusiveProducer = false;
+            exclusiveProducerName = null;
+            return null;
+        });
+
+        return future.thenApply(epoch -> {
+            topicEpoch = Optional.of(epoch);
+            return topicEpoch;
+        });
+    }
+
     protected abstract CompletableFuture<Long> setTopicEpoch(long newEpoch);
 
     protected abstract CompletableFuture<Long> incrementTopicEpoch(Optional<Long> currentEpoch);
@@ -948,7 +906,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     public void recordAddLatency(long latency, TimeUnit unit) {
         addEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
 
-        PUBLISH_LATENCY.observe(latency, unit);
+        brokerService.getPulsarStats().recordPublishLatency(latency, unit);
     }
 
     @Override
@@ -957,15 +915,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return RATE_LIMITED_UPDATER.incrementAndGet(this);
     }
 
-    private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
-            .quantile(0.0)
-            .quantile(0.50)
-            .quantile(0.95)
-            .quantile(0.99)
-            .quantile(0.999)
-            .quantile(0.9999)
-            .quantile(1.0)
-            .register();
 
     @Override
     public void incrementPublishCount(Producer producer, int numOfMessages, long msgSizeInBytes) {
@@ -1095,9 +1044,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected void handleProducerRemoved(Producer producer) {
         // decrement usage only if this was a valid producer close
         USAGE_COUNT_UPDATER.decrementAndGet(this);
-        // this conditional check is an optimization so we don't have acquire the write lock
-        // and execute following routine if there are no exclusive producers
-        if (hasExclusiveProducer) {
+        // this conditional check is an optimization so we only need to acquire the write lock
+        // and execute following routine when:
+        // 1. If there was an exclusive producer before.
+        // 2. If this was the last producer closed and there are waiting exclusive producers
+        if (hasExclusiveProducer || (producers.isEmpty() && !waitingExclusiveProducers.isEmpty())) {
             lock.writeLock().lock();
             try {
                 hasExclusiveProducer = false;
@@ -1286,6 +1237,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     }
 
     public CompletableFuture<Void> deleteTopicPolicies() {
+        if (TopicName.get(getName()).isPartitioned()) {
+            return CompletableFuture.completedFuture(null);
+        }
         return brokerService.pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(TopicName.get(topic));
     }
 

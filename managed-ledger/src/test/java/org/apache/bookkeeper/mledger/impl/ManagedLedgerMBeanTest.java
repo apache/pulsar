@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
@@ -59,7 +58,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.addAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(1, TimeUnit.SECONDS);
-        
+
         mbean.addLedgerAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addLedgerAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
         mbean.addLedgerAddEntryLatencySample(1, TimeUnit.SECONDS);

@@ -19,28 +19,36 @@
 package org.apache.pulsar.io.kafka.connect;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.apache.kafka.connect.storage.OffsetStorageWriter;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.KafkaConnectSource.KafkaSourceRecord;
+import org.awaitility.Awaitility;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -49,7 +57,7 @@ import org.testng.annotations.Test;
  * Test the implementation of {@link KafkaConnectSource}.
  */
 @Slf4j
-public class KafkaConnectSourceTest extends ProducerConsumerBase  {
+public class KafkaConnectSourceTest extends ProducerConsumerBase {
 
     private String offsetTopicName;
     // The topic to publish data to, for kafkaSource
@@ -95,6 +103,174 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
 
         testOpenAndReadTask(config);
     }
+
+    private OffsetStorageWriter wrapOffsetWriterWithSpy(KafkaConnectSource source) throws IllegalAccessException {
+        OffsetStorageWriter original = source.getOffsetWriter();
+        OffsetStorageWriter spy = org.mockito.Mockito.spy(original);
+        FieldUtils.writeField(source, "offsetWriter", spy, true);
+        return spy;
+    }
+
+
+    @Test(timeOut = 30000)
+    public void testFlushWhenAllMessagesFilteredWithoutBlocking() throws Exception {
+
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        config.put("transforms", "Filter");
+        config.put("transforms.Filter.type", "org.apache.kafka.connect.transforms.Filter");
+        config.put("transforms.Filter.predicate", "DropMeTopic");
+
+        config.put("predicates", "DropMeTopic");
+        config.put("predicates.DropMeTopic.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
+        config.put("predicates.DropMeTopic.pattern", ".*my-property/my-ns/kafka-connect-source.*");
+
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
+
+        try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
+            os.write("first\n".getBytes());
+            os.flush();
+            os.write("second\n".getBytes());
+            os.flush();
+        }
+
+        Thread t = new Thread(() -> {
+            try {
+                kafkaConnectSource.read();
+            } catch (Exception e) {
+                // Ignore, it just needs the loop running through a batch where every message is filtered out
+                log.error("Exception in read thread", e);
+            }
+        });
+        t.setDaemon(true);
+        t.start();
+
+        try {
+            // First ensure offsets are being written for filtered records.
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> {
+                        Mockito.verify(spyWriter, Mockito.atLeastOnce())
+                                .offset(ArgumentMatchers.any(), ArgumentMatchers.any());
+                    });
+
+            // Then ensure a flush cycle is triggered without waiting for any acks (since all are filtered).
+            Awaitility.await()
+                    .atMost(java.time.Duration.ofSeconds(10))
+                    .untilAsserted(() -> {
+                        Mockito.verify(spyWriter, Mockito.atLeastOnce())
+                                .beginFlush();
+                        Mockito.verify(spyWriter, Mockito.atLeastOnce())
+                                .doFlush(ArgumentMatchers.any());
+                    });
+        } finally {
+            kafkaConnectSource.close();
+            t.interrupt();
+        }
+    }
+
+    @Test(timeOut = 40000)
+    public void testNoFlushUntilAck() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
+
+        try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
+            os.write("one\n".getBytes());
+            os.flush();
+        }
+
+        Record<KeyValue<byte[], byte[]>> readRecord = kafkaConnectSource.read();
+
+        // Verify no flush happens while there is one outstanding record (no ack yet)
+        verify(spyWriter, timeout(10000).times(0)).beginFlush();
+        verify(spyWriter, timeout(10000).times(0))
+                .doFlush(ArgumentMatchers.any());
+
+        readRecord.ack();
+
+        // Verify flush happens after ack
+        verify(spyWriter, timeout(10000).atLeastOnce()).beginFlush();
+        verify(spyWriter, timeout(10000).atLeastOnce())
+                .doFlush(ArgumentMatchers.any());
+
+        kafkaConnectSource.close();
+    }
+
+    @Test(timeOut = 40000)
+    public void testPartialAckNoFlush_ThenFlushOnAllAck() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
+
+        try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
+            os.write("first\n".getBytes());
+            os.flush();
+            os.write("second\n".getBytes());
+            os.flush();
+        }
+
+        Record<KeyValue<byte[], byte[]>> r1 = kafkaConnectSource.read();
+        Record<KeyValue<byte[], byte[]>> r2 = kafkaConnectSource.read();
+
+        // Ack only the first; one outstanding remains -> no flush should happen
+        r1.ack();
+        verify(spyWriter, timeout(10000).times(0)).beginFlush();
+        verify(spyWriter, timeout(10000).times(0))
+                .doFlush(ArgumentMatchers.any());
+
+        // Ack the second; outstanding reaches zero -> flush should be triggered
+        r2.ack();
+        verify(spyWriter, timeout(10000).atLeastOnce()).beginFlush();
+        verify(spyWriter, timeout(10000).atLeastOnce())
+                .doFlush(ArgumentMatchers.any());
+
+        kafkaConnectSource.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testAckFlush() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        OffsetStorageWriter spyWriter = wrapOffsetWriterWithSpy(kafkaConnectSource);
+
+        try (OutputStream os = Files.newOutputStream(tempFile.toPath())) {
+            os.write("first\n".getBytes());
+            os.flush();
+            os.write("second\n".getBytes());
+            os.flush();
+        }
+
+        Record<KeyValue<byte[], byte[]>> r1 = kafkaConnectSource.read();
+        Record<KeyValue<byte[], byte[]>> r2 = kafkaConnectSource.read();
+
+        // Ack both, no outstanding remains -> flush should happen
+        r1.ack();
+        r2.ack();
+
+        verify(spyWriter, timeout(10000).atLeastOnce()).beginFlush();
+        verify(spyWriter, timeout(10000).atLeastOnce())
+                .doFlush(ArgumentMatchers.any());
+
+        kafkaConnectSource.close();
+    }
+
 
     @Test
     public void testOpenAndReadTaskDirect() throws Exception {
@@ -142,7 +318,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         runTopicNameTest(config, "persistent://a-tenant/a-ns/a-topic", "persistent://a-tenant/a-ns/a-topic");
     }
 
-    private void runTopicNameTest(Map<String, Object> config, String topicName, String expectedDestinationTopicName) throws Exception {
+    private void runTopicNameTest(Map<String, Object> config, String topicName, String expectedDestinationTopicName)
+            throws Exception {
         config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
         config.put(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, "default-tenant/default-ns");
 
@@ -156,8 +333,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         sourceOffset.put("test", 0);
         value.put("myField", "42");
         SourceRecord srcRecord = new SourceRecord(
-            sourcePartition, sourceOffset, topicName, null,
-            null, null, null, value
+                sourcePartition, sourceOffset, topicName, null,
+                null, null, null, value
         );
 
         KafkaSourceRecord record = kafkaConnectSource.processSourceRecord(srcRecord);
@@ -196,8 +373,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         Map<String, Object> value = new HashMap<>();
         value.put("myField", "42");
         SourceRecord record = new SourceRecord(
-            null, null, "test-topic", null,
-            null, null, null, value
+                null, null, "test-topic", null,
+                null, null, null, value
         );
 
         SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
@@ -207,7 +384,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         assertNotNull(transformedValue);
 
         if (expectTransformed) {
-            assertEquals(42, ((Number)transformedValue.get("myField")).intValue());
+            assertEquals(42, ((Number) transformedValue.get("myField")).intValue());
             assertTrue(transformedValue.get("myField") instanceof Number);
         } else {
             assertEquals("42", transformedValue.get("myField"));

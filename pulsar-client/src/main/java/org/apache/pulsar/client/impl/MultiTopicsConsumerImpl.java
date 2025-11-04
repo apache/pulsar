@@ -56,6 +56,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -571,6 +572,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void negativeAcknowledge(MessageId messageId) {
+        if (getState() != State.Ready) {
+            log.warn("[{}] [{}] Cannot negative acknowledge message {} - consumer is not ready (state: {})",
+                    topic, subscription, messageId, getState());
+            return;
+        }
         checkArgument(messageId instanceof TopicMessageId);
         ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());
         consumer.negativeAcknowledge(messageId);
@@ -579,6 +585,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void negativeAcknowledge(Message<?> message) {
+        if (getState() != State.Ready) {
+            log.warn("[{}] [{}] Cannot negative acknowledge message {} - consumer is not ready (state: {})",
+                    topic, subscription, message.getMessageId(), getState());
+            return;
+        }
         MessageId messageId = message.getMessageId();
         checkArgument(messageId instanceof TopicMessageId);
         ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());
@@ -696,6 +707,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setConsumerName(consumerName);
         internalConsumerConfig.setMessageListener(null);
+        internalConsumerConfig.setDecryptFailListener(null);
+        if (internalConsumerConfig.getCryptoFailureAction() == null) {
+            internalConsumerConfig.setCryptoFailureAction(ConsumerCryptoFailureAction.FAIL);
+        }
         return internalConsumerConfig;
     }
 
@@ -791,10 +806,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         final ConsumerImpl<T> internalConsumer;
         if (messageId instanceof TopicMessageId) {
             TopicMessageId topicMessageId = (TopicMessageId) messageId;
-            internalConsumer = consumers.get(topicMessageId.getOwnerTopic());
+            String ownerTopic = topicMessageId.getOwnerTopic();
+            if (ownerTopic == null) {
+                return FutureUtil.failedFuture(new PulsarClientException.NotAllowedException(
+                        "The owner topic is null"));
+            }
+            internalConsumer = consumers.get(ownerTopic);
             if (internalConsumer == null) {
                 return FutureUtil.failedFuture(new PulsarClientException.NotAllowedException(
-                        "The owner topic " + topicMessageId.getOwnerTopic() + " is not subscribed"));
+                        "The owner topic " + ownerTopic + " is not subscribed"));
             }
         } else {
             internalConsumer = null;
@@ -1386,7 +1406,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private CompletableFuture<Void> subscribeIncreasedTopicPartitions(String topicName) {
         int oldPartitionNumber = partitionedTopics.get(topicName);
 
-        return client.getPartitionsForTopic(topicName).thenCompose(list -> {
+        return client.getPartitionsForTopic(topicName, false).thenCompose(list -> {
             int currentPartitionNumber = Long.valueOf(list.stream()
                     .filter(t -> TopicName.get(t).isPartitioned()).count()).intValue();
 

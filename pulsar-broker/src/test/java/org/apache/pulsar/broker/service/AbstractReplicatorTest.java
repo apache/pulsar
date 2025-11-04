@@ -51,7 +51,7 @@ import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class AbstractReplicatorTest {
 
     @Test
@@ -161,6 +161,9 @@ public class AbstractReplicatorTest {
         public boolean isConnected() {
             return false;
         }
+
+        @Override
+        protected void beforeTerminate() {}
 
         @Override
         public long getNumberOfEntriesInBacklog() {

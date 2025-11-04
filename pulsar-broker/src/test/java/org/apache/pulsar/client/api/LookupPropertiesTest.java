@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -103,7 +104,7 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .build();
         final var futures = new ArrayList<CompletableFuture<LookupTopicResult>>();
-        BrokerIdAwareLoadManager.clientIdList.clear();
+        BrokerIdAwareLoadManager.CLIENT_ID_LIST.clear();
 
         final var clientIdList = IntStream.range(0, 10).mapToObj(i -> "key-" + i).toList();
         for (var clientId : clientIdList) {
@@ -112,17 +113,17 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
             client.getConfiguration().setLookupProperties(Collections.emptyMap());
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(clientIdList, BrokerIdAwareLoadManager.clientIdList);
+        assertThat(BrokerIdAwareLoadManager.CLIENT_ID_LIST).containsExactlyInAnyOrderElementsOf(clientIdList);
     }
 
     public static class BrokerIdAwareLoadManager extends ExtensibleLoadManagerImpl {
 
-        static final List<String> clientIdList = Collections.synchronizedList(new ArrayList<>());
+        static final List<String> CLIENT_ID_LIST = Collections.synchronizedList(new ArrayList<>());
 
         @Override
         public CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic,
                                                                     ServiceUnitId serviceUnit, LookupOptions options) {
-            getClientId(options).ifPresent(clientIdList::add);
+            getClientId(options).ifPresent(CLIENT_ID_LIST::add);
             return super.assign(topic, serviceUnit, options);
         }
 

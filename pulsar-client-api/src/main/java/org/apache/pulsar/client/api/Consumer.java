@@ -99,17 +99,25 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      */
     CompletableFuture<Void> unsubscribeAsync(boolean force);
     /**
-     * Receives a single message.
+     * Receives a single message in blocking mode.
      *
-     * <p>This calls blocks until a message is available.
+     * <p>This method blocks until a message is available or the consumer is closed.
      *
-     * <p>When thread is Interrupted, return a null value and reset interrupted flag.
+     * <p>Behavior when interrupted:
+     * <ul>
+     *   <li>If the thread is interrupted while waiting: returns null and resets the interrupted flag</li>
+     *   <li>If the consumer is closed while waiting: throws {@link PulsarClientException} with the cause
+     *       {@code InterruptedException("Queue is terminated")}</li>
+     * </ul>
      *
-     * @return the received message
-     * @throws PulsarClientException.AlreadyClosedException
-     *             if the consumer was already closed
-     * @throws PulsarClientException.InvalidConfigurationException
-     *             if a message listener was defined in the configuration
+     * @return the received message, or null if the thread was interrupted
+     * @throws PulsarClientException if the consumer is closed while waiting for a message.
+     *         The exception will contain an {@link InterruptedException} with the message
+     *         "Queue is terminated" as its cause.
+     * @throws PulsarClientException.AlreadyClosedException if the consumer was already closed
+     *         before this method was called
+     * @throws PulsarClientException.InvalidConfigurationException if a message listener
+     *         was defined in the configuration
      */
     Message<T> receive() throws PulsarClientException;
 
@@ -135,6 +143,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      * Receive a single message.
      *
      * <p>Retrieves a message, waiting up to the specified wait time if necessary.
+     * <p>If consumer closes during wait: returns null immediately.
      *
      * @param timeout
      *            0 or less means immediate rather than infinite

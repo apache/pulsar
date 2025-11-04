@@ -29,8 +29,8 @@ import org.apache.bookkeeper.stats.OpStatsData;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Simple in-memory stat provider for use in unit tests.

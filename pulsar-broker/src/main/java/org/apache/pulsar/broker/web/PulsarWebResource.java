@@ -93,6 +93,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
@@ -109,7 +110,7 @@ public abstract class PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(PulsarWebResource.class);
 
     private static final LoadingCache<String, PulsarServiceNameResolver> SERVICE_NAME_RESOLVER_CACHE =
-            Caffeine.newBuilder().expireAfterAccess(Duration.ofMinutes(5)).build(
+            Caffeine.newBuilder().recordStats().expireAfterAccess(Duration.ofMinutes(5)).build(
                     new CacheLoader<>() {
                         @Override
                         public @Nullable PulsarServiceNameResolver load(@NonNull String serviceUrl) throws Exception {
@@ -118,6 +119,10 @@ public abstract class PulsarWebResource {
                             return serviceNameResolver;
                         }
                     });
+
+    static {
+        CacheMetricsCollector.CAFFEINE.addCache("web-resource-service-name-resolver", SERVICE_NAME_RESOLVER_CACHE);
+    }
 
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
@@ -907,8 +912,7 @@ public abstract class PulsarWebResource {
                             localCluster, namespace.toString());
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                } else if (!policies.replication_clusters.contains(localCluster) && !policies.allowed_clusters
-                        .contains(localCluster)) {
+                } else if (!pulsarService.getBrokerService().isCurrentClusterAllowed(namespace, policies)) {
                     getOwnerFromPeerClusterListAsync(pulsarService, policies.replication_clusters,
                             policies.allowed_clusters)
                             .thenAccept(ownerPeerCluster -> {
@@ -982,14 +986,16 @@ public abstract class PulsarWebResource {
     }
 
     protected static CompletableFuture<Void> checkAuthorizationAsync(PulsarService pulsarService, TopicName topicName,
-                        String role, AuthenticationDataSource authenticationData) {
+                        String role, String originalPrinciple, AuthenticationDataSource authenticationData,
+                        AuthenticationDataSource originalAuthenticationData) {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return CompletableFuture.completedFuture(null);
         }
         // get zk policy manager
         return pulsarService.getBrokerService().getAuthorizationService().allowTopicOperationAsync(topicName,
-                TopicOperation.LOOKUP, null, role, authenticationData).thenAccept(allow -> {
+                TopicOperation.LOOKUP, originalPrinciple, role, originalAuthenticationData, authenticationData)
+                .thenAccept(allow -> {
                     if (!allow) {
                         log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
                         throw new RestException(Status.UNAUTHORIZED,

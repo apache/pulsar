@@ -82,7 +82,7 @@ function test_group_broker_group_1() {
 }
 
 function test_group_broker_group_2() {
-  mvn_test -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,broker-replication,websocket,other'
+  mvn_test -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other'
 }
 
 function test_group_broker_group_3() {
@@ -93,6 +93,10 @@ function test_group_broker_group_3() {
 
 function test_group_broker_group_4() {
   mvn_test -pl pulsar-broker -Dgroups='cluster-migration'
+}
+
+function test_group_broker_group_5() {
+  mvn_test -pl pulsar-broker -Dgroups='broker-replication'
 }
 
 function test_group_broker_client_api() {
@@ -171,19 +175,24 @@ function test_group_proxy() {
 
 function test_group_other() {
   mvn_test --clean --install \
-           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution,!org.apache.pulsar:pulsar-all-docker-image' \
+           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution,!org.apache.pulsar:pulsar-docker-image,!org.apache.pulsar:pulsar-all-docker-image' \
            -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true -DskipIntegrationTests \
            -Dexclude='**/ManagedLedgerTest.java,
-                   **/OffloadersCacheTest.java
+                   **/OffloadersCacheTest.java,
+                   **/OffsetsCacheTest.java,
                   **/PrimitiveSchemaTest.java,
                   **/BlobStoreManagedLedgerOffloaderTest.java,
-                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java'
+                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java,
+                  **/DnsResolverTest.java'
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
+  # DnsResolverTest needs to be run separately since it relies on static field values
+  mvn_test -pl pulsar-common -Dinclude='**/DnsResolverTest.java'
 
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderStreamingTest.java'
+  mvn_test -pl tiered-storage/jcloud -Dinclude='**/OffsetsCacheTest.java'
 
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \

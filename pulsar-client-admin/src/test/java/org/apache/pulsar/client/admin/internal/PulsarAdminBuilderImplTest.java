@@ -20,12 +20,19 @@ package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -34,6 +41,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.Assert;
@@ -175,9 +183,114 @@ public class PulsarAdminBuilderImplTest {
 
     @SneakyThrows
     private Authentication createAdminAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").loadConf(confProps).build()) {
-            return ((PulsarAdminImpl)admin).auth;
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080")
+                .loadConf(confProps).build()) {
+            return ((PulsarAdminImpl) admin).auth;
         }
+    }
+
+    @Test
+    public void testClientDescription() throws PulsarClientException {
+        @Cleanup PulsarAdmin ignored =
+                PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").description("forked").build();
+    }
+
+    @Test
+    public void testClientBuildWithSharedResources() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                .configureEventLoop(eventLoopGroupConfig -> {
+                    eventLoopGroupConfig
+                            .name("testEventLoop")
+                            .numberOfThreads(20);
+                })
+                .configureDnsResolver(dnsResolverConfig -> {
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
+                })
+                .configureTimer(timerConfig -> {
+                    timerConfig.name("testTimer").tickDuration(100, TimeUnit.MILLISECONDS);
+                })
+                .build();
+        // create two adminClients and check if they share the same event loop group and netty timer
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl1 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl2 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+
+        EventLoopGroup eventLoopGroup1 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        EventLoopGroup eventLoopGroup2 =
+                pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        assertThat(eventLoopGroup1).isSameAs(eventLoopGroup2);
+        assertThat(nettyTimer1).isSameAs(nettyTimer2);
+        sharedResources.close();
+    }
+
+    @Test
+    public void testClientBuildWithSharedDnsResolverOnly() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                .shareConfigured()
+                .configureDnsResolver(dnsResolverConfig -> {
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
+                })
+                .build();
+
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl1 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl2 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+
+        EventLoopGroup eventLoopGroup1 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        EventLoopGroup eventLoopGroup2 =
+                pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        NameResolver<InetAddress> nameResolver1 = pulsarAdminImpl1.getAsyncHttpConnector().getNameResolver();
+        NameResolver<InetAddress> nameResolver2 = pulsarAdminImpl2.getAsyncHttpConnector().getNameResolver();
+
+        // test eventLoop will be created when dnsResolver is configured
+        assertThat(eventLoopGroup1).isNotNull();
+        assertThat(eventLoopGroup2).isNotNull();
+        assertThat(eventLoopGroup2).isNotSameAs(eventLoopGroup1);
+
+        // timer will not be created when timer is not configured
+        assertThat(nettyTimer1).isSameAs(nettyTimer2).isNull();
+
+        assertThat(nameResolver1).isNotNull();
+        assertThat(nameResolver2).isNotNull();
+
+        // test eventLoop will shut down when AsyncHttpConnector is closed
+        pulsarAdminImpl1.getAsyncHttpConnector().close();
+        assertThat(eventLoopGroup1.isShuttingDown()).isTrue();
+
+        sharedResources.close();
+    }
+
+    @Test
+    public void testClientDescriptionLengthExceed64() {
+        String longDescription = "a".repeat(65);
+        assertThatThrownBy(() -> {
+            @Cleanup PulsarAdmin ignored =
+                    PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").description(longDescription).build();
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
     private String secretAuthParams(String secret) {
@@ -188,7 +301,7 @@ public class PulsarAdminBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 

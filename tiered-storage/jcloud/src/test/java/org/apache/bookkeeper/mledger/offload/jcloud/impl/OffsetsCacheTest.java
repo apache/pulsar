@@ -18,10 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import lombok.extern.slf4j.Slf4j;
-import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class OffsetsCacheTest {
@@ -38,7 +38,7 @@ public class OffsetsCacheTest {
         // test ttl
         offsetsCache.put(1, 2, 2);
         assertEquals(offsetsCache.getIfPresent(1, 2), 2);
-        Thread.sleep(1500);
+        Thread.sleep(2000);
         assertNull(offsetsCache.getIfPresent(1, 2));
         offsetsCache.close();
     }

@@ -95,14 +95,14 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
         Awaitility.await().until(() -> ((ExceptionsBrokerInterceptor) interceptor).getProducerCount().get() == 1);
         Awaitility.await().until(() -> ((ExceptionsBrokerInterceptor) interceptor).getConsumerCount().get() == 1);
 
-        for (int i = 0; i < messageNumber; i ++) {
+        for (int i = 0; i < messageNumber; i++) {
             producer.send("test".getBytes(StandardCharsets.UTF_8));
         }
 
         int receiveCounter = 0;
         Message message;
-        while((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
-            receiveCounter ++;
+        while ((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
+            receiveCounter++;
             consumer.acknowledge(message);
         }
         assertEquals(receiveCounter, 10);

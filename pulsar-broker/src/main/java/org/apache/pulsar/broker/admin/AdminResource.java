@@ -514,6 +514,9 @@ public abstract class AdminResource extends PulsarWebResource {
         return getNamespacePolicies(ns);
     }
 
+    /**
+     * Directly get the replication clusters for a namespace, without checking allowed clusters.
+     */
     protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
         return namespaceResources().getPoliciesAsync(namespaceName)
                 .thenApply(policies -> {
@@ -962,6 +965,12 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.NOT_FOUND.getStatusCode();
     }
 
+    protected static boolean is4xxRestException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && (((WebApplicationException) realCause).getResponse().getStatus() % 100 == 4);
+    }
+
     protected static boolean isConflictException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return realCause instanceof WebApplicationException
@@ -982,6 +991,10 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected static boolean isNot307And404And400Exception(Throwable ex) {
         return !isRedirectException(ex) && !isNotFoundException(ex) && !isBadRequest(ex);
+    }
+
+    protected static boolean isNot307And4xxException(Throwable ex) {
+        return !isRedirectException(ex) && !is4xxRestException(ex);
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {

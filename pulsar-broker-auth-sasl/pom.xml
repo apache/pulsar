@@ -26,12 +26,13 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-auth-sasl</artifactId>
   <packaging>jar</packaging>
   <description>SASL authentication plugin for broker</description>
+  <name>Pulsar Broker Auth SASL</name>
 
   <dependencies>
 

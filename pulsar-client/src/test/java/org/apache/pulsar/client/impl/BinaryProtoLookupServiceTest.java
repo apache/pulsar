@@ -88,6 +88,7 @@ public class BinaryProtoLookupServiceTest {
 
         ConnectionPool cnxPool = mock(ConnectionPool.class);
         when(cnxPool.getConnection(any(InetSocketAddress.class))).thenReturn(connectionFuture);
+        when(cnxPool.getConnection(any(ServiceNameResolver.class))).thenReturn(connectionFuture);
 
         ClientConfigurationData clientConfig = mock(ClientConfigurationData.class);
         doReturn(0).when(clientConfig).getMaxLookupRedirects();
@@ -113,9 +114,9 @@ public class BinaryProtoLookupServiceTest {
     public void maxLookupRedirectsTest1() throws Exception {
         LookupTopicResult lookupResult = lookup.getBroker(topicName).get();
         assertEquals(lookupResult.getLogicalAddress(), InetSocketAddress
-                .createUnresolved("broker2.pulsar.apache.org" ,6650));
+                .createUnresolved("broker2.pulsar.apache.org", 6650));
         assertEquals(lookupResult.getPhysicalAddress(), InetSocketAddress
-                .createUnresolved("broker2.pulsar.apache.org" ,6650));
+                .createUnresolved("broker2.pulsar.apache.org", 6650));
         assertEquals(lookupResult.isUseProxy(), false);
     }
 
@@ -127,9 +128,9 @@ public class BinaryProtoLookupServiceTest {
 
         LookupTopicResult lookupResult = lookup.getBroker(topicName).get();
         assertEquals(lookupResult.getLogicalAddress(), InetSocketAddress
-                .createUnresolved("broker2.pulsar.apache.org" ,6650));
+                .createUnresolved("broker2.pulsar.apache.org", 6650));
         assertEquals(lookupResult.getPhysicalAddress(), InetSocketAddress
-                .createUnresolved("broker2.pulsar.apache.org" ,6650));
+                .createUnresolved("broker2.pulsar.apache.org", 6650));
         assertEquals(lookupResult.isUseProxy(), false);
     }
 

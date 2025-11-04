@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 
 /**
  * Builder class for a {@link PulsarAdmin} instance.
@@ -376,4 +377,34 @@ public interface PulsarAdminBuilder {
      * @return the PulsarAdminBuilder instance
      */
     PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
+     * Set the description.
+     *
+     * <p> By default, PulsarAdmin sends an HTTP <i>User-Agent</i> header such as
+     * <code>Pulsar-Java-v&lt;x.y.z&gt;</code> when making requests to the broker.
+     *
+     * <p> This method provides a way to add more description to a specific PulsarAdmin instance. If it's configured,
+     * the description will be appended to the original admin version string, with '-' as the separator.
+     *
+     * <p>For example, if the admin version is 4.0.0, and the description is "forked", the final client version string
+     * will be "Pulsar-Java-v4.0.0-forked".
+     *
+     * @param description the description of the current PulsarAdmin instance
+     * @throws IllegalArgumentException if the length of description exceeds 64
+     */
+    PulsarAdminBuilder description(String description);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (only support IO/event loops, timers, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the adminClient builder instance
+     */
+    PulsarAdminBuilder sharedResources(PulsarClientSharedResources sharedResources);
+
 }

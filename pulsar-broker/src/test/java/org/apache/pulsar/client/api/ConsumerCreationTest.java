@@ -86,7 +86,7 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
         }
 
         // Partition index is out of range.
-        assertThrows(NotAllowedException.class, () -> {
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Consumer<byte[]> ignored =
                     pulsarClient.newConsumer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
@@ -112,16 +112,8 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
         admin.topics().delete(TopicName.get(partitionedTopic).getPartition(1).toString());
 
         // Non-persistent topic only have the metadata, and no partition, so it works fine.
-        if (allowAutoTopicCreation || domain.equals(TopicDomain.non_persistent)) {
-            @Cleanup
-            Consumer<byte[]> ignored =
-                    pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
-        } else {
-            assertThrows(PulsarClientException.NotFoundException.class, () -> {
-                @Cleanup
-                Consumer<byte[]> ignored =
-                        pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
-            });
-        }
+        @Cleanup
+        Consumer<byte[]> ignored =
+                pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
     }
 }

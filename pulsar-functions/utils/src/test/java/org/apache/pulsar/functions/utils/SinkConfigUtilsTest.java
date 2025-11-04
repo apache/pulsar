@@ -49,6 +49,9 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 /**
@@ -99,7 +102,7 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
-    public void testConvertBackFidelity() throws IOException  {
+    public void testConvertBackFidelity() throws IOException, JSONException  {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant("test-tenant");
         sinkConfig.setNamespace("test-namespace");
@@ -139,33 +142,41 @@ public class SinkConfigUtilsTest {
         sinkConfig.setTransformFunctionConfig("{\"key\": \"value\"}");
         sinkConfig.setLogTopic("log-topic");
 
-        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.SHARED, functionDetails.getSource().getSubscriptionType());
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(convertedConfig),
-                new Gson().toJson(sinkConfig)
+                new Gson().toJson(sinkConfig),
+                JSONCompareMode.STRICT
         );
 
         sinkConfig.setRetainOrdering(true);
         sinkConfig.setRetainKeyOrdering(false);
 
-        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.FAILOVER, functionDetails.getSource().getSubscriptionType());
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(convertedConfig),
-                new Gson().toJson(sinkConfig));
+                new Gson().toJson(sinkConfig),
+                JSONCompareMode.STRICT
+        );
 
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setRetainKeyOrdering(true);
 
-        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.KEY_SHARED, functionDetails.getSource().getSubscriptionType());
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(convertedConfig),
-                new Gson().toJson(sinkConfig));
+                new Gson().toJson(sinkConfig),
+                JSONCompareMode.STRICT
+        );
     }
 
     @Test
@@ -174,7 +185,8 @@ public class SinkConfigUtilsTest {
         for (Boolean testcase : testcases) {
             SinkConfig sinkConfig = createSinkConfig();
             sinkConfig.setRetainOrdering(testcase);
-            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                    new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
             assertEquals(functionDetails.getRetainOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getRetainOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
@@ -187,7 +199,8 @@ public class SinkConfigUtilsTest {
         for (Boolean testcase : testcases) {
             SinkConfig sinkConfig = createSinkConfig();
             sinkConfig.setRetainKeyOrdering(testcase);
-            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                    new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
             assertEquals(functionDetails.getRetainKeyOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getRetainKeyOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
@@ -206,7 +219,8 @@ public class SinkConfigUtilsTest {
         for (FunctionConfig.ProcessingGuarantees testcase : testcases) {
             SinkConfig sinkConfig = createSinkConfig();
             sinkConfig.setProcessingGuarantees(testcase);
-            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                    new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getProcessingGuarantees(), testcase == null ? ATLEAST_ONCE : testcase);
         }
@@ -219,7 +233,8 @@ public class SinkConfigUtilsTest {
         for (Boolean testcase : testcases) {
             SinkConfig sinkConfig = createSinkConfig();
             sinkConfig.setCleanupSubscription(testcase);
-            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                    new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getCleanupSubscription(), testcase == null ? Boolean.valueOf(true) : testcase);
         }
@@ -285,18 +300,21 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testMergeDifferentInputs() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("topicsPattern", "Different");
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "isRegexPattern for input topic test-input cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "isRegexPattern for input topic test-input cannot be altered")
     public void testMergeDifferentInputSpecWithRegexChange() {
         SinkConfig sinkConfig = createSinkConfig();
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
-        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(false).serdeClassName("my-serde").build());
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(false)
+                .serdeClassName("my-serde").build());
         SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
@@ -304,10 +322,12 @@ public class SinkConfigUtilsTest {
     @Test
     public void testMergeDifferentInputSpec() {
         SinkConfig sinkConfig = createSinkConfig();
-        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(true).receiverQueueSize(1000).build());
+        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(true)
+                .receiverQueueSize(1000).build());
 
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
-        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").receiverQueueSize(58).build());
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true)
+                .serdeClassName("test-serde").receiverQueueSize(58).build());
         SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(mergedConfig.getInputSpecs().get("test-input"), newSinkConfig.getInputSpecs().get("test-input"));
@@ -319,10 +339,12 @@ public class SinkConfigUtilsTest {
     @Test
     public void testMergeDifferentInputSpecWithInputsSet() {
         SinkConfig sinkConfig = createSinkConfig();
-        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(false).receiverQueueSize(1000).build());
+        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(false)
+                .receiverQueueSize(1000).build());
 
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
-        ConsumerConfig newConsumerConfig = ConsumerConfig.builder().isRegexPattern(false).serdeClassName("test-serde").receiverQueueSize(58).build();
+        ConsumerConfig newConsumerConfig = ConsumerConfig.builder().isRegexPattern(false)
+                .serdeClassName("test-serde").receiverQueueSize(58).build();
         inputSpecs.put("test-input", newConsumerConfig);
         SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
         newSinkConfig.setInputs(new ArrayList<>());
@@ -334,21 +356,24 @@ public class SinkConfigUtilsTest {
         assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("processingGuarantees", EFFECTIVELY_ONCE);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Retain Ordering cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Retain Ordering cannot be altered")
     public void testMergeDifferentRetainOrdering() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("retainOrdering", true);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Retain Key Ordering cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Retain Key Ordering cannot be altered")
     public void testMergeDifferentRetainKeyOrdering() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("retainKeyOrdering", true);
@@ -391,14 +416,16 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "AutoAck cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "AutoAck cannot be altered")
     public void testMergeDifferentAutoAck() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("autoAck", false);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Subscription Name cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Subscription Name cannot be altered")
     public void testMergeDifferentSubname() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("sourceSubscriptionName", "Different");
@@ -564,7 +591,8 @@ public class SinkConfigUtilsTest {
         sinkConfig.getConfigs().put("configParameter", null);
         Exception e = expectThrows(IllegalArgumentException.class,
                 () -> SinkConfigUtils.validateSinkConfig(sinkConfig, TestSinkConfig.class));
-        assertTrue(e.getMessage().contains("Could not validate sink config: Field 'configParameter' cannot be null!"));
+        assertTrue(e.getMessage()
+                .contains("Could not validate sink config: Field 'configParameter' cannot be null!"));
     }
 
     private SinkConfig createSinkConfig() {
@@ -575,7 +603,8 @@ public class SinkConfigUtilsTest {
         sinkConfig.setParallelism(1);
         sinkConfig.setClassName(NopSink.class.getName());
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
-        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true)
+                .serdeClassName("test-serde").build());
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Latest);
@@ -610,7 +639,8 @@ public class SinkConfigUtilsTest {
     @Test
     public void testPoolMessages() throws IOException {
         SinkConfig sinkConfig = createSinkConfig();
-        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
@@ -620,7 +650,8 @@ public class SinkConfigUtilsTest {
                 .poolMessages(true).build());
         sinkConfig.setInputSpecs(inputSpecs);
 
-        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());

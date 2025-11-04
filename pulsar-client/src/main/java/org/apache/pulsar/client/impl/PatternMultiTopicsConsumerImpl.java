@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
@@ -30,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -44,14 +43,16 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T> implements TimerTask {
-    private final Pattern topicsPattern;
+    private final TopicsPattern topicsPattern;
     final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
+    private final TopicListWatcher topicListWatcher;
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
 
@@ -62,11 +63,12 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private volatile String topicsHash;
 
     private PatternConsumerUpdateQueue updateTaskQueue;
+    private volatile boolean closed = false;
 
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
      */
-    public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
+    public PatternMultiTopicsConsumerImpl(TopicsPattern topicsPattern,
                                           String topicsHash,
                                           PulsarClientImpl client,
                                           ConsumerConfigurationData<T> conf,
@@ -80,37 +82,36 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         this.topicsPattern = topicsPattern;
         this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;
-
-        if (this.namespaceName == null) {
-            this.namespaceName = getNameSpaceFromPattern(topicsPattern);
-        }
-        checkArgument(getNameSpaceFromPattern(topicsPattern).toString().equals(this.namespaceName.toString()));
+        this.namespaceName = topicsPattern.namespace();
 
         this.topicsChangeListener = new PatternTopicsChangedListener();
         this.updateTaskQueue = new PatternConsumerUpdateQueue(this);
         if (subscriptionMode == Mode.PERSISTENT) {
             long watcherId = client.newTopicListWatcherId();
-            new TopicListWatcher(updateTaskQueue, client, topicsPattern, watcherId,
+            topicListWatcher = new TopicListWatcher(updateTaskQueue, client, topicsPattern, watcherId,
                 namespaceName, topicsHash, watcherFuture, () -> recheckTopicsChangeAfterReconnect());
             watcherFuture
                .exceptionally(ex -> {
-                   log.warn("Pattern consumer [{}] unable to create topic list watcher. Falling back to only polling"
-                           + " for new topics", conf.getSubscriptionName(), ex);
-                   this.recheckPatternTimeout = client.timer().newTimeout(
-                           this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+                   if (closed) {
+                       log.warn("Pattern consumer [{}] was closed while creating topic list watcher",
+                               conf.getSubscriptionName(), ex);
+                   } else {
+                       log.warn(
+                               "Pattern consumer [{}] unable to create topic list watcher. Falling back to only polling"
+                                       + " for new topics", conf.getSubscriptionName(), ex);
+                       this.recheckPatternTimeout = client.timer()
+                               .newTimeout(this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+                   }
                    return null;
                });
         } else {
             log.debug("Pattern consumer [{}] not creating topic list watcher for subscription mode {}",
                     conf.getSubscriptionName(), subscriptionMode);
+            topicListWatcher = null;
             watcherFuture.complete(null);
             this.recheckPatternTimeout = client.timer().newTimeout(
                     this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
         }
-    }
-
-    public static NamespaceName getNameSpaceFromPattern(Pattern pattern) {
-        return TopicName.get(pattern.pattern()).getNamespaceObject();
     }
 
     /**
@@ -128,14 +129,14 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     // TimerTask to recheck topics change, and trigger subscribe/unsubscribe based on the change.
     @Override
     public void run(Timeout timeout) throws Exception {
-        if (timeout.isCancelled()) {
+        if (timeout.isCancelled() || closed) {
             return;
         }
         updateTaskQueue.appendRecheckOp();
     }
 
     CompletableFuture<Void> recheckTopicsChange() {
-        String pattern = topicsPattern.pattern();
+        String pattern = topicsPattern.inputPattern();
         final int epoch = recheckPatternEpoch.incrementAndGet();
         return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {
@@ -168,7 +169,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             });
     }
 
-    static CompletableFuture<Void> updateSubscriptions(Pattern topicsPattern,
+    static CompletableFuture<Void> updateSubscriptions(TopicsPattern topicsPattern,
                                                        java.util.function.Consumer<String> topicsHashSetter,
                                                        GetTopicsResult getTopicsResult,
                                                        TopicsChangedListener topicsChangedListener,
@@ -198,7 +199,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return FutureUtil.waitForAll(Collections.unmodifiableList(listenersCallback));
     }
 
-    public Pattern getPattern() {
+    public TopicsPattern getPattern() {
         return this.topicsPattern;
     }
 
@@ -389,21 +390,18 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     @Override
     @SuppressFBWarnings
     public CompletableFuture<Void> closeAsync() {
+        closed = true;
         Timeout timeout = recheckPatternTimeout;
         if (timeout != null) {
             timeout.cancel();
             recheckPatternTimeout = null;
         }
-        List<CompletableFuture<?>> closeFutures = new ArrayList<>(2);
-        if (watcherFuture.isDone() && !watcherFuture.isCompletedExceptionally()) {
-            TopicListWatcher watcher = watcherFuture.getNow(null);
-            // watcher can be null when subscription mode is not persistent
-            if (watcher != null) {
-                closeFutures.add(watcher.closeAsync());
-            }
-        }
-        closeFutures.add(updateTaskQueue.cancelAllAndWaitForTheRunningTask().thenCompose(__ -> super.closeAsync()));
-        return FutureUtil.waitForAll(closeFutures);
+        CompletableFuture<Void> topicListWatcherCloseFuture =
+                Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
+                        .orElse(CompletableFuture.completedFuture(null)).exceptionally(t -> null);
+        CompletableFuture<Void> runningTaskCancelFuture = updateTaskQueue.cancelAllAndWaitForTheRunningTask();
+        return FutureUtil.waitForAll(Lists.newArrayList(topicListWatcherCloseFuture, runningTaskCancelFuture))
+                .exceptionally(t -> null).thenCompose(__ -> super.closeAsync());
     }
 
     @VisibleForTesting
