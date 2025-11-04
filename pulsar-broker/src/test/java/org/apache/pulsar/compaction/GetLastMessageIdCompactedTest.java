@@ -29,6 +29,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -39,6 +41,7 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -57,6 +60,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker-impl")
 public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
@@ -515,5 +519,42 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
             Message<String> message = reader.readNext(5, TimeUnit.SECONDS);
             assertNotEquals(message, null);
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetLastMessageIdForEncryptedMessage() throws Exception {
+        final var topic = BrokerTestUtil.newUniqueName("tp");
+        final var ecdsaPublickeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                .batchingMaxBytes(Integer.MAX_VALUE)
+                .batchingMaxMessages(Integer.MAX_VALUE)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader(ecdsaPublickeyFile)
+                .create();
+        producer.newMessage().key("k0").value("v0").sendAsync();
+        producer.newMessage().key("k0").value("v1").sendAsync();
+        producer.newMessage().key("k1").value("v0").sendAsync();
+        producer.newMessage().key("k1").value(null).sendAsync();
+        producer.flush();
+        triggerCompactionAndWait(topic);
+
+        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub")
+                .readCompacted(true).defaultCryptoKeyReader(ecdsaPrivateKeyFile).subscribe();
+        final var msgId = (MessageIdAdv) consumer.getLastMessageIds().get(0);
+        // Compaction does not work for encrypted messages
+        assertEquals(msgId.getBatchIndex(), 3);
+
+        @Cleanup final var reader = pulsarClient.newReader(Schema.STRING).topic(topic)
+                .startMessageId(MessageId.earliest).topic(topic).readCompacted(true)
+                .defaultCryptoKeyReader(ecdsaPrivateKeyFile).create();
+        MessageIdAdv readMsgId = (MessageIdAdv) MessageId.earliest;
+        while (reader.hasMessageAvailable()) {
+            final var msg = reader.readNext();
+            log.info("Read key: {}, value: {}", msg.getKey(), Optional.ofNullable(msg.getValue()).orElse("(null)"));
+            readMsgId = (MessageIdAdv) msg.getMessageId();
+        }
+        assertEquals(readMsgId, msgId);
     }
 }

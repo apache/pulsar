@@ -104,6 +104,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -124,7 +125,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters.
  */
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class ReplicatorTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -669,6 +670,36 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.getReplicationBacklog(), 0);
     }
 
+    @Test(timeOut = 30000)
+    public void testReplicatorExpireMsgAsync() throws Exception {
+
+        // This test is to verify that reset cursor fails on global topic
+        SortedSet<String> testDests = new TreeSet<>();
+
+        final TopicName dest = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/clearBacklogTopic"));
+        testDests.add(dest.toString());
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+
+        @Cleanup
+        MessageConsumer consumer1 = new MessageConsumer(url3, dest);
+
+        // Produce from cluster1 and consume from the rest
+        producer1.produce(2);
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
+        PersistentReplicator replicator = (PersistentReplicator) spy(
+                topic.getReplicators().get(topic.getReplicators().keySet().stream().toList().get(0)));
+        replicator.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
+        replicator.clearBacklog().get();
+        Thread.sleep(100);
+        replicator.updateRates(); // for code-coverage
+        replicator.expireMessagesAsync(1).get(); // for code-coverage
+        ReplicatorStats status = replicator.computeStats();
+        assertEquals(status.getReplicationBacklog(), 0);
+    }
+
 
     @Test(timeOut = 30000)
     public void testResetReplicatorSubscriptionPosition() throws Exception {
@@ -942,6 +973,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertTrue(remoteClusters.contains("r1"));
     }
 
+    @DataProvider(name = "retentionPolicies")
+    public static Object[][] retentionPolicies() {
+        return new Object[][] { { RetentionPolicy.producer_exception }, { RetentionPolicy.producer_request_hold } };
+    }
 
     /**
      * Issue #199
@@ -952,91 +987,79 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * @throws Exception
      */
 
-    @Test(timeOut = 60000, priority = -1)
-    public void testResumptionAfterBacklogRelaxed() throws Exception {
-        List<RetentionPolicy> policies = new ArrayList<>();
-        policies.add(RetentionPolicy.producer_exception);
-        policies.add(RetentionPolicy.producer_request_hold);
+    @Test(timeOut = 60000, priority = -1, dataProvider = "retentionPolicies")
+    public void testResumptionAfterBacklogRelaxed(RetentionPolicy policy) throws Exception {
+        // create a unique namespace for this test case to avoid flakiness
+        String namespace = newUniqueName("pulsar/testResumptionAfterBacklogRelaxed");
+        Policies policies = new Policies();
+        policies.backlog_quota_map = Map.of(BacklogQuota.BacklogQuotaType.destination_storage, BacklogQuota.builder()
+                // Use 1Mb quota by default
+                .limitSize(1 * 1024 * 1024)
+                .retentionPolicy(policy)
+                .build());
+        policies.replication_clusters = Set.of("r1", "r2");
+        admin1.namespaces().createNamespace(namespace, policies);
 
-        for (RetentionPolicy policy : policies) {
-            // Use 1Mb quota by default
-            admin1.namespaces().setBacklogQuota("pulsar/ns1", BacklogQuota.builder()
-                    .limitSize(1 * 1024 * 1024)
-                    .retentionPolicy(policy)
-                    .build());
-            Thread.sleep(200);
+        TopicName dest = TopicName.get("persistent://" + namespace + "/" + policy);
 
-            TopicName dest = TopicName
-                    .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns1/%s-" + policy));
+        // Producer on r1
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
 
-            // Producer on r1
-            @Cleanup
-            MessageProducer producer1 = new MessageProducer(url1, dest);
+        // Consumer on r2
+        @Cleanup
+        MessageConsumer consumer2 = new MessageConsumer(url2, dest);
 
-            // Consumer on r2
-            @Cleanup
-            MessageConsumer consumer2 = new MessageConsumer(url2, dest);
+        // Replicator for r1 -> r2
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopicReference(dest.toString()).get();
+        Replicator replicator = topic.getPersistentReplicator("r2");
 
-            // Replicator for r1 -> r2
-            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
-                    .getTopicReference(dest.toString()).get();
-            Replicator replicator = topic.getPersistentReplicator("r2");
+        // Produce 1 message in r1. This message will be replicated immediately into r2 and it will become part of
+        // local backlog
+        producer1.produce(1);
 
-            // Produce 1 message in r1. This message will be replicated immediately into r2 and it will become part of
-            // local backlog
-            producer1.produce(1);
+        Awaitility.await().untilAsserted(() -> assertEquals(replicator.computeStats().replicationBacklog, 0));
+        var attributes = Attributes.of(
+                OpenTelemetryAttributes.PULSAR_DOMAIN, dest.getDomain().value(),
+                OpenTelemetryAttributes.PULSAR_TENANT, dest.getTenant(),
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, dest.getNamespace(),
+                OpenTelemetryAttributes.PULSAR_TOPIC, dest.getPartitionedTopicName(),
+                OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
+        );
+        var metrics = metricReader1.collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+        assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
 
-            Thread.sleep(500);
+        // Restrict backlog quota limit to 1 byte to stop replication
+        admin1.namespaces().setBacklogQuota(namespace, BacklogQuota.builder()
+                .limitSize(1)
+                .retentionPolicy(policy)
+                .build());
 
-            // Restrict backlog quota limit to 1 byte to stop replication
-            admin1.namespaces().setBacklogQuota("pulsar/ns1", BacklogQuota.builder()
-                    .limitSize(1)
-                    .retentionPolicy(policy)
-                    .build());
+        Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
 
-            Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
 
-            assertEquals(replicator.computeStats().replicationBacklog, 0);
-            var attributes = Attributes.of(
-                    OpenTelemetryAttributes.PULSAR_DOMAIN, dest.getDomain().value(),
-                    OpenTelemetryAttributes.PULSAR_TENANT, dest.getTenant(),
-                    OpenTelemetryAttributes.PULSAR_NAMESPACE, dest.getNamespace(),
-                    OpenTelemetryAttributes.PULSAR_TOPIC, dest.getPartitionedTopicName(),
-                    OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
-            );
-            var metrics = metricReader1.collectAllMetrics();
-            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
-            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
+        // Next message will not be replicated, because r2 has reached the quota
+        producer1.produce(1);
 
-            // Next message will not be replicated, because r2 has reached the quota
-            producer1.produce(1);
+        Awaitility.await().untilAsserted(() -> assertEquals(replicator.computeStats().replicationBacklog, 1));
 
-            Thread.sleep(500);
+        metrics = metricReader1.collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
+        assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes,
+                aDouble -> assertThat(aDouble).isPositive());
 
-            assertEquals(replicator.computeStats().replicationBacklog, 1);
-            metrics = metricReader1.collectAllMetrics();
-            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
-            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes,
-                    aDouble -> assertThat(aDouble).isPositive());
+        // Consumer will now drain 1 message and the replication backlog will be cleared
+        consumer2.receive(1);
 
-            // Consumer will now drain 1 message and the replication backlog will be cleared
-            consumer2.receive(1);
+        // Wait until the 2nd message got delivered to consumer
+        consumer2.receive(1);
 
-            // Wait until the 2nd message got delivered to consumer
-            consumer2.receive(1);
-
-            int retry = 10;
-            for (int i = 0; i < retry && replicator.computeStats().replicationBacklog > 0; i++) {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            }
-
-            assertEquals(replicator.computeStats().replicationBacklog, 0);
-            metrics = metricReader1.collectAllMetrics();
-            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
-            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
-        }
+        Awaitility.await().untilAsserted(() -> assertEquals(replicator.computeStats().replicationBacklog, 0));
+        metrics = metricReader1.collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+        assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
     }
 
     /**

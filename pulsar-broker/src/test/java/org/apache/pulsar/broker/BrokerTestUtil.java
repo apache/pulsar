@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.awaitility.core.ThrowingRunnable;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 /**
@@ -374,5 +375,21 @@ public class BrokerTestUtil {
         when(consumer.toString()).thenReturn(consumerName + " consumerId:" + consumerId);
         when(consumer.consumerId()).thenReturn(consumerId);
         return consumer;
+    }
+
+    /**
+     * Utility method to log failed assertions happening inside an Awaitility.await().untilAsserted block.
+     * This can be used to debug failing tests.
+     * @param log Logger to use for logging the failure.
+     * @param runnable The runnable to run.
+     * @throws Throwable If the runnable throws an exception.
+     */
+    public static void logAssertionErrors(Logger log, ThrowingRunnable runnable) throws Throwable {
+        try {
+            runnable.run();
+        } catch (AssertionError e) {
+            log.error("Assertion failed", e);
+            throw e;
+        }
     }
 }

@@ -33,6 +33,7 @@ configs:
   database.user: "sysdba"
   database.password: "oracle"
   database.dbname: "XE"
-  database.server.name: "XE"
+  topic.prefix: "XE"
 
-  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+  schema.history.internal.pulsar.service.url: "pulsar://127.0.0.1:6650"
+  connector.class: "io.debezium.connector.oracle.OracleConnector"

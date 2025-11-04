@@ -912,8 +912,7 @@ public abstract class PulsarWebResource {
                             localCluster, namespace.toString());
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                } else if (!policies.replication_clusters.contains(localCluster) && !policies.allowed_clusters
-                        .contains(localCluster)) {
+                } else if (!pulsarService.getBrokerService().isCurrentClusterAllowed(namespace, policies)) {
                     getOwnerFromPeerClusterListAsync(pulsarService, policies.replication_clusters,
                             policies.allowed_clusters)
                             .thenAccept(ownerPeerCluster -> {
@@ -987,14 +986,16 @@ public abstract class PulsarWebResource {
     }
 
     protected static CompletableFuture<Void> checkAuthorizationAsync(PulsarService pulsarService, TopicName topicName,
-                        String role, String originalPrinciple, AuthenticationDataSource authenticationData) {
+                        String role, String originalPrinciple, AuthenticationDataSource authenticationData,
+                        AuthenticationDataSource originalAuthenticationData) {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return CompletableFuture.completedFuture(null);
         }
         // get zk policy manager
         return pulsarService.getBrokerService().getAuthorizationService().allowTopicOperationAsync(topicName,
-                TopicOperation.LOOKUP, originalPrinciple, role, authenticationData).thenAccept(allow -> {
+                TopicOperation.LOOKUP, originalPrinciple, role, originalAuthenticationData, authenticationData)
+                .thenAccept(allow -> {
                     if (!allow) {
                         log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
                         throw new RestException(Status.UNAUTHORIZED,

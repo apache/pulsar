@@ -46,13 +46,23 @@ import org.apache.commons.lang3.tuple.Pair;
 class RangeCache {
     private final ConcurrentNavigableMap<Position, RangeCacheEntryWrapper> entries;
     private final RangeCacheRemovalQueue removalQueue;
-    private AtomicLong size; // Total size of values stored in cache
+    private final AtomicLong size; // Total size of values stored in cache
+    private final String managedLedgerName;
 
     /**
      * Construct a new RangeCache.
      */
     public RangeCache(RangeCacheRemovalQueue removalQueue) {
+        this(removalQueue, null);
+    }
+
+    /**
+     * Construct a new RangeCache.
+     * @param managedLedgerName the name of the managed ledger this cache belongs to
+     */
+    public RangeCache(RangeCacheRemovalQueue removalQueue, String managedLedgerName) {
         this.removalQueue = removalQueue;
+        this.managedLedgerName = managedLedgerName;
         this.entries = new ConcurrentSkipListMap<>();
         this.size = new AtomicLong(0);
     }
@@ -61,20 +71,20 @@ class RangeCache {
      * Insert.
      *
      * @param key
-     * @param value ref counted value with at least 1 ref to pass on the cache
+     * @param value       ref counted value with at least 1 ref to pass on the cache
+     * @param entryLength size of the entry in bytes
      * @return whether the entry was inserted in the cache
      */
-    public boolean put(Position key, ReferenceCountedEntry value) {
+    public boolean put(Position key, ReferenceCountedEntry value, int entryLength) {
         // retain value so that it's not released before we put it in the cache and calculate the weight
         value.retain();
         try {
             if (!value.matchesPosition(key)) {
                 throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
             }
-            long entrySize = value.getLength();
-            boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entrySize, newWrapper -> {
+            boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, newWrapper -> {
                 if (entries.putIfAbsent(key, newWrapper) == null && removalQueue.addEntry(newWrapper)) {
-                    this.size.addAndGet(entrySize);
+                    this.size.addAndGet(entryLength);
                     return true;
                 } else {
                     // recycle the new wrapper as it was not used
@@ -86,6 +96,17 @@ class RangeCache {
         } finally {
             value.release();
         }
+    }
+
+    /**
+     * Insert to cache with entry length determined directly from the value.
+     * This method is used in tests.
+     * @param key
+     * @param value
+     * @return
+     */
+    public boolean put(Position key, ReferenceCountedEntry value) {
+        return put(key, value, value.getLength());
     }
 
     public boolean exists(Position key) {
@@ -104,7 +125,7 @@ class RangeCache {
         if (valueWrapper == null) {
             return null;
         } else {
-            ReferenceCountedEntry value = valueWrapper.getValue(key);
+            ReferenceCountedEntry value = valueWrapper.getValue(key, managedLedgerName);
             return getRetainedValueMatchingKey(key, value);
         }
     }
@@ -113,7 +134,8 @@ class RangeCache {
      * @apiNote the returned value must be released if it's not null
      */
     private ReferenceCountedEntry getValueMatchingEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
-        ReferenceCountedEntry valueMatchingEntry = RangeCacheEntryWrapper.getValueMatchingMapEntry(entry);
+        ReferenceCountedEntry valueMatchingEntry =
+                RangeCacheEntryWrapper.getValueMatchingMapEntry(entry, managedLedgerName);
         return getRetainedValueMatchingKey(entry.getKey(), valueMatchingEntry);
     }
 

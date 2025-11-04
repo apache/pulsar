@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -354,7 +355,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // (5.1) Validate: active-consumer must be empty
         assertFalse(ledger.getActiveCursors().iterator().hasNext());
         // (5.2) Validate: Entry-cache must be cleared
-        assertEquals(entryCache.getSize(), 0);
+        Awaitility.await().untilAsserted(() -> assertEquals(entryCache.getSize(), 0));
 
     }
 
@@ -916,7 +917,16 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        // Should not have been deleted, since we have retention
+        // Should be deleted, If the topic has no data, it can always be deleted regardless of retention policy
+        // see PR https://github.com/apache/pulsar/pull/24733
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.send("test gc".getBytes(StandardCharsets.UTF_8));
+        producer.close();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        runGC();
+        // Should not be deleted, the topic still has entries
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // Remove retention
@@ -1119,12 +1129,12 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         rolloverPerIntervalStats();
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs - 1));
         runMessageExpiryCheck();
 
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs / 2));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(1 + messageTTLSecs / 2));
         runMessageExpiryCheck();
 
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);

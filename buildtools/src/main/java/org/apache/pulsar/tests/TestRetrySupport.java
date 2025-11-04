@@ -67,9 +67,11 @@ public abstract class TestRetrySupport {
     public final void failureCheck(ITestResult testResult, Method method) {
         // track the setup number where the failure happened
         if (!testResult.isSuccess()) {
-            LOG.info("Detected test failure in test {}.{}, currentSetupNumber={}",
-                    method.getDeclaringClass().getSimpleName(), method.getName(),
-                    currentSetupNumber);
+            if (testResult.getStatus() != ITestResult.SKIP && testResult.getStatus() != ITestResult.CREATED) {
+                LOG.info("Detected test failure in test {}.{}, currentSetupNumber={}",
+                        method.getDeclaringClass().getSimpleName(), method.getName(),
+                        currentSetupNumber);
+            }
             failedSetupNumber = currentSetupNumber;
         }
     }

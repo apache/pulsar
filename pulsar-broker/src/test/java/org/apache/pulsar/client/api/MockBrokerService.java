@@ -27,7 +27,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
@@ -47,6 +46,7 @@ import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSendHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSubscribeHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandTopicLookupHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandUnsubscribeHook;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
@@ -65,6 +65,7 @@ import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -132,7 +133,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void messageReceived() {
+        protected void messageReceived(BaseCommand cmd) {
         }
 
         @Override
@@ -335,7 +336,7 @@ public class MockBrokerService {
             bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
-                    ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(maxMessageSize, 0, 4, 0, 4));
+                    FrameDecoderUtil.addFrameDecoder(ch.pipeline(), maxMessageSize);
                     ch.pipeline().addLast("handler", new MockServerCnx());
                 }
             });

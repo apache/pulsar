@@ -77,6 +77,20 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<List<String>> getChildren(String path);
 
+
+    /**
+     * Return all the nodes (lexicographically sorted) that are children to the specific path.
+     *
+     * If the path itself does not exist, it will return an empty list.
+     *
+     * This method is similar to {@link #getChildren(String)}, but it attempts to read directly from
+     *  the underlying store.
+     *
+     * @param path
+     *            the path of the key to get from the store
+     * @return a future to track the async request
+     */
+    CompletableFuture<List<String>> getChildrenFromStore(String path);
     /**
      * Read whether a specific path exists.
      *

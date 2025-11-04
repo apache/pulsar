@@ -87,6 +87,7 @@ import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -237,6 +238,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private final Object dispatchRateLimiterLock = new Object();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
+    @Getter
     private final long backloggedCursorThresholdEntries;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
@@ -320,6 +322,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // The last position that can be dispatched to consumers
     private volatile Position lastDispatchablePosition;
+
+    // Cache the latest publish timestamp for idle topics to avoid repeated storage reads.
+    // This cache is only used when the ledger doesn't have the timestamp (ledgerLastAddTime <= 0),
+    // which typically happens for topics with no recent write activity.
+    // For active topics, the ledger provides the timestamp directly, so this cache is cleared.
+    private volatile long cachedLastPublishTimestamp;
 
     /***
      * We use 3 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
@@ -407,6 +415,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName)
+                && !SystemTopicNames.isTransactionInternalName(topicName)
+                && !SystemTopicNames.isTransactionBufferOrPendingAckSystemTopicName(topicName)
                 && !NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())
                 && !ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
             this.transactionBuffer = brokerService.getPulsar()
@@ -1929,15 +1939,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
 
-        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        return checkAllowedCluster(localCluster).thenCompose(success -> {
-            if (!success) {
-                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                // because pulsar doesn't serve global topic without local repl-cluster configured.
-                return deleteForcefully().thenCompose(ignore -> {
-                    return deleteSchemaAndPoliciesIfClusterRemoved();
-                });
+        return removeTopicIfLocalClusterNotAllowed().thenCompose(topicRemoved -> {
+            if (topicRemoved) {
+                return CompletableFuture.completedFuture(null);
             }
 
             int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
@@ -1980,7 +1986,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    /**
+     * There are only one cases that will remove local clusters: using global metadata store, which means that
+     * namespaces will share policies cross multi clusters, including "replicated clusters" and "partitioned topic
+     * metadata", we can hardly delete partitioned topic from one cluster and keep it exists in another.
+     * Users removes local cluster "replicated clusters" to delete topic from one of clusters.
+     */
     CompletableFuture<Void> deleteSchemaAndPoliciesIfClusterRemoved() {
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         TopicName tName = TopicName.get(topic);
         if (!tName.isPartitioned()) {
             return CompletableFuture.completedFuture(null);
@@ -2018,15 +2031,36 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             }
 
                                     });
-                                    // There are only one cases that will remove local clusters: using global metadata
-                                    // store, namespaces will share policies cross multi clusters, including
-                                    // "replicated clusters" and "partitioned topic metadata", we can hardly delete
-                                    // partitioned topic from one cluster and keep it exists in another. Removing
-                                    // local cluster from the namespace level "replicated clusters" can do this.
-                                    // TODO: there is no way to delete a specify partitioned topic if users have enabled
-                                    //  Geo-Replication with a global metadata store, a PIP is needed.
-                                    // Since the system topic "__change_events" under the namespace will also be
-                                    // deleted, we can skip to delete topic-level policies.
+
+                                    // Two cases that can run up to here：
+                                    // 1. Namespace level removing local cluster: all topic policies will be removed
+                                    // when the system topic "__change_events" is deleting.
+                                    // 2. Global topic level removing local cluster: we need to remove local topic-level
+                                    // policies here, but leave global topic-level policies there to avoid the namespace
+                                    // level policies take effect, whose policies still contains local cluster.
+                                    boolean changeEventsAlsoBeingDeleted = !topicPolicies.getReplicationClusters()
+                                            .getNamespaceValue().contains(localCluster);
+                                    if (changeEventsAlsoBeingDeleted) {
+                                        log.info("Skip to deleted topic policies[{}] after all partitions[{}] were"
+                                                + " removed because the system topic __change_events will be removed.",
+                                                partitionedName, metadataOp.get().partitions);
+                                        return;
+                                    }
+                                    brokerService.getPulsar().getTopicPoliciesService()
+                                        .deleteTopicPoliciesAsync(partitionedName, true)
+                                            .whenComplete((__, ex) -> {
+                                            if (ex == null) {
+                                                log.info("Deleted topic policies[{}] after all partitions[{}] were"
+                                                    + " removed because the current cluster has bee removed from"
+                                                    + " topic policies. Global policies will not be deleted.",
+                                                    partitionedName, metadataOp.get().partitions);
+                                            } else {
+                                                log.error("Failed to delete topic policies[{}] after all partitions[{}]"
+                                                    + " were removed,  when the current cluster has bee removed from"
+                                                    + " topic policies",
+                                                    partitionedName, metadataOp.get().partitions, ex);
+                                            }
+                                    });
                                 }
                             }
                         });
@@ -2035,18 +2069,36 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
     }
 
-    private CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
-        List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
+    /**
+     * Remove the topic if local cluster is not allowed to serve the topic.
+     * @return whether the topic was removed.
+     */
+    protected CompletableFuture<Boolean> removeTopicIfLocalClusterNotAllowed() {
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        return checkAllowedCluster(localCluster).thenCompose(isAllowed -> {
+            if (!isAllowed) {
+                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+                // because pulsar doesn't serve global topic without local repl-cluster configured.
+                return deleteForcefully().thenCompose(ignore -> {
+                    return deleteSchemaAndPoliciesIfClusterRemoved().thenApply(__ -> true);
+                });
+            }
+            return CompletableFuture.completedFuture(false);
+        });
+    }
+
+    protected CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
+        List<String> topicRepls = topicPolicies.getReplicationClusters().get();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(nsPolicies -> {
                     Set<String> allowedClusters = Set.of();
-                    if (policiesOptional.isPresent()) {
-                        allowedClusters = policiesOptional.get().allowed_clusters;
+                    if (nsPolicies.isPresent()) {
+                        allowedClusters = nsPolicies.get().allowed_clusters;
                     }
-                    if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
+                    if (TopicName.get(topic).isGlobal() && !topicRepls.contains(localCluster)
                             && !allowedClusters.contains(localCluster)) {
                         log.warn("Local cluster {} is not part of global namespace repl list {} and allowed list {}",
-                                localCluster, replicationClusters, allowedClusters);
+                                localCluster, topicRepls, allowedClusters);
                         return CompletableFuture.completedFuture(false);
                     } else {
                         return CompletableFuture.completedFuture(true);
@@ -2089,19 +2141,87 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void checkMessageExpiry() {
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
-        if (messageTtlInSeconds != 0) {
+        if (messageTtlInSeconds <= 0) {
+            return;
+        }
+
+        ManagedLedger managedLedger = getManagedLedger();
+        if (managedLedger instanceof ManagedLedgerImpl ml) {
+            checkMessageExpiryWithSharedPosition(ml, messageTtlInSeconds);
+        } else {
+            // Fallback to the slower solution if managed ledger is not an instance of ManagedLedgerImpl: each
+            // subscription find position and handle expiring itself.
+            checkMessageExpiryWithoutSharedPosition(messageTtlInSeconds);
+        }
+    }
+
+    private void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
+        subscriptions.forEach((__, sub) -> {
+            if (!isCompactionSubscription(sub.getName())
+                    && (additionalSystemCursorNames.isEmpty()
+                    || !additionalSystemCursorNames.contains(sub.getName()))) {
+                sub.expireMessagesAsync(messageTtlInSeconds);
+            }
+        });
+        replicators.forEach((__, replicator)
+                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+        shadowReplicators.forEach((__, replicator)
+                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+    }
+
+    private void checkMessageExpiryWithSharedPosition(ManagedLedgerImpl ml, int messageTtlInSeconds) {
+        // Find the target position at one time, then expire all subscriptions and replicators.
+        final var cursorWithOldestPosition = ml.getCursors().getCursorWithOldestPosition();
+        if (cursorWithOldestPosition == null) {
+            // Skip checking message expiry for topics without subscription
+            return;
+        }
+        ManagedCursor cursor = cursorWithOldestPosition.getCursor();
+        PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
+                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+        // Find the target position.
+        long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
+        CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
+        finder.findMessages(expiredMessageTimestamp, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionToMarkDelete.complete(position);
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
+                                        Object ctx) {
+                log.error("[{}] Error finding expired position, failed reading position is {}", topic,
+                        failedReadPosition.orElse(null), exception);
+                // Since we have logged the error, we can skip to print error log at next step.
+                positionToMarkDelete.complete(null);
+            }
+        });
+        positionToMarkDelete.thenAccept(position -> {
+            if (position == null) {
+                // Nothing need to be expired.
+                return;
+            }
+            // Expire messages by position, which is more efficient.
             subscriptions.forEach((__, sub) -> {
                 if (!isCompactionSubscription(sub.getName())
                         && (additionalSystemCursorNames.isEmpty()
-                            || !additionalSystemCursorNames.contains(sub.getName()))) {
-                   sub.expireMessages(messageTtlInSeconds);
+                        || !additionalSystemCursorNames.contains(sub.getName()))) {
+                    // The variable "position" is to mark delete position.
+                    // Regarding the method "expireMessages(position)", it will mark delete the target position if the
+                    // position is valid, otherwise, it mark deletes the previous valid position.
+                    // So we give it the position to be mark deleted.
+                    sub.expireMessages(position);
                 }
             });
             replicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+                    -> ((PersistentReplicator) replicator).expireMessages(position));
             shadowReplicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
-        }
+                    -> ((PersistentReplicator) replicator).expireMessages(position));
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to expire messages by position", topic, ex);
+            return null;
+        });
     }
 
     @Override
@@ -2743,21 +2863,33 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ? null
             : oldestPositionInfo.getCursorName();
 
-        // Set the last publish timestamp using a hybrid approach:
-        // 1. First try ledger.getLastAddEntryTime() if available
-        // 2. If needed, read the last message to get actual publish time
+        // Set the last publish timestamp using a hybrid approach to minimize storage reads:
+        // 1. If ledger has the timestamp (ledgerLastAddTime > 0), use it directly - this means
+        //    the topic has recent write activity and the ledger's cached value is fresh
+        // 2. If ledger doesn't have it (topic is idle), try to use our cached value first
+        // 3. If no cache available, read from storage and cache the result for future calls
         long ledgerLastAddTime = ledger.getLastAddEntryTime();
         CompletableFuture<Long> lastPublishTimeFuture;
 
+        boolean usedLedgerValue = false;
         if (ledgerLastAddTime > 0) {
-            // Use ledger's last add time as a good approximation
+            // Topic has recent activity - use ledger's value and clear the cache since
+            // we don't need it for active topics (ledger will keep providing the value)
+            cachedLastPublishTimestamp = 0;
             stats.lastPublishTimeStamp = ledgerLastAddTime;
             lastPublishTimeFuture = CompletableFuture.completedFuture(ledgerLastAddTime);
+            usedLedgerValue = true;
         } else {
-            // Fallback to reading the last message to get actual publish time
-            stats.lastPublishTimeStamp = 0; // Will be updated below if we can read the message
-            lastPublishTimeFuture = getLastMessagePublishTime();
+            // Topic is idle - try to use cached value to avoid storage read
+            if (cachedLastPublishTimestamp > 0) {
+                lastPublishTimeFuture = CompletableFuture.completedFuture(cachedLastPublishTimestamp);
+            } else {
+                // No cache available - read from storage and cache the result
+                stats.lastPublishTimeStamp = 0; // Will be updated below if we can read the message
+                lastPublishTimeFuture = getLastMessagePublishTime();
+            }
         }
+        boolean finalUsedLedgerValue = usedLedgerValue;
 
         // Set the topic creation timestamp - get it directly since it's synchronous
         stats.topicCreationTimeStamp = getTopicCreationTimeStamp();
@@ -2779,7 +2911,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // Combine all async operations: last publish time and subscription stats
         CompletableFuture<Void> combinedFutures = CompletableFuture.allOf(
-            lastPublishTimeFuture.thenAccept(time -> stats.lastPublishTimeStamp = time)
+            lastPublishTimeFuture.thenAccept(time -> {
+                // Only update the cache if we didn't use the ledger value
+                // (i.e., we used the cached value or read from storage)
+                if (!finalUsedLedgerValue) {
+                    cachedLastPublishTimestamp = time;
+                }
+                stats.lastPublishTimeStamp = time;
+            })
         );
 
         return combinedFutures.thenCompose(ignore ->
@@ -3417,9 +3556,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void checkBackloggedCursor(PersistentSubscription subscription) {
+        // ignore cursor inactivating a cursor based on backlog size when eviction is based on expected read count
+        if (getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()) {
+            return;
+        }
         // activate caught up cursor which include consumers
         if (!subscription.getConsumers().isEmpty()
-                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
+                && (backloggedCursorThresholdEntries < 0
+                || subscription.getCursor().getNumberOfEntries() <= backloggedCursorThresholdEntries)) {
             subscription.getCursor().setActive();
         } else {
             subscription.getCursor().setInactive();
@@ -3449,6 +3593,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * marked as inactive.
      */
     private boolean shouldTopicBeRetained() {
+        // If the topic has no data, it can always be deleted regardless of retention policy
+        if (getNumberOfEntries() == 0) {
+            return false;
+        }
+        // If the InactiveTopicDelete mode is delete_when_subscriptions_caught_up, check retention policy is required
         RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies().get();
         long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
         // Negative retention time means the topic should be retained indefinitely,
@@ -3681,7 +3830,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
-                                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                                long entryTimestamp = entry.getEntryTimestamp();
                                 updateResultIfNewer(
                                         new OldestPositionInfo(
                                                 oldestMarkDeleteCursorInfo.getPosition(),
@@ -3728,6 +3877,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     oldestMarkDeleteCursorInfo.getCursor().getName(),
                                     checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp(),
                                     oldestMarkDeleteCursorInfo.getVersion()));
+                } else {
+                    TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
                 }
 
                 return CompletableFuture.completedFuture(null);
@@ -3859,7 +4010,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                long entryTimestamp = entry.getEntryTimestamp();
                 isOldestMessageExpired = MessageImpl.isEntryExpired(
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
@@ -3879,6 +4030,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         return isOldestMessageExpired;
+    }
+
+    public CompletableFuture<Boolean> isOldestMessageExpiredAsync(ManagedCursor cursor, int messageTTLInSeconds) {
+        CompletableFuture<Boolean> res = new CompletableFuture<>();
+        cursor.asyncGetNthEntry(1, IndividualDeletedEntries.Include, new AsyncCallbacks.ReadEntryCallback() {
+
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                long entryTimestamp = 0;
+                try {
+                    entryTimestamp = entry.getEntryTimestamp();
+                    res.complete(MessageImpl.isEntryExpired(
+                            (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp));
+                } catch (Exception e) {
+                    log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
+                    res.complete(false);
+                }
+
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException e, Object ctx) {
+                if (brokerService.pulsar().getConfiguration().isAutoSkipNonRecoverableData()
+                        && e instanceof NonRecoverableLedgerException) {
+                    // NonRecoverableLedgerException means the ledger or entry can't be read anymore.
+                    // if AutoSkipNonRecoverableData is set to true, just return true here.
+                    res.complete(true);
+                } else {
+                    log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
+                    res.complete(false);
+                }
+            }
+        }, null);
+        return res;
     }
 
     /**
@@ -3955,8 +4140,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (lastDispatchablePosition != null) {
             return CompletableFuture.completedFuture(lastDispatchablePosition);
         }
+        Position lastPosition;
+        if (transactionBuffer instanceof TransactionBufferDisable) {
+            lastPosition = getLastPosition();
+        } else {
+            lastPosition = getMaxReadPosition();
+        }
         return ledger.getLastDispatchablePosition(entry -> {
-            MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
+            MessageMetadata md = entry.getMessageMetadata();
+            if (md == null) {
+                md = Commands.parseMessageMetadata(entry.getDataBuffer());
+            }
             // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
             if (Markers.isServerOnlyMarker(md)) {
                 return false;
@@ -3966,7 +4160,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return !isTxnAborted(txnID, entry.getPosition());
             }
             return true;
-        }, getMaxReadPosition()).thenApply(position -> {
+        }, lastPosition).thenApply(position -> {
             // Update lastDispatchablePosition to the given position
             updateLastDispatchablePosition(position);
             return position;
@@ -4025,7 +4219,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
-                    MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    MessageMetadata metadata = entry.getMessageMetadata();
+                    if (metadata == null) {
+                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    }
                     if (metadata.hasNumMessagesInBatch()) {
                         completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
                                 partitionIndex, metadata.getNumMessagesInBatch() - 1));
@@ -4643,7 +4840,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 public void readEntryComplete(Entry entry, Object ctx) {
                     try {
                         ByteBuf metadataAndPayload = entry.getDataBuffer();
-                        MessageMetadata msgMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                        MessageMetadata msgMetadata = entry.getMessageMetadata();
+                        if (msgMetadata == null) {
+                            msgMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                        }
                         long publishTime = msgMetadata.getPublishTime();
                         future.complete(publishTime);
                     } catch (Exception e) {

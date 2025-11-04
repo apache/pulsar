@@ -125,11 +125,14 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -3498,7 +3501,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topics().createSubscription(partitionedTopicName + "-partition-" + startPartitions, subName1,
                     MessageId.earliest);
             fail("Unexpected behaviour");
-        } catch (PulsarAdminException.ConflictException ex) {
+        } catch (PulsarAdminException.PreconditionFailedException ex) {
             // OK
         }
 
@@ -4042,6 +4045,54 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testOverridesNamespaceOffloadThreshold() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName(this.defaultTenant + "/ns");
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setDispatchRate(topic, DispatchRate.builder().dispatchThrottlingRateInMsg(1).build());
+        // assert we get -1 which indicates it will fall back to default
+        assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1);
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -1);
+        // Set namespace level offloading threshold.
+        long m1 = 1024 * 1024;
+        long h1 = 1000 * 3600;
+        OffloadPoliciesImpl policies = OffloadPoliciesImpl.builder()
+                .managedLedgerOffloadDriver("S3")
+                .s3ManagedLedgerOffloadBucket("bucket-1")
+                .managedLedgerOffloadThresholdInBytes(m1)
+                .managedLedgerOffloadThresholdInSeconds(h1)
+                .build();
+        admin.namespaces().setOffloadPolicies(namespace, policies);
+        OffloadPolicies policies1 = admin.namespaces().getOffloadPolicies(namespace);
+        assertEquals(policies1.getManagedLedgerOffloadThresholdInBytes(), m1);
+        assertEquals(policies1.getManagedLedgerOffloadThresholdInSeconds(), h1);
+
+        long m2 = 2 * 1024 * 1024L;
+        long h2 = 2 * 1000 * 3600;
+        admin.namespaces().setOffloadThreshold(namespace, m2);
+        admin.namespaces().setOffloadThresholdInSeconds(namespace, h2);
+        OffloadPolicies policies2 = admin.namespaces().getOffloadPolicies(namespace);
+        assertEquals(policies2.getManagedLedgerOffloadThresholdInBytes(), m2);
+        assertEquals(policies2.getManagedLedgerOffloadThresholdInSeconds(), h2);
+        OffloadPolicies policies3 = admin.topicPolicies().getOffloadPolicies(topic, true);
+        assertEquals(policies3.getManagedLedgerOffloadThresholdInBytes(), m2);
+        assertEquals(policies3.getManagedLedgerOffloadThresholdInSeconds(), h2);
+
+        admin.namespaces().removeOffloadPolicies(namespace);
+        OffloadPolicies policies4 = admin.namespaces().getOffloadPolicies(namespace);
+        assertTrue(policies4 == null);
+        assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1);
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -1);
+        OffloadPolicies policies5 = admin.topicPolicies().getOffloadPolicies(topic, true);
+        assertTrue(policies5 == null);
+
+        // cleanup.
+        admin.topics().delete(topic);
+        admin.namespaces().deleteNamespace(namespace);
+    }
+
+    @Test
     public void testDeletePatchyPartitionedTopic() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName(defaultNamespace + "/tp");
         admin.topics().createPartitionedTopic(topic, 2);
@@ -4133,6 +4184,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         admin.topics().truncate(topic);
         admin.topics().truncate(partitionedTopic);
+
+        assertTrue(statsAfterReload.getLastPublishTimeStamp() > 0);
+        assertTrue(partitionedStatsAfterReload.getLastPublishTimeStamp() > 0);
+
+        admin.topics().unload(topic);
+        admin.topics().unload(partitionedTopic);
 
         statsAfterReload = admin.topics().getStats(topic);
         partitionedStatsAfterReload = admin.topics().getPartitionedStats(partitionedTopic, true);

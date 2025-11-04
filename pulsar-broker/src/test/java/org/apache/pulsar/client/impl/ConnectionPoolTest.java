@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AbstractAddressResolver;
+import io.netty.resolver.AddressResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
@@ -260,7 +261,8 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ConnectionPool pool =
                 spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop,
                         (Supplier<ClientCnx>) () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop),
-                        Optional.of(resolver), scheduledExecutorService);
+                        Optional.<Supplier<AddressResolver<InetSocketAddress>>>of(() -> resolver),
+                        scheduledExecutorService);
 
 
         ClientCnx cnx = pool.getConnection(

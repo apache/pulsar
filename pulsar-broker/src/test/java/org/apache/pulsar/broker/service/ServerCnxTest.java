@@ -231,8 +231,6 @@ public class ServerCnxTest {
                 .getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkBundleOwnership(any(), any());
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
-        doReturn(true).when(namespaceService).isServiceUnitActive(any());
-        doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).isServiceUnitActiveAsync(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopics(
@@ -948,7 +946,7 @@ public class ServerCnxTest {
         assertEquals(((CommandLookupTopicResponse) lookupResponse).getRequestId(), 1);
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // producer
         ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
@@ -959,7 +957,7 @@ public class ServerCnxTest {
         assertEquals(((CommandError) producerResponse).getRequestId(), 2);
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, proxyRole,
-                        serverCnx.getOriginalAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // consumer
         String subscriptionName = "test-subscribe";
@@ -977,7 +975,7 @@ public class ServerCnxTest {
                     assertEquals(arg.getCommandData(), clientRole);
                     assertEquals(arg.getSubscription(), subscriptionName);
                     return true;
-                }));
+                }), any());
     }
 
     @Test
@@ -1349,11 +1347,13 @@ public class ServerCnxTest {
         assertEquals(((CommandLookupTopicResponse) lookupResponse).getError(), ServerError.AuthorizationError);
         assertEquals(((CommandLookupTopicResponse) lookupResponse).getRequestId(), 1);
         verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, proxyRole, serverCnx.getAuthData());
+                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
         // This test is an example of https://github.com/apache/pulsar/issues/19332. Essentially, we're passing
         // the proxy's auth data because it is all we have. This test should be updated when we resolve that issue.
         verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, serverCnx.getAuthData());
+                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
 
         // producer
         ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
@@ -1364,9 +1364,11 @@ public class ServerCnxTest {
         assertEquals(((CommandError) producerResponse).getRequestId(), 2);
         // See https://github.com/apache/pulsar/issues/19332 for justification of this assertion.
         verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, serverCnx.getAuthData());
+                .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, proxyRole,
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
         verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, proxyRole, serverCnx.getAuthData());
+                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
+                        serverCnx.getAuthData(), serverCnx.getAuthData());
 
         // consumer
         String subscriptionName = "test-subscribe";
@@ -1379,20 +1381,34 @@ public class ServerCnxTest {
         assertEquals(((CommandError) subscribeResponse).getRequestId(), 3);
         verify(authorizationService, times(1)).allowTopicOperationAsync(
                 eq(topicName), eq(TopicOperation.CONSUME),
-                eq(clientRole), argThat(arg -> {
+                eq(clientRole), eq(proxyRole), argThat(arg -> {
                     assertTrue(arg instanceof AuthenticationDataSubscription);
                     // We assert that the role is clientRole and commandData is proxyRole due to
                     // https://github.com/apache/pulsar/issues/19332.
-                    assertEquals(arg.getCommandData(), proxyRole);
-                    assertEquals(arg.getSubscription(), subscriptionName);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
+                    return true;
+                }), argThat(arg -> {
+                    assertTrue(arg instanceof AuthenticationDataSubscription);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
                     return true;
                 }));
         verify(authorizationService, times(1)).allowTopicOperationAsync(
                 eq(topicName), eq(TopicOperation.CONSUME),
-                eq(proxyRole), argThat(arg -> {
+                eq(clientRole), eq(proxyRole), argThat(arg -> {
                     assertTrue(arg instanceof AuthenticationDataSubscription);
-                    assertEquals(arg.getCommandData(), proxyRole);
-                    assertEquals(arg.getSubscription(), subscriptionName);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
+                    return true;
+                }), argThat(arg -> {
+                    assertTrue(arg instanceof AuthenticationDataSubscription);
+                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
+                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertEquals(authData.getSubscription(), subscriptionName);
                     return true;
                 }));
     }
@@ -1583,8 +1599,8 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Force the case where the broker doesn't own any topic
-        doReturn(CompletableFuture.completedFuture(false)).when(namespaceService)
-                .isServiceUnitActiveAsync(any(TopicName.class));
+        doReturn(CompletableFuture.failedFuture(new ServiceUnitNotReadyException("failed"))).when(brokerService)
+                .checkTopicNsOwnership(any(String.class));
 
         // test PRODUCER failure case
         ByteBuf clientCommand = Commands.newProducer(nonOwnedTopicName, 1 /* producer id */, 1 /* request id */,
@@ -1749,7 +1765,7 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
-                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
@@ -2536,7 +2552,7 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
-                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
@@ -2559,7 +2575,7 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
-                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);

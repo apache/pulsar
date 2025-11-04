@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters.
  */
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
     @Override

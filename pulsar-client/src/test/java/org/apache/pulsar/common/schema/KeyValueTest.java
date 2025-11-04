@@ -19,7 +19,11 @@
 package org.apache.pulsar.common.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
+import static org.apache.pulsar.common.schema.KeyValue.generateKVSchemaId;
+import static org.apache.pulsar.common.schema.KeyValue.getSchemaId;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.sql.Time;
@@ -131,6 +135,31 @@ public class KeyValueTest {
                 assertEquals(kv.getValue(), value);
             }
         }
+    }
+
+    @DataProvider(name = "keyValueSchemaBytes")
+    public Object[][] keyValueSchemaBytes() {
+        return new Object[][] {
+                { null, null },
+                { new byte[0], new byte[0] },
+                { null, new byte[] {4, 5, 6, 7, 8} },
+                { new byte[0], new byte[] {4, 5, 6, 7, 8} },
+                { new byte[] {1, 2, 3}, null },
+                { new byte[] {1, 2, 3}, new byte[0] },
+                { new byte[] {1, 2, 3}, new byte[] {4, 5, 6, 7, 8} },
+        };
+    }
+
+    @Test(dataProvider = "keyValueSchemaBytes")
+    public void testEncodeDecodeSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
+        byte[] encoded = generateKVSchemaId(keySchemaId, valueSchemaId);
+        if (!isValidSchemaId(keySchemaId) && !isValidSchemaId(valueSchemaId)) {
+            assertFalse(isValidSchemaId(encoded));
+            return;
+        }
+        var decoded = getSchemaId(encoded);
+        assertEquals(keySchemaId == null ? new byte[0] : keySchemaId, decoded.getKey());
+        assertEquals(valueSchemaId == null ? new byte[0] : valueSchemaId, decoded.getValue());
     }
 
 }

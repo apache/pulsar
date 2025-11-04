@@ -35,6 +35,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -105,6 +106,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -2159,7 +2161,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(systemTopic, 5);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             final var policies = TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
-                    TopicName.get(systemTopic));
+                    TopicName.get(systemTopic), false);
             Assert.assertTrue(policies.isPresent());
             Assert.assertEquals(policies.get().getMaxConsumerPerTopic(), 5);
         });
@@ -2167,8 +2169,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(systemTopic, true);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
                 TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
-                                TopicName.get(systemTopic))
-                        .isEmpty()));
+                        TopicName.get(systemTopic), false).isEmpty()));
     }
 
     @Test
@@ -2279,5 +2280,123 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
         assertTrue(admin.namespaces().getPolicies(namespace).migrated);
+    }
+
+    @Test
+    public void testDeleteNamespaceUsesRemoteClusterTlsConfig() throws Exception {
+        String remoteCluster = "remote-cluster-tls";
+        // Test case 1: Remote cluster with TLS disabled - should use regular serviceUrl
+        ClusterData remoteClusterNoTls = ClusterDataImpl.builder()
+                .serviceUrl("http://remote:8080")
+                .serviceUrlTls("https://remote:8443")
+                .brokerClientTlsEnabled(false)  // TLS disabled
+                .build();
+        admin.clusters().createCluster(remoteCluster, remoteClusterNoTls);
+
+        // Create tenant
+        String tenant = "test-tenant";
+        Set<String> allowedClusters = Sets.newHashSet(conf.getClusterName(), remoteCluster);
+        TenantInfoImpl tenantInfo = TenantInfoImpl.builder()
+                .allowedClusters(allowedClusters)
+                .build();
+        admin.tenants().createTenant(tenant, tenantInfo);
+
+        // Create global namespace with replication only to remote cluster
+        String globalNamespace = tenant + "/test-ns-tls";
+        admin.namespaces().createNamespace(globalNamespace);
+
+        Set<String> replicationClusters = Sets.newHashSet(remoteCluster);
+        admin.namespaces().setNamespaceReplicationClusters(globalNamespace, replicationClusters);
+
+        try {
+            // This should attempt to redirect to remote cluster using HTTP (not HTTPS)
+            // because remoteCluster has brokerClientTlsEnabled=false
+            admin.namespaces().deleteNamespace(globalNamespace);
+            fail("Expected redirection exception was not thrown");
+        } catch (Exception e) {
+            // The exact error depends on whether the redirect URL is accessible
+            // but we can verify the request was attempted (connection refused to port 8080)
+            String message = e.getMessage();
+            assertTrue(message.contains("8080") || message.contains("remote")
+                      || message.contains("Connection") || message.contains("redirect"),
+                    "Expected connection error to HTTP port, got: " + message);
+        }
+
+        // Clean up namespace for next test
+        try {
+            admin.namespaces().deleteNamespace(globalNamespace, true);
+        } catch (Exception ignored) {
+            // Cleanup - ignore errors
+        }
+
+        // Test case 2: Remote cluster with TLS enabled - should use TLS serviceUrl
+        String remoteClusterTls = "remote-cluster-tls-enabled";
+        ClusterData remoteClusterWithTls = ClusterDataImpl.builder()
+                .serviceUrl("http://remote-tls:8080")
+                .serviceUrlTls("https://remote-tls:8443")
+                .brokerClientTlsEnabled(true)  // TLS enabled
+                .build();
+        admin.clusters().createCluster(remoteClusterTls, remoteClusterWithTls);
+
+        // Update tenant to include new cluster
+        Set<String> allowedClustersWithTls = Sets.newHashSet(conf.getClusterName(), remoteCluster, remoteClusterTls);
+        TenantInfoImpl tenantInfoWithTls = TenantInfoImpl.builder()
+                .allowedClusters(allowedClustersWithTls)
+                .build();
+        admin.tenants().updateTenant(tenant, tenantInfoWithTls);
+
+        // Create another global namespace
+        String globalNamespaceTls = tenant + "/test-ns-tls-enabled";
+        admin.namespaces().createNamespace(globalNamespaceTls);
+        Set<String> replicationClustersTls = Sets.newHashSet(remoteClusterTls);
+        admin.namespaces().setNamespaceReplicationClusters(globalNamespaceTls, replicationClustersTls);
+
+        try {
+            // This should attempt to redirect to remote cluster using HTTPS (port 8443)
+            // because remoteClusterTls has brokerClientTlsEnabled=true
+            admin.namespaces().deleteNamespace(globalNamespaceTls);
+            fail("Expected redirection exception was not thrown");
+        } catch (Exception e) {
+            // Verify the request was attempted to HTTPS port (8443)
+            String message = e.getMessage();
+            assertTrue(message.contains("8443") || message.contains("remote-tls")
+                      || message.contains("Connection") || message.contains("redirect"),
+                    "Expected connection error to HTTPS port, got: " + message);
+        }
+
+        // Test case 3: Remote cluster with TLS enabled but no TLS service URL
+        String remoteClusterNoTlsUrl = "remote-cluster-no-tls-url";
+        ClusterData remoteClusterMissingTlsUrl = ClusterDataImpl.builder()
+                .serviceUrl("http://remote-no-tls:8080")
+                .serviceUrlTls(null)  // No TLS URL provided
+                .brokerClientTlsEnabled(true)  // TLS enabled but no URL
+                .build();
+        admin.clusters().createCluster(remoteClusterNoTlsUrl, remoteClusterMissingTlsUrl);
+
+        // Update tenant to include new cluster
+        Set<String> allowedClustersNoTlsUrl = Sets.newHashSet(conf.getClusterName(), remoteCluster,
+                                                             remoteClusterTls, remoteClusterNoTlsUrl);
+        TenantInfoImpl tenantInfoNoTlsUrl = TenantInfoImpl.builder()
+                .allowedClusters(allowedClustersNoTlsUrl)
+                .build();
+        admin.tenants().updateTenant(tenant, tenantInfoNoTlsUrl);
+
+        // Create another global namespace
+        String globalNamespaceNoTlsUrl = tenant + "/test-ns-no-tls-url";
+        admin.namespaces().createNamespace(globalNamespaceNoTlsUrl);
+        Set<String> replicationClustersNoTlsUrl = Sets.newHashSet(remoteClusterNoTlsUrl);
+        admin.namespaces().setNamespaceReplicationClusters(globalNamespaceNoTlsUrl, replicationClustersNoTlsUrl);
+
+        try {
+            // This should throw a precondition failed error because TLS is enabled
+            // but no TLS service URL is provided
+            admin.namespaces().deleteNamespace(globalNamespaceNoTlsUrl);
+            fail("Expected precondition failed exception was not thrown");
+        } catch (Exception e) {
+            String message = e.getMessage();
+            assertTrue(message.contains("does not provide TLS encrypted service")
+                      || message.contains("TLS") || message.contains("encrypted"),
+                    "Expected TLS service error, got: " + message);
+        }
     }
 }

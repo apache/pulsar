@@ -202,8 +202,10 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     }
 
     public CompletableFuture<Void> closeAsync() {
-
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        // since we set closed flag in PatternMultiTopicsConsumerImpl, it is ok to directly cancel watcherFuture whether
+        // it's completed or not to make sure watcherFuture is completed
+        watcherFuture.cancel(false);
 
         if (getState() == State.Closing || getState() == State.Closed) {
             closeFuture.complete(null);

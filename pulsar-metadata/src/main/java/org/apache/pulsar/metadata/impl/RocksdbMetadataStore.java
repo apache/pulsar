@@ -209,7 +209,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
      */
     private RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
-        super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry());
+        super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry(),
+                metadataStoreConfig.getNodeSizeStats());
         this.metadataUrl = metadataURL;
         try {
             RocksDB.loadLibrary();
@@ -404,7 +405,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
         if (log.isDebugEnabled()) {
             log.debug("getChildrenFromStore.path={},instanceId={}", path, instanceId);
         }

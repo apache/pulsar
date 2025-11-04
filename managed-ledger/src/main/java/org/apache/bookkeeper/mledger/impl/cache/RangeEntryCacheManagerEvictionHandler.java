@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.MB;
+import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -63,5 +64,10 @@ class RangeEntryCacheManagerEvictionHandler {
         }
         manager.entriesRemoved(evictedSize, evictedEntries);
         return evicted;
+    }
+
+    @VisibleForTesting
+    public Pair<Integer, Long> getNonEvictableSize() {
+        return rangeCacheRemovalQueue.getNonEvictableSize();
     }
 }

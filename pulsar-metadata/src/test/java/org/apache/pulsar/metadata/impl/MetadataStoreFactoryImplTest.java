@@ -96,11 +96,11 @@ public class MetadataStoreFactoryImplTest {
 
     public static class MyMetadataStore extends AbstractMetadataStore {
         protected MyMetadataStore() {
-            super("custom", OpenTelemetry.noop());
+            super("custom", OpenTelemetry.noop(), null);
         }
 
         @Override
-        protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        public CompletableFuture<List<String>> getChildrenFromStore(String path) {
             return null;
         }
 

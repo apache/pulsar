@@ -184,6 +184,7 @@ public class TopicLookupBase extends PulsarWebResource {
                                                               boolean authoritative, String clientAppId,
                                                               String originalPrinciple,
                                                               AuthenticationDataSource authenticationData,
+                                                              AuthenticationDataSource originalAuthenticationData,
                                                               long requestId, final String advertisedListenerName,
                                                               Map<String, String> properties) {
 
@@ -206,7 +207,7 @@ public class TopicLookupBase extends PulsarWebResource {
             } else {
                 // (2) authorize client
                 checkAuthorizationAsync(pulsarService, topicName, clientAppId, originalPrinciple,
-                        authenticationData).thenRun(() -> {
+                        authenticationData, originalAuthenticationData).thenRun(() -> {
                         // (3) validate global namespace
                         // It is necessary for system topic operations because system topics are used to store metadata
                         // and other vital information. Even after namespace starting deletion,
@@ -324,6 +325,10 @@ public class TopicLookupBase extends PulsarWebResource {
     private static void printWarnLogIfLookupResUnexpected(TopicName topic, LookupData lookupData, LookupOptions options,
                                                           PulsarService pulsar) {
         if (!pulsar.getBrokerService().isSystemTopic(topic)) {
+            return;
+        }
+        if (SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName()
+                .equals(topic.getPartitionedTopicName())) {
             return;
         }
         boolean tlsEnabled = pulsar.getConfig().isBrokerClientTlsEnabled();

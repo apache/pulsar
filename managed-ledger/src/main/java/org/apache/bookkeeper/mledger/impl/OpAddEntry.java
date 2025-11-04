@@ -231,7 +231,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         }
 
         if (rc != BKException.Code.OK || timeoutTriggered.get()) {
-            handleAddFailure(lh);
+            handleAddFailure(lh, rc);
         } else {
             // Trigger addComplete callback in a thread hashed on the managed ledger name
             ml.getExecutor().execute(this);
@@ -257,11 +257,19 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         ManagedLedgerImpl.NUMBER_OF_ENTRIES_UPDATER.incrementAndGet(ml);
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
 
+        // ctx will contain a Position instance only in the case of ShadowManagedLedgerImpl
         long ledgerId = ledger != null ? ledger.getId() : ((Position) ctx).getLedgerId();
-        // Don't insert to the entry cache for the ShadowManagedLedger
-        if (!(ml instanceof ShadowManagedLedgerImpl) && ml.hasActiveCursors()) {
-            // Avoid caching entries if no cursor has been created
-            EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
+
+        // Handle caching for tailing reads
+        if (ml.shouldCacheAddedEntry()) {
+            int expectedReadCount = 0;
+            // only use expectedReadCount if cache eviction is enabled by expected read count
+            if (ml.getConfig().isCacheEvictionByExpectedReadCount()) {
+                // use the number of active cursors as the expected read count
+                expectedReadCount = ml.getActiveCursors().size();
+            }
+            EntryImpl entry = EntryImpl.create(ledgerId, entryId, data, expectedReadCount);
+            entry.setDecreaseReadCountOnRelease(false);
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
             // insert
             ml.entryCache.insert(entry);
@@ -343,7 +351,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
      *
      * @param lh
      */
-    void handleAddFailure(final LedgerHandle lh) {
+    void handleAddFailure(final LedgerHandle lh, Integer rc) {
         // If we get a write error, we will try to create a new ledger and re-submit the pending writes. If the
         // ledger creation fails (persistent bk failure, another instance owning the ML, ...), then the writes will
         // be marked as failed.
@@ -353,7 +361,15 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         finalMl.getExecutor().execute(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
-            finalMl.ledgerClosed(lh);
+            // If we received a "MetadataVersionException" or a "LedgerFencedException", we should tell the ML that
+            // the ledger has been closed by others, and the entries count in the ledger may is not correct. The ML
+            // will handle it.
+            if (rc != null && (rc.intValue() == BKException.Code.MetadataVersionException
+                    || rc.intValue() == BKException.Code.LedgerFencedException)) {
+                finalMl.addEntryFailedDueToConcurrentlyModified(lh, rc);
+            } else {
+                finalMl.ledgerClosed(lh);
+            }
         });
     }
 

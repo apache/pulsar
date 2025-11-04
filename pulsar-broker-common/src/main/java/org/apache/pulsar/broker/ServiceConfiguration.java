@@ -446,6 +446,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String clusterName;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Defines how the broker will anonymize the role and originalAuthRole before logging. "
+                    + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
+                    + "hash:SHA256 (hashes using SHA-256), and hash:MD5 (hashes using MD5). Default is NONE."
+    )
+    private String authenticationRoleLoggingAnonymizer = "NONE";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "The maximum number of tenants that each pulsar cluster can create."
@@ -921,6 +929,58 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        doc = "It relates to configuration \"WriteBufferHighWaterMark\" of Netty Channel Config. If the number of bytes"
+            + " queued in the write buffer exceeds this value, channel writable state will start to return \"false\"."
+    )
+    private int pulsarChannelWriteBufferHighWaterMark = 64 * 1024;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "It relates to configuration \"WriteBufferLowWaterMark\" of Netty Channel Config. If the number of bytes"
+                + " queued in the write buffer is smaller than this value, channel writable state will start to return"
+                + " \"true\"."
+    )
+    private int pulsarChannelWriteBufferLowWaterMark = 32 * 1024;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "If enabled, the broker will pause reading from the channel to deal with new request once the writer"
+            + " buffer is full, until it is changed to writable."
+    )
+    private boolean pulsarChannelPauseReceivingRequestsIfUnwritable = false;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "After the connection is recovered from a pause receiving state, the channel will be rate-limited"
+                + " for a time window to avoid overwhelming due to the backlog of requests. This parameter defines"
+                + " how long the rate limiting should last, in millis. Once the bytes that are waiting to be sent out"
+                + " reach the \"pulsarChannelWriteBufferHighWaterMark\"， the timer will be reset. Setting a negative"
+                + " value will disable the rate limiting."
+    )
+    private int pulsarChannelPauseReceivingCooldownMs = 5000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "After the connection is recovered from a pause receiving state, the channel will be rate-limited for a"
+            + " period of time to avoid overwhelming due to the backlog of requests. This parameter defines how"
+            + " many requests should be allowed in the rate limiting period."
+
+    )
+    private int pulsarChannelPauseReceivingCooldownRateLimitPermits = 5;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "After the connection is recovered from a pause receiving state, the channel will be rate-limited for a"
+            + " period of time defined by pulsarChannelPauseReceivingCooldownMs to avoid overwhelming due to the"
+            + " backlog of requests. This parameter defines the period of the rate limiter in milliseconds. If the rate"
+            + " limit period is set to 1000, then the unit is requests per 1000 milliseconds. When it's 10, the unit"
+            + " is requests per every 10ms."
+
+    )
+    private int pulsarChannelPauseReceivingCooldownRateLimitPeriodMs = 10;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
     )
     private int brokerMaxConnectionsPerIp = 0;
@@ -1181,7 +1241,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
-            doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
+            doc = "Interval (in seconds) for ResourceGroupService periodic tasks while resource groups are actively "
+                    + "attached to tenants or namespaces. Periodic tasks start automatically when the first attachment "
+                    + "is registered and stop automatically when no attachments remain. "
+                    + "If a ResourceUsageTransportManager is configured (see resourceUsageTransportClassName), "
+                    + "this interval also controls how frequently, usage reports are published for cross-broker "
+                    + "coordination. Dynamic changes take effect at runtime and reschedule any running tasks."
     )
     private int resourceUsageTransportPublishIntervalInSecs = 60;
 
@@ -2148,19 +2213,65 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Configure the cache eviction interval in milliseconds for the managed ledger cache, default is 10ms")
     private long managedLedgerCacheEvictionIntervalMs = 10;
 
-    @FieldContext(category = CATEGORY_STORAGE_ML,
-            dynamic = true,
-            doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true, doc =
+            "Controls time-to-live (TTL) for entries in the managed ledger (broker) cache.\n"
+                    + "The TTL can be extended in two ways:\n"
+                    + "1. When cacheEvictionByExpectedReadCount is enabled: TTL is extended for entries with "
+                    + "remaining\n"
+                    + "expected reads. The maximum number of extensions is controlled by\n"
+                    + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes.\n"
+                    + "2. When cacheEvictionExtendTTLOfRecentlyAccessed is enabled: TTL is extended for entries\n"
+                    + "accessed since the last expiration check.\n"
+                    + "Default value is 1000ms.")
     private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true, doc = "Maximum number of times the cache can extend\n"
+            + "the TTL of an entry that has remaining expected reads.\n"
+            + "Only takes effect when cacheEvictionByExpectedReadCount is enabled.\n"
+            + "This helps optimize cache efficiency for scenarios like:\n"
+            + "- Key_Shared subscription replays\n"
+            + "- Catch-up reads for lagging consumers\n"
+            + "- Consumers temporarily falling behind the tail\n"
+            + "Entries with remaining expected reads will have their TTL extended up to this many times\n"
+            + "before being eligible for eviction. The TTL will be extended by\n"
+            + "managedLedgerCacheEvictionTimeThresholdMillis each time.\n"
+            + "Default is 5.")
+    private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+            doc = "Controls whether recently accessed entries in the managed ledger cache should have their "
+                    + "lifetime extended before cache eviction.\n"
+                    + "When enabled:\n"
+                    + " - During eviction check, if an entry has been accessed since the last check, its expiration"
+                    + " time will be extended by managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + " - Makes the cache behave like a Least Recently Used (LRU) cache by keeping frequently "
+                    + "accessed entries longer\n"
+                    + " - Helps optimize performance for frequently accessed entries while still allowing old unused "
+                    + "entries to be evicted\n"
+                    + " - Minimum eviction time is 2x managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + "When disabled:\n"
+                    + " - Cache behaves more like a FIFO queue with time-based and size-based eviction\n"
+                    + " - Minimum eviction time is managedLedgerCacheEvictionTimeThresholdMillis\n"
+                    + "Default is true, to behave like a LRU cache."
+    )
+    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
-                    + " and thus should be set as inactive.")
+                    + " and thus should be set as inactive.\n"
+                    + "Set to -1 to disable this behavior.\n"
+                    + "This setting has no effect when cacheEvictionByExpectedReadCount is enabled.")
     private long managedLedgerCursorBackloggedThreshold = 1000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Rate limit the amount of writes per second generated by consumer acking the messages"
     )
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Max number of concurrent requests for deleting ledgers at broker level"
+    )
+    private int managedLedgerDeleteMaxConcurrentRequests = 1000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -2429,20 +2540,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
             doc = "Minimum cursors that must be in backlog state to cache and reuse the read entries."
-                    + "(Default =0 to disable backlog reach cache)"
+                    + "(Default =0 to disable backlog reach cache)\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMinimumBacklogCursorsForCaching = 0;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "Minimum backlog entries for any cursor before start caching reads"
+            doc = "Minimum backlog entries for any cursor before start caching reads\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMinimumBacklogEntriesForCaching = 1000;
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused"
+            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused\n"
+                    + "This has no effect when cacheEvictionByExpectedReadCount is enabled."
     )
     private int managedLedgerMaxBacklogBetweenCursorsForCaching = 1000;
 
@@ -3224,7 +3338,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
             "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.ExternalSchemaCompatibilityCheck"
     );
 
     @FieldContext(
@@ -3466,10 +3581,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
-            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
-                    + "The default is to evict through readPosition."
+            doc = "Evicting cache data by the slowest markDeletedPosition (true) or slowest read position (false)."
+                    + "This setting is ignored when cacheEvictionByExpectedReadCount is true."
     )
     private boolean cacheEvictionByMarkDeletedPosition = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by expected read count. Expected read count is calculated by the number of "
+                    + "active cursors with a read position that is behind the position of the cached entry. "
+                    + "This setting will override the cacheEvictionByMarkDeletedPosition setting."
+    )
+    private boolean cacheEvictionByExpectedReadCount = true;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "This setting configures the duration of continuing to cache added entries while there are no "
+                    + "active cursors, when the last active cursor has left or immediately after initialization when "
+                    + "the persistent topic and the managed ledger gets loaded. "
+                    + "This setting is ignored unless cacheEvictionByExpectedReadCount is enabled."
+                    + "The default value is 2 * managedLedgerCacheEvictionTimeThresholdMillis."
+    )
+    private Long managedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
 
     /**** --- Transaction config variables. --- ****/
     @FieldContext(

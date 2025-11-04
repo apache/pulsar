@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -54,6 +54,7 @@ import org.apache.pulsar.metadata.impl.batching.OpDelete;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
+import org.apache.pulsar.metadata.impl.batching.ZKMetadataStoreBatchStrategy;
 import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
@@ -81,6 +82,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
     private final ZKSessionWatcher sessionWatcher;
+    private final Watcher eventWatcher = this::handleWatchEvent;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
             throws MetadataStoreException {
@@ -108,7 +110,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             } else {
                 sessionWatcher = null;
             }
-            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
+            zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
+            initBatchStrategy();
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
         }
@@ -142,14 +145,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         this.isZkManaged = isZkManaged;
         this.zkc = zkc;
         this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
-        zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
+        zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
+        initBatchStrategy();
+    }
+
+    private void initBatchStrategy() {
+        ZKMetadataStoreBatchStrategy batchStrategy =
+                new ZKMetadataStoreBatchStrategy(nodeSizeStats, maxOperations, maxSize, zkc);
+        this.maxSize = batchStrategy.maxSize();
+        super.metadataStoreBatchStrategy = batchStrategy;
     }
 
     @Override
     protected void receivedSessionEvent(SessionEvent event) {
         if (event == SessionEvent.SessionReestablished) {
             // Recreate the persistent watch on the new session
-            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE,
+            zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE,
                     (rc, path, ctx) -> {
                         if (rc == Code.OK.intValue()) {
                             super.receivedSessionEvent(event);
@@ -203,18 +214,34 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
                         // Build the log warning message
                         // summarize the operations by type
+                        final int logThresholdPut = maxSize >> 4;
+                        final int logThresholdGet = maxSize >> 4;
                         String countsByType = ops.stream().collect(
                                         Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
-                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name() + " entries")
+                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name())
                                 .collect(Collectors.joining(", "));
-                        List<Pair> opsForLog = ops.stream()
-                                .filter(item -> item.size() > 256 * 1024)
-                                .map(op -> Pair.of(op.getPath(), op.size()))
+                        boolean shouldLimitLogLen = ops.size() > 16;
+                        List<Triple<String, String, Integer>> opsForLog = ops.stream()
+                                .filter(item -> {
+                                    if (!shouldLimitLogLen) {
+                                        return true;
+                                    }
+                                    return switch (item.getType()) {
+                                        case PUT -> item.asPut().getData().length > logThresholdPut;
+                                        case GET -> nodeSizeStats
+                                                .getMaxSizeOfSameResourceType(item.getPath()) > logThresholdGet;
+                                        case GET_CHILDREN -> nodeSizeStats
+                                                .getMaxChildrenCountOfSameResourceType(item.getPath()) > 512;
+                                        default -> false;
+                                    };
+                                })
+                                .map(op -> Triple.of(op.getPath(), op.getType().toString(), op.size()))
                                 .collect(Collectors.toList());
                         Long totalSize = ops.stream().collect(Collectors.summingLong(MetadataOp::size));
                         log.warn("Connection loss while executing batch operation of {} "
-                                + "of total data size of {}. "
-                                + "Retrying individual operations one-by-one. ops whose size > 256KB: {}",
+                                + "of total requested data size of {}. "
+                                + "Retrying individual operations one-by-one."
+                                + " ops that maybe large: {}",
                                 countsByType, totalSize, opsForLog);
 
                         // Retry with the individual operations

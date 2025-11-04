@@ -69,7 +69,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
      * Iterate next level1 znode.
      *
      * @return false if have visited all level1 nodes
-     * @throws InterruptedException/KeeperException if error occurs reading zookeeper children
+     * @throws InterruptedException/ExecutionException/TimeoutException if error occurs reading zookeeper children
      */
     private boolean nextL1Node() throws ExecutionException, InterruptedException, TimeoutException {
         l2NodesIter = null;
@@ -83,7 +83,9 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
             if (!isLedgerParentNode(curL1Nodes)) {
                 continue;
             }
-            List<String> l2Nodes = store.getChildren(ledgersRoot + "/" + curL1Nodes)
+            String path = ledgersRoot + "/" + curL1Nodes;
+            List<String> l2Nodes = store.sync(path)
+                    .thenCompose(__ -> store.getChildrenFromStore(path))
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             l2NodesIter = l2Nodes.iterator();
             if (!l2NodesIter.hasNext()) {
@@ -99,7 +101,8 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
             boolean hasMoreElements = false;
             try {
                 if (l1NodesIter == null) {
-                    List<String> l1Nodes = store.getChildren(ledgersRoot)
+                    List<String> l1Nodes = store.sync(ledgersRoot)
+                            .thenCompose(__ -> store.getChildrenFromStore(ledgersRoot))
                             .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                     l1NodesIter = l1Nodes.iterator();
                     hasMoreElements = nextL1Node();
@@ -162,7 +165,8 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
         String nodePath = nodeBuilder.toString();
         List<String> ledgerNodes = null;
         try {
-            ledgerNodes = store.getChildren(nodePath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+            ledgerNodes = store.sync(nodePath).thenCompose(__ -> store.getChildrenFromStore(nodePath))
+                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (ExecutionException | TimeoutException e) {
             throw new IOException("Error when get child nodes from zk", e);
         } catch (InterruptedException e) {

@@ -182,7 +182,15 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     private URI resolveLookupUrl() {
-        if (isTcpLookup) {
+        return resolveLookupUrl(isTcpLookup);
+    }
+
+    protected String brokerServiceUrl(boolean usePulsarBinaryProtocol) {
+        return resolveLookupUrl(usePulsarBinaryProtocol).toString();
+    }
+
+    private URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
+        if (usePulsarBinaryProtocol) {
             return URI.create(pulsar.getBrokerServiceUrl());
         } else {
             return URI.create(brokerUrl != null
@@ -242,16 +250,20 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected void doInitConf() throws Exception {
-        this.conf.setBrokerShutdownTimeoutMs(0L);
-        this.conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        this.conf.setBrokerServicePort(Optional.of(0));
-        this.conf.setAdvertisedAddress("localhost");
-        this.conf.setWebServicePort(Optional.of(0));
-        this.conf.setNumExecutorThreadPoolSize(5);
-        this.conf.setExposeBundlesMetricsInPrometheus(true);
+        configureInitialConfig(conf);
+    }
+
+    protected void configureInitialConfig(ServiceConfiguration conf) {
+        conf.setBrokerShutdownTimeoutMs(0L);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        conf.setBrokerServicePort(Optional.of(0));
+        conf.setAdvertisedAddress("localhost");
+        conf.setWebServicePort(Optional.of(0));
+        conf.setNumExecutorThreadPoolSize(5);
+        conf.setExposeBundlesMetricsInPrometheus(true);
         // Disable the dispatcher retry backoff in tests by default
-        this.conf.setDispatcherRetryBackoffInitialTimeInMs(0);
-        this.conf.setDispatcherRetryBackoffMaxTimeInMs(0);
+        conf.setDispatcherRetryBackoffInitialTimeInMs(0);
+        conf.setDispatcherRetryBackoffMaxTimeInMs(0);
     }
 
     protected final void init() throws Exception {
@@ -510,13 +522,28 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      */
     protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf,
                                               Consumer<PulsarTestContext.Builder> builderCustomizer) throws Exception {
-        var builder = createPulsarTestContextBuilder(conf)
-                .reuseMockBookkeeperAndMetadataStores(pulsarTestContext)
-                .reuseSpyConfig(pulsarTestContext);
+        var builder = createAdditionalPulsarTestContextBuilder(conf);
+        customizeAdditionalPulsarTestContextBuilder(builder);
         if (builderCustomizer != null) {
             builderCustomizer.accept(builder);
         }
         return builder.build();
+    }
+
+    /**
+     * Customize the PulsarTestContext.Builder instance used for creating the PulsarTestContext
+     * for an additional PulsarService instance.
+     *
+     * @param pulsarTestContextBuilder the PulsarTestContext.Builder instance to customize
+     */
+    protected void customizeAdditionalPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+
+    }
+
+    protected PulsarTestContext.Builder createAdditionalPulsarTestContextBuilder(ServiceConfiguration conf) {
+        return createPulsarTestContextBuilder(conf)
+                .reuseSpyConfig(pulsarTestContext)
+                .reuseMockBookkeeperAndMetadataStores(pulsarTestContext);
     }
 
     protected void waitForZooKeeperWatchers() {
@@ -780,6 +807,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void logTopicStats(String topic) {
         BrokerTestUtil.logTopicStats(log, admin, topic);
+    }
+
+    @DataProvider(name = "trueFalse")
+    public static Object[][] trueFalse() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
