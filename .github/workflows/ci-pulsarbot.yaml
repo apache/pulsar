@@ -79,7 +79,7 @@ jobs:
             }
             const headSha = pr.head.sha;
             const prBranch = pr.head.ref;
-            const prUser = (pr.head && pr.head.user && pr.head.user.login) ? pr.head.user.login : pr.user.login;
+            const prUser = pr.user.login;
             const prUrl = pr.html_url;
             console.log(`pulsarbot handling PR #${prNum} ${prUrl}`);
             console.log(`PR branch='${prBranch}', headSha='${headSha}', author='${prUser}'`);
@@ -169,7 +169,7 @@ jobs:
               }
             }
             // Command 1: /pulsarbot rerun
-            if (sub === 'rerun' && !arg) {
+            if ((sub === 'rerun' || sub === 'rerun-failure-checks') && !arg) {
               const targetConclusions = new Set(['failure', 'timed_out', 'cancelled', 'skipped']);
               let fullRerunCount = 0;
               let skippedRunning = 0;
