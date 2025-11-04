@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -909,7 +908,7 @@ public abstract class NamespacesBase extends AdminResource {
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
                                 policies.namespaceAntiAffinityGroup))
-                        .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
+                        .orElseGet(() -> new LocalPolicies(getDefaultBundleData(),
                                 bookieAffinityGroup,
                                 null));
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
@@ -920,6 +919,8 @@ public abstract class NamespacesBase extends AdminResource {
             log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (RestException re) {
+            throw re;
         } catch (Exception e) {
             log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
                     e);
@@ -1735,11 +1736,13 @@ public abstract class NamespacesBase extends AdminResource {
                 lp.map(policies -> new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
                         antiAffinityGroup))
-                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
+                        .orElseGet(() -> new LocalPolicies(getDefaultBundleData(),
                                 null, antiAffinityGroup))
             );
             log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
                     namespaceName, antiAffinityGroup);
+        } catch (RestException re) {
+            throw re;
         } catch (Exception e) {
             log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
                     e);
@@ -2785,5 +2788,22 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenApply(policies -> policies.allowed_clusters);
     }
 
+    // TODO remove this sync method after async refactor
+    private BundlesData getDefaultBundleData() {
+        try {
+            return getDefaultBundleDataAsync().get(config().getMetadataStoreOperationTimeoutSeconds(),
+                    TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace-policy configuration for namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    private CompletableFuture<BundlesData> getDefaultBundleDataAsync() {
+        return namespaceResources().getPoliciesAsync(namespaceName).thenApply(
+                optionalPolicies -> optionalPolicies.isPresent() ? optionalPolicies.get().bundles :
+                        getBundles(config().getDefaultNumberOfNamespaceBundles()));
+    }
 
 }
