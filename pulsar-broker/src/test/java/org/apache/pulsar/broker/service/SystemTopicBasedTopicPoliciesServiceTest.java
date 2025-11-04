@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,14 +47,14 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCach
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -483,5 +485,50 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(service.getPoliciesCacheInit(namespaceName));
         service.prepareInitPoliciesCacheAsync(namespaceName).get();
         admin.namespaces().deleteNamespace(NAMESPACE5);
+    }
+
+    @Test
+    public void testCreateNamespaceEventsSystemTopicFactoryException() throws Exception {
+        final String namespace = "system-topic/namespace-6";
+
+        admin.namespaces().createNamespace(namespace);
+
+        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace), "topic-1");
+
+        SystemTopicBasedTopicPoliciesService service =
+                Mockito.spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
+
+        // inject exception when create NamespaceEventsSystemTopicFactory
+        Mockito.doThrow(new RuntimeException("test exception"))
+                .doCallRealMethod()
+                .when(service)
+                .getNamespaceEventsSystemTopicFactory();
+
+        try {
+            service.getTopicPoliciesAsync(topicName, false).join();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("test exception"));
+        }
+
+        TopicPolicies updatedTopicPolicies = new TopicPolicies();
+        updatedTopicPolicies.setMaxConsumerPerTopic(10);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(service.updateTopicPoliciesAsync(topicName, updatedTopicPolicies))
+                    .succeedsWithin(Duration.ofSeconds(2));
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
+                    service.getTopicPoliciesAsync(topicName, false);
+            Optional<TopicPolicies> topicPoliciesOptional = topicPoliciesFuture.join();
+
+            Assert.assertNotNull(topicPoliciesOptional);
+            Assert.assertTrue(topicPoliciesOptional.isPresent());
+
+            TopicPolicies topicPolicies = topicPoliciesOptional.get();
+            Assert.assertNotNull(topicPolicies);
+            Assert.assertEquals(topicPolicies.getMaxConsumerPerTopic(), 10);
+        });
     }
 }
