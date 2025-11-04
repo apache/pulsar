@@ -189,14 +189,14 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.127.Final</netty.version>
+    <netty.version>4.1.128.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
-    <jetty.version>9.4.57.v20241219</jetty.version>
+    <jetty.version>9.4.58.v20250814</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.42</jersey.version>
     <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.5.10</vertx.version>
+    <vertx.version>4.5.22</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
@@ -205,8 +205,8 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.bcprov-jdk18on.version>1.78.1</bouncycastle.bcprov-jdk18on.version>
     <bouncycastle.bcpkix-jdk18on.version>1.81</bouncycastle.bcpkix-jdk18on.version>
     <bouncycastle.bcprov-ext-jdk18on.version>1.78.1</bouncycastle.bcprov-ext-jdk18on.version>
-    <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
-    <bouncycastle.bc-fips.version>1.0.2.6</bouncycastle.bc-fips.version>
+    <bouncycastle.bcpkix-fips.version>2.0.10</bouncycastle.bcpkix-fips.version>
+    <bouncycastle.bc-fips.version>2.0.1</bouncycastle.bc-fips.version>
     <jackson.version>2.17.2</jackson.version>
     <fastutil.version>8.5.16</fastutil.version>
     <jctools.version>4.0.5</jctools.version>
@@ -247,7 +247,7 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
-    <debezium.version>3.2.2.Final</debezium.version>
+    <debezium.version>3.2.4.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
     <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
@@ -292,7 +292,7 @@ flexible messaging model and an intuitive client API.</description>
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring.version>6.1.14</spring.version>
+    <spring.version>6.2.12</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
@@ -369,6 +369,9 @@ flexible messaging model and an intuitive client API.</description>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
+    <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
+    <commons-beanutils.version>1.11.0</commons-beanutils.version>
+    <commons-configuration2.version>2.12.0</commons-configuration2.version>
   </properties>
 
   <dependencyManagement>
@@ -1735,6 +1738,22 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.opentelemetry.semconv</groupId>
         <artifactId>opentelemetry-semconv</artifactId>
         <version>${opentelemetry.semconv.version}</version>
+      </dependency>
+      <!-- enforce nimbus-jose-jwt version that gets pulled transitively -->
+      <dependency>
+        <groupId>com.nimbusds</groupId>
+        <artifactId>nimbus-jose-jwt</artifactId>
+        <version>${nimbus-jose-jwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-beanutils</groupId>
+        <artifactId>commons-beanutils</artifactId>
+        <version>${commons-beanutils.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-configuration2</artifactId>
+        <version>${commons-configuration2.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
