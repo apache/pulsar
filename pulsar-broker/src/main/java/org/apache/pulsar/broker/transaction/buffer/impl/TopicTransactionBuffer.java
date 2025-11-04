@@ -108,6 +108,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final AbortedTxnProcessor.SnapshotType snapshotType;
     private final MaxReadPositionCallBack maxReadPositionCallBack;
+    private CompletableFuture<Void> firstSnapshottingFuture;
 
     private static AbortedTxnProcessor createSnapshotProcessor(PersistentTopic topic) {
         return topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()
@@ -272,28 +273,32 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         // Method `takeAbortedTxnsSnapshot` will be executed in the different thread.
         // So we need to retain the buffer in this thread. It will be released after message persistent.
         buffer.retain();
-        CompletableFuture<Position> future = getPublishFuture().thenCompose(ignore -> {
-            if (checkIfNoSnapshot()) {
-                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        CompletableFuture<Position> future = getTransactionBufferFuture().thenCompose(ignore -> {
+            if (changeToFirstSnapshotting()) {
+                synchronized (TopicTransactionBuffer.this) {
+                    firstSnapshottingFuture = new CompletableFuture<>();
+                }
                 // `publishFuture` will be completed after message persistent, so there will not be two threads
                 // writing snapshots at the same time.
                 snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).thenRun(() -> {
                     if (changeToReadyStateFromNoSnapshot()) {
                         timer.newTimeout(TopicTransactionBuffer.this,
                                 takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                        completableFuture.complete(null);
+                        firstSnapshottingFuture.complete(null);
                     } else {
                         log.error("[{}]Failed to change state of transaction buffer to Ready from NoSnapshot",
                                 topic.getName());
-                        completableFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
+                        firstSnapshottingFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
                                 "Transaction Buffer take first snapshot failed, the current state is: " + getState()));
                     }
                 }).exceptionally(exception -> {
                     log.error("Topic {} failed to take snapshot", this.topic.getName());
-                    completableFuture.completeExceptionally(exception);
+                    firstSnapshottingFuture.completeExceptionally(exception);
                     return null;
                 });
-                return completableFuture.thenCompose(__ -> internalAppendBufferToTxn(txnId, buffer));
+                return firstSnapshottingFuture.thenCompose(__ -> internalAppendBufferToTxn(txnId, buffer));
+            } else if (checkIfFirstSnapshotting()) {
+                return firstSnapshottingFuture.thenCompose(__ -> internalAppendBufferToTxn(txnId, buffer));
             } else if (checkIfReady()) {
                 return internalAppendBufferToTxn(txnId, buffer);
             } else {

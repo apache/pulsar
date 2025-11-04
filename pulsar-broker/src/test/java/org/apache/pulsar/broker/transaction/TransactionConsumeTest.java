@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
@@ -28,18 +31,24 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -62,6 +71,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -416,5 +426,97 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         Assert.assertEquals(admin.topics().getStats(CONSUME_TOPIC).getSubscriptions().get(subName)
                 .getUnackedMessages(), 0);
+    }
+
+    @DataProvider
+    public Object[][] doCommitTxn() {
+        return new Object[][] {
+                {true},
+                {false}
+        };
+    }
+
+    @Test(dataProvider = "doCommitTxn", timeOut = 60_000, invocationCount = 3)
+    public void testFirstTnxBufferSnapshotAndRecoveryConcurrently(boolean doCommitTxn) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/txn/tp");
+        // Create many clients and publish with transaction, which will trigger transaction buffer snapshot
+        // concurrently.
+        int producerCount = 10;
+        List<PulsarClient> clientList = new ArrayList<>();
+        List<Producer<String>> producerList = new ArrayList<>();
+        List<CompletableFuture<MessageId>> sendResults = new ArrayList<>();
+        List<Transaction> pendingTnxList = new ArrayList<>();
+        for (int i = 0; i < producerCount; i++) {
+            clientList.add(PulsarClient.builder()
+                    .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                    .enableTransaction(true)
+                    .build());
+        }
+        for (int i = 0; i < producerCount; i++) {
+            producerList.add(clientList.get(i).newProducer(Schema.STRING).topic(topic).create());
+        }
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("s1").subscribe();
+        for (int i = 0; i < producerCount; i++) {
+            Transaction transaction = clientList.get(i).newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS)
+                    .build().get();
+            pendingTnxList.add(transaction);
+            final int index = i;
+            Producer<String> producer = producerList.get(i);
+            new Thread(() -> {
+                sendResults.add(producer.newMessage(transaction).value(index + "").sendAsync());
+            }).start();
+        }
+
+        // Verify that the transaction buffer snapshot succeed.
+        AtomicReference<TopicTransactionBuffer> topicTransactionBuffer = new AtomicReference<>();
+        for (PulsarService pulsar : pulsarServiceList) {
+            if (pulsar.getBrokerService().getTopics().containsKey(topic)) {
+                PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                        .getTopic(topic, false).get().get();
+                topicTransactionBuffer.set((TopicTransactionBuffer) persistentTopic.getTransactionBuffer());
+                break;
+            }
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(topicTransactionBuffer.get());
+            assertEquals(topicTransactionBuffer.get().getState().toString(), "Ready");
+            assertTrue(topicTransactionBuffer.get().getTransactionBufferFuture().isDone());
+            assertFalse(topicTransactionBuffer.get().getTransactionBufferFuture().isCompletedExceptionally());
+        });
+
+        // Verify that all messages are sent successfully.
+        for (int i = 0; i < producerCount; i++) {
+            sendResults.get(i).get();
+            if (doCommitTxn) {
+                pendingTnxList.get(i).commit();
+            } else {
+                pendingTnxList.get(i).abort();
+            }
+        }
+        Set<String> msgReceived = new HashSet<>();
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            msgReceived.add(msg.getValue());
+        }
+        if (doCommitTxn) {
+            for (int i = 0; i < producerCount; i++) {
+                assertTrue(msgReceived.contains(i + ""));
+            }
+        } else {
+            assertTrue(msgReceived.isEmpty());
+        }
+
+        // cleanup.
+        consumer.close();
+        for (int i = 0; i < producerCount; i++) {
+            producerList.get(i).close();
+            clientList.get(i).close();
+        }
+        admin.topics().delete(topic, false);
     }
 }

@@ -33,7 +33,8 @@ public abstract class TopicTransactionBufferState {
         Initializing,
         Ready,
         Close,
-        NoSnapshot
+        NoSnapshot,
+        FirstSnapshotting
     }
 
     private static final AtomicReferenceFieldUpdater<TopicTransactionBufferState, State> STATE_UPDATER =
@@ -59,11 +60,19 @@ public abstract class TopicTransactionBufferState {
     }
 
     protected boolean changeToReadyStateFromNoSnapshot() {
-        return STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.Ready);
+        return STATE_UPDATER.compareAndSet(this, State.FirstSnapshotting, State.Ready);
+    }
+
+    protected boolean changeToFirstSnapshotting() {
+        return STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.FirstSnapshotting);
     }
 
     protected void changeToCloseState() {
         STATE_UPDATER.set(this, State.Close);
+    }
+
+    public boolean checkIfFirstSnapshotting() {
+        return STATE_UPDATER.get(this) == State.FirstSnapshotting;
     }
 
     public boolean checkIfReady() {
