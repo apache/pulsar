@@ -530,6 +530,48 @@ public class AsyncDualMemoryLimiterUtilTest {
         assertThat(result).succeedsWithin(Duration.ofSeconds(1));
     }
 
+    @Test
+    public void testWithAcquiredPermitsDoesntLeakPermitsWhenExceptionIsThrown() throws Exception {
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(10000);
+        CompletableFuture<Void> result = limiter.withAcquiredPermits(
+                90,  // estimated permits
+                LimitType.HEAP_MEMORY,
+                () -> false,
+                firstPermit -> {
+                    throw new RuntimeException("Exception in withAcquiredPermits");
+                },
+                throwable -> CompletableFuture.failedFuture(throwable)
+        );
+        assertThat(result).failsWithin(Duration.ofSeconds(1));
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(10000);
+    }
+
+    @Test
+    public void testWithAcquiredAndUpdatedPermitsDoesntLeakPermitsWhenExceptionIsThrown() throws Exception {
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(10000);
+        CompletableFuture<Void> result = limiter.withAcquiredPermits(
+                90,  // estimated permits
+                LimitType.HEAP_MEMORY,
+                () -> false,
+                firstPermit -> {
+                    // Simulate getting actual size and updating permits
+                    return limiter.withUpdatedPermits(
+                            firstPermit,
+                            100,
+                            () -> false,
+                            secondPermit -> {
+                                throw new RuntimeException("Exception in withUpdatedPermits");
+                            },
+                            throwable -> CompletableFuture.failedFuture(throwable)
+                    );
+                },
+                throwable -> CompletableFuture.failedFuture(throwable)
+        );
+        assertThat(result).failsWithin(Duration.ofSeconds(1));
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(10000);
+    }
 
     private BaseCommand createTestCommand() {
         BaseCommand command = new BaseCommand().setType(BaseCommand.Type.PING);
