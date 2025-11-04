@@ -36,7 +36,7 @@ jobs:
         id: pulsarbot
         uses: actions/github-script@v7
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // Supported commands:
             // - /pulsarbot rerun
