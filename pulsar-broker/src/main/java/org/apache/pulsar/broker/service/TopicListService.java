@@ -278,7 +278,7 @@ public class TopicListService {
 
     private void sendTopicListSuccessWithRetries(long watcherId, long requestId, List<String> topicList, String hash,
                                                  Runnable completionCallback) {
-        performOperationWithRetries(watcherId, "topic list success", permitAcquireErrorHandler ->
+        performOperationWithPermitAcquiringRetries(watcherId, "topic list success", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler)
                         .whenComplete((__, t) -> {
@@ -368,7 +368,7 @@ public class TopicListService {
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics, Runnable completionCallback) {
-        performOperationWithRetries(watcherId, "topic list update", permitAcquireErrorHandler ->
+        performOperationWithPermitAcquiringRetries(watcherId, "topic list update", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
                                 permitAcquireErrorHandler)
@@ -382,10 +382,12 @@ public class TopicListService {
                         }));
     }
 
-    // performs an operation with retries, if the operation fails, it will retry after a backoff period
-    private void performOperationWithRetries(long watcherId, String operationName,
-                                             Function<Consumer<Throwable>, Supplier<CompletableFuture<Void>>>
-                                                          asyncOperationFactory) {
+    // performs an operation with infinite permit acquiring retries.
+    // If acquiring permits fails, it will retry after a backoff period
+    private void performOperationWithPermitAcquiringRetries(long watcherId, String operationName,
+                                                            Function<Consumer<Throwable>,
+                                                                    Supplier<CompletableFuture<Void>>>
+                                                                    asyncOperationFactory) {
         // holds a reference to the operation, this is to resolve a circular dependency between the error handler and
         // the actual operation
         AtomicReference<Runnable> operationRef = new AtomicReference<>();
