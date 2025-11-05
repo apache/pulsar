@@ -16,37 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.utils;
+package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import java.util.concurrent.CompletableFuture;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
-public class TransactionBufferTestImpl extends TopicTransactionBuffer {
-    @Setter
-    public State state = null;
+@Getter
+@AllArgsConstructor
+public class PendingAppendingTxnBufferTask {
 
-    @Setter
-    private boolean followingInternalAppendBufferToTxnFail;
-
-    public TransactionBufferTestImpl(PersistentTopic topic) {
-        super(topic);
-    }
-
-    @Override
-    public State getState() {
-        return state == null ? super.getState() : state;
-    }
-
-    @Override
-    protected CompletableFuture<Position> internalAppendBufferToTxn(TxnID txnId, ByteBuf buffer, long seq) {
-        if (followingInternalAppendBufferToTxnFail) {
-            return CompletableFuture.failedFuture(new RuntimeException("fail"));
-        }
-        return super.internalAppendBufferToTxn(txnId, buffer, seq);
-    }
+    private final TxnID txnId;
+    private final long sequenceId;
+    private final ByteBuf buffer;
+    private CompletableFuture<Position> pendingPublishFuture;
 }
