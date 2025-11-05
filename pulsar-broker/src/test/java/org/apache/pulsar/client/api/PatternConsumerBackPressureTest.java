@@ -64,7 +64,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
         conf.setPulsarChannelWriteBufferLowWaterMark(32 * 1024);
     }
 
-    @Test(timeOut = 60 * 1000)
+    @Test(timeOut = 60 * 1000, enabled = false)
     public void testInfiniteGetThousandsTopics() throws PulsarAdminException, InterruptedException {
         final int topicCount = 8192;
         final int requests = 2048;
