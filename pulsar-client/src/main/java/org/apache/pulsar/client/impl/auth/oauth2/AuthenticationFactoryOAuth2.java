@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.net.URL;
 import java.time.Clock;
-import lombok.Builder;
 import org.apache.pulsar.client.api.Authentication;
 
 /**
@@ -38,7 +37,8 @@ public final class AuthenticationFactoryOAuth2 {
      * @return an Authentication object
      */
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience) {
-        return clientCredentials(issuerUrl, credentialsUrl, audience, null);
+        return clientCredentialsBuilder().issuerUrl(issuerUrl).credentialsUrl(credentialsUrl).audience(audience)
+                .build();
     }
 
     /**
@@ -56,40 +56,75 @@ public final class AuthenticationFactoryOAuth2 {
      * @return an Authentication object
      */
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
-        return clientCredentials(issuerUrl, credentialsUrl, audience, scope, null, null, null);
+        return clientCredentialsBuilder().issuerUrl(issuerUrl).credentialsUrl(credentialsUrl).audience(audience)
+                .scope(scope).build();
     }
 
-    /**
-     * Authenticate with client credentials.
-     *
-     * @param issuerUrl          the issuer URL
-     * @param credentialsUrl     the credentials URL
-     * @param audience           An optional field. The audience identifier used by some Identity Providers, like Auth0.
-     * @param scope              An optional field. The value of the scope parameter is expressed as a list of
-     *                           space-delimited,
-     *                           case-sensitive strings. The strings are defined by the authorization server.
-     *                           If the value contains multiple space-delimited strings, their order does not matter,
-     *                           and each string adds an additional access range to the requested scope.
-     *                           From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
-     * @param connectTimeout     the connect timeout in milliseconds
-     * @param readTimeout        the read timeout in milliseconds
-     * @param trustCertsFilePath the path to the file that contains trusted certificates
-     * @return an Authentication object
-     */
-    @Builder(builderMethodName = "clientCredentialsBuilder")
-    private static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope,
-                                                    Integer connectTimeout, Integer readTimeout,
-                                                    String trustCertsFilePath) {
-        ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
-                .issuerUrl(issuerUrl)
-                .privateKey(credentialsUrl.toExternalForm())
-                .audience(audience)
-                .scope(scope)
-                .connectTimeout(connectTimeout)
-                .readTimeout(readTimeout)
-                .trustCertsFilePath(trustCertsFilePath)
-                .build();
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
+    public static ClientCredentialsBuilder clientCredentialsBuilder() {
+        return new ClientCredentialsBuilder();
+    }
+
+    public static class ClientCredentialsBuilder {
+
+        private URL issuerUrl;
+        private URL credentialsUrl;
+        private String audience;
+        private String scope;
+        private Integer connectTimeout;
+        private Integer readTimeout;
+        private String trustCertsFilePath;
+
+        private ClientCredentialsBuilder() {
+        }
+
+        public ClientCredentialsBuilder issuerUrl(URL issuerUrl) {
+            this.issuerUrl = issuerUrl;
+            return this;
+        }
+
+        public ClientCredentialsBuilder credentialsUrl(URL credentialsUrl) {
+            this.credentialsUrl = credentialsUrl;
+            return this;
+        }
+
+        public ClientCredentialsBuilder audience(String audience) {
+            this.audience = audience;
+            return this;
+        }
+
+        public ClientCredentialsBuilder scope(String scope) {
+            this.scope = scope;
+            return this;
+        }
+
+        public ClientCredentialsBuilder connectTimeout(Integer connectTimeout) {
+            this.connectTimeout = connectTimeout;
+            return this;
+        }
+
+        public ClientCredentialsBuilder readTimeout(Integer readTimeout) {
+            this.readTimeout = readTimeout;
+            return this;
+        }
+
+        public ClientCredentialsBuilder trustCertsFilePath(String trustCertsFilePath) {
+            this.trustCertsFilePath = trustCertsFilePath;
+            return this;
+        }
+
+        public Authentication build() {
+            ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
+                    .issuerUrl(issuerUrl)
+                    .privateKey(credentialsUrl.toExternalForm())
+                    .audience(audience)
+                    .scope(scope)
+                    .connectTimeout(connectTimeout)
+                    .readTimeout(readTimeout)
+                    .trustCertsFilePath(trustCertsFilePath)
+                    .build();
+            return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
+        }
+
     }
 
 
