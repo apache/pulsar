@@ -99,6 +99,10 @@ public class TopicListService {
                 topicListService.sendTopicListUpdate(id, hash, deletedTopics, newTopics);
             }
         }
+
+        public void close() {
+
+        }
     }
 
 
@@ -274,7 +278,7 @@ public class TopicListService {
     }
 
     public void deleteTopicListWatcher(Long watcherId) {
-        CompletableFuture<TopicListWatcher> watcherFuture = watchers.get(watcherId);
+        CompletableFuture<TopicListWatcher> watcherFuture = watchers.remove(watcherId);
         if (watcherFuture == null) {
             log.info("[{}] TopicListWatcher was not registered on the connection: {}",
                     watcherId, connection.toString());
@@ -288,20 +292,23 @@ public class TopicListService {
             // create operation will complete, the new watcher will be discarded.
             log.info("[{}] Closed watcher before its creation was completed. watcherId={}",
                     connection.toString(), watcherId);
-            watchers.remove(watcherId);
             return;
         }
+
+        // deregister topic listener while avoiding race conditions
+        watcherFuture.whenComplete((watcher, t) -> {
+            if (watcher != null) {
+                topicResources.deregisterPersistentTopicListener(watcher);
+                watcher.close();
+            }
+        });
 
         if (watcherFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed watcher that already failed to be created. watcherId={}",
                     connection.toString(), watcherId);
-            watchers.remove(watcherId);
             return;
         }
 
-        // Proceed with normal watcher close
-        topicResources.deregisterPersistentTopicListener(watcherFuture.getNow(null));
-        watchers.remove(watcherId);
         log.info("[{}] Closed watcher, watcherId={}", connection.toString(), watcherId);
     }
 
