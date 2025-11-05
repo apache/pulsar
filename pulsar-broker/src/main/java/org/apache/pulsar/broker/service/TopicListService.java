@@ -51,8 +51,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TopicListService {
-    private static final int MAX_RETRY_COUNT = 10;
-
     public static class TopicListWatcher implements BiConsumer<String, NotificationType> {
 
         /** Topic names which are matching, the topic name contains the partition suffix. **/
@@ -235,7 +233,7 @@ public class TopicListService {
     }
 
     private void sendTopicListSuccessWithRetries(long watcherId, long requestId, List<String> topicList, String hash) {
-        performOperationWithRetries("topic list success", permitAcquireErrorHandler ->
+        performOperationWithRetries(watcherId, "topic list success", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler));
     }
@@ -245,6 +243,9 @@ public class TopicListService {
      */
     public void initializeTopicsListWatcher(CompletableFuture<TopicListWatcher> watcherFuture,
             NamespaceName namespace, long watcherId, TopicsPattern topicsPattern) {
+
+        // TODO: add heap limiter here
+
         namespaceService.getListOfPersistentTopics(namespace).
                 thenApply(topics -> {
                     TopicListWatcher watcher = new TopicListWatcher(this, watcherId, topicsPattern, topics);
@@ -310,13 +311,13 @@ public class TopicListService {
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics) {
-        performOperationWithRetries("topic list update", permitAcquireErrorHandler ->
+        performOperationWithRetries(watcherId, "topic list update", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                 .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash, permitAcquireErrorHandler));
     }
 
     // performs an operation with retries, if the operation fails, it will retry after a backoff period
-    private void performOperationWithRetries(String operationName,
+    private void performOperationWithRetries(long watcherId, String operationName,
                                              Function<Consumer<Throwable>, Supplier<CompletableFuture<Void>>>
                                                           asyncOperationFactory) {
         // holds a reference to the operation, this is to resolve a circular dependency between the error handler and
@@ -324,11 +325,15 @@ public class TopicListService {
         AtomicReference<Runnable> operationRef = new AtomicReference<>();
         // create the error handler for the operation
         Consumer<Throwable> permitAcquireErrorHandler =
-                createPermitAcquireErrorHandler(operationName, operationRef);
+                createPermitAcquireErrorHandler(watcherId, operationName, operationRef);
         // create the async operation using the factory function. Pass the error handler to the factory function.
         Supplier<CompletableFuture<Void>> asyncOperation = asyncOperationFactory.apply(permitAcquireErrorHandler);
         // set the operation to run into the operation reference
         operationRef.set(Runnables.catchingAndLoggingThrowables(() -> {
+            if (!connection.isActive() || !watchers.containsKey(watcherId)) {
+                // do nothing if the connection has already been closed or the watcher has been removed
+                return;
+            }
             asyncOperation.get().thenRun(() -> retryBackoff.reset());
         }));
         // run the operation
@@ -336,7 +341,7 @@ public class TopicListService {
     }
 
     // retries an operation up to MAX_RETRY_COUNT times with backoff
-    private Consumer<Throwable> createPermitAcquireErrorHandler(String operationName,
+    private Consumer<Throwable> createPermitAcquireErrorHandler(long watcherId, String operationName,
                                                                 AtomicReference<Runnable> operationRef) {
         ScheduledExecutorService scheduledExecutor = connection.ctx().channel().eventLoop();
         AtomicInteger retryCount = new AtomicInteger(0);
@@ -344,20 +349,14 @@ public class TopicListService {
             Throwable unwrappedException = FutureUtil.unwrapCompletionException(t);
             if (unwrappedException instanceof AsyncSemaphore.PermitAcquireCancelledException
                     || unwrappedException instanceof AsyncSemaphore.PermitAcquireAlreadyClosedException
-                    || !connection.isActive()) {
+                    || !connection.isActive()
+                    || !watchers.containsKey(watcherId)) {
                 return;
             }
-            if (retryCount.incrementAndGet() < MAX_RETRY_COUNT) {
-                long retryDelay = retryBackoff.next();
-                log.info("[{}] Cannot acquire direct memory tokens for sending {}. Retry {}/{} in {} ms. {}",
-                        connection, operationName, retryCount.get(), MAX_RETRY_COUNT, retryDelay,
-                        t.getMessage());
-                scheduledExecutor.schedule(operationRef.get(), retryDelay, TimeUnit.MILLISECONDS);
-            } else {
-                log.warn("[{}] Cannot acquire direct memory tokens for sending {}."
-                                + "State will be inconsistent on the client. {}", connection, operationName,
-                        t.getMessage());
-            }
+            long retryDelay = retryBackoff.next();
+            log.info("[{}] Cannot acquire direct memory tokens for sending {}. Retry {} in {} ms. {}", connection,
+                    operationName, retryCount.get(), retryDelay, t.getMessage());
+            scheduledExecutor.schedule(operationRef.get(), retryDelay, TimeUnit.MILLISECONDS);
         };
     }
 }
