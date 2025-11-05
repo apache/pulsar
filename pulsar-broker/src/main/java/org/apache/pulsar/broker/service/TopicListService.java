@@ -444,7 +444,7 @@ public class TopicListService {
         operationRef.get().run();
     }
 
-    // retries an operation up to MAX_RETRY_COUNT times with backoff
+    // retries acquiring permits until the connection is closed or the watcher is removed
     private Consumer<Throwable> createPermitAcquireErrorHandler(long watcherId, String operationName,
                                                                 AtomicReference<Runnable> operationRef) {
         ScheduledExecutorService scheduledExecutor = connection.ctx().channel().eventLoop();
