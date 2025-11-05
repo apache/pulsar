@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -462,5 +463,10 @@ public class TopicListService {
                     operationName, retryCount.get(), retryDelay, t.getMessage());
             scheduledExecutor.schedule(operationRef.get(), retryDelay, TimeUnit.MILLISECONDS);
         };
+    }
+
+    @VisibleForTesting
+    CompletableFuture<TopicListWatcher> getWatcherFuture(long watcherId) {
+        return watchers.get(watcherId);
     }
 }

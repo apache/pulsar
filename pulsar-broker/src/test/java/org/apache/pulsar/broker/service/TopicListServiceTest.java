@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -32,8 +35,11 @@ import static org.mockito.Mockito.when;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
+import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -47,9 +53,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
@@ -57,6 +65,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -72,6 +81,7 @@ public class TopicListServiceTest {
     private EventLoop eventLoop;
     private PulsarCommandSender pulsarCommandSender;
     private Consumer<Notification> notificationConsumer;
+    private AsyncDualMemoryLimiterImpl memoryLimiter;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -94,6 +104,17 @@ public class TopicListServiceTest {
         when(pulsar.getPulsarResources().getTopicResources()).thenReturn(topicResources);
         when(pulsar.getNamespaceService().getListOfPersistentTopics(any())).thenReturn(topicListFuture);
 
+        BrokerService brokerService = mock(BrokerService.class);
+        when(pulsar.getBrokerService()).thenReturn(brokerService);
+        TopicListSizeResultCache topicListSizeResultCache = mock(TopicListSizeResultCache.class);
+        when(brokerService.getTopicListSizeResultCache()).thenReturn(topicListSizeResultCache);
+        TopicListSizeResultCache.ResultHolder resultHolder = mock(TopicListSizeResultCache.ResultHolder.class);
+        doReturn(resultHolder).when(topicListSizeResultCache).getTopicListSize(anyString(), any());
+        doReturn(CompletableFuture.completedFuture(1L)).when(resultHolder).getSizeAsync();
+
+        memoryLimiter = new AsyncDualMemoryLimiterImpl(1_000_000, 10000, 500, 1_000_000, 10000, 500);
+        doReturn(memoryLimiter).when(brokerService).getMaxTopicListInFlightLimiter();
+
         connection = mock(ServerCnx.class);
         when(connection.getRemoteAddress()).thenReturn(new InetSocketAddress(10000));
         pulsarCommandSender = mock(PulsarCommandSender.class);
@@ -107,6 +128,8 @@ public class TopicListServiceTest {
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(connection.ctx()).thenReturn(ctx);
+        EventExecutor executor = ImmediateEventExecutor.INSTANCE;
+        doReturn(executor).when(ctx).executor();
         Channel channel = mock(Channel.class);
         when(ctx.channel()).thenReturn(channel);
         eventLoop = mock(EventLoop.class);
@@ -116,8 +139,15 @@ public class TopicListServiceTest {
 
     }
 
+    @AfterMethod(alwaysRun = true)
+    void cleanup() {
+        if (memoryLimiter != null) {
+            memoryLimiter.close();
+        }
+    }
+
     @Test
-    public void testCommandWatchSuccessResponse() {
+    public void testCommandWatchSuccessResponse() throws InterruptedException {
 
         topicListService.handleWatchTopicList(
                 NamespaceName.get("tenant/ns"),
@@ -129,6 +159,7 @@ public class TopicListServiceTest {
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         String hash = TopicList.calculateHash(topics);
         topicListFuture.complete(topics);
+        Thread.sleep(500);
         Assert.assertEquals(1, lookupSemaphore.availablePermits());
         verify(topicResources).registerPersistentTopicListener(
                 eq(NamespaceName.get("tenant/ns")), any(TopicListService.TopicListWatcher.class));
@@ -162,11 +193,13 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
 
         CommandWatchTopicListClose watchTopicListClose = new CommandWatchTopicListClose()
                 .setRequestId(8)
                 .setWatcherId(13);
         topicListService.handleWatchTopicListClose(watchTopicListClose);
+
         verify(topicResources).deregisterPersistentTopicListener(any(TopicListService.TopicListWatcher.class));
     }
 
@@ -199,6 +232,7 @@ public class TopicListServiceTest {
             }
         }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any());
         topicListFuture.complete(topics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
         verify(connection.getCommandSender(), times(3))
                 .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(topics), any());
     }
@@ -214,18 +248,19 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
 
         List<String> newTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(ListUtils.union(topics, newTopics));
         notificationConsumer.accept(
                 new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
-        verify(connection.getCommandSender())
+        verify(connection.getCommandSender(), timeout(1000L))
                 .sendWatchTopicListUpdate(eq(13L), eq(newTopics), any(), eq(hash), any());
 
         hash = TopicList.calculateHash(newTopics);
         notificationConsumer.accept(
                 new Notification(NotificationType.Deleted, "/managed-ledgers/tenant/ns/persistent/topic1"));
-        verify(connection.getCommandSender())
+        verify(connection.getCommandSender(), timeout(1000L))
                 .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(topics), eq(hash), any());
     }
 
@@ -240,6 +275,7 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
 
         List<String> newTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(ListUtils.union(topics, newTopics));
@@ -262,7 +298,7 @@ public class TopicListServiceTest {
         }).when(pulsarCommandSender).sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any());
         notificationConsumer.accept(
                 new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
-        verify(connection.getCommandSender(), times(3))
+        verify(connection.getCommandSender(), timeout(1000L).times(3))
                 .sendWatchTopicListUpdate(eq(13L), eq(newTopics), eq(List.of()), eq(hash), any());
     }
 }
