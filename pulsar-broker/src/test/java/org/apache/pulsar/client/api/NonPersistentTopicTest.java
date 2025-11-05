@@ -371,8 +371,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             stopBroker();
             startBroker();
             // produce message concurrently
+            final int totalProduceMessages = 10;
             @Cleanup("shutdownNow")
-            ExecutorService executor = Executors.newFixedThreadPool(5);
+            ExecutorService executor = Executors.newFixedThreadPool(totalProduceMessages);
             AtomicBoolean failed = new AtomicBoolean(false);
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
@@ -381,11 +382,12 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             @Cleanup
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).producerName(producerName).create();
             byte[] msgData = "testData".getBytes();
-            final int totalProduceMessages = 10;
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
+            final CyclicBarrier barrier = new CyclicBarrier(totalProduceMessages);
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
                     try {
+                        barrier.await();
                         producer.send(msgData);
                     } catch (Exception e) {
                         log.error("Failed to send message", e);
