@@ -31,16 +31,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.TopicResources;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
@@ -150,6 +155,7 @@ public class TopicListService {
 
     private final NamespaceService namespaceService;
     private final TopicResources topicResources;
+    private final PulsarService pulsar;
     private final ServerCnx connection;
     private final boolean enableSubscriptionPatternEvaluation;
     private final int maxSubscriptionPatternLength;
@@ -160,6 +166,7 @@ public class TopicListService {
     public TopicListService(PulsarService pulsar, ServerCnx connection,
                             boolean enableSubscriptionPatternEvaluation, int maxSubscriptionPatternLength) {
         this.namespaceService = pulsar.getNamespaceService();
+        this.pulsar = pulsar;
         this.connection = connection;
         this.enableSubscriptionPatternEvaluation = enableSubscriptionPatternEvaluation;
         this.maxSubscriptionPatternLength = maxSubscriptionPatternLength;
@@ -296,29 +303,58 @@ public class TopicListService {
      */
     public void initializeTopicsListWatcher(CompletableFuture<TopicListWatcher> watcherFuture,
             NamespaceName namespace, long watcherId, TopicsPattern topicsPattern) {
+        BooleanSupplier isPermitRequestCancelled = () -> !connection.isActive() || !watchers.containsKey(watcherId);
+        if (isPermitRequestCancelled.getAsBoolean()) {
+            return;
+        }
+        TopicListSizeResultCache.ResultHolder listSizeHolder = pulsar.getBrokerService().getTopicListSizeResultCache()
+                .getTopicListSize(namespace.toString(), CommandGetTopicsOfNamespace.Mode.PERSISTENT);
+        AsyncDualMemoryLimiter maxTopicListInFlightLimiter = pulsar.getBrokerService().getMaxTopicListInFlightLimiter();
 
-        // TODO: add heap limiter here
-
-        namespaceService.getListOfPersistentTopics(namespace).
-                thenApply(topics -> {
-                    TopicListWatcher watcher = new TopicListWatcher(this, watcherId, topicsPattern,
-                            topics, connection.ctx().executor());
-                    topicResources.registerPersistentTopicListener(namespace, watcher);
-                    return watcher;
-                }).
-                whenComplete((watcher, exception) -> {
-                    if (exception != null) {
-                        watcherFuture.completeExceptionally(exception);
-                    } else {
-                        if (!watcherFuture.complete(watcher)) {
-                            log.warn("[{}] Watcher future was already completed. Deregistering watcherId={}.",
-                                    connection.toString(), watcherId);
-                            topicResources.deregisterPersistentTopicListener(watcher);
-                        }
-                    }
-                });
+        listSizeHolder.getSizeAsync().thenCompose(initialSize -> {
+            // use heap size limiter to avoid broker getting overwhelmed by a lot of concurrent topic list requests
+            return maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
+                    AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                        return namespaceService.getListOfPersistentTopics(namespace).thenCompose(topics -> {
+                            long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
+                            listSizeHolder.updateSize(actualSize);
+                            return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                    isPermitRequestCancelled, updatedPermits -> {
+                                        TopicListWatcher watcher =
+                                                new TopicListWatcher(this, watcherId, topicsPattern, topics,
+                                                        connection.ctx().executor());
+                                        topicResources.registerPersistentTopicListener(namespace, watcher);
+                                        return CompletableFuture.completedFuture(watcher);
+                                    }, CompletableFuture::failedFuture);
+                        }).whenComplete((watcher, exception) -> {
+                            if (exception != null) {
+                                watcherFuture.completeExceptionally(exception);
+                            } else {
+                                if (!watcherFuture.complete(watcher)) {
+                                    log.warn("[{}] Watcher future was already completed. Deregistering "
+                                            + "watcherId={}.", connection, watcherId);
+                                    topicResources.deregisterPersistentTopicListener(watcher);
+                                }
+                            }
+                        });
+                    }, CompletableFuture::failedFuture);
+        }).exceptionally(t -> {
+            Throwable unwrappedException = FutureUtil.unwrapCompletionException(t);
+            if (!isPermitRequestCancelled.getAsBoolean() && (
+                    unwrappedException instanceof AsyncSemaphore.PermitAcquireTimeoutException
+                            || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
+                // retry with backoff if permit acquisition fails due to timeout or queue full
+                connection.ctx().executor()
+                        .schedule(() -> initializeTopicsListWatcher(watcherFuture, namespace, watcherId, topicsPattern),
+                                retryBackoff.next(), TimeUnit.MILLISECONDS);
+            } else {
+                log.warn("[{}] Failed to initialize topic list watcher watcherId={} for namespace {}.", connection,
+                        watcherId, namespace, unwrappedException);
+                watcherFuture.completeExceptionally(unwrappedException);
+            }
+            return null;
+        });
     }
-
 
     public void handleWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
         long requestId = commandWatchTopicListClose.getRequestId();
