@@ -21,7 +21,10 @@ package org.apache.pulsar.broker.service;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -59,15 +62,23 @@ public class TopicListService {
         private final long id;
         /** The regexp for the topic name(not contains partition suffix). **/
         private final TopicsPattern topicsPattern;
+        private final Executor executor;
+        private volatile boolean closed = false;
+        // taskExecuting is initialized to true so that sendTopicListSuccessWithRetries is first executed
+        // before any updates are sent out.
+        private boolean taskExecuting = true;
+        private BlockingDeque<Runnable> pendingTasks = new LinkedBlockingDeque<>();
 
         /***
          * @param topicsPattern The regexp for the topic name(not contains partition suffix).
          */
         public TopicListWatcher(TopicListService topicListService, long id,
-                                TopicsPattern topicsPattern, List<String> topics) {
+                                TopicsPattern topicsPattern, List<String> topics,
+                                Executor executor) {
             this.topicListService = topicListService;
             this.id = id;
             this.topicsPattern = topicsPattern;
+            this.executor = executor;
             this.matchingTopics = TopicList.filterTopics(topics, topicsPattern);
         }
 
@@ -80,6 +91,9 @@ public class TopicListService {
          */
         @Override
         public void accept(String topicName, NotificationType notificationType) {
+            if (closed) {
+                return;
+            }
             String partitionedTopicName = TopicName.get(topicName).getPartitionedTopicName();
             String domainLessTopicName = TopicList.removeTopicDomainScheme(partitionedTopicName);
 
@@ -96,12 +110,38 @@ public class TopicListService {
                     matchingTopics.add(topicName);
                 }
                 String hash = TopicList.calculateHash(matchingTopics);
-                topicListService.sendTopicListUpdate(id, hash, deletedTopics, newTopics);
+                sendTopicListUpdate(hash, deletedTopics, newTopics);
+            }
+        }
+
+        private void sendTopicListUpdate(String hash, List<String> deletedTopics, List<String> newTopics) {
+            executeTask(() -> topicListService.sendTopicListUpdate(id, hash, deletedTopics,
+                    newTopics, this::taskFinished));
+        }
+
+        private synchronized void executeTask(Runnable task) {
+            if (closed) {
+                return;
+            }
+            if (!taskExecuting) {
+                taskExecuting = true;
+                executor.execute(task);
+            } else {
+                pendingTasks.add(task);
+            }
+        }
+
+        private synchronized void taskFinished() {
+            Runnable task = pendingTasks.poll();
+            if (task != null) {
+                executor.execute(task);
+            } else {
+                taskExecuting = false;
             }
         }
 
         public void close() {
-
+            closed = true;
         }
     }
 
@@ -221,7 +261,7 @@ public class TopicListService {
                                 "[{}] Received WatchTopicList for namespace [//{}] by {}",
                                 connection.toString(), namespaceName, requestId);
                     }
-                    sendTopicListSuccessWithRetries(watcherId, requestId, topicList, hash);
+                    sendTopicListSuccessWithRetries(watcherId, requestId, topicList, hash, watcher::taskFinished);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
@@ -236,10 +276,19 @@ public class TopicListService {
                 });
     }
 
-    private void sendTopicListSuccessWithRetries(long watcherId, long requestId, List<String> topicList, String hash) {
+    private void sendTopicListSuccessWithRetries(long watcherId, long requestId, List<String> topicList, String hash,
+                                                 Runnable completionCallback) {
         performOperationWithRetries(watcherId, "topic list success", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
-                        .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler));
+                        .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler)
+                        .whenComplete((__, t) -> {
+                            if (t != null) {
+                                // this is an unexpected case
+                                log.warn("[{}] Failed to send topic list success for watcherId={}. Watcher will be in "
+                                        + "inconsistent state.", connection, watcherId, t);
+                            }
+                            completionCallback.run();
+                        }));
     }
 
     /***
@@ -252,7 +301,8 @@ public class TopicListService {
 
         namespaceService.getListOfPersistentTopics(namespace).
                 thenApply(topics -> {
-                    TopicListWatcher watcher = new TopicListWatcher(this, watcherId, topicsPattern, topics);
+                    TopicListWatcher watcher = new TopicListWatcher(this, watcherId, topicsPattern,
+                            topics, connection.ctx().executor());
                     topicResources.registerPersistentTopicListener(namespace, watcher);
                     return watcher;
                 }).
@@ -317,10 +367,19 @@ public class TopicListService {
      * @param newTopics topics names added(contains the partition suffix).
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
-                                    List<String> newTopics) {
+                                    List<String> newTopics, Runnable completionCallback) {
         performOperationWithRetries(watcherId, "topic list update", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
-                .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash, permitAcquireErrorHandler));
+                        .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
+                                permitAcquireErrorHandler)
+                        .whenComplete((__, t) -> {
+                            if (t != null) {
+                                // this is an unexpected case
+                                log.warn("[{}] Failed to send topic list update for watcherId={}. Watcher will be in "
+                                        + "inconsistent state.", connection, watcherId, t);
+                            }
+                            completionCallback.run();
+                        }));
     }
 
     // performs an operation with retries, if the operation fails, it will retry after a backoff period
