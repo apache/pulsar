@@ -219,6 +219,9 @@ public class BacklogQuotaManager {
             try {
                 for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
+                    if (slowestConsumer == null) {
+                        break;
+                    }
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",

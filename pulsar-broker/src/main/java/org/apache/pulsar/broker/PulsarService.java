@@ -143,6 +143,7 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.impl.DnsResolverGroupImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -196,6 +197,7 @@ import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
+import org.apache.pulsar.zookeeper.DefaultMetadataNodeSizeStats;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -265,6 +267,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
     private final ExecutorProvider brokerClientSharedLookupExecutorProvider;
+    private final DnsResolverGroupImpl brokerClientSharedDnsResolverGroup;
 
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
@@ -301,6 +304,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
+    private final ExecutorProvider transactionSnapshotRecoverExecutorProvider;
     private final MonotonicClock monotonicClock;
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
@@ -371,8 +375,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
                     .getNumTransactionReplayThreadPoolSize(), "pulsar-transaction-executor");
+            this.transactionSnapshotRecoverExecutorProvider = new ExecutorProvider(this.getConfiguration()
+                    .getNumTransactionReplayThreadPoolSize(), "pulsar-transaction-snapshot-recover");
         } else {
             this.transactionExecutorProvider = null;
+            this.transactionSnapshotRecoverExecutorProvider = null;
         }
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
@@ -393,6 +400,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
         this.brokerClientSharedLookupExecutorProvider =
                 new ScheduledExecutorProvider(1, "broker-client-shared-lookup-executor");
+        this.brokerClientSharedDnsResolverGroup =
+                new DnsResolverGroupImpl(
+                        loadBrokerClientProperties(new ClientConfigurationData()));
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
@@ -423,6 +433,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                         .synchronizer(synchronizer)
                         .openTelemetry(openTelemetry)
+                        .nodeSizeStats(new DefaultMetadataNodeSizeStats())
                         .build());
     }
 
@@ -474,8 +485,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     /**
      * Close the current pulsar service. All resources are released.
+     * <p>
+     * This method is equivalent with {@code closeAsync(true)}.
+     *
+     * @see PulsarService#closeAsync(boolean)
      */
     public CompletableFuture<Void> closeAsync() {
+        return closeAsync(true);
+    }
+
+    /**
+     * Close the current pulsar service.
+     *
+     * @param waitForWebServiceToStop if true, waits for the web service to stop before returning from this method.
+     * @return a future which will be completed when the service is fully closed.
+     */
+    public CompletableFuture<Void> closeAsync(boolean waitForWebServiceToStop) {
         mutex.lock();
         try {
             // Close protocol handler before unloading namespace bundles because protocol handlers might maintain
@@ -522,7 +547,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             if (this.webService != null) {
                 try {
-                    this.webService.close();
+                    this.webService.close(waitForWebServiceToStop);
                     this.webService = null;
                 } catch (Exception e) {
                     LOG.error("Web service closing failed", e);
@@ -661,6 +686,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (transactionExecutorProvider != null) {
                 transactionExecutorProvider.shutdownNow();
             }
+            if (transactionSnapshotRecoverExecutorProvider != null) {
+                transactionSnapshotRecoverExecutorProvider.shutdownNow();
+            }
             if (transactionTimer != null) {
                 transactionTimer.stop();
             }
@@ -674,6 +702,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedLookupExecutorProvider.shutdownNow();
+            brokerClientSharedDnsResolverGroup.close();
             brokerClientSharedTimer.stop();
             if (monotonicClock instanceof AutoCloseable c) {
                 c.close();
@@ -1267,6 +1296,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .synchronizer(synchronizer)
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .openTelemetry(openTelemetry)
+                        .nodeSizeStats(new DefaultMetadataNodeSizeStats())
                         .build());
     }
 
@@ -1687,7 +1717,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
                 .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
-                .lookupExecutorProvider(brokerClientSharedLookupExecutorProvider);
+                .lookupExecutorProvider(brokerClientSharedLookupExecutorProvider)
+                .dnsResolverGroup(brokerClientSharedDnsResolverGroup);
         if (customizer != null) {
             customizer.accept(pulsarClientImplBuilder);
         }
@@ -1716,10 +1747,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
         // See https://github.com/apache/pulsar/issues/8509 for more information.
-        Map<String, Object> overrides = PropertiesUtils
-                .filterAndMapProperties(this.getConfiguration().getProperties(), "brokerClient_");
-        ClientConfigurationData conf =
-                ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
+        ClientConfigurationData conf = loadBrokerClientProperties(initialConf);
 
         // Disabled auto release useless connections
         // The automatic release connection feature is not yet perfect for transaction scenarios, so turn it
@@ -1762,6 +1790,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     this.getConfiguration().getBrokerClientAuthenticationPlugin(),
                     this.getConfiguration().getBrokerClientAuthenticationParameters()));
         }
+        return conf;
+    }
+
+    // load plain brokerClient_ properties without complete initialization
+    private ClientConfigurationData loadBrokerClientProperties(ClientConfigurationData initialConf) {
+        Map<String, Object> overrides = PropertiesUtils
+                .filterAndMapProperties(this.getConfiguration().getProperties(), "brokerClient_");
+        ClientConfigurationData conf =
+                ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
         return conf;
     }
 

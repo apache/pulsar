@@ -376,4 +376,21 @@ public interface PulsarAdminBuilder {
      * @return the PulsarAdminBuilder instance
      */
     PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
+     * Set the description.
+     *
+     * <p> By default, PulsarAdmin sends an HTTP <i>User-Agent</i> header such as
+     * <code>Pulsar-Java-v&lt;x.y.z&gt;</code> when making requests to the broker.
+     *
+     * <p> This method provides a way to add more description to a specific PulsarAdmin instance. If it's configured,
+     * the description will be appended to the original admin version string, with '-' as the separator.
+     *
+     * <p>For example, if the admin version is 4.0.0, and the description is "forked", the final client version string
+     * will be "Pulsar-Java-v4.0.0-forked".
+     *
+     * @param description the description of the current PulsarAdmin instance
+     * @throws IllegalArgumentException if the length of description exceeds 64
+     */
+    PulsarAdminBuilder description(String description);
 }

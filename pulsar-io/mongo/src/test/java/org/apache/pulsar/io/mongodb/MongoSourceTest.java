@@ -18,12 +18,22 @@
  */
 package org.apache.pulsar.io.mongodb;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
 import com.mongodb.reactivestreams.client.ChangeStreamPublisher;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import java.util.Map;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.bson.BsonDocument;
@@ -35,20 +45,6 @@ import org.reactivestreams.Subscriber;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Map;
-
-import static org.mockito.ArgumentMatchers.any;
-
-
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
-import static org.testng.Assert.assertEquals;
 
 public class MongoSourceTest {
 
@@ -114,17 +110,21 @@ public class MongoSourceTest {
 
         source.open(map, mockSourceContext);
 
-        subscriber.onNext(new ChangeStreamDocument<>(
-                OperationType.INSERT,
+        subscriber.onNext(new ChangeStreamDocument<Document>(
+                OperationType.INSERT.getValue(),
                 BsonDocument.parse("{token: true}"),
                 BsonDocument.parse("{db: \"hello\", coll: \"pulsar\"}"),
                 BsonDocument.parse("{db: \"hello2\", coll: \"pulsar2\"}"),
                 new Document("hello", "pulsar"),
+                new Document("hello", "pulsar"), // documentKey
                 BsonDocument.parse("{_id: 1}"),
                 new BsonTimestamp(1234, 2),
-                null,
+                null, // UpdateDescription
                 new BsonInt64(1),
-                BsonDocument.parse("{id: 1, uid: 1}")));
+                BsonDocument.parse("{id: 1, uid: 1}"),
+                null, // BsonDateTime
+                null, // SplitEvent
+                BsonDocument.parse("{extra: 1}")));
 
         Record<byte[]> record = source.read();
 

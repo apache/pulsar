@@ -47,7 +47,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Starts 3 brokers that are in 3 different clusters
+ * Starts 3 brokers that are in 3 different clusters.
  */
 @Test(groups = "broker")
 public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
@@ -379,10 +379,12 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      * @throws Exception
      */
     @Test(dataProvider =  "dispatchRateType")
-    public void testReplicatorRateLimiterMessageNotReceivedAllMessages(DispatchRateType dispatchRateType) throws Exception {
+    public void testReplicatorRateLimiterMessageNotReceivedAllMessages(DispatchRateType dispatchRateType)
+            throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/replicatorbyteandmsg-" + dispatchRateType.toString() + "-" + System.currentTimeMillis();
+        final String namespace = "pulsar/replicatorbyteandmsg-" + dispatchRateType.toString() + "-"
+                + System.currentTimeMillis();
         final String topicName = "persistent://" + namespace + "/notReceivedAll";
 
         admin1.namespaces().createNamespace(namespace);
@@ -432,7 +434,8 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
             .build();
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        Consumer<byte[]> consumer = client2.newConsumer().topic(topicName).subscriptionName("sub2-in-cluster2").messageListener((c1, msg) -> {
+        Consumer<byte[]> consumer = client2.newConsumer().topic(topicName)
+                .subscriptionName("sub2-in-cluster2").messageListener((c1, msg) -> {
             Assert.assertNotNull(msg, "Message cannot be null");
             String receivedMessage = new String(msg.getData());
             log.debug("Received message [{}] in the listener", receivedMessage);
@@ -504,7 +507,8 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
             .build();
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        Consumer<byte[]> consumer = client2.newConsumer().topic(topicName).subscriptionName("sub2-in-cluster2").messageListener((c1, msg) -> {
+        Consumer<byte[]> consumer = client2.newConsumer().topic(topicName)
+                .subscriptionName("sub2-in-cluster2").messageListener((c1, msg) -> {
             Assert.assertNotNull(msg, "Message cannot be null");
             String receivedMessage = new String(msg.getData());
             log.debug("Received message [{}] in the listener", receivedMessage);

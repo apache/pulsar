@@ -295,6 +295,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "is enabled.")
     private Boolean webServiceLogDetailedAddresses;
 
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Defines how the broker will anonymize the role and originalAuthRole before logging. "
+                    + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
+                    + "hash:SHA256 (hashes using SHA-256), and hash:MD5 (hashes using MD5). Default is NONE."
+    )
+    private String authenticationRoleLoggingAnonymizer = "NONE";
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "
                     + "Zero copy mode cannot be used when TLS is enabled or when proxyLogLevel is > 0.")

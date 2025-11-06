@@ -70,13 +70,21 @@ on:
           - 'fail_on_leak'
           - 'off'
         default: 'report'
+      docker_image_type:
+        description: 'Type of docker image to build. When set to "alpine", an Alpine based docker image will be built. When set to "wolfi", a Wolfi based docker image will be built.'
+        required: true
+        type: choice
+        options:
+          - 'alpine'
+          - 'wolfi'
+        default: 'alpine'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xss1500k -Xmx2048m -XX:+UnlockDiagnosticVMOptions -XX:GCLockerRetryAllocationCount=100 -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  MAVEN_OPTS: -Xss1500k -Xmx2048m -XX:+UnlockDiagnosticVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:GCLockerRetryAllocationCount=100 -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
@@ -86,7 +94,7 @@ env:
 jobs:
   preconditions:
     name: Preconditions
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
@@ -95,6 +103,8 @@ jobs:
       jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
       java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
       netty_leak_detection: ${{ steps.netty_leak_detection.outputs.netty_leak_detection }}
+      java_test_image_base_matrix: ${{ steps.docker_images_matrix.outputs.java_test_image_base_matrix }}
+      latest_version_image_base_matrix: ${{ steps.docker_images_matrix.outputs.latest_version_image_base_matrix }}
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
@@ -137,19 +147,57 @@ jobs:
             echo docs_only=false >> $GITHUB_OUTPUT
           fi
 
+      - name: Choose docker images to build
+        id: docker_images_matrix
+        run: |
+          # build JSON for java_test_image_base_matrix and latest_version_image_base_matrix
+          # This JSON is used as input or the build matrixes in the docker image build jobs.
+          # For workflow_dispatch, the docker_image_type input is used to determine the base image
+          # For scheduled builds, the default base image is alpine
+          # For pull requests, the default base image is alpine. If the changed files include Dockerfile.wolfi changes
+          # the wolfi base image is built in addition to the alpine image.
+          # create json for the default base image of the build
+          main_type="alpine"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            main_type="${{ github.event.inputs.docker_image_type }}"
+          fi
+          if [[ "$main_type" == "wolfi" ]]; then
+            main_type_json='{"type": "'$main_type'", "save_artifact": true, "additional_build_args": "-Pdocker-wolfi"}'
+          else
+            main_type_json='{"type": "'$main_type'", "save_artifact": true}'
+          fi
+          # build JSON for java_test_image_base_matrix
+          echo "java_test_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
+          echo "[" >> $GITHUB_OUTPUT
+          echo "$main_type_json" >> $GITHUB_OUTPUT
+          if [[ ${{ github.event_name == 'pull_request' && fromJSON(steps.changes.outputs.pulsar_dockerfile_wolfi_count) || 0 }} -gt 0 ]]; then
+              echo ',{"type": "wolfi", "save_artifact": false, "additional_build_args": "-Pdocker-wolfi"}' >> $GITHUB_OUTPUT
+          fi
+          echo "]" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          # build JSON for latest_version_image_base_matrix
+          echo "latest_version_image_base_matrix<<EOF" >> $GITHUB_OUTPUT
+          echo "[" >> $GITHUB_OUTPUT
+          echo "$main_type_json" >> $GITHUB_OUTPUT
+          if [[ ${{ github.event_name == 'pull_request' && fromJSON(steps.changes.outputs.pulsar_all_dockerfile_wolfi_count) || 0 }} -gt 0 ]]; then
+              echo ',{"type": "wolfi", "save_artifact": false, "additional_build_args": "-Pdocker-wolfi"}' >> $GITHUB_OUTPUT
+          fi
+          echo "]" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Check if coverage should be collected
         id: check_coverage
         run: |
-          echo "collect_coverage=${{ 
-          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch' 
-            && (github.base_ref == 'master' || github.ref_name == 'master')) 
+          echo "collect_coverage=${{
+          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch'
+            && (github.base_ref == 'master' || github.ref_name == 'master'))
           || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
           }}"  >> $GITHUB_OUTPUT
 
       - name: Set Netty leak detection mode
         id: netty_leak_detection
         run: |
-          echo "netty_leak_detection=${{ 
+          echo "netty_leak_detection=${{
           github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
           }}" >> $GITHUB_OUTPUT
 
@@ -168,7 +216,7 @@ jobs:
       JOB_NAME: Build and License check
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
@@ -251,7 +299,7 @@ jobs:
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
       NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -406,7 +454,7 @@ jobs:
 
   unit-tests-upload-coverage:
     name: CI - Unit - Upload Coverage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: ['preconditions', 'unit-tests']
     env:
@@ -457,7 +505,7 @@ jobs:
       - name: Restore coverage files from build artifacts and create Jacoco reports
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_unittest_coverage_files
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
           cd $GITHUB_WORKSPACE/target
           zip -qr jacoco_test_coverage_report_unittests.zip jacoco_test_coverage_report || true
 
@@ -472,6 +520,7 @@ jobs:
         uses: ./.github/actions/upload-coverage
         with:
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Delete coverage files from build artifacts
         run: |
@@ -486,14 +535,15 @@ jobs:
           action: wait
 
   pulsar-java-test-image:
-    name: Build Pulsar java-test-image docker image
-    runs-on: ubuntu-22.04
+    name: Build Pulsar java-test-image ${{ matrix.base.type }} docker image for ${{ matrix.platform }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
     strategy:
       fail-fast: false
       matrix:
+        base: ${{ fromJSON(needs.preconditions.outputs.java_test_image_base_matrix) }}
         platform:
           - linux/amd64
           - linux/arm64
@@ -546,16 +596,16 @@ jobs:
         with:
           platforms: arm64
 
-      - name: Build java-test-image docker image - ${{ matrix.platform }}
+      - name: Build java-test-image ${{ matrix.base.type }} docker image - ${{ matrix.platform }}
         run: |
           # build docker image
           DOCKER_CLI_EXPERIMENTAL=enabled mvn -B -am -pl docker/pulsar,tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
-          -Ddocker.platforms=${{ matrix.platform }} \
+          -Ddocker.platforms=${{ matrix.platform }} ${{ matrix.base.additional_build_args }} \
           -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true \
           -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       - name: save docker image apachepulsar/java-test-image:latest to Github artifact cache
-        if: ${{ matrix.platform == 'linux/amd64' }}
+        if: ${{ matrix.base.save_artifact && matrix.platform == 'linux/amd64' }}
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_save_image_to_github_actions_artifacts apachepulsar/java-test-image:latest pulsar-java-test-image
 
@@ -569,7 +619,7 @@ jobs:
 
   integration-tests:
     name: CI - Integration - ${{ matrix.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'pulsar-java-test-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -596,20 +646,6 @@ jobs:
 
           - name: LoadBalance
             group: LOADBALANCE
-            no_coverage: true
-
-          - name: Shade on Java 8
-            group: SHADE_RUN
-            upload_name: SHADE_RUN_8
-            runtime_jdk: 8
-            setup: ./build/run_integration_group.sh SHADE_BUILD
-            no_coverage: true
-
-          - name: Shade on Java 11
-            group: SHADE_RUN
-            upload_name: SHADE_RUN_11
-            runtime_jdk: 11
-            setup: ./build/run_integration_group.sh SHADE_BUILD
             no_coverage: true
 
           - name: Shade on Java 17
@@ -772,7 +808,7 @@ jobs:
 
   integration-tests-upload-coverage:
     name: CI - Integration - Upload Coverage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: ['preconditions', 'integration-tests']
     if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
@@ -827,7 +863,7 @@ jobs:
       - name: Restore coverage files from build artifacts and create Jacoco reports
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_inttest_coverage_files
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report 
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
           cd $GITHUB_WORKSPACE/target
           zip -qr jacoco_test_coverage_report_inttests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
@@ -843,6 +879,7 @@ jobs:
         uses: ./.github/actions/upload-coverage
         with:
           flags: inttests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Delete coverage files from build artifacts
         run: |
@@ -858,7 +895,7 @@ jobs:
 
   delete-integration-test-docker-image-artifact:
     name: "Delete integration test docker image artifact"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [
       'preconditions',
@@ -881,11 +918,15 @@ jobs:
           gh-actions-artifact-client.js delete pulsar-java-test-image.zst
 
   pulsar-test-latest-version-image:
-    name: Build Pulsar docker image
-    runs-on: ubuntu-22.04
+    name: Build Pulsar ${{ matrix.base.type }} docker image
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        base: ${{ fromJSON(needs.preconditions.outputs.latest_version_image_base_matrix) }}
     env:
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
@@ -936,12 +977,12 @@ jobs:
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
 
-      - name: Build latest-version-image docker image
+      - name: Build latest-version-image docker ${{ matrix.base.type }} image
         run: |
           # build docker image
           # include building of Connectors, Offloaders and server distros
           DOCKER_CLI_EXPERIMENTAL=enabled mvn -B -am -pl distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
-          -Pmain,docker -Dmaven.test.skip=true \
+          -Pmain,docker -Dmaven.test.skip=true ${{ matrix.base.additional_build_args }} \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       # check full build artifacts licenses
@@ -969,6 +1010,7 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 
       - name: Clean up disk space
+        if: ${{ matrix.base.save_artifact }}
         run: |
           # release disk space since saving docker image consumes local disk space
           #
@@ -993,6 +1035,7 @@ jobs:
           echo "::endgroup::"
 
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
+        if: ${{ matrix.base.save_artifact }}
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_save_image_to_github_actions_artifacts apachepulsar/pulsar-test-latest-version:latest pulsar-test-latest-version-image
 
@@ -1006,7 +1049,7 @@ jobs:
 
   system-tests:
     name: CI - System - ${{ matrix.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'pulsar-test-latest-version-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -1168,7 +1211,7 @@ jobs:
 
   system-tests-upload-coverage:
     name: CI - System - Upload Coverage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: ['preconditions', 'system-tests']
     if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
@@ -1240,6 +1283,7 @@ jobs:
         uses: ./.github/actions/upload-coverage
         with:
           flags: systests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Delete coverage files from build artifacts
         run: |
@@ -1255,7 +1299,7 @@ jobs:
 
   flaky-system-tests:
     name: CI Flaky - System - ${{ matrix.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: [ 'preconditions', 'pulsar-test-latest-version-image' ]
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -1394,7 +1438,7 @@ jobs:
 
   delete-system-test-docker-image-artifact:
     name: "Delete system test docker image artifact"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [
       'preconditions',
@@ -1455,7 +1499,7 @@ jobs:
 
   codeql:
     name: Run CodeQL Analysis
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'unit-tests']
     if: ${{ (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
@@ -1520,7 +1564,7 @@ jobs:
 
   owasp-dep-check:
     name: OWASP dependency check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs: [ 'preconditions', 'integration-tests' ]
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
@@ -1626,7 +1670,7 @@ jobs:
     # this is to allow the workflow scheduled jobs to show as cancelled instead of failed since scheduled
     # jobs are not enabled for other than apache/pulsar repository.
     if: ${{ always() && !(cancelled() && github.repository != 'apache/pulsar' && github.event_name == 'schedule') }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [
       'preconditions',

@@ -107,7 +107,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 serviceUnitStateTableViewClassName);
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
-        brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
@@ -180,7 +179,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         CountDownLatch latch = new CountDownLatch(admins.size());
         List<Map<String, String>> result = new CopyOnWriteArrayList<>();
-        for(var admin : admins) {
+        for (var admin : admins) {
             executor.execute(() -> {
                 try {
                     result.add(admin.lookups().lookupPartitionedTopic(topicName));
@@ -323,7 +322,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         Set<String> result = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
-            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i +"/topic";
+            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i + "/topic";
             admin.topics().createPartitionedTopic(topic, numPartition);
 
             Map<String, String> topicToBroker = admin.lookups().lookupPartitionedTopic(topic);

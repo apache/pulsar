@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.common.topics;
 
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.re2j.Pattern;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -33,30 +35,33 @@ import org.apache.pulsar.common.naming.TopicName;
 
 @UtilityClass
 public class TopicList {
-
     public static final String ALL_TOPICS_PATTERN = ".*";
 
     private static final String SCHEME_SEPARATOR = "://";
 
     private static final Pattern SCHEME_SEPARATOR_PATTERN = Pattern.compile(Pattern.quote(SCHEME_SEPARATOR));
 
+    public static List<String> filterTopics(List<String> original, java.util.regex.Pattern jdkPattern) {
+        return filterTopics(original, TopicsPatternFactory.create(jdkPattern));
+    }
+
     // get topics that match 'topicsPattern' from original topics list
     // return result should contain only topic names, without partition part
-    public static List<String> filterTopics(List<String> original, String regex) {
-        Pattern topicsPattern = Pattern.compile(regex);
-        return filterTopics(original, topicsPattern);
+    public static List<String> filterTopics(List<String> original, String regex,
+                                            TopicsPattern.RegexImplementation topicsPatternImplementation) {
+        return filterTopics(original, TopicsPatternFactory.create(regex, topicsPatternImplementation));
     }
-    public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
 
-
-        final Pattern shortenedTopicsPattern = Pattern.compile(removeTopicDomainScheme(topicsPattern.toString()));
-
+    /**
+     * Filter topics using a TopicListPattern instance.
+     */
+    public static List<String> filterTopics(List<String> original, TopicsPattern topicsPattern) {
         return original.stream()
                 .map(TopicName::get)
                 .filter(topicName -> {
                     String partitionedTopicName = topicName.getPartitionedTopicName();
                     String removedScheme = SCHEME_SEPARATOR_PATTERN.split(partitionedTopicName)[1];
-                    return shortenedTopicsPattern.matcher(removedScheme).matches();
+                    return topicsPattern.matches(removedScheme);
                 })
                 .map(TopicName::toString)
                 .collect(Collectors.toList());
@@ -69,13 +74,18 @@ public class TopicList {
     }
 
     public static String calculateHash(List<String> topics) {
-        return Hashing.crc32c().hashBytes(topics.stream()
-                .sorted()
-                .collect(Collectors.joining(","))
-                .getBytes(StandardCharsets.UTF_8)).toString();
+        Hasher hasher = Hashing.crc32c().newHasher();
+        String[] sortedTopics = topics.toArray(new String[topics.size()]);
+        Arrays.sort(sortedTopics);
+        for (int i = 0; i < sortedTopics.length; i++) {
+            hasher.putString(sortedTopics[i], StandardCharsets.UTF_8);
+            // Skip the delimiter for the last item so that the hash format is compatible with previous versions
+            if (i < sortedTopics.length - 1) {
+                hasher.putByte((byte) ',');
+            }
+        }
+        return hasher.hash().toString();
     }
-
-
 
     // get topics, which are contained in list1, and not in list2
     public static Set<String> minus(Collection<String> list1, Collection<String> list2) {
@@ -100,6 +110,6 @@ public class TopicList {
         } else {
             throw new IllegalArgumentException("Does not support topic domain: " + prefix);
         }
-        return String.format("%s%s", prefix, removedTopicDomain);
+        return prefix + removedTopicDomain;
     }
 }

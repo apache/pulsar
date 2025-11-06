@@ -18,15 +18,21 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
+import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.collect.ImmutableMap;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -54,14 +60,6 @@ import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
-
-import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
 
 @Slf4j
 public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
@@ -155,14 +153,14 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
                 final SimplePojo keyPojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_k_" + i, "map1_kv_" + i),
                         ("key_bytes_" + i).getBytes(StandardCharsets.UTF_8));
                 final SimplePojo valuePojo = new SimplePojo(
                         String.valueOf(i),
                         "v2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_v_" + i, "map1_vv_" + i),
                         ("value_bytes_" + i).getBytes(StandardCharsets.UTF_8));
@@ -261,7 +259,8 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
             iterator = response.nextShardIterator();
             // millisBehindLatest equals zero when record processing is caught up,
             // and there are no new records to process at this moment.
-            // See https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html#Streams-GetRecords-response-MillisBehindLatest
+            // See https://docs.aws.amazon.com/kinesis/latest/APIReference/
+            // API_GetRecords.html#Streams-GetRecords-response-MillisBehindLatest
         } while (response.millisBehindLatest() != 0);
 
         for (KinesisClientRecord record : new AggregatorUtil().deaggregate(aggRecords)) {
