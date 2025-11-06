@@ -103,6 +103,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -236,6 +237,8 @@ public class ServerCnxTest {
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
                 NamespaceName.get("use", "ns-abc"));
+        doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists())).when(namespaceService)
+                .checkTopicExistsAsync(any());
 
         setupMLAsyncCallbackMocks();
 
