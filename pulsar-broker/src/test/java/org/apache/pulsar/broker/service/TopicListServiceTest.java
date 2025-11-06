@@ -64,6 +64,7 @@ import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -147,7 +148,7 @@ public class TopicListServiceTest {
     }
 
     @Test
-    public void testCommandWatchSuccessResponse() throws InterruptedException {
+    public void testCommandWatchSuccessResponse() {
 
         topicListService.handleWatchTopicList(
                 NamespaceName.get("tenant/ns"),
@@ -159,8 +160,7 @@ public class TopicListServiceTest {
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         String hash = TopicList.calculateHash(topics);
         topicListFuture.complete(topics);
-        Thread.sleep(500);
-        Assert.assertEquals(1, lookupSemaphore.availablePermits());
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(1, lookupSemaphore.availablePermits()));
         verify(topicResources).registerPersistentTopicListener(
                 eq(NamespaceName.get("tenant/ns")), any(TopicListService.TopicListWatcher.class));
         verify(connection.getCommandSender()).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(topics), any());
@@ -176,7 +176,7 @@ public class TopicListServiceTest {
                 topicsPatternImplementation, null,
                 lookupSemaphore);
         topicListFuture.completeExceptionally(new PulsarServerException("Error"));
-        Assert.assertEquals(1, lookupSemaphore.availablePermits());
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(1, lookupSemaphore.availablePermits()));
         verifyNoInteractions(topicResources);
         verify(connection.getCommandSender()).sendErrorResponse(eq(7L), any(ServerError.class),
                 eq(PulsarServerException.class.getCanonicalName() + ": Error"));
