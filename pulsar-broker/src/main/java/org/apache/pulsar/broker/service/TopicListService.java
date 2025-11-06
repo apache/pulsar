@@ -352,6 +352,7 @@ public class TopicListService {
                                             + "watcherId={}.", connection, watcherId);
                                     watcher.close();
                                     topicResources.deregisterPersistentTopicListener(watcher);
+                                    watchers.remove(watcherId, watcherFuture);
                                 }
                             }
                         });
