@@ -137,7 +137,8 @@ public class TopicListService {
             }
         }
 
-        private synchronized void taskFinished() {
+        @VisibleForTesting
+        synchronized void taskFinished() {
             Runnable task = pendingTasks.poll();
             if (task != null) {
                 executor.execute(task);
