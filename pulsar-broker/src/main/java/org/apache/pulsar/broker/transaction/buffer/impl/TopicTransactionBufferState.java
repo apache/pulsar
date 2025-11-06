@@ -71,6 +71,10 @@ public abstract class TopicTransactionBufferState {
         STATE_UPDATER.set(this, State.Close);
     }
 
+    public boolean checkIfInitializing() {
+        return STATE_UPDATER.get(this) == State.Initializing;
+    }
+
     public boolean checkIfFirstSnapshotting() {
         return STATE_UPDATER.get(this) == State.FirstSnapshotting;
     }
