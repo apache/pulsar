@@ -115,7 +115,7 @@ public final class AuthenticationFactoryOAuth2 {
         public Authentication build() {
             ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
                     .issuerUrl(issuerUrl)
-                    .privateKey(credentialsUrl.toExternalForm())
+                    .privateKey(credentialsUrl == null ? null : credentialsUrl.toExternalForm())
                     .audience(audience)
                     .scope(scope)
                     .connectTimeout(connectTimeout)
