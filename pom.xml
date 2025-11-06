@@ -252,7 +252,7 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hadoop3.version>3.4.0</hadoop3.version>
+    <hadoop3.version>3.4.1</hadoop3.version>
     <dnsjava3.version>3.6.2</dnsjava3.version>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
     <hbase.version>2.6.3-hadoop3</hbase.version>
@@ -372,6 +372,7 @@ flexible messaging model and an intuitive client API.</description>
     <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
     <commons-beanutils.version>1.11.0</commons-beanutils.version>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
+    <mina-core.version>2.1.10</mina-core.version>
   </properties>
 
   <dependencyManagement>
