@@ -264,6 +264,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             // The first snapshot is in progress, the following publish tasks will be pending.
             if (!pendingAppendingTxnBufferTasks.isEmpty()) {
                 CompletableFuture<Position> res = new CompletableFuture<>();
+                buffer.retain();
                 pendingAppendingTxnBufferTasks.offer(new PendingAppendingTxnBufferTask(txnId, sequenceId, buffer, res));
                 return res;
             }
@@ -282,6 +283,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
             // Pending the current publishing and trigger new snapshot if needed.
             CompletableFuture<Position> res = new CompletableFuture<>();
+            buffer.retain();
             pendingAppendingTxnBufferTasks.offer(new PendingAppendingTxnBufferTask(txnId, sequenceId, buffer, res));
             // Trigger the first snapshot.
             getTransactionBufferFuture().whenComplete((ignore1, ex1) -> {
@@ -289,6 +291,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 if (ex1 != null) {
                     synchronized (pendingAppendingTxnBufferTasks) {
                         while ((pendingTask1 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                            pendingTask1.getBuffer().release();
                             pendingTask1.getPendingPublishFuture().completeExceptionally(ex1);
                         }
                         return;
@@ -298,38 +301,56 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     log.info("[{}] Start to take the first snapshot", topic.getName());
                     // Flush pending publishing after the first snapshot finished.
                     takeFirstSnapshot().whenComplete((ignore2, ex2) -> {
-                        log.error("[{}] Failed to take the first snapshot, flushing failed publishing requests",
-                                topic.getName(), ex2);
                         if (ex2 != null) {
+                            log.error("[{}] Failed to take the first snapshot, flushing failed publishing requests",
+                                    topic.getName(), ex2);
                             synchronized (pendingAppendingTxnBufferTasks) {
                                 PendingAppendingTxnBufferTask pendingTask2 = null;
                                 while ((pendingTask2 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                                    pendingTask2.getBuffer().release();
                                     pendingTask2.getPendingPublishFuture().completeExceptionally(ex2);
                                 }
                                 return;
                             }
                         }
-                        log.info("[{}] Finished to take the first snapshot, flushing publishing requests",
-                                topic.getName());
+                        log.info("[{}] Finished to take the first snapshot, flushing publishing {} requests",
+                                topic.getName(), pendingAppendingTxnBufferTasks.size());
                         PendingAppendingTxnBufferTask pendingTask2 = null;
-                        synchronized (pendingAppendingTxnBufferTasks) {
-                            while ((pendingTask2 = pendingAppendingTxnBufferTasks.pop()) != null) {
-                                final ByteBuf data = pendingTask2.getBuffer();
-                                // Method `internalAppendBufferToTxn` will be executed in the different thread.
-                                // So we need to retain the buffer in this thread. It will be released after message
-                                // persistent.
-                                data.retain();
-                                final CompletableFuture<Position> pendingFuture =
-                                        pendingTask2.getPendingPublishFuture();
-                                internalAppendBufferToTxn(pendingTask2.getTxnId(), pendingTask2.getBuffer(),
-                                        pendingTask2.getSequenceId()).whenComplete((positionAdded, ex3) -> {
-                                    data.release();
-                                    if (ex3 != null) {
-                                        pendingFuture.completeExceptionally(ex3);
-                                        return;
-                                    }
-                                    pendingFuture.complete(positionAdded);
-                                });
+                        try {
+                            synchronized (pendingAppendingTxnBufferTasks) {
+                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                                    final ByteBuf data = pendingTask2.getBuffer();
+                                    // Method `internalAppendBufferToTxn` will be executed in the different thread.
+                                    // So we need to retain the buffer in this thread. It will be released after message
+                                    // persistent.
+                                    final CompletableFuture<Position> pendingFuture =
+                                            pendingTask2.getPendingPublishFuture();
+                                    internalAppendBufferToTxn(pendingTask2.getTxnId(), pendingTask2.getBuffer(),
+                                            pendingTask2.getSequenceId())
+                                            .whenComplete((positionAdded, ex3) -> {
+                                        if (ex3 != null) {
+                                            pendingFuture.completeExceptionally(ex3);
+                                            return;
+                                        }
+                                        pendingFuture.complete(positionAdded);
+                                        data.release();
+                                    });
+                                }
+                            }
+                        } catch (Exception e) {
+                            // If there are some error when adding entries or caching entries, this log will be printed.
+                            log.error("[{}] Failed to flush pending publishing requests after taking the first"
+                                            + " snapshot, please raise a github issue.",
+                                    topic.getName(), e);
+                            if (pendingTask2 != null) {
+                                pendingTask2.getBuffer().release();
+                                pendingTask2.getPendingPublishFuture().completeExceptionally(e);
+                            }
+                            synchronized (pendingAppendingTxnBufferTasks) {
+                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                                    pendingTask2.getBuffer().release();
+                                    pendingTask2.getPendingPublishFuture().completeExceptionally(ex2);
+                                }
                             }
                         }
                     });
