@@ -249,7 +249,7 @@ flexible messaging model and an intuitive client API.</description>
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hadoop3.version>3.4.0</hadoop3.version>
+    <hadoop3.version>3.4.1</hadoop3.version>
     <dnsjava3.version>3.6.2</dnsjava3.version>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
     <hbase.version>2.6.0-hadoop3</hbase.version>
