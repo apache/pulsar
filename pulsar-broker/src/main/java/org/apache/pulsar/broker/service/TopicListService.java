@@ -228,34 +228,12 @@ public class TopicListService {
         CompletableFuture<TopicListWatcher> existingWatcherFuture = watchers.putIfAbsent(watcherId, watcherFuture);
 
         if (existingWatcherFuture != null) {
-            if (existingWatcherFuture.isDone() && !existingWatcherFuture.isCompletedExceptionally()) {
-                TopicListWatcher watcher = existingWatcherFuture.getNow(null);
-                log.info("[{}] Watcher with the same id is already created:"
-                                + " watcherId={}, watcher={}",
-                        connection.toString(), watcherId, watcher);
-                watcherFuture = existingWatcherFuture;
-            } else {
-                // There was an early request to create a watcher with the same watcherId. This can happen when
-                // client timeout is lower the broker timeouts. We need to wait until the previous watcher
-                // creation request either completes or fails.
-                log.warn("[{}] Watcher with id is already present on the connection,"
-                        + " consumerId={}", connection.toString(), watcherId);
-                ServerError error;
-                if (!existingWatcherFuture.isDone()) {
-                    error = ServerError.ServiceNotReady;
-                } else {
-                    error = ServerError.UnknownError;
-                    watchers.remove(watcherId, existingWatcherFuture);
-                }
-                connection.getCommandSender().sendErrorResponse(requestId, error,
-                        "Topic list watcher is already present on the connection");
-                lookupSemaphore.release();
-                return;
-            }
+            log.info("[{}] Watcher with the same watcherId={} is already created.", connection, watcherId);
+            // use the existing watcher if it's already created
+            watcherFuture = existingWatcherFuture;
         } else {
             initializeTopicsListWatcher(watcherFuture, namespaceName, watcherId, topicsPattern);
         }
-
 
         CompletableFuture<TopicListWatcher> finalWatcherFuture = watcherFuture;
         finalWatcherFuture.thenAccept(watcher -> {
