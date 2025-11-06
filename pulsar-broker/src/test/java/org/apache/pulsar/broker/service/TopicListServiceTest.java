@@ -43,10 +43,12 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -57,6 +59,7 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
@@ -70,6 +73,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class TopicListServiceTest {
 
     private TopicListService topicListService;
@@ -129,12 +133,26 @@ public class TopicListServiceTest {
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(connection.ctx()).thenReturn(ctx);
-        EventExecutor executor = ImmediateEventExecutor.INSTANCE;
+        EventExecutor executor = spy(ImmediateEventExecutor.INSTANCE);
         doReturn(executor).when(ctx).executor();
+        doAnswer(invocationOnMock -> {
+            Runnable runnable = invocationOnMock.getArgument(0);
+            // run immediately
+            log.info("Running runnable immediately");
+            runnable.run();
+            return mock(ScheduledFuture.class);
+        }).when(executor).schedule(any(Runnable.class), anyLong(), any());
         Channel channel = mock(Channel.class);
         when(ctx.channel()).thenReturn(channel);
         eventLoop = mock(EventLoop.class);
         when(channel.eventLoop()).thenReturn(eventLoop);
+        doAnswer(invocationOnMock -> {
+            Runnable runnable = invocationOnMock.getArgument(0);
+            // run immediately
+            log.info("Running runnable immediately");
+            runnable.run();
+            return mock(ScheduledFuture.class);
+        }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
 
         topicListService = new TopicListService(pulsar, connection, true, 30);
 
@@ -160,6 +178,33 @@ public class TopicListServiceTest {
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         String hash = TopicList.calculateHash(topics);
         topicListFuture.complete(topics);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(1, lookupSemaphore.availablePermits()));
+        verify(topicResources).registerPersistentTopicListener(
+                eq(NamespaceName.get("tenant/ns")), any(TopicListService.TopicListWatcher.class));
+        verify(connection.getCommandSender()).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(topics), any());
+    }
+
+    @Test
+    public void testCommandWatchSuccessResponseWhenOutOfPermits() throws ExecutionException, InterruptedException {
+        // acquire all permits
+        AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit permit =
+                memoryLimiter.acquire(1_000_000, AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY,
+                                Boolean.FALSE::booleanValue)
+                        .get();
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
+        String hash = TopicList.calculateHash(topics);
+        topicListFuture.complete(topics);
+        // wait for acquisition to timeout a few times
+        Thread.sleep(2000);
+        // release the permits
+        memoryLimiter.release(permit);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(1, lookupSemaphore.availablePermits()));
         verify(topicResources).registerPersistentTopicListener(
                 eq(NamespaceName.get("tenant/ns")), any(TopicListService.TopicListWatcher.class));
@@ -204,7 +249,7 @@ public class TopicListServiceTest {
     }
 
     @Test
-    public void testCommandWatchSuccessRetries() {
+    public void testCommandWatchSuccessDirectMemoryAcquirePermitsRetries() {
         topicListService.handleWatchTopicList(
                 NamespaceName.get("tenant/ns"),
                 13,
@@ -214,12 +259,6 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         String hash = TopicList.calculateHash(topics);
-        doAnswer(invocationOnMock -> {
-            Runnable runnable = invocationOnMock.getArgument(0);
-            // run immediately
-            runnable.run();
-            return mock(ScheduledFuture.class);
-        }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
         AtomicInteger failureCount = new AtomicInteger(0);
         doAnswer(invocationOnMock -> {
             if (failureCount.incrementAndGet() < 3) {
@@ -279,12 +318,6 @@ public class TopicListServiceTest {
 
         List<String> newTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(ListUtils.union(topics, newTopics));
-        doAnswer(invocationOnMock -> {
-            Runnable runnable = invocationOnMock.getArgument(0);
-            // run immediately
-            runnable.run();
-            return mock(ScheduledFuture.class);
-        }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
         AtomicInteger failureCount = new AtomicInteger(0);
         doAnswer(invocationOnMock -> {
             if (failureCount.incrementAndGet() < 3) {

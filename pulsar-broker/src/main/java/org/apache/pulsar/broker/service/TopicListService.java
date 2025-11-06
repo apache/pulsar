@@ -333,6 +333,8 @@ public class TopicListService {
                             // use updated permits to slow down responses so that backpressure gets applied
                             return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                     isPermitRequestCancelled, updatedPermits -> {
+                                        // reset retry backoff
+                                        retryBackoff.reset();
                                         // just return the watcher which was already created before
                                         return CompletableFuture.completedFuture(watcher);
                                     }, CompletableFuture::failedFuture);
@@ -360,9 +362,13 @@ public class TopicListService {
                     unwrappedException instanceof AsyncSemaphore.PermitAcquireTimeoutException
                             || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
                 // retry with backoff if permit acquisition fails due to timeout or queue full
+                long retryAfterMillis = this.retryBackoff.next();
+                log.info("[{}] {} when initializing topic list watcher watcherId={} for namespace {}. Retrying in {} "
+                                + "ms.", connection, unwrappedException.getMessage(), watcherId, namespace,
+                        retryAfterMillis);
                 connection.ctx().executor()
                         .schedule(() -> initializeTopicsListWatcher(watcherFuture, namespace, watcherId, topicsPattern),
-                                retryBackoff.next(), TimeUnit.MILLISECONDS);
+                                retryAfterMillis, TimeUnit.MILLISECONDS);
             } else {
                 log.warn("[{}] Failed to initialize topic list watcher watcherId={} for namespace {}.", connection,
                         watcherId, namespace, unwrappedException);
