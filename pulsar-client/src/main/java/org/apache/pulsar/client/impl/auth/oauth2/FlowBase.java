@@ -141,8 +141,6 @@ abstract class FlowBase implements Flow {
 
     @Override
     public void close() throws Exception {
-        if (httpClient != null) {
-            httpClient.close();
-        }
+        httpClient.close();
     }
 }
