@@ -111,6 +111,9 @@ public class TokenClient implements ClientCredentialsExchanger {
 
 
         } catch (InterruptedException | ExecutionException e1) {
+            if (e1 instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new IOException(e1);
         }
     }

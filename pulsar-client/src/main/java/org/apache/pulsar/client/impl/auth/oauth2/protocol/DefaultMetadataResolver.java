@@ -94,6 +94,9 @@ public class DefaultMetadataResolver implements MetadataResolver {
             return metadata;
 
         } catch (IOException | InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new IOException("Cannot obtain authorization metadata from " + metadataUrl, e);
         }
     }
