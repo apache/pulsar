@@ -320,24 +320,35 @@ public class TopicListService {
             // use heap size limiter to avoid broker getting overwhelmed by a lot of concurrent topic list requests
             return maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                        AtomicReference<TopicListWatcher> watcherRef = new AtomicReference<>();
                         return namespaceService.getListOfPersistentTopics(namespace).thenCompose(topics -> {
                             long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
                             listSizeHolder.updateSize(actualSize);
+                            // register watcher immediately so that we don't lose events
+                            TopicListWatcher watcher =
+                                    new TopicListWatcher(this, watcherId, topicsPattern, topics,
+                                            connection.ctx().executor());
+                            watcherRef.set(watcher);
+                            topicResources.registerPersistentTopicListener(namespace, watcher);
+                            // use updated permits to slow down responses so that backpressure gets applied
                             return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                     isPermitRequestCancelled, updatedPermits -> {
-                                        TopicListWatcher watcher =
-                                                new TopicListWatcher(this, watcherId, topicsPattern, topics,
-                                                        connection.ctx().executor());
-                                        topicResources.registerPersistentTopicListener(namespace, watcher);
+                                        // just return the watcher which was already created before
                                         return CompletableFuture.completedFuture(watcher);
                                     }, CompletableFuture::failedFuture);
                         }).whenComplete((watcher, exception) -> {
                             if (exception != null) {
-                                watcherFuture.completeExceptionally(exception);
+                                if (watcherRef.get() != null) {
+                                    watcher.close();
+                                    topicResources.deregisterPersistentTopicListener(watcherRef.get());
+                                }
+                                // triggers a retry
+                                throw FutureUtil.wrapToCompletionException(exception);
                             } else {
                                 if (!watcherFuture.complete(watcher)) {
                                     log.warn("[{}] Watcher future was already completed. Deregistering "
                                             + "watcherId={}.", connection, watcherId);
+                                    watcher.close();
                                     topicResources.deregisterPersistentTopicListener(watcher);
                                 }
                             }
