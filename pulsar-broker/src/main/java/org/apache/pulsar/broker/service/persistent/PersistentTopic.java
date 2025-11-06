@@ -2088,17 +2088,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     protected CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
-        List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
+        List<String> topicRepls = topicPolicies.getReplicationClusters().get();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(nsPolicies -> {
                     Set<String> allowedClusters = Set.of();
-                    if (policiesOptional.isPresent()) {
-                        allowedClusters = policiesOptional.get().allowed_clusters;
+                    if (nsPolicies.isPresent()) {
+                        allowedClusters = nsPolicies.get().allowed_clusters;
                     }
-                    if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
+                    if (TopicName.get(topic).isGlobal() && !topicRepls.contains(localCluster)
                             && !allowedClusters.contains(localCluster)) {
                         log.warn("Local cluster {} is not part of global namespace repl list {} and allowed list {}",
-                                localCluster, replicationClusters, allowedClusters);
+                                localCluster, topicRepls, allowedClusters);
                         return CompletableFuture.completedFuture(false);
                     } else {
                         return CompletableFuture.completedFuture(true);
@@ -3877,6 +3877,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     oldestMarkDeleteCursorInfo.getCursor().getName(),
                                     checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp(),
                                     oldestMarkDeleteCursorInfo.getVersion()));
+                } else {
+                    TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
                 }
 
                 return CompletableFuture.completedFuture(null);
@@ -4138,6 +4140,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (lastDispatchablePosition != null) {
             return CompletableFuture.completedFuture(lastDispatchablePosition);
         }
+        Position lastPosition;
+        if (transactionBuffer instanceof TransactionBufferDisable) {
+            lastPosition = getLastPosition();
+        } else {
+            lastPosition = getMaxReadPosition();
+        }
         return ledger.getLastDispatchablePosition(entry -> {
             MessageMetadata md = entry.getMessageMetadata();
             if (md == null) {
@@ -4152,7 +4160,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return !isTxnAborted(txnID, entry.getPosition());
             }
             return true;
-        }, getMaxReadPosition()).thenApply(position -> {
+        }, lastPosition).thenApply(position -> {
             // Update lastDispatchablePosition to the given position
             updateLastDispatchablePosition(position);
             return position;

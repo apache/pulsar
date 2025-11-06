@@ -408,6 +408,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder clock(Clock clock) {
+        checkArgument(clock != null, "clock must not be null");
         conf.setClock(clock);
         return this;
     }
