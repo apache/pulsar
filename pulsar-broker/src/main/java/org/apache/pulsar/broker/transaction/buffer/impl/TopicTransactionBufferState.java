@@ -83,6 +83,10 @@ public abstract class TopicTransactionBufferState {
         return STATE_UPDATER.get(this) == State.NoSnapshot;
     }
 
+    public boolean checkIfClosed() {
+        return STATE_UPDATER.get(this) == State.Close;
+    }
+
     public State getState() {
         return STATE_UPDATER.get(this);
     }

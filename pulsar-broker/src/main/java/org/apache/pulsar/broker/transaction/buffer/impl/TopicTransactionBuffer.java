@@ -290,7 +290,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 PendingAppendingTxnBufferTask pendingTask1 = null;
                 if (ex1 != null) {
                     synchronized (pendingAppendingTxnBufferTasks) {
-                        while ((pendingTask1 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                        while ((pendingTask1 = pendingAppendingTxnBufferTasks.poll()) != null) {
                             pendingTask1.getBuffer().release();
                             pendingTask1.getPendingPublishFuture().completeExceptionally(ex1);
                         }
@@ -306,7 +306,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     topic.getName(), ex2);
                             synchronized (pendingAppendingTxnBufferTasks) {
                                 PendingAppendingTxnBufferTask pendingTask2 = null;
-                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.poll()) != null) {
                                     pendingTask2.getBuffer().release();
                                     pendingTask2.getPendingPublishFuture().completeExceptionally(ex2);
                                 }
@@ -318,7 +318,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         PendingAppendingTxnBufferTask pendingTask2 = null;
                         try {
                             synchronized (pendingAppendingTxnBufferTasks) {
-                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.poll()) != null) {
                                     final ByteBuf data = pendingTask2.getBuffer();
                                     // Method `internalAppendBufferToTxn` will be executed in the different thread.
                                     // So we need to retain the buffer in this thread. It will be released after message
@@ -347,7 +347,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 pendingTask2.getPendingPublishFuture().completeExceptionally(e);
                             }
                             synchronized (pendingAppendingTxnBufferTasks) {
-                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.pop()) != null) {
+                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.poll()) != null) {
                                     pendingTask2.getBuffer().release();
                                     pendingTask2.getPendingPublishFuture().completeExceptionally(ex2);
                                 }
@@ -626,7 +626,17 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        changeToCloseState();
+        synchronized (pendingAppendingTxnBufferTasks) {
+            if (!checkIfClosed()) {
+                PendingAppendingTxnBufferTask pendingTask = null;
+                while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
+                    pendingTask.getPendingPublishFuture().completeExceptionally(
+                            new BrokerServiceException.ServiceUnitNotReadyException("Topic is closed"));
+                    pendingTask.getBuffer().release();
+                }
+            }
+            changeToCloseState();
+        }
         return this.snapshotAbortedTxnProcessor.closeAsync();
     }
 
