@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
@@ -265,14 +266,30 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         final String[] expectedEvents;
         if (topicDomain.equalsIgnoreCase("persistent") || topicTypePartitioned.equals("partitioned")) {
             if (topicTypePartitioned.equals("partitioned")) {
-                expectedEvents = new String[]{
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                };
+                if (topicDomain.equalsIgnoreCase("persistent")) {
+                    expectedEvents = new String[]{
+                            "CREATE__BEFORE",
+                            "CREATE__SUCCESS",
+                            "LOAD__BEFORE",
+                            "LOAD__SUCCESS"
+                    };
+                } else {
+                    // For non-persistent partitioned topic, only metadata is initially created;
+                    // partitions are created when the client connects.
+                    // PR #23680 currently records creation events at metadata creation,
+                    // and the broker records them again when partitions are loaded,
+                    // which can result in multiple events.
+                    // Ideally, #23680 should not record the event here,
+                    // because the topic is not fully created until the client connects.
+                    expectedEvents = new String[]{
+                            "CREATE__BEFORE",
+                            "CREATE__SUCCESS",
+                            "LOAD__BEFORE",
+                            "CREATE__BEFORE",
+                            "CREATE__SUCCESS",
+                            "LOAD__SUCCESS",
+                    };
+                }
             } else {
                 expectedEvents = new String[]{
                         "LOAD__BEFORE",
@@ -306,6 +323,53 @@ public class TopicEventsListenerTest extends BrokerTestBase {
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                 Assert.assertEquals(events.toArray(), expectedEvents));
+    }
+
+    @DataProvider(name = "createTopicEventType")
+    public static Object[][] createTopicEventType() {
+        return new Object[][] {
+                {"persistent", "partitioned"},
+                {"persistent", "non-partitioned"},
+                {"non-persistent", "partitioned"},
+                {"non-persistent", "non-partitioned"},
+        };
+    }
+
+    @Test(dataProvider = "createTopicEventType")
+    public void testCreateTopicEvent(String topicTypePersistence, String topicTypePartitioned) throws Exception {
+        String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
+
+        events.clear();
+        if (topicTypePartitioned.equals("partitioned")) {
+            topicNameToWatch = topicName + "-partition-0";
+            admin.topics().createPartitionedTopic(topicName, 1);
+        } else {
+            topicNameToWatch = topicName;
+            admin.topics().createNonPartitionedTopic(topicName);
+        }
+
+        triggerPartitionsCreation(topicName); // ensure partitions are really created
+        triggerPartitionsCreation(topicName); // trigger again to ensure no duplicate events
+
+        Awaitility.await().during(3, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    if (topicTypePartitioned.equals("partitioned") && topicTypePersistence.equals("non-persistent")) {
+                        // For non-persistent partitioned topic, only metadata is initially created;
+                        // partitions are created when the client connects.
+                        // PR #23680 currently records creation events at metadata creation,
+                        // and the broker records them again when partitions are loaded,
+                        // which can result in multiple events.
+                        // Ideally, #23680 should not record the event here,
+                        // because the topic is not fully created until the client connects.
+                        assertThat(events.toArray())
+                                .contains("CREATE__BEFORE")
+                                .contains("CREATE__SUCCESS");
+                    } else {
+                        assertThat(events.toArray())
+                                .containsOnlyOnce("CREATE__BEFORE")
+                                .containsOnlyOnce("CREATE__SUCCESS");
+                    }
+                });
     }
 
     private PulsarAdmin createPulsarAdmin() throws PulsarClientException {
