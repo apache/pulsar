@@ -70,10 +70,8 @@ public class TopicListService {
         private final TopicsPattern topicsPattern;
         private final Executor executor;
         private volatile boolean closed = false;
-        // taskExecuting is initialized to true so that sendTopicListSuccessWithRetries is first executed
-        // before any updates are sent out.
-        private boolean taskExecuting = true;
-        private BlockingDeque<Runnable> pendingTasks = new LinkedBlockingDeque<>();
+        private boolean sendTopicListSuccessCompleted = false;
+        private BlockingDeque<Runnable> sendTopicListUpdateTasksBeforeInit = new LinkedBlockingDeque<>();
 
         /***
          * @param topicsPattern The regexp for the topic name(not contains partition suffix).
@@ -120,35 +118,36 @@ public class TopicListService {
             }
         }
 
-        private void sendTopicListUpdate(String hash, List<String> deletedTopics, List<String> newTopics) {
-            executeTask(() -> topicListService.sendTopicListUpdate(id, hash, deletedTopics,
-                    newTopics, this::taskFinished));
-        }
-
-        private synchronized void executeTask(Runnable task) {
+        private synchronized void sendTopicListUpdate(String hash, List<String> deletedTopics, List<String> newTopics) {
             if (closed) {
                 return;
             }
-            if (!taskExecuting) {
-                taskExecuting = true;
+            Runnable task = () -> topicListService.sendTopicListUpdate(id, hash, deletedTopics, newTopics);
+            if (sendTopicListSuccessCompleted) {
                 executor.execute(task);
             } else {
-                pendingTasks.add(task);
+                // if sendTopicListSuccess hasn't completed, add to a queue to be executed after it completes
+                sendTopicListUpdateTasksBeforeInit.add(task);
             }
         }
 
         @VisibleForTesting
-        synchronized void taskFinished() {
-            Runnable task = pendingTasks.poll();
-            if (task != null) {
-                executor.execute(task);
-            } else {
-                taskExecuting = false;
+        synchronized void sendTopicListSuccessCompleted() {
+            if (closed) {
+                sendTopicListUpdateTasksBeforeInit.clear();
+                return;
             }
+            // Drain all pending sendTopicListUpdate tasks
+            Runnable task;
+            while ((task = sendTopicListUpdateTasksBeforeInit.poll()) != null) {
+                executor.execute(task);
+            }
+            sendTopicListSuccessCompleted = true;
         }
 
-        public void close() {
+        public synchronized void close() {
             closed = true;
+            sendTopicListUpdateTasksBeforeInit.clear();
         }
     }
 
@@ -270,7 +269,8 @@ public class TopicListService {
                                 "[{}] Received WatchTopicList for namespace [//{}] by {}",
                                 connection.toString(), namespaceName, requestId);
                     }
-                    sendTopicListSuccessWithRetries(watcherId, requestId, topicList, hash, watcher::taskFinished);
+                    sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
+                            watcher::sendTopicListSuccessCompleted);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
@@ -285,8 +285,9 @@ public class TopicListService {
                 });
     }
 
-    private void sendTopicListSuccessWithRetries(long watcherId, long requestId, List<String> topicList, String hash,
-                                                 Runnable completionCallback) {
+    private void sendTopicListSuccessWithPermitAcquiringRetries(long watcherId, long requestId, List<String> topicList,
+                                                                String hash,
+                                                                Runnable successfulCompletionCallback) {
         performOperationWithPermitAcquiringRetries(watcherId, "topic list success", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler)
@@ -295,8 +296,10 @@ public class TopicListService {
                                 // this is an unexpected case
                                 log.warn("[{}] Failed to send topic list success for watcherId={}. Watcher will be in "
                                         + "inconsistent state.", connection, watcherId, t);
+                            } else {
+                                // completed successfully, run the callback
+                                successfulCompletionCallback.run();
                             }
-                            completionCallback.run();
                         }));
     }
 
@@ -405,7 +408,7 @@ public class TopicListService {
      * @param newTopics topics names added(contains the partition suffix).
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
-                                    List<String> newTopics, Runnable completionCallback) {
+                                    List<String> newTopics) {
         performOperationWithPermitAcquiringRetries(watcherId, "topic list update", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
@@ -416,7 +419,6 @@ public class TopicListService {
                                 log.warn("[{}] Failed to send topic list update for watcherId={}. Watcher will be in "
                                         + "inconsistent state.", connection, watcherId, t);
                             }
-                            completionCallback.run();
                         }));
     }
 
