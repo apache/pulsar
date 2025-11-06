@@ -298,9 +298,44 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 }
             };
 
+            final Runnable flushPendingTasks = () -> {
+                PendingAppendingTxnBufferTask pendingTask = null;
+                try {
+                    synchronized (pendingAppendingTxnBufferTasks) {
+                        while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
+                            final ByteBuf data = pendingTask.getBuffer();
+                            final CompletableFuture<Position> pendingFuture =
+                                    pendingTask.getPendingPublishFuture();
+                            internalAppendBufferToTxn(pendingTask.getTxnId(), pendingTask.getBuffer(),
+                                    pendingTask.getSequenceId())
+                                    .whenComplete((positionAdded, ex3) -> {
+                                        if (ex3 != null) {
+                                            data.release();
+                                            pendingFuture.completeExceptionally(ex3);
+                                            return;
+                                        }
+                                        pendingFuture.complete(positionAdded);
+                                        data.release();
+                                    });
+                        }
+                    }
+                } catch (Exception e) {
+                    // If there are some error when adding entries or caching entries, this log will be printed.
+                    log.error("[{}] Failed to flush pending publishing requests after taking the first"
+                                    + " snapshot.",
+                            topic.getName(), e);
+                    if (pendingTask != null) {
+                        pendingTask.getBuffer().release();
+                        pendingTask.getPendingPublishFuture().completeExceptionally(e);
+                    }
+                    failPendingTasks.accept(e);
+                }
+            };
+
             // Trigger the first snapshot.
-            getTransactionBufferFuture().whenComplete((ignore1, ex1) -> {
+            transactionBufferFuture.whenComplete((ignore1, ex1) -> {
                 if (ex1 != null) {
+                    log.error("[{}] Transaction buffer recover failed", topic.getName(), ex1);
                     failPendingTasks.accept(ex1);
                     return;
                 }
@@ -311,43 +346,22 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         if (ex2 != null) {
                             log.error("[{}] Failed to take the first snapshot, flushing failed publishing requests",
                                     topic.getName(), ex2);
-                            failPendingTasks.accept(ex1);
+                            failPendingTasks.accept(ex2);
                             return;
                         }
                         log.info("[{}] Finished to take the first snapshot, flushing publishing {} requests",
                                 topic.getName(), pendingAppendingTxnBufferTasks.size());
-                        PendingAppendingTxnBufferTask pendingTask2 = null;
-                        try {
-                            synchronized (pendingAppendingTxnBufferTasks) {
-                                while ((pendingTask2 = pendingAppendingTxnBufferTasks.poll()) != null) {
-                                    final ByteBuf data = pendingTask2.getBuffer();
-                                    final CompletableFuture<Position> pendingFuture =
-                                            pendingTask2.getPendingPublishFuture();
-                                    internalAppendBufferToTxn(pendingTask2.getTxnId(), pendingTask2.getBuffer(),
-                                            pendingTask2.getSequenceId())
-                                            .whenComplete((positionAdded, ex3) -> {
-                                        if (ex3 != null) {
-                                            data.release();
-                                            pendingFuture.completeExceptionally(ex3);
-                                            return;
-                                        }
-                                        pendingFuture.complete(positionAdded);
-                                        data.release();
-                                    });
-                                }
-                            }
-                        } catch (Exception e) {
-                            // If there are some error when adding entries or caching entries, this log will be printed.
-                            log.error("[{}] Failed to flush pending publishing requests after taking the first"
-                                            + " snapshot.",
-                                    topic.getName(), e);
-                            if (pendingTask2 != null) {
-                                pendingTask2.getBuffer().release();
-                                pendingTask2.getPendingPublishFuture().completeExceptionally(e);
-                            }
-                            failPendingTasks.accept(ex1);
-                        }
+                        flushPendingTasks.run();
                     });
+                } else if (checkIfReady()) {
+                    log.info("[{}] No need to take the first snapshot, flushing publishing {} requests",
+                            topic.getName(), pendingAppendingTxnBufferTasks.size());
+                    flushPendingTasks.run();
+                } else {
+                    log.error("[{}] Transaction buffer recover failed, current state is {}", topic.getName(),
+                            getState());
+                    failPendingTasks.accept(new BrokerServiceException.ServiceUnitNotReadyException(
+                            "Transaction Buffer recover failed, the current state is: " + getState()));
                 }
             });
             return res;
