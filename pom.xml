@@ -372,6 +372,7 @@ flexible messaging model and an intuitive client API.</description>
     <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
     <commons-beanutils.version>1.11.0</commons-beanutils.version>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
+    <mina-core.version>2.1.10</mina-core.version>
   </properties>
 
   <dependencyManagement>
