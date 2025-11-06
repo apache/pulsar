@@ -327,6 +327,10 @@ public class TopicLookupBase extends PulsarWebResource {
         if (!pulsar.getBrokerService().isSystemTopic(topic)) {
             return;
         }
+        if (SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName()
+                .equals(topic.getPartitionedTopicName())) {
+            return;
+        }
         boolean tlsEnabled = pulsar.getConfig().isBrokerClientTlsEnabled();
         if (!tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrl())) {
             log.warn("[{}] Unexpected lookup result: brokerUrl is required when TLS isn't enabled. options: {},"
