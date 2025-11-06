@@ -357,13 +357,13 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             startBroker();
             // produce message concurrently
             @Cleanup("shutdownNow")
-            ExecutorService executor = Executors.newFixedThreadPool(5);
+            ExecutorService executor = Executors.newFixedThreadPool(10);
             AtomicBoolean failed = new AtomicBoolean(false);
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
                     .subscribe();
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
             byte[] msgData = "testData".getBytes();
-            final int totalProduceMessages = 10;
+            final int totalProduceMessages = 500;
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
