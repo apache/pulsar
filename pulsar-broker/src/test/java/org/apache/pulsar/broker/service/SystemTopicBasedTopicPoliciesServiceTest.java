@@ -25,6 +25,7 @@ import static org.testng.AssertJUnit.assertNull;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -420,5 +421,48 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(service.getPoliciesCacheInit(namespaceName));
         service.prepareInitPoliciesCacheAsync(namespaceName).get();
         admin.namespaces().deleteNamespace(NAMESPACE5);
+    }
+
+    @Test
+    public void testCreateNamespaceEventsSystemTopicFactoryException() throws Exception {
+        final String namespace = "system-topic/namespace-6";
+
+        admin.namespaces().createNamespace(namespace);
+
+        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace), "topic-1");
+
+        SystemTopicBasedTopicPoliciesService service =
+            Mockito.spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
+
+        // inject exception when create NamespaceEventsSystemTopicFactory
+        Mockito.doThrow(new RuntimeException("test exception")).when(service)
+            .getNamespaceEventsSystemTopicFactory();
+
+        CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture;
+        Optional<TopicPolicies> topicPoliciesOptional;
+        try {
+            topicPoliciesFuture =
+            service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+            topicPoliciesOptional = topicPoliciesFuture.join();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("test exception"));
+        }
+
+        Mockito.reset(service);
+
+        service.updateTopicPoliciesAsync(topicName, false, false, topicPolicies ->
+            topicPolicies.setMaxConsumerPerTopic(10)).get();
+
+        topicPoliciesFuture =
+            service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+        topicPoliciesOptional = topicPoliciesFuture.join();
+
+        Assert.assertNotNull(topicPoliciesOptional);
+        Assert.assertTrue(topicPoliciesOptional.isPresent());
+
+        TopicPolicies topicPolicies = topicPoliciesOptional.get();
+        Assert.assertNotNull(topicPolicies);
+        Assert.assertEquals(topicPolicies.getMaxConsumerPerTopic(), 10);
     }
 }

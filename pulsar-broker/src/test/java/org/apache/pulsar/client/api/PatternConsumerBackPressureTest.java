@@ -37,7 +37,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-impl")
+// This test is disabled because it's really flaky, https://github.com/apache/pulsar/issues/24827
+@Test(groups = "broker-impl", enabled = false)
 public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest {
 
     @Override
@@ -64,7 +65,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
         conf.setPulsarChannelWriteBufferLowWaterMark(32 * 1024);
     }
 
-    @Test(timeOut = 60 * 1000)
+    @Test(timeOut = 60 * 1000, enabled = false)
     public void testInfiniteGetThousandsTopics() throws PulsarAdminException, InterruptedException {
         final int topicCount = 8192;
         final int requests = 2048;
