@@ -366,30 +366,27 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     /***
      * @param topics topic names which are matching, the topic name contains the partition suffix.
-     * @return
      */
     @Override
-    public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
-                                                             List<String> topics,
-                                                             Consumer<Throwable> permitAcquireErrorHandler) {
+    public void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
-        safeIntercept(command, cnx);
-        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
-                command, permitAcquireErrorHandler);
+        interceptAndWriteCommand(command);
     }
 
     /***
      * {@inheritDoc}
-     * @return
      */
     @Override
-    public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
-                                                            List<String> deletedTopics, String topicsHash,
-                                                            Consumer<Throwable> permitAcquireErrorHandler) {
+    public void sendWatchTopicListUpdate(long watcherId,
+                                         List<String> newTopics, List<String> deletedTopics, String topicsHash) {
         BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
+        interceptAndWriteCommand(command);
+    }
+
+    private void interceptAndWriteCommand(BaseCommand command) {
         safeIntercept(command, cnx);
-        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
-                command, permitAcquireErrorHandler);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        writeAndFlush(outBuf);
     }
 
     private void writeAndFlush(ByteBuf outBuf) {
