@@ -25,11 +25,11 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarMockLedgerHandle extends LedgerHandle {
 
-    final List<LedgerEntryImpl> entries = new CopyOnWriteArrayList<>();
+    final List<LedgerEntryImpl> entries =  Collections.synchronizedList(new ArrayList<>());
     final PulsarMockBookKeeper bk;
     final long id;
     final DigestType digest;
