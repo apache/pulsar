@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.topiclistlimit;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 
@@ -55,7 +54,6 @@ public class TopicListSizeResultCache {
     public static class ResultHolder {
         private final AtomicReference<CompletableFuture<Long>> topicListSizeFuture =
                 new AtomicReference<>(null);
-        private final AtomicLong existingSizeRef = new AtomicLong(-1L);
 
         /**
          * Get the topic list size estimate. The first request will return the initial estimate
@@ -76,33 +74,18 @@ public class TopicListSizeResultCache {
         }
 
         /**
-         * Update the topic list size estimate. The new estimated size will be updated by calculating the average
-         * of the existing and the new size. If the difference between the new and the existing size is less than 1,
-         * no update will be done.
+         * Update the topic list size estimate. The last changed value will be used.
+         *
          * @param actualSize the actual size of the topic list
          */
         public void updateSize(long actualSize) {
-            long existingSizeValue = existingSizeRef.updateAndGet(existingSize -> {
-                if (existingSize > 0) {
-                    // update by calculate the average actualSize of existing and the new actualSize
-                    long updatedSize = (existingSize + actualSize) / 2;
-                    // if the difference is more than 1, update the size
-                    if (Math.abs(updatedSize - existingSize) > 1) {
-                        return updatedSize;
-                    } else {
-                        return existingSize;
-                    }
-                } else {
-                    return actualSize;
-                }
-            });
             CompletableFuture<Long> currentFuture = topicListSizeFuture.get();
             if (currentFuture != null && !currentFuture.isDone()) {
                 // complete the future if it's not done yet
-                currentFuture.complete(existingSizeValue);
-            } else if (currentFuture == null || currentFuture.getNow(0L).longValue() != existingSizeValue) {
+                currentFuture.complete(actualSize);
+            } else if (currentFuture == null || currentFuture.getNow(0L).longValue() != actualSize) {
                 // only update the future if the current value is different from the existing value
-                topicListSizeFuture.compareAndSet(currentFuture, CompletableFuture.completedFuture(existingSizeValue));
+                topicListSizeFuture.compareAndSet(currentFuture, CompletableFuture.completedFuture(actualSize));
             }
         }
 

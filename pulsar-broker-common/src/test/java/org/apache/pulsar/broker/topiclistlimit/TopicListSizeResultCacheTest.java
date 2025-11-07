@@ -165,54 +165,6 @@ public class TopicListSizeResultCacheTest {
     }
 
     @Test
-    public void testResultHolder_updateSize_calculatesAverage() {
-        TopicListSizeResultCache.ResultHolder holder = new TopicListSizeResultCache.ResultHolder();
-
-        // First update
-        holder.updateSize(10000L);
-        CompletableFuture<Long> future1 = holder.getSizeAsync();
-        assertEquals(future1.join().longValue(), 10000L);
-
-        // Second update - should average
-        holder.updateSize(20000L);
-        CompletableFuture<Long> future2 = holder.getSizeAsync();
-        assertEquals(future2.join().longValue(), 15000L, "Should calculate average: (10000 + 20000) / 2");
-
-        // Third update - should average again
-        holder.updateSize(30000L);
-        CompletableFuture<Long> future3 = holder.getSizeAsync();
-        assertEquals(future3.join().longValue(), 22500L, "Should calculate average: (15000 + 30000) / 2");
-    }
-
-    @Test
-    public void testResultHolder_updateSize_noUpdateWhenDifferenceIsSmall() {
-        TopicListSizeResultCache.ResultHolder holder = new TopicListSizeResultCache.ResultHolder();
-
-        // First update
-        holder.updateSize(1000L);
-        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
-
-        // Second update with small difference (average would be 1001)
-        holder.updateSize(1002L);
-        // Should not update because abs(1001 - 1000) <= 1
-        assertEquals(holder.getSizeAsync().join().longValue(), 1000L, "Should not update when difference <= 1");
-    }
-
-    @Test
-    public void testResultHolder_updateSize_updatesWhenDifferenceIsLarge() {
-        TopicListSizeResultCache.ResultHolder holder = new TopicListSizeResultCache.ResultHolder();
-
-        // First update
-        holder.updateSize(1000L);
-        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
-
-        // Second update with large difference (average would be 1500)
-        holder.updateSize(2000L);
-        // Should update because abs(1500 - 1000) > 1
-        assertEquals(holder.getSizeAsync().join().longValue(), 1500L, "Should update when difference > 1");
-    }
-
-    @Test
     public void testResultHolder_updateSize_completesWaitingFuture() throws Exception {
         TopicListSizeResultCache.ResultHolder holder = new TopicListSizeResultCache.ResultHolder();
 
@@ -296,7 +248,7 @@ public class TopicListSizeResultCacheTest {
 
         // Third request
         CompletableFuture<Long> future3 = holder.getSizeAsync();
-        assertEquals(future3.get().longValue(), 20000L, "Should be average of 15000 and 25000");
+        assertEquals(future3.get().longValue(), 25000L, "Should be the last value");
     }
 
     @Test
