@@ -103,7 +103,7 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
         @Cleanup
         PulsarClientSharedResources sharedResources =
                 PulsarClientSharedResources.builder().build();
-        List<PulsarClientImpl> clients = new ArrayList<>(requests);
+        List<PulsarClientImpl> clients = new ArrayList<>(numberOfClients);
         @Cleanup
         Closeable closeClients = () -> {
             for (PulsarClient client : clients) {
