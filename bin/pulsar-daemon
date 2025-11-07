@@ -201,7 +201,7 @@ stop ()
                  kill -9 $TARGET_PID >/dev/null 2>&1
                  echo Successfully stopped the process
               else
-                 echo "WARNNING :  $command is not stopped completely."
+                 echo "WARNING :  $command is not stopped completely."
                  exit 1
               fi
         fi
@@ -237,7 +237,7 @@ case $startStop in
       sleep 3
       start "$@"
     else
-      echo "WARNNING :  $command failed restart, for $command is not stopped completely."
+      echo "WARNING :  $command failed restart, for $command is not stopped completely."
     fi
     ;;
 
