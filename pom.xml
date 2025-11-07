@@ -373,6 +373,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-beanutils.version>1.11.0</commons-beanutils.version>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
     <mina-core.version>2.1.10</mina-core.version>
+    <reactor-netty-http.version>1.2.8</reactor-netty-http.version>
   </properties>
 
   <dependencyManagement>
