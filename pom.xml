@@ -255,7 +255,7 @@ flexible messaging model and an intuitive client API.</description>
     <hadoop3.version>3.4.1</hadoop3.version>
     <dnsjava3.version>3.6.2</dnsjava3.version>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
-    <hbase.version>2.6.0-hadoop3</hbase.version>
+    <hbase.version>2.6.3-hadoop3</hbase.version>
     <guava.version>33.4.8-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
