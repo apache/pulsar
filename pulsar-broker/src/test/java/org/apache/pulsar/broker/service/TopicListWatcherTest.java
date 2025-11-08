@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -53,7 +55,9 @@ public class TopicListWatcherTest {
     @BeforeMethod(alwaysRun = true)
     public void setup() {
         topicListService = mock(TopicListService.class);
-        watcher = new TopicListService.TopicListWatcher(topicListService, ID, PATTERN, INITIAL_TOPIC_LIST);
+        watcher = new TopicListService.TopicListWatcher(topicListService, ID, PATTERN, INITIAL_TOPIC_LIST,
+                MoreExecutors.directExecutor());
+        watcher.sendTopicListSuccessCompleted();
     }
 
     @Test
@@ -71,8 +75,8 @@ public class TopicListWatcherTest {
         List<String> allMatchingTopics = Arrays.asList(
                 "persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2", newTopic);
         String hash = TopicList.calculateHash(allMatchingTopics);
-        verify(topicListService).sendTopicListUpdate(ID, hash, Collections.emptyList(),
-                Collections.singletonList(newTopic));
+        verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash), eq(Collections.emptyList()),
+                eq(Collections.singletonList(newTopic)));
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -85,8 +89,8 @@ public class TopicListWatcherTest {
 
         List<String> allMatchingTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(allMatchingTopics);
-        verify(topicListService).sendTopicListUpdate(ID, hash,
-                Collections.singletonList(deletedTopic), Collections.emptyList());
+        verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash),
+                eq(Collections.singletonList(deletedTopic)), eq(Collections.emptyList()));
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());

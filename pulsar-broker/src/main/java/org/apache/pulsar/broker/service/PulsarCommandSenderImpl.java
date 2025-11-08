@@ -366,27 +366,30 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     /***
      * @param topics topic names which are matching, the topic name contains the partition suffix.
+     * @return
      */
     @Override
-    public void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics) {
+    public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                             List<String> topics,
+                                                             Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
-        interceptAndWriteCommand(command);
+        safeIntercept(command, cnx);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
     }
 
     /***
      * {@inheritDoc}
+     * @return
      */
     @Override
-    public void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash) {
+    public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
+                                                            List<String> deletedTopics, String topicsHash,
+                                                            Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
-        interceptAndWriteCommand(command);
-    }
-
-    private void interceptAndWriteCommand(BaseCommand command) {
         safeIntercept(command, cnx);
-        ByteBuf outBuf = Commands.serializeWithSize(command);
-        writeAndFlush(outBuf);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
     }
 
     private void writeAndFlush(ByteBuf outBuf) {
