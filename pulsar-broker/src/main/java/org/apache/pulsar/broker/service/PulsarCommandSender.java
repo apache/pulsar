@@ -22,6 +22,8 @@ package org.apache.pulsar.broker.service;
 import io.netty.util.concurrent.Future;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -51,8 +53,9 @@ public interface PulsarCommandSender {
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
-    void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
-                                          boolean changed, long requestId);
+    CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
+                                                             boolean changed, long requestId,
+                                                             Consumer<Throwable> permitAcquireErrorHandler);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
