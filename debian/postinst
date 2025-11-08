@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+# Создать пользователя если его нет
+if ! id pulsar >/dev/null 2>&1; then
+    adduser --system --group --home /var/lib/pulsar pulsar
+fi
+
+# Права
+chown -R pulsar:pulsar /usr/lib/pulsar
+chown -R pulsar:pulsar /etc/pulsar
+
+# Включить сервис
+systemctl daemon-reload || true
+
+exit 0

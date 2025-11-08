@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+export JAVA_HOME=/usr/lib/jvm/default-java
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	mvn -DskipTests -Pcore -Ppackage clean package
+
+override_dh_auto_install:
+	mkdir -p debian/apache-pulsar/usr/lib/pulsar
+	cp -r ./distribution/server/target/apache-pulsar-*/* debian/apache-pulsar/usr/lib/pulsar/
+
+	mkdir -p debian/apache-pulsar/etc/pulsar
+	cp -r conf/* debian/apache-pulsar/etc/pulsar/
+
+	mkdir -p debian/apache-pulsar/usr/bin
+	ln -s /usr/lib/pulsar/bin/pulsar debian/apache-pulsar/usr/bin/pulsar
+
+	mkdir -p debian/apache-pulsar/lib/systemd/system
+	cp debian/pulsar.service debian/apache-pulsar/lib/systemd/system/

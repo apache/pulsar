@@ -1,0 +1,36 @@
+Source: apache-pulsar
+Section: net
+Priority: optional
+Maintainer: Your Name <you@example.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ default-jdk-headless | openjdk-17-jdk-headless,
+ maven,
+ python3,
+ zip,
+ unzip,
+ libzstd-dev,
+ libsnappy-dev,
+ zlib1g-dev,
+ libssl-dev,
+ nodejs,
+ yarnpkg
+Standards-Version: 4.6.0
+Homepage: https://pulsar.apache.org/
+
+Package: apache-pulsar
+Architecture: amd64
+Depends:
+ openjdk-17-jre-headless,
+ bash,
+ adduser,
+ libsnappy1v5,
+ zlib1g,
+ libzstd1,
+ libc6,
+ libssl3 | libssl1.1,
+ ca-certificates
+Description: Apache Pulsar distributed messaging system
+ Apache Pulsar is a cloud-native, distributed messaging and event
+ streaming platform. This package contains broker, bookkeeper,
+ proxy, CLI tools and configuration files.

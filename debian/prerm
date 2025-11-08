@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+# Остановка сервиса перед удалением
+if [ "$1" = "remove" ]; then
+    systemctl stop pulsar.service || true
+fi
+
+exit 0

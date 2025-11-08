@@ -1,0 +1,4 @@
+usr/lib/pulsar/
+etc/pulsar/
+usr/bin/pulsar
+lib/systemd/system/pulsar.service

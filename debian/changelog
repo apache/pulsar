@@ -1,0 +1,5 @@
+apache-pulsar (1.0-1) unstable; urgency=medium
+
+  * Initial release of Apache Pulsar deb package.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sat, 08 Feb 2025 10:00:00 +0000
