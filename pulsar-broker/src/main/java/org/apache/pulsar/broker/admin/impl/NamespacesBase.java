@@ -36,13 +36,17 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.CompletionCallback;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
@@ -62,6 +66,8 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -109,6 +115,8 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -163,8 +171,66 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenAccept(__ -> log.info("[{}] Created namespace {}", clientAppId(), namespaceName));
     }
 
-    protected CompletableFuture<List<String>> internalGetListOfTopics(Policies policies,
+    protected CompletableFuture<List<String>> internalGetListOfTopics(AsyncResponse response, Policies policies,
                                                                       CommandGetTopicsOfNamespace.Mode mode) {
+        // Use maxTopicListInFlightLimiter to limit inflight get topic listing responses
+        // to avoid OOME caused by a lot of clients using HTTP service lookups to list topics
+        AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter =
+                pulsar().getBrokerService().getMaxTopicListInFlightLimiter();
+        TopicListSizeResultCache.ResultHolder listSizeHolder = pulsar().getBrokerService().getTopicListSizeResultCache()
+                .getTopicListSize(namespaceName.toString(), mode);
+        // setup the permit cancellation function
+        AtomicBoolean permitRequestCancelled = new AtomicBoolean(false);
+        BooleanSupplier isPermitRequestCancelled = permitRequestCancelled::get;
+        // add callback that releases permits when the response completes
+        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> initialPermitsRef =
+                new AtomicReference<>();
+        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> permitsRef = new AtomicReference<>();
+        response.register(new CompletionCallback() {
+            @Override
+            public void onComplete(Throwable throwable) {
+                if (throwable != null) {
+                    // for failed request
+                    // handle resetting the TopicListSizeResultCache.ResultHolder
+                    listSizeHolder.resetIfInitializing();
+                    // cancel any pending permit request
+                    permitRequestCancelled.set(true);
+                }
+                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit initialPermit = initialPermitsRef.get();
+                if (initialPermit != null) {
+                    maxTopicListInFlightLimiter.release(initialPermit);
+                }
+                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit permits = permitsRef.get();
+                if (permits != null) {
+                    maxTopicListInFlightLimiter.release(permits);
+                }
+            }
+        });
+        return listSizeHolder.getSizeAsync().thenCompose(initialSize -> maxTopicListInFlightLimiter.acquire(initialSize,
+                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled).exceptionally(t -> {
+            throw new CompletionException(
+                    new RestException(Status.TOO_MANY_REQUESTS, "Failed due to heap memory limit exceeded"));
+        }).thenCompose(initialPermits -> {
+            initialPermitsRef.set(initialPermits);
+            // perform the actual get list of topics operation
+            return doInternalGetListOfTopics(policies, mode).thenCompose(topicList -> {
+                long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topicList);
+                listSizeHolder.updateSize(actualSize);
+                return maxTopicListInFlightLimiter.update(initialPermits, actualSize, isPermitRequestCancelled)
+                        .exceptionally(t -> {
+                            throw new CompletionException(new RestException(Status.TOO_MANY_REQUESTS,
+                                    "Failed due to heap memory limit exceeded"));
+                        }).thenApply(permits -> {
+                            permitsRef.set(permits);
+                            initialPermitsRef.set(null);
+                            return topicList;
+                        });
+            });
+        }));
+    }
+
+    private CompletableFuture<List<String>> doInternalGetListOfTopics(Policies policies,
+                                                                     CommandGetTopicsOfNamespace.Mode mode) {
         switch (mode) {
             case ALL:
                 return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)

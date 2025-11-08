@@ -23,6 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -70,6 +71,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
         final int requests = 2048;
         final String topicName = UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, topicCount);
+        @Cleanup("shutdownNow")
         final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime()
                 .availableProcessors());
 
