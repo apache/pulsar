@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
+import org.apache.pulsar.broker.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
@@ -1563,6 +1564,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Skipping messages on a topic subscription.")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1620,7 +1622,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "The message ID to skip") Map<String, String> messageIds) {
+            @ApiParam(value = "The message ID to skip") SkipMessageIdsRequest messageIds) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             internalSkipByMessageIds(asyncResponse, decode(encodedSubName), authoritative, messageIds);

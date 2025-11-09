@@ -29,6 +29,7 @@ import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -48,6 +49,7 @@ import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.client.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -528,11 +530,12 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         final int cancelMessage = 50;
         MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
 
-        Map<String, String> ackMessageIds = new HashMap<>();
-        ackMessageIds.put(String.valueOf(messageId.getLedgerId()), String.valueOf(messageId.getEntryId()));
+        SkipMessageIdsRequest.MessageIdItem item0 = new SkipMessageIdsRequest.MessageIdItem(
+                messageId.getLedgerId(), messageId.getEntryId(), null);
+        SkipMessageIdsRequest req = SkipMessageIdsRequest.forMessageIds(Collections.singletonList(item0));
 
-        admin.topics().skipMessages(topic + "-partition-0", subName + "-1", ackMessageIds);
-        admin.topics().skipMessages(topic + "-partition-1", subName + "-1", ackMessageIds);
+        admin.topics().skipMessages(topic + "-partition-0", subName + "-1", req);
+        admin.topics().skipMessages(topic + "-partition-1", subName + "-1", req);
 
         assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
         assertFalse((receivedMessages1.contains("msg-" + cancelMessage)

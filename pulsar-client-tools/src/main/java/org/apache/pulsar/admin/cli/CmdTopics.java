@@ -58,6 +58,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -865,15 +866,62 @@ public class CmdTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to be skip messages on", required = true)
         private String subName;
 
-        @Option(names = { "-m", "--messageId" },
-                description = "Skip message by ID (key is ledgerId"
-                        + " and value is either entryId or entryId[:batchIndex]).", required = true)
-        private Map<String, String> messageIds;
+        @Option(names = { "--messageId-base64" }, description = "Base64-encoded MessageId.toByteArray(); repeatable")
+        private List<String> messageIdBase64;
+
+        @Option(names = { "--messageId-triplet" }, description = "MessageId as ledgerId:entryId[:batchIndex]; repeatable")
+        private List<String> messageIdTriplets;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(topicName);
-            getTopics().skipMessages(topic, subName, messageIds);
+
+            int modes = 0;
+            if (messageIdBase64 != null && !messageIdBase64.isEmpty()) {
+                modes++;
+            }
+            if (messageIdTriplets != null && !messageIdTriplets.isEmpty()) {
+                modes++;
+            }
+            if (modes != 1) {
+                throw new ParameterException("Specify exactly one of --messageId-base64 or --messageId-triplet");
+            }
+
+            if (messageIdBase64 != null && !messageIdBase64.isEmpty()) {
+                SkipMessageIdsRequest req = SkipMessageIdsRequest.forByteArrays(messageIdBase64);
+                getTopics().skipMessages(topic, subName, req);
+                return;
+            }
+
+            if (messageIdTriplets != null && !messageIdTriplets.isEmpty()) {
+                List<SkipMessageIdsRequest.MessageIdItem> items = new ArrayList<>();
+                for (String s : messageIdTriplets) {
+                    if (s == null || s.isEmpty()) {
+                        continue;
+                    }
+                    // Format: ledgerId:entryId[:batchIndex]
+                    String[] parts = s.split(":");
+                    if (parts.length < 2 || parts.length > 3) {
+                        throw new ParameterException("Invalid --messageId-triplet: " + s
+                                + " (expected ledgerId:entryId[:batchIndex])");
+                    }
+                    long ledgerId;
+                    long entryId;
+                    Integer batchIndex = null;
+                    try {
+                        ledgerId = Long.parseLong(parts[0]);
+                        entryId = Long.parseLong(parts[1]);
+                        if (parts.length == 3) {
+                            batchIndex = Integer.parseInt(parts[2]);
+                        }
+                    } catch (NumberFormatException e) {
+                        throw new ParameterException("Invalid --messageId-triplet: " + s + ", " + e.getMessage());
+                    }
+                    items.add(new SkipMessageIdsRequest.MessageIdItem(ledgerId, entryId, batchIndex));
+                }
+                SkipMessageIdsRequest req = SkipMessageIdsRequest.forMessageIds(items);
+                getTopics().skipMessages(topic, subName, req);
+            }
         }
     }
 

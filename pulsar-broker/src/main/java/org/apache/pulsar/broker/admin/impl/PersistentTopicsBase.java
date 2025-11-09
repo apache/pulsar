@@ -73,6 +73,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
@@ -1949,7 +1950,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSkipByMessageIds(AsyncResponse asyncResponse, String subName, boolean authoritative,
-                                            Map<String, String> messageIds) {
+                                            SkipMessageIdsRequest messageIds) {
         CompletableFuture<Void> validationFuture = validateTopicOperationAsync(topicName, TopicOperation.SKIP, subName);
         validationFuture = validationFuture.thenCompose(__ -> {
             if (topicName.isGlobal()) {
@@ -1983,7 +1984,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalSkipByMessageIdsForPartitionedTopic(AsyncResponse asyncResponse,
                                                              PartitionedTopicMetadata partitionMetadata,
-                                                             Map<String, String> messageIds,
+                                                             SkipMessageIdsRequest messageIds,
                                                              String subName) {
         final List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
         PulsarAdmin admin;
@@ -1995,9 +1996,18 @@ public class PersistentTopicsBase extends AdminResource {
         }
         for (int i = 0; i < partitionMetadata.partitions; i++) {
             TopicName topicNamePartition = topicName.getPartition(i);
+            // Rebuild an Admin API request using the parsed items to avoid legacy-map format
+            List<org.apache.pulsar.client.admin.SkipMessageIdsRequest.MessageIdItem> items = new ArrayList<>();
+            for (SkipMessageIdsRequest.MessageIdItem it : messageIds.getItems()) {
+                items.add(new org.apache.pulsar.client.admin.SkipMessageIdsRequest.MessageIdItem(
+                        it.getLedgerId(), it.getEntryId(), it.getBatchIndex()));
+            }
+            org.apache.pulsar.client.admin.SkipMessageIdsRequest req =
+                    org.apache.pulsar.client.admin.SkipMessageIdsRequest.forMessageIds(items);
+
             futures.add(admin
                     .topics()
-                    .skipMessagesAsync(topicNamePartition.toString(), subName, messageIds));
+                    .skipMessagesAsync(topicNamePartition.toString(), subName, req));
         }
         FutureUtil.waitForAll(futures).handle((result, exception) -> {
             if (exception != null) {
@@ -2015,7 +2025,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalSkipByMessageIdsForNonPartitionedTopic(AsyncResponse asyncResponse,
-                                                                Map<String, String> messageIds,
+                                                                SkipMessageIdsRequest messageIds,
                                                                 String subName,
                                                                 boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
@@ -2042,13 +2052,13 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalSkipByMessageIdsForSubscriptionAsync(
-            PersistentTopic topic, String subName, Map<String, String> messageIds) {
+            PersistentTopic topic, String subName, SkipMessageIdsRequest messageIds) {
         Subscription sub = topic.getSubscription(subName);
         if (sub == null) {
             return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
                     getSubNotFoundErrorMessage(topic.getName(), subName)));
         }
-        return sub.skipMessages(messageIds);
+        return sub.skipMessages(messageIds.getLegacyMap());
     }
 
     protected void internalExpireMessagesForAllSubscriptions(AsyncResponse asyncResponse, int expireTimeInSeconds,

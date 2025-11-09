@@ -24,7 +24,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
@@ -43,6 +42,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.GetStatsOptions;
@@ -616,6 +616,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{property}/{cluster}/{namespace}/{topic}/subscription/{subName}/skip/{numMessages}")
     @ApiOperation(hidden = true, value = "Skip messages on a topic subscription.")
     @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namesapce or topic or subscription does not exist") })
@@ -646,7 +647,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                              @PathParam("topic") @Encoded String encodedTopic,
                              @PathParam("subName") String encodedSubName,
                              @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                             @ApiParam(value = "The message ID to skip") Map<String, String> messageIds) {
+                             @ApiParam(value = "The message ID to skip") SkipMessageIdsRequest messageIds) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalSkipByMessageIds(asyncResponse, decode(encodedSubName), authoritative, messageIds);
