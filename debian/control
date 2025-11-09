@@ -1,7 +1,7 @@
 Source: apache-pulsar
 Section: net
 Priority: optional
-Maintainer: Your Name <you@example.com>
+Maintainer: Oleg Bloshkin <bglegb@gmail.com>
 Build-Depends:
  debhelper-compat (= 13),
  default-jdk-headless | openjdk-17-jdk-headless,
@@ -14,7 +14,7 @@ Build-Depends:
  zlib1g-dev,
  libssl-dev,
  nodejs,
- yarnpkg
+ yarn | yarnpkg | node-yarn | npm,
 Standards-Version: 4.6.0
 Homepage: https://pulsar.apache.org/
 

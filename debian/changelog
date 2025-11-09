@@ -1,5 +1,11 @@
-apache-pulsar (1.0-1) unstable; urgency=medium
+apache-pulsar (4.1.2-1) unstable; urgency=medium
+
+  * Added build dependencies for Java, Maven, NodeJS, Yarn.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sat, 09 Nov 2025 12:00:00 +0300
+
+apache-pulsar (4.1.2-1) unstable; urgency=medium
 
   * Initial release of Apache Pulsar deb package.
 
- -- HelgiSaga <bglegb@gmail.com>  Sat, 08 Feb 2025 10:00:00 +0000
+ -- HelgiSaga <bglegb@gmail.com>  Sat, 08 Nov 2025 16:00:00 +0300
