@@ -327,4 +327,22 @@ public class TestCmdTopics {
 
         verify(mockTopics).skipMessages(eq(topic), eq("test-sub"), eq(messageIds));
     }
+
+    @Test
+    public void testSkipMessagesWithBatchIndex() throws Exception {
+        String topic = "persistent://public/default/testSkipMessagesWithBatchIndex";
+        String ledgerId = "123";
+        String entryId = "45";
+        String batchIndex = "2";
+        Map<String, String> messageIds = new HashMap<>();
+        messageIds.put(ledgerId, entryId + ":" + batchIndex);
+
+        cmdTopics.run(new String[]{
+                "skip-messages", topic,
+                "-s", "test-sub",
+                "-m", ledgerId + "=" + (entryId + ":" + batchIndex)
+        });
+
+        verify(mockTopics).skipMessages(eq(topic), eq("test-sub"), eq(messageIds));
+    }
 }

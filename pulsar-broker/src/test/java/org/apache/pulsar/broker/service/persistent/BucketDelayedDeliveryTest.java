@@ -21,7 +21,10 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -525,7 +528,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         final int cancelMessage = 50;
         MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
 
-        Map<String,String> ackMessageIds = new HashMap<>();
+        Map<String, String> ackMessageIds = new HashMap<>();
         ackMessageIds.put(String.valueOf(messageId.getLedgerId()), String.valueOf(messageId.getEntryId()));
 
         admin.topics().skipMessages(topic + "-partition-0", subName + "-1", ackMessageIds);

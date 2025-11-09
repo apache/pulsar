@@ -1261,7 +1261,8 @@ public class PersistentTopicsBase extends AdminResource {
             if (ex != null) {
                 log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
                         topicName, ex.getMessage());
-                if (ex instanceof PulsarAdminException pae) {
+                if (ex instanceof PulsarAdminException) {
+                    PulsarAdminException pae = (PulsarAdminException) ex;
                     if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                 "Internal topics have not been generated yet"));
@@ -2133,11 +2134,12 @@ public class PersistentTopicsBase extends AdminResource {
                                  getTopicNotFoundErrorMessage(topicName.toString())));
                          return;
                      }
-                    if (!(t instanceof PersistentTopic topic)) {
+                    if (!(t instanceof PersistentTopic)) {
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Expire messages for all subscriptions on a non-persistent topic is not allowed"));
                         return;
                     }
+                    PersistentTopic topic = (PersistentTopic) t;
                     final List<CompletableFuture<Void>> futures =
                             new ArrayList<>((int) topic.getReplicators().size());
                     List<String> subNames =
@@ -2916,7 +2918,7 @@ public class PersistentTopicsBase extends AdminResource {
             }).thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
             .thenCompose(__ -> getTopicReferenceAsync(topicName))
             .thenCompose(topic -> {
-                if (!(topic instanceof PersistentTopic persistentTopic)) {
+                if (!(topic instanceof PersistentTopic)) {
                     log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
                     throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Get message ID by timestamp on a non-persistent topic is not allowed");
@@ -3047,12 +3049,13 @@ public class PersistentTopicsBase extends AdminResource {
             return CompletableFuture.completedFuture(null);
         }).thenCompose(__ -> getTopicReferenceAsync(topicName))
         .thenCompose(topic -> {
-            if (!(topic instanceof PersistentTopic persistentTopic)) {
+            if (!(topic instanceof PersistentTopic)) {
                 log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Examine messages on a non-persistent topic is not allowed");
             }
             try {
+                PersistentTopic persistentTopic = (PersistentTopic) topic;
                 long totalMessage = persistentTopic.getNumberOfEntries();
                 if (totalMessage <= 0) {
                     throw new RestException(Status.PRECONDITION_FAILED,
@@ -4057,11 +4060,12 @@ public class PersistentTopicsBase extends AdminResource {
                              getTopicNotFoundErrorMessage(topicName.toString())));
                      return;
                  }
-                if (!(t instanceof PersistentTopic topic)) {
+                if (!(t instanceof PersistentTopic)) {
                     resultFuture.completeExceptionally(new RestException(Status.METHOD_NOT_ALLOWED,
                             "Expire messages on a non-persistent topic is not allowed"));
                     return;
                 }
+                PersistentTopic topic = (PersistentTopic) t;
 
                 final MessageExpirer messageExpirer;
                 if (subName.startsWith(topic.getReplicatorPrefix())) {

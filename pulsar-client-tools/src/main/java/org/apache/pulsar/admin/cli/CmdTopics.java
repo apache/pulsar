@@ -865,7 +865,9 @@ public class CmdTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to be skip messages on", required = true)
         private String subName;
 
-        @Option(names = { "-m", "--messageId" }, description = "The message ID to skip", required = true)
+        @Option(names = { "-m", "--messageId" },
+                description = "Skip message by ID (key is ledgerId"
+                        + " and value is either entryId or entryId[:batchIndex]).", required = true)
         private Map<String, String> messageIds;
 
         @Override

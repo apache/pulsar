@@ -23,13 +23,16 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopi
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +56,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -823,22 +827,113 @@ public class PersistentSubscription extends AbstractSubscription {
             return CompletableFuture.failedFuture(new NotAllowedException("Unsupported subscription type."));
         }
 
-        List<Position> positions = new ArrayList<>();
+        // Collect full-entry acks and partial (batchIndex) acks
+        List<Position> fullEntryPositions = new ArrayList<>();
+        Map<String, List<Integer>> partialAckIndexByPos = new HashMap<>(); // key: ledgerId:entryId
+
         for (Map.Entry<String, String> entry : messageIds.entrySet()) {
+            final long ledgerId;
+            final String value = entry.getValue();
             try {
-                long ledgerId = Long.parseLong(entry.getKey());
-                long entryId = Long.parseLong(entry.getValue());
-                Position position = PositionFactory.create(ledgerId, entryId);
-                positions.add(position);
+                ledgerId = Long.parseLong(entry.getKey());
             } catch (Exception e) {
-                return CompletableFuture.failedFuture(new NotAllowedException("Invalid message ID."));
+                return CompletableFuture.failedFuture(new NotAllowedException("Invalid message ID ledgerId."));
+            }
+
+            try {
+                if (value.contains(":")) {
+                    int idx = value.indexOf(':');
+                    long entryId = Long.parseLong(value.substring(0, idx));
+                    int batchIndex = Integer.parseInt(value.substring(idx + 1));
+                    String key = ledgerId + ":" + entryId;
+                    partialAckIndexByPos.computeIfAbsent(key, __ -> new ArrayList<>()).add(batchIndex);
+                } else {
+                    long entryId = Long.parseLong(value);
+                    fullEntryPositions.add(PositionFactory.create(ledgerId, entryId));
+                }
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(new NotAllowedException("Invalid message ID value."));
             }
         }
 
-        Map<String, Long> properties = Collections.emptyMap();
-        acknowledgeMessage(positions, AckType.Individual, properties);
+        // If there are no partial ack requests, just ack full entries
+        if (partialAckIndexByPos.isEmpty()) {
+            Map<String, Long> properties = Collections.emptyMap();
+            acknowledgeMessage(fullEntryPositions, AckType.Individual, properties);
+            return CompletableFuture.completedFuture(null);
+        }
 
-        return CompletableFuture.completedFuture(null);
+        // We need to read entries corresponding to partial ack positions to determine batch sizes
+        Set<Position> positionsToLoad = new HashSet<>();
+        for (String key : partialAckIndexByPos.keySet()) {
+            int sep = key.indexOf(':');
+            long ledgerId = Long.parseLong(key.substring(0, sep));
+            long entryId = Long.parseLong(key.substring(sep + 1));
+            positionsToLoad.add(PositionFactory.create(ledgerId, entryId));
+        }
+
+        CompletableFuture<Void> result = new CompletableFuture<>();
+
+        cursor.asyncReplayEntries(positionsToLoad, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                try {
+                    List<Position> positionsForAck = new ArrayList<>(fullEntryPositions.size() + entries.size());
+                    // include full-entry positions
+                    positionsForAck.addAll(fullEntryPositions);
+
+                    for (Entry entry : entries) {
+                        try {
+                            final long ledgerId = entry.getLedgerId();
+                            final long entryId = entry.getEntryId();
+                            final String key = ledgerId + ":" + entryId;
+                            List<Integer> indexes = partialAckIndexByPos.get(key);
+                            if (indexes == null || indexes.isEmpty()) {
+                                // Nothing to ack for this entry
+                                continue;
+                            }
+
+                            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                            int batchSize = metadata.hasNumMessagesInBatch() ? metadata.getNumMessagesInBatch() : 1;
+                            if (batchSize <= 1) {
+                                result.completeExceptionally(new NotAllowedException(
+                                        "batchIndex specified but entry is not a batch message"));
+                                return;
+                            }
+                            // Validate and build ackSet bitset
+                            BitSet bitSet = new BitSet();
+                            bitSet.set(0, batchSize);
+                            for (int bi : indexes) {
+                                if (bi < 0 || bi >= batchSize) {
+                                    result.completeExceptionally(new NotAllowedException(
+                                            "Invalid batchIndex: " + bi + ", batchSize=" + batchSize));
+                                    return;
+                                }
+                                bitSet.clear(bi);
+                            }
+                            long[] ackSet = bitSet.toLongArray();
+                            Position posWithAckSet = AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId, ackSet);
+                            positionsForAck.add(posWithAckSet);
+                        } finally {
+                            entry.release();
+                        }
+                    }
+
+                    Map<String, Long> properties = Collections.emptyMap();
+                    acknowledgeMessage(positionsForAck, AckType.Individual, properties);
+                    result.complete(null);
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, true);
+
+        return result;
     }
 
     @Override
