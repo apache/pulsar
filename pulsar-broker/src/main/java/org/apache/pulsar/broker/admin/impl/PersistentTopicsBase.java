@@ -36,6 +36,8 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,6 +84,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.MessageExpirer;
+import org.apache.pulsar.broker.service.SkipEntry;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
@@ -2058,7 +2061,44 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
                     getSubNotFoundErrorMessage(topic.getName(), subName)));
         }
-        return sub.skipMessages(messageIds.getLegacyMap());
+        // Build List<SkipEntry> from parsed items
+        Map<String, AggregatedSkip> aggregated = new LinkedHashMap<>();
+        for (SkipMessageIdsRequest.MessageIdItem it : messageIds.getItems()) {
+            long ledgerId = it.getLedgerId();
+            long entryId = it.getEntryId();
+            Integer batchIndex = it.getBatchIndex();
+            String key = ledgerId + ":" + entryId;
+            AggregatedSkip agg = aggregated.computeIfAbsent(key, k -> new AggregatedSkip(ledgerId, entryId));
+            if (batchIndex == null) {
+                agg.full = true;
+            } else {
+                agg.indexes.add(batchIndex);
+            }
+        }
+        List<SkipEntry> skipEntries = new ArrayList<>(aggregated.size());
+        for (AggregatedSkip v : aggregated.values()) {
+            if (v.full) {
+                skipEntries.add(new SkipEntry(v.ledgerId, v.entryId, null));
+            } else {
+              // sort indexes to have deterministic order
+              List<Integer> idx = new ArrayList<>(v.indexes);
+              Collections.sort(idx);
+              skipEntries.add(new SkipEntry(v.ledgerId, v.entryId, idx));
+            }
+        }
+        return sub.skipMessages(skipEntries);
+    }
+
+    private static final class AggregatedSkip {
+        final long ledgerId;
+        final long entryId;
+        boolean full = false;
+        final LinkedHashSet<Integer> indexes = new LinkedHashSet<>();
+
+        AggregatedSkip(long ledgerId, long entryId) {
+            this.ledgerId = ledgerId;
+            this.entryId = entryId;
+        }
     }
 
     protected void internalExpireMessagesForAllSubscriptions(AsyncResponse asyncResponse, int expireTimeInSeconds,

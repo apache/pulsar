@@ -30,47 +30,36 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.Getter;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 
 /**
  * Server-side request body for skipping messages by message IDs with support for multiple formats.
- * Normalizes to the legacy map used by Subscription#skipMessages(Map<String,String>).
  */
 @Getter
 @JsonDeserialize(using = SkipMessageIdsRequest.Deserializer.class)
 public class SkipMessageIdsRequest {
-    private Map<String, String> legacyMap;
     private final List<MessageIdItem> items = new ArrayList<>();
 
-    public SkipMessageIdsRequest() {
-        this.legacyMap = new LinkedHashMap<>();
-    }
+    public SkipMessageIdsRequest() { }
 
     private void addItem(long ledgerId, long entryId, Integer batchIndex) {
         items.add(new MessageIdItem(ledgerId, entryId, batchIndex));
     }
 
-    @Getter
-    public static class MessageIdItem {
-        private final long ledgerId;
-        private final long entryId;
-        // nullable
-        private final Integer batchIndex;
-
-        public MessageIdItem(long ledgerId, long entryId, Integer batchIndex) {
-            this.ledgerId = ledgerId;
-            this.entryId = entryId;
-            this.batchIndex = batchIndex;
+    public record MessageIdItem(long ledgerId, long entryId, Integer batchIndex) {
+        public long getLedgerId() {
+            return ledgerId;
         }
-    }
 
-    void setLegacyMap(Map<String, String> legacyMap) {
-        this.legacyMap = legacyMap;
+        public long getEntryId() {
+            return entryId;
+        }
+
+        public Integer getBatchIndex() {
+            return batchIndex;
+        }
     }
 
     public static class Deserializer extends JsonDeserializer<SkipMessageIdsRequest> {
@@ -78,8 +67,6 @@ public class SkipMessageIdsRequest {
         public SkipMessageIdsRequest deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
             ObjectCodec codec = p.getCodec();
             JsonNode node = codec.readTree(p);
-
-            Map<String, String> result = new LinkedHashMap<>();
             SkipMessageIdsRequest r = new SkipMessageIdsRequest();
 
             if (node == null || node.isNull()) {
@@ -91,10 +78,9 @@ public class SkipMessageIdsRequest {
                 ArrayNode arr = (ArrayNode) node;
                 for (JsonNode idNode : arr) {
                     if (idNode != null && !idNode.isNull()) {
-                        appendFromBase64(idNode.asText(), result, r);
+                        appendFromBase64(idNode.asText(), r);
                     }
                 }
-                r.setLegacyMap(result);
                 return r;
             }
 
@@ -110,7 +96,7 @@ public class SkipMessageIdsRequest {
                         if (type == null || type.isEmpty() || "byteArray".equalsIgnoreCase(type)) {
                             for (JsonNode idNode : arr) {
                                 if (idNode != null && !idNode.isNull()) {
-                                    appendFromBase64(idNode.asText(), result, r);
+                                    appendFromBase64(idNode.asText(), r);
                                 }
                             }
                         } else if ("messageId".equalsIgnoreCase(type)) {
@@ -122,10 +108,8 @@ public class SkipMessageIdsRequest {
                                 long entryId = optLong(idObj.get("entryId"));
                                 int batchIndex = optInt(idObj.get("batchIndex"), -1);
                                 if (batchIndex >= 0) {
-                                    result.put(Long.toString(ledgerId), entryId + ":" + batchIndex);
                                     r.addItem(ledgerId, entryId, batchIndex);
                                 } else {
-                                    result.put(Long.toString(ledgerId), Long.toString(entryId));
                                     r.addItem(ledgerId, entryId, null);
                                 }
                             }
@@ -133,26 +117,10 @@ public class SkipMessageIdsRequest {
                             // Unknown type with array payload => reject
                             throw new IOException("Invalid skipByMessageIds payload: unsupported type for array");
                         }
-                        r.setLegacyMap(result);
                         return r;
                     } else if (messageIdsNode.isObject()) {
-                        if ("map_of_ledgerId_entryId".equalsIgnoreCase(type)) {
-                            ObjectNode midMap = (ObjectNode) messageIdsNode;
-                            Iterator<Map.Entry<String, JsonNode>> fields = midMap.fields();
-                            while (fields.hasNext()) {
-                                Map.Entry<String, JsonNode> e = fields.next();
-                                String key = e.getKey();
-                                String valueStr = asScalarText(e.getValue());
-                                result.put(key, valueStr);
-                                long ledgerId = Long.parseLong(key);
-                                long entryId = Long.parseLong(valueStr);
-                                r.addItem(ledgerId, entryId, null);
-                            }
-                            r.setLegacyMap(result);
-                            return r;
-                        }
-                        throw new IOException("Invalid skipByMessageIds payload:"
-                                + " object messageIds requires type=map_of_ledgerId_entryId");
+                        // legacy map format is no longer supported
+                        throw new IOException("Invalid skipByMessageIds payload: legacy map format is not supported");
                     } else {
                         throw new IOException("Invalid skipByMessageIds payload: unsupported messageIds type");
                     }
@@ -163,19 +131,6 @@ public class SkipMessageIdsRequest {
             }
 
             throw new IOException("Invalid skipByMessageIds payload: unsupported top-level JSON");
-        }
-
-        private static String asScalarText(JsonNode node) {
-            if (node == null || node.isNull()) {
-                return null;
-            }
-            if (node.isTextual()) {
-                return node.asText();
-            }
-            if (node.isNumber()) {
-                return node.asText();
-            }
-            return node.toString();
         }
 
         private static long optLong(JsonNode node) {
@@ -200,7 +155,7 @@ public class SkipMessageIdsRequest {
             }
         }
 
-        private static void appendFromBase64(String base64, Map<String, String> result, SkipMessageIdsRequest r)
+        private static void appendFromBase64(String base64, SkipMessageIdsRequest r)
                 throws IOException {
             if (base64 == null) {
                 return;
@@ -216,10 +171,8 @@ public class SkipMessageIdsRequest {
             long entryId = idData.getEntryId();
             int batchIndex = idData.hasBatchIndex() ? idData.getBatchIndex() : -1;
             if (batchIndex >= 0) {
-                result.put(Long.toString(ledgerId), entryId + ":" + batchIndex);
                 r.addItem(ledgerId, entryId, batchIndex);
             } else {
-                result.put(Long.toString(ledgerId), Long.toString(entryId));
                 r.addItem(ledgerId, entryId, null);
             }
         }

@@ -869,7 +869,8 @@ public class CmdTopics extends CmdBase {
         @Option(names = { "--messageId-base64" }, description = "Base64-encoded MessageId.toByteArray(); repeatable")
         private List<String> messageIdBase64;
 
-        @Option(names = { "--messageId-triplet" }, description = "MessageId as ledgerId:entryId[:batchIndex]; repeatable")
+        @Option(names = { "--messageId-triplet" }, description = "MessageId as ledgerId:entryId[:batchIndex];"
+                + " repeatable")
         private List<String> messageIdTriplets;
 
         @Override

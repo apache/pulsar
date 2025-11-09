@@ -640,6 +640,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(hidden = true, value = "Skip messages on a topic subscription.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 400, message = "Bad Request: invalid messageIds format"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namesapce or topic or subscription does not exist") })
     public void skipByMessageIds(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,

@@ -24,8 +24,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -56,8 +56,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.ScanOutcome;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -76,6 +76,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.SkipEntry;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -817,7 +818,7 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public CompletableFuture<Void> skipMessages(Map<String, String> messageIds) {
+    public CompletableFuture<Void> skipMessages(List<SkipEntry> entries) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Skipping messages by messageIds, current backlog {}", topicName, subName,
                     cursor.getNumberOfEntriesInBacklog(false));
@@ -831,28 +832,15 @@ public class PersistentSubscription extends AbstractSubscription {
         List<Position> fullEntryPositions = new ArrayList<>();
         Map<String, List<Integer>> partialAckIndexByPos = new HashMap<>(); // key: ledgerId:entryId
 
-        for (Map.Entry<String, String> entry : messageIds.entrySet()) {
-            final long ledgerId;
-            final String value = entry.getValue();
-            try {
-                ledgerId = Long.parseLong(entry.getKey());
-            } catch (Exception e) {
-                return CompletableFuture.failedFuture(new NotAllowedException("Invalid message ID ledgerId."));
-            }
-
-            try {
-                if (value.contains(":")) {
-                    int idx = value.indexOf(':');
-                    long entryId = Long.parseLong(value.substring(0, idx));
-                    int batchIndex = Integer.parseInt(value.substring(idx + 1));
-                    String key = ledgerId + ":" + entryId;
-                    partialAckIndexByPos.computeIfAbsent(key, __ -> new ArrayList<>()).add(batchIndex);
-                } else {
-                    long entryId = Long.parseLong(value);
-                    fullEntryPositions.add(PositionFactory.create(ledgerId, entryId));
-                }
-            } catch (Exception e) {
-                return CompletableFuture.failedFuture(new NotAllowedException("Invalid message ID value."));
+        for (SkipEntry e : entries) {
+            final long ledgerId = e.getLedgerId();
+            final long entryId = e.getEntryId();
+            List<Integer> batchIdx = e.getBatchIndexes();
+            if (batchIdx == null || batchIdx.isEmpty()) {
+                fullEntryPositions.add(PositionFactory.create(ledgerId, entryId));
+            } else {
+                String key = ledgerId + ":" + entryId;
+                partialAckIndexByPos.computeIfAbsent(key, __ -> new ArrayList<>()).addAll(batchIdx);
             }
         }
 
@@ -876,13 +864,13 @@ public class PersistentSubscription extends AbstractSubscription {
 
         cursor.asyncReplayEntries(positionsToLoad, new AsyncCallbacks.ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> readEntries, Object ctx) {
                 try {
-                    List<Position> positionsForAck = new ArrayList<>(fullEntryPositions.size() + entries.size());
+                    List<Position> positionsForAck = new ArrayList<>(fullEntryPositions.size() + readEntries.size());
                     // include full-entry positions
                     positionsForAck.addAll(fullEntryPositions);
 
-                    for (Entry entry : entries) {
+                    for (Entry entry : readEntries) {
                         try {
                             final long ledgerId = entry.getLedgerId();
                             final long entryId = entry.getEntryId();
@@ -912,7 +900,8 @@ public class PersistentSubscription extends AbstractSubscription {
                                 bitSet.clear(bi);
                             }
                             long[] ackSet = bitSet.toLongArray();
-                            Position posWithAckSet = AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId, ackSet);
+                            Position posWithAckSet = AckSetStateUtil.createPositionWithAckSet(
+                                    ledgerId, entryId, ackSet);
                             positionsForAck.add(posWithAckSet);
                         } finally {
                             entry.release();

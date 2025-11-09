@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.SkipEntry;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -250,7 +251,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public CompletableFuture<Void> skipMessages(Map<String, String> messageIds) {
+    public CompletableFuture<Void> skipMessages(List<SkipEntry> entries) {
         // No-op
         return CompletableFuture.completedFuture(null);
     }
