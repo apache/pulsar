@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -112,7 +113,7 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
             client.getConfiguration().setLookupProperties(Collections.emptyMap());
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(clientIdList, BrokerIdAwareLoadManager.CLIENT_ID_LIST);
+        assertThat(BrokerIdAwareLoadManager.CLIENT_ID_LIST).containsExactlyInAnyOrderElementsOf(clientIdList);
     }
 
     public static class BrokerIdAwareLoadManager extends ExtensibleLoadManagerImpl {

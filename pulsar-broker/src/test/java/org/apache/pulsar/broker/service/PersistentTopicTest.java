@@ -101,6 +101,7 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -226,6 +227,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
+        doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists())).when(nsSvc)
+                .checkTopicExistsAsync(any());
 
         setupMLAsyncCallbackMocks();
     }
@@ -2306,6 +2309,85 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         verify(topic, times(0)).publishTxnMessage(any(), any(), any());
         // wait for the writeAndFlush to be called so that ByteBuf leak isn't reported
         assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testLastPublishTimestampCaching() throws Exception {
+        // This test verifies that the lastPublishTimestamp is cached for idle topics
+        // to avoid repeated storage reads when stats are polled frequently.
+
+        // Mock broker ID which is required for stats
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+
+        // Setup: Create topic with mocked ledger
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+
+        // Mock ledger to return 0 for getLastAddEntryTime (simulating idle topic)
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(0L);
+
+        // Mock a timestamp that will be returned when reading from storage
+        long timestampFromStorage = 1000000L;
+
+        // Mock the last confirmed entry position
+        Position lastPosition = PositionFactory.create(1, 0);
+        when(ledgerMock.getLastConfirmedEntry()).thenReturn(lastPosition);
+        when(ledgerMock.getLedgersInfo()).thenReturn(new java.util.TreeMap<>(Map.of(1L,
+                mock(org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo.class))));
+
+        // Mock the last entry to return a timestamp
+        Entry entryMock = mock(Entry.class);
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setPublishTime(timestampFromStorage);
+        when(entryMock.getMessageMetadata()).thenReturn(metadata);
+
+        // Mock asyncReadEntry to invoke callback with the mocked entry
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntryCallback callback = invocation.getArgument(1);
+            callback.readEntryComplete(entryMock, null);
+            return null;
+        }).when(ledgerMock).asyncReadEntry(any(Position.class), any(AsyncCallbacks.ReadEntryCallback.class), any());
+
+        GetStatsOptions options = new GetStatsOptions(false, false, false, false, false);
+
+        // First call: Should read from storage since cache is empty and ledger has no value
+        var stats1 = topic.asyncGetStats(options).get();
+        assertEquals(stats1.lastPublishTimeStamp, timestampFromStorage);
+
+        // Verify asyncReadEntry was called to read from storage
+        verify(ledgerMock, times(1)).asyncReadEntry(any(Position.class),
+                any(AsyncCallbacks.ReadEntryCallback.class), any());
+
+        // Second call: Should use cached value, not read from storage again
+        var stats2 = topic.asyncGetStats(options).get();
+        assertEquals(stats2.lastPublishTimeStamp, timestampFromStorage);
+
+        // Verify asyncReadEntry was NOT called again (cache is working)
+        verify(ledgerMock, times(1)).asyncReadEntry(any(Position.class),
+                any(AsyncCallbacks.ReadEntryCallback.class), any()); // Still only 1 call
+
+        // Simulate topic becoming active: ledger now has a new timestamp
+        long newTimestamp = 2000000L;
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(newTimestamp);
+
+        // Third call: Should use ledger's value and clear the cache
+        var stats3 = topic.asyncGetStats(options).get();
+        assertEquals(stats3.lastPublishTimeStamp, newTimestamp);
+
+        // Verify asyncReadEntry was still NOT called (used ledger value)
+        verify(ledgerMock, times(1)).asyncReadEntry(any(Position.class),
+                any(AsyncCallbacks.ReadEntryCallback.class), any()); // Still only 1 call
+
+        // Simulate topic becoming idle again: ledger no longer has the timestamp
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(0L);
+
+        // Fourth call: Cache was cleared when topic was active, so should read from storage again
+        var stats4 = topic.asyncGetStats(options).get();
+        assertEquals(stats4.lastPublishTimeStamp, timestampFromStorage);
+
+        // Verify asyncReadEntry was called again (cache was cleared)
+        verify(ledgerMock, times(2)).asyncReadEntry(any(Position.class),
+                any(AsyncCallbacks.ReadEntryCallback.class), any()); // Now 2 calls
     }
 
 }

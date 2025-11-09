@@ -94,7 +94,7 @@ env:
 jobs:
   preconditions:
     name: Preconditions
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
@@ -216,7 +216,7 @@ jobs:
       JOB_NAME: Build and License check
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
@@ -299,7 +299,7 @@ jobs:
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
       NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -318,6 +318,8 @@ jobs:
             group: BROKER_GROUP_3
           - name: Brokers - Broker Group 4
             group: BROKER_GROUP_4
+          - name: Brokers - Broker Group 5
+            group: BROKER_GROUP_5
           - name: Brokers - Client Api
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl
@@ -454,7 +456,7 @@ jobs:
 
   unit-tests-upload-coverage:
     name: CI - Unit - Upload Coverage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: ['preconditions', 'unit-tests']
     env:
@@ -536,7 +538,7 @@ jobs:
 
   pulsar-java-test-image:
     name: Build Pulsar java-test-image ${{ matrix.base.type }} docker image for ${{ matrix.platform }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
@@ -619,7 +621,7 @@ jobs:
 
   integration-tests:
     name: CI - Integration - ${{ matrix.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'pulsar-java-test-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -808,7 +810,7 @@ jobs:
 
   integration-tests-upload-coverage:
     name: CI - Integration - Upload Coverage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: ['preconditions', 'integration-tests']
     if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
@@ -895,7 +897,7 @@ jobs:
 
   delete-integration-test-docker-image-artifact:
     name: "Delete integration test docker image artifact"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [
       'preconditions',
@@ -919,7 +921,7 @@ jobs:
 
   pulsar-test-latest-version-image:
     name: Build Pulsar ${{ matrix.base.type }} docker image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -1049,7 +1051,7 @@ jobs:
 
   system-tests:
     name: CI - System - ${{ matrix.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'pulsar-test-latest-version-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -1211,7 +1213,7 @@ jobs:
 
   system-tests-upload-coverage:
     name: CI - System - Upload Coverage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: ['preconditions', 'system-tests']
     if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
@@ -1299,7 +1301,7 @@ jobs:
 
   flaky-system-tests:
     name: CI Flaky - System - ${{ matrix.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: [ 'preconditions', 'pulsar-test-latest-version-image' ]
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -1438,7 +1440,7 @@ jobs:
 
   delete-system-test-docker-image-artifact:
     name: "Delete system test docker image artifact"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [
       'preconditions',
@@ -1499,7 +1501,7 @@ jobs:
 
   codeql:
     name: Run CodeQL Analysis
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'unit-tests']
     if: ${{ (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
@@ -1564,7 +1566,7 @@ jobs:
 
   owasp-dep-check:
     name: OWASP dependency check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs: [ 'preconditions', 'integration-tests' ]
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
@@ -1670,7 +1672,7 @@ jobs:
     # this is to allow the workflow scheduled jobs to show as cancelled instead of failed since scheduled
     # jobs are not enabled for other than apache/pulsar repository.
     if: ${{ always() && !(cancelled() && github.repository != 'apache/pulsar' && github.event_name == 'schedule') }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [
       'preconditions',

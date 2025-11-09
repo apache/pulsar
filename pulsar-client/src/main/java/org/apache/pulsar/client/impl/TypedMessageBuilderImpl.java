@@ -29,6 +29,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaIdUtil;
 import org.apache.pulsar.common.schema.SchemaType;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
@@ -72,7 +74,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         if (value == null) {
             msgMetadata.setNullValue(true);
         } else {
+            AtomicBoolean isKeyValueSchema = new AtomicBoolean(false);
             getKeyValueSchema().map(keyValueSchema -> {
+                isKeyValueSchema.set(true);
                 if (keyValueSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                     setSeparateKeyValue(value, keyValueSchema);
                     return this;
@@ -83,7 +87,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 EncodeData encodeData = schema.encode(getTopic(), value);
                 content = ByteBuffer.wrap(encodeData.data());
                 if (encodeData.hasSchemaId()) {
-                    msgMetadata.setSchemaId(encodeData.schemaId());
+                    msgMetadata.setSchemaId(SchemaIdUtil.addMagicHeader(encodeData.schemaId(), isKeyValueSchema.get()));
                 }
                 return this;
             });
@@ -334,7 +338,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 keyEncoded != null && keyEncoded.hasSchemaId() ? keyEncoded.schemaId() : null,
                 valueEncoded != null && valueEncoded.hasSchemaId() ? valueEncoded.schemaId() : null);
         if (isValidSchemaId(schemaId)) {
-            msgMetadata.setSchemaId(schemaId);
+            msgMetadata.setSchemaId(SchemaIdUtil.addMagicHeader(schemaId, true));
         }
     }
 
