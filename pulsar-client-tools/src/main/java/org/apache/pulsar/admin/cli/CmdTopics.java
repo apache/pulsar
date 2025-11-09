@@ -844,7 +844,7 @@ public class CmdTopics extends CmdBase {
         private String topicName;
 
         @Option(names = { "-s",
-                "--subscription" }, description = "Subscription to be skip messages on", required = true)
+                "--subscription" }, description = "Subscription to skip messages on", required = true)
         private String subName;
 
         @Option(names = { "-n", "--count" }, description = "Number of messages to skip", required = true)
@@ -863,7 +863,7 @@ public class CmdTopics extends CmdBase {
         private String topicName;
 
         @Option(names = { "-s",
-                "--subscription" }, description = "Subscription to be skip messages on", required = true)
+                "--subscription" }, description = "Subscription to skip messages on", required = true)
         private String subName;
 
         @Option(names = { "--messageId-base64" }, description = "Base64-encoded MessageId.toByteArray(); repeatable")
@@ -933,7 +933,7 @@ public class CmdTopics extends CmdBase {
         private String topicName;
 
         @Option(names = { "-s",
-                "--subscription" }, description = "Subscription to be skip messages on", required = true)
+                "--subscription" }, description = "Subscription to skip messages on", required = true)
         private String subName;
 
         @Option(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "

@@ -68,6 +68,11 @@ public class SkipMessageIdsRequest {
         // optional
         private Integer batchIndex;
 
+        public MessageIdItem(long ledgerId, long entryId) {
+            this.ledgerId = ledgerId;
+            this.entryId = entryId;
+        }
+
         public MessageIdItem(long ledgerId, long entryId, Integer batchIndex) {
             this.ledgerId = ledgerId;
             this.entryId = entryId;
