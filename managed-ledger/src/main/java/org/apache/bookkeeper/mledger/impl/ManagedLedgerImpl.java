@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -2308,6 +2309,170 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     }
 
+    @Override
+    public CompletableFuture<List<Entry>> asyncReadEntries(Position start, long numberOfEntriesToRead) {
+        CompletableFuture<List<Entry>> f = new CompletableFuture<>();
+        asyncReadEntries(start, numberOfEntriesToRead, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                f.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                f.completeExceptionally(exception);
+            }
+        }, null);
+        return f;
+    }
+
+    @Override
+    public void asyncReadEntries(Position start, long numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
+        if (!ledgers.containsKey(start.getLedgerId())) {
+            callback.readEntriesFailed(new ManagedLedgerException("Ledger not found"), ctx);
+            return;
+        }
+        if (start.getLedgerId() < 0) {
+            start = PositionFactory.create(start.getLedgerId(), 0L);
+        }
+        if (!isValidPosition(start)) {
+            callback.readEntriesFailed(new ManagedLedgerException("Invalid position"), ctx);
+            return;
+        }
+
+        Map<Long, Pair<Long, Long>> readerPositions = getReaderPositions(start, numberOfEntriesToRead);
+        if (readerPositions.isEmpty()) {
+            callback.readEntriesComplete(Collections.emptyList(), ctx);
+            return;
+        }
+
+        int actualReadEntries = getNumberOfEntries(readerPositions);
+        ReadEntriesCallback callback0 = new InternalReadEntriesCallback(actualReadEntries, callback);
+
+        // Parallel read
+        for (Map.Entry<Long, Pair<Long, Long>> entry : readerPositions.entrySet()) {
+            long ledgerId = entry.getKey();
+            Pair<Long, Long> position = entry.getValue();
+            long firstEntry = position.getLeft();
+            long lastEntry = position.getRight();
+            Position finalStart = start;
+            getLedgerHandle(ledgerId)
+                    .thenAccept(ledger -> asyncReadEntry(ledger, firstEntry, lastEntry, callback0, ctx))
+                    .exceptionally(ex -> {
+                        log.error("[{}] Error opening ledger for reading at position {} - {}, entries {}", name,
+                                finalStart, numberOfEntriesToRead, ex.getMessage());
+                        callback0.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()),
+                                ctx);
+                        return null;
+                    });
+        }
+    }
+
+    static class InternalReadEntriesCallback implements ReadEntriesCallback {
+        private final List<Entry> readEntries;
+        private final AtomicInteger remaining;
+        private final AtomicBoolean completed;
+        private final ReadEntriesCallback callback;
+
+        public InternalReadEntriesCallback(int actualReadEntries, ReadEntriesCallback callback) {
+            this.callback = callback;
+            this.completed = new AtomicBoolean(false);
+            readEntries = new ArrayList<>(actualReadEntries);
+            remaining = new AtomicInteger(actualReadEntries);
+        }
+
+        @Override
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            if (completed.get()) {
+                releaseEntries(entries);
+                return;
+            }
+            this.readEntries.addAll(entries);
+            if (remaining.addAndGet(-entries.size()) == 0) {
+                completed.set(true);
+                sortEntries();
+                callback.readEntriesComplete(readEntries, ctx);
+            }
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            if (completed.compareAndSet(false, true)) {
+                releaseEntries(readEntries);
+                callback.readEntriesFailed(exception, ctx);
+            }
+        }
+
+        private void sortEntries() {
+            readEntries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
+        }
+
+        private void releaseEntries(List<Entry> entries) {
+            for (Entry entry : entries) {
+                entry.release();
+            }
+        }
+    }
+
+    /**
+     * Get the number of entries to read from a given set of reader positions.
+     *
+     * @param readPositions
+     * @return
+     */
+    @VisibleForTesting
+    public static int getNumberOfEntries(Map<Long, Pair<Long, Long>> readPositions) {
+        int numberOfEntries = 0;
+        for (Map.Entry<Long, Pair<Long, Long>> entry : readPositions.entrySet()) {
+            Pair<Long, Long> range = entry.getValue();
+            numberOfEntries += (int) (range.getRight() - range.getLeft() + 1);
+        }
+        return numberOfEntries;
+    }
+
+    /**
+     * Get the reader positions for a given start position and number of entries.
+     *
+     * @param start
+     * @param numberOfEntries
+     * @return
+     */
+    @VisibleForTesting
+    public Map<Long, Pair<Long, Long>> getReaderPositions(Position start, long numberOfEntries) {
+        Map<Long, Pair<Long, Long>> readerPositions = new TreeMap<>();
+        long lastEntry;
+        long availableEntries;
+
+        while (numberOfEntries > 0) {
+            if (!isValidPosition(start)) {
+                break;
+            }
+            long ledgerId = start.getLedgerId();
+            long firstEntry = start.getEntryId();
+            if (currentLedger != null && ledgerId == currentLedger.getId()) {
+                Position lac = lastConfirmedEntry;
+                if (lac == null) {
+                    break;
+                }
+                availableEntries = Math.min(lac.getEntryId() - firstEntry, numberOfEntries);
+                lastEntry = availableEntries == 0 ? firstEntry : firstEntry + availableEntries;
+                readerPositions.put(ledgerId, Pair.of(firstEntry, lastEntry));
+                break;
+            }
+
+            LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+            availableEntries = Math.min(ledgerInfo.getEntries() - firstEntry - 1, numberOfEntries);
+            lastEntry = availableEntries == 0 ? firstEntry : firstEntry + availableEntries;
+
+            readerPositions.put(ledgerId, Pair.of(firstEntry, lastEntry));
+            numberOfEntries -= (int) (lastEntry - firstEntry + 1);
+
+            Long nextLedgerId = ledgers.higherKey(ledgerId);
+            start = PositionFactory.create(nextLedgerId, 0);
+        }
+        return readerPositions;
+    }
+
     private void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
 
         if (opReadEntry.readPosition.compareTo(opReadEntry.maxPosition) > 0) {
@@ -2426,6 +2591,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, opReadEntry, ctx);
+        }
+    }
+
+
+    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, ReadEntriesCallback callback,
+                                  Object ctx) {
+        IntSupplier expectedReadCount = () -> (int) (lastEntry - firstEntry + 1);
+        if (config.getReadEntryTimeoutSeconds() > 0) {
+            // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
+            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
+            long createdTime = System.nanoTime();
+            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
+                    callback, readOpCount, createdTime, ctx);
+            lastReadCallback = readCallback;
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, readOpCount);
+        } else {
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, callback, ctx);
         }
     }
 

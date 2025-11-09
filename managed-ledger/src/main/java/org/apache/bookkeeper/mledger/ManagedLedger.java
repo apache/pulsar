@@ -20,6 +20,8 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
+
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -763,6 +765,27 @@ public interface ManagedLedger {
     }
 
     void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Async read entries.
+     * Notice: You MUST have a Durable cursor outside of the managed ledger, to protect the ledgers from being deleted.
+     *
+     * @param start
+     * @param numberOfEntriesToRead
+     * @param callback
+     * @param ctx
+     */
+    void asyncReadEntries(Position start, long numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback,
+                          Object ctx);
+
+    /**
+     * Async read entries.
+     * Notice: You MUST have a Durable cursor outside of the managed ledger, to protect the ledgers from being deleted.
+     *
+     * @param start
+     * @param numberOfEntriesToRead
+     */
+    CompletableFuture<List<Entry>> asyncReadEntries(Position start, long numberOfEntriesToRead);
 
     /**
      * Get all the managed ledgers.
