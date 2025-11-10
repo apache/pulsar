@@ -5131,5 +5131,95 @@ public class PersistentTopics extends PersistentTopicsBase {
                 });
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/customMetricLabels")
+    @ApiOperation(value = "Set custom metric labels for a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic doesn't exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled"),
+            @ApiResponse(code = 412, message = "Feature is disabled or invalid label keys/values"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setCustomMetricLabels(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Custom metric labels") Map<String, String> labels) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetCustomMetricLabels(labels, isGlobal))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setCustomMetricLabels", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/customMetricLabels")
+    @ApiOperation(value = "Get custom metric labels for a topic", response = Map.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "OK"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled"),
+            @ApiResponse(code = 412, message = "Feature is disabled"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getCustomMetricLabels(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalGetCustomMetricLabels(isGlobal))
+                .thenApply(asyncResponse::resume).exceptionally(ex -> {
+                    handleTopicPolicyException("getCustomMetricLabels", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/customMetricLabels")
+    @ApiOperation(value = "Remove custom metric labels from a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled"),
+            @ApiResponse(code = 412, message = "Feature is disabled"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeCustomMetricLabels(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("all") @DefaultValue("false") boolean removeAll,
+            @QueryParam(value = "List of keys to remove, or null to remove all") List<String> keys) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalRemoveCustomMetricLabels(removeAll, keys, isGlobal))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully removed custom metric labels: tenant={}, namespace={}, topic={}, isGlobal={}",
+                            clientAppId(), tenant, namespace, topicName.getLocalName(), isGlobal);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeCustomMetricLabels", ex, asyncResponse);
+                    return null;
+                });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 }
