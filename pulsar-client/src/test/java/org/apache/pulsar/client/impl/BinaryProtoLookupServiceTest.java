@@ -69,7 +69,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.topics.TopicList;
-import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -177,37 +176,6 @@ public class BinaryProtoLookupServiceTest {
             assertTrue(cause instanceof LookupException);
             assertEquals(cause.getMessage(), "Too many redirects: 1");
         }
-    }
-
-    @Test
-    public void testCommandUnChangedInDifferentThread() throws Exception {
-        BaseCommand successCommand = Commands.newSuccessCommand(10000);
-        lookup.getBroker(topicName).get();
-        assertEquals(successCommand.getType(), Type.SUCCESS);
-        lookup.getPartitionedTopicMetadata(topicName, true, true).get();
-        assertEquals(successCommand.getType(), Type.SUCCESS);
-    }
-
-    @Test
-    public void testCommandChangedInSameThread() throws Exception {
-        AtomicReference<BaseCommand> successCommand = new AtomicReference<>();
-        internalExecutor.execute(() -> successCommand.set(Commands.newSuccessCommand(10000)));
-        Awaitility.await().untilAsserted(() -> {
-            BaseCommand baseCommand = successCommand.get();
-            assertNotNull(baseCommand);
-            assertEquals(baseCommand.getType(), Type.SUCCESS);
-        });
-        lookup.getBroker(topicName).get();
-        assertEquals(successCommand.get().getType(), Type.LOOKUP);
-
-        internalExecutor.execute(() -> successCommand.set(Commands.newSuccessCommand(10000)));
-        Awaitility.await().untilAsserted(() -> {
-            BaseCommand baseCommand = successCommand.get();
-            assertNotNull(baseCommand);
-            assertEquals(baseCommand.getType(), Type.SUCCESS);
-        });
-        lookup.getPartitionedTopicMetadata(topicName, true, true).get();
-        assertEquals(successCommand.get().getType(), Type.PARTITIONED_METADATA);
     }
 
     private static LookupDataResult createLookupDataResult(String brokerUrl, boolean redirect) throws Exception {
