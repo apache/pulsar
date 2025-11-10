@@ -135,6 +135,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.CompactedTopic;
@@ -175,6 +176,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private EventLoopGroup eventLoopGroup;
     private ManagedLedgerFactory managedLedgerFactory;
     private ChannelHandlerContext ctx;
+    private AsyncDualMemoryLimiter maxTopicListInFlightLimiter;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -210,7 +212,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
-        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+        maxTopicListInFlightLimiter = mock(AsyncDualMemoryLimiter.class);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx, maxTopicListInFlightLimiter))
                 .when(serverCnx).getCommandSender();
         ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -531,7 +534,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(cnx).isWritable();
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
         doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
-        doReturn(new PulsarCommandSenderImpl(null, cnx)).when(cnx).getCommandSender();
+        doReturn(new PulsarCommandSenderImpl(null, cnx, maxTopicListInFlightLimiter)).when(cnx).getCommandSender();
 
         return new Producer(topic, cnx, producerId, producerNameBase + producerId, role, false, null,
                 SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
@@ -967,7 +970,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(cnx).isWritable();
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
         doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
-        doReturn(new PulsarCommandSenderImpl(null, cnx)).when(cnx).getCommandSender();
+        doReturn(new PulsarCommandSenderImpl(null, cnx, maxTopicListInFlightLimiter)).when(cnx).getCommandSender();
 
         return new Consumer(sub, SubType.Shared, topic.getName(), consumerId, 0, consumerNameBase + consumerId, true,
                 cnx, role, Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
