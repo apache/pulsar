@@ -1323,6 +1323,47 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public void setCustomMetricLabels(String topic, Map<String, String> labels) throws PulsarAdminException {
+        sync(() -> setCustomMetricLabelsAsync(topic, labels));
+    }
+
+    @Override
+    public CompletableFuture<Void> setCustomMetricLabelsAsync(String topic, Map<String, String> labels) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "customMetricLabels");
+        return asyncPostRequest(path, Entity.entity(labels, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Map<String, String> getCustomMetricLabels(String topic) throws PulsarAdminException {
+        return sync(() -> getCustomMetricLabelsAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getCustomMetricLabelsAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "customMetricLabels");
+        return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
+    }
+
+    @Override
+    public void removeCustomMetricLabels(String topic, boolean removeAll, List<String> keys) throws PulsarAdminException {
+        sync(() -> removeCustomMetricLabelsAsync(topic, removeAll, keys));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeCustomMetricLabelsAsync(String topic, boolean removeAll, List<String> keys) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "customMetricLabels");
+        if (removeAll) {
+            path.queryParam("all", true);
+        } else if (keys != null && !keys.isEmpty()) {
+            path.queryParam("keys", keys);
+        }
+        return asyncDeleteRequest(path);
+    }
+
     /*
      * returns topic name with encoded Local Name
      */

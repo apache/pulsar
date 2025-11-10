@@ -3514,6 +3514,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean exposeBundlesMetricsInPrometheus = false;
 
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable or disable custom topic metric labels feature. "
+                    + "If enabled, custom metric labels can be set on topics and will be exposed in Prometheus metrics. "
+                    + "Default is false."
+    )
+    private boolean exposeCustomTopicMetricLabelsEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "A comma-separated list of allowed custom metric label keys. "
+                    + "Only these keys can be set as custom metric labels on topics. "
+                    + "Example: sla_tier,data_sensitivity,cost_center,app_owner. "
+                    + "If empty and the feature is enabled, no custom metric labels can be set."
+    )
+    private String allowedCustomMetricLabelKeys = "";
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Maximum character length for a custom metric label value. "
+                    + "Default is 128."
+    )
+    private int maxCustomMetricLabelValueLength = 128;
+
     /**** --- Functions. --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,

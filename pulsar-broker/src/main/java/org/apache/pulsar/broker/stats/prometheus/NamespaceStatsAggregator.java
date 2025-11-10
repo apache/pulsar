@@ -96,10 +96,12 @@ public class NamespaceStatsAggregator {
 
                 brokerStats.updateStats(topicStats);
 
+                Map<String, String> customMetricLabels =
+                    topic.getHierarchyTopicPolicies().getCustomMetricLabels().get();
                 if (includeTopicMetrics) {
                     topicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
-                            splitTopicAndPartitionIndexLabel);
+                            splitTopicAndPartitionIndexLabel, customMetricLabels);
                 } else {
                     namespaceStats.updateStats(topicStats);
                 }
