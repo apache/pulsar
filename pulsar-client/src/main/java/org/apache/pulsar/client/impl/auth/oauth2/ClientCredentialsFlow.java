@@ -26,6 +26,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +62,7 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Builder
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
-                                 Integer connectTimeout, Integer readTimeout, String trustCertsFilePath) {
+                                 Duration connectTimeout, Duration readTimeout, String trustCertsFilePath) {
         super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath);
         this.audience = audience;
         this.privateKey = privateKey;
@@ -80,8 +81,8 @@ class ClientCredentialsFlow extends FlowBase {
         // These are optional parameters, so we only perform a get
         String scope = params.get(CONFIG_PARAM_SCOPE);
         String audience = params.get(CONFIG_PARAM_AUDIENCE);
-        Integer connectTimeout = parseParameterInt(params, CONFIG_PARAM_CONNECT_TIMEOUT);
-        Integer readTimeout = parseParameterInt(params, CONFIG_PARAM_READ_TIMEOUT);
+        Duration connectTimeout = parseParameterDuration(params, CONFIG_PARAM_CONNECT_TIMEOUT);
+        Duration readTimeout = parseParameterDuration(params, CONFIG_PARAM_READ_TIMEOUT);
         String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
 
         return ClientCredentialsFlow.builder()

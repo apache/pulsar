@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.net.URL;
+import java.time.Duration;
 import org.apache.pulsar.client.api.Authentication;
 import org.testng.annotations.Test;
 
@@ -32,8 +33,8 @@ public class AuthenticationFactoryOAuth2Test {
         URL credentialsUrl = new URL("http://localhost");
         String audience = "audience";
         String scope = "scope";
-        Integer connectTimeout = 10001;
-        Integer readTimeout = 30001;
+        Duration connectTimeout = Duration.parse("PT11S");
+        Duration readTimeout = Duration.ofSeconds(31);
         String trustCertsFilePath = null;
         try (Authentication authentication =
                      AuthenticationFactoryOAuth2.clientCredentialsBuilder().issuerUrl(issuerUrl)

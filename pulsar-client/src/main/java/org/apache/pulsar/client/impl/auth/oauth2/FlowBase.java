@@ -23,6 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import javax.net.ssl.SSLException;
 import lombok.extern.slf4j.Slf4j;
@@ -46,8 +48,8 @@ abstract class FlowBase implements Flow {
     public static final String CONFIG_PARAM_READ_TIMEOUT = "readTimeout";
     public static final String CONFIG_PARAM_TRUST_CERTS_FILE_PATH = "trustCertsFilePath";
 
-    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
+    protected static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    protected static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
 
     private static final long serialVersionUID = 1L;
 
@@ -56,21 +58,22 @@ abstract class FlowBase implements Flow {
 
     protected transient Metadata metadata;
 
-    protected FlowBase(URL issuerUrl, Integer connectTimeout, Integer readTimeout, String trustCertsFilePath) {
+    protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath) {
         this.issuerUrl = issuerUrl;
         this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
     }
 
-    private AsyncHttpClient defaultHttpClient(Integer readTimeout, Integer connectTimeout, String trustCertsFilePath) {
+    private AsyncHttpClient defaultHttpClient(Duration readTimeout, Duration connectTimeout,
+                                              String trustCertsFilePath) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setConnectTimeout(
-                getParameterInt(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
-                        DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000));
+                getParameterDurationToMillis(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
+                        DEFAULT_CONNECT_TIMEOUT));
         confBuilder.setReadTimeout(
-                getParameterInt(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000));
+                getParameterDurationToMillis(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
             try {
@@ -84,14 +87,17 @@ abstract class FlowBase implements Flow {
         return new DefaultAsyncHttpClient(confBuilder.build());
     }
 
-    private int getParameterInt(String name, Integer value, int defaultValue) {
+    private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
+        Duration duration;
         if (value == null) {
             log.info("Configuration for [{}] is using the default value: [{}]", name, defaultValue);
-            return defaultValue;
+            duration = defaultValue;
         } else {
             log.info("Configuration for [{}] is: [{}]", name, value);
-            return value;
+            duration = value;
         }
+
+        return (int) duration.toMillis();
     }
 
     public void initialize() throws PulsarClientException {
@@ -127,13 +133,13 @@ abstract class FlowBase implements Flow {
         }
     }
 
-    static Integer parseParameterInt(Map<String, String> params, String name) {
+    static Duration parseParameterDuration(Map<String, String> params, String name) {
         String value = params.get(name);
         if (StringUtils.isNotBlank(value)) {
             try {
-                return Integer.parseInt(value);
-            } catch (NumberFormatException numberFormatException) {
-                throw new IllegalArgumentException("Malformed configuration parameter: " + name);
+                return Duration.parse(value);
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("Malformed configuration parameter: " + name, e);
             }
         }
         return null;
