@@ -47,6 +47,7 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -72,7 +73,8 @@ public class MessageCumulativeAckTest {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getValue());
         when(serverCnx.ctx()).thenReturn(mock(ChannelHandlerContext.class));
-        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+        AsyncDualMemoryLimiter maxTopicListInFlightLimiter = mock(AsyncDualMemoryLimiter.class);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx, maxTopicListInFlightLimiter))
                 .when(serverCnx).getCommandSender();
 
         String topicName = TopicName.get("MessageCumulativeAckTest").toString();
