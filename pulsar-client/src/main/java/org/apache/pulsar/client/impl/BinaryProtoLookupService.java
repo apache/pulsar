@@ -26,6 +26,7 @@ import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,6 +72,9 @@ public class BinaryProtoLookupService implements LookupService {
 
     private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
             partitionedMetadataInProgress = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<TopicsUnderNamespaceKey, CompletableFuture<GetTopicsResult>>
+            topicsUnderNamespaceInProgress = new ConcurrentHashMap<>();
 
     private final LatencyHistogram histoGetBroker;
     private final LatencyHistogram histoGetTopicMetadata;
@@ -397,17 +401,31 @@ public class BinaryProtoLookupService implements LookupService {
                                                                                   Mode mode,
                                                                                   String topicsPattern,
                                                                                   String topicsHash) {
-        CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
+        final MutableObject<CompletableFuture<GetTopicsResult>> newFutureCreated = new MutableObject<>();
+        final TopicsUnderNamespaceKey key = new TopicsUnderNamespaceKey(namespace, mode, topicsPattern, topicsHash);
 
-        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
-        Backoff backoff = new BackoffBuilder()
-                .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMax(1, TimeUnit.MINUTES)
-                .create();
-        getTopicsUnderNamespace(namespace, backoff, opTimeoutMs, topicsFuture, mode,
-                topicsPattern, topicsHash);
-        return topicsFuture;
+        try {
+            return topicsUnderNamespaceInProgress.computeIfAbsent(key, k -> {
+                CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
+                AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+                Backoff backoff = new BackoffBuilder()
+                        .setInitialTime(100, TimeUnit.MILLISECONDS)
+                        .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                        .setMax(1, TimeUnit.MINUTES)
+                        .create();
+
+                newFutureCreated.setValue(topicsFuture);
+                getTopicsUnderNamespace(namespace, backoff, opTimeoutMs, topicsFuture, mode,
+                        topicsPattern, topicsHash);
+                return topicsFuture;
+            });
+        } finally {
+            if (newFutureCreated.getValue() != null) {
+                newFutureCreated.getValue().whenComplete((v, ex) -> {
+                    topicsUnderNamespaceInProgress.remove(key, newFutureCreated.getValue());
+                });
+            }
+        }
     }
 
     private void getTopicsUnderNamespace(
@@ -495,6 +513,51 @@ public class BinaryProtoLookupService implements LookupService {
             this.redirect = false;
         }
 
+    }
+
+    private static final class TopicsUnderNamespaceKey {
+        private final NamespaceName namespace;
+        private final Mode mode;
+        private final String topicsPattern;
+        private final String topicsHash;
+
+        TopicsUnderNamespaceKey(NamespaceName namespace, Mode mode,
+                                String topicsPattern, String topicsHash) {
+            this.namespace = namespace;
+            this.mode = mode;
+            this.topicsPattern = topicsPattern;
+            this.topicsHash = topicsHash;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            TopicsUnderNamespaceKey that = (TopicsUnderNamespaceKey) o;
+            return Objects.equals(namespace, that.namespace)
+                    && mode == that.mode
+                    && Objects.equals(topicsPattern, that.topicsPattern)
+                    && Objects.equals(topicsHash, that.topicsHash);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(namespace, mode, topicsPattern, topicsHash);
+        }
+
+        @Override
+        public String toString() {
+            return "TopicsUnderNamespaceKey{"
+                    + "namespace=" + namespace
+                    + ", mode=" + mode
+                    + ", topicsPattern='" + topicsPattern + '\''
+                    + ", topicsHash='" + topicsHash + '\''
+                    + '}';
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(BinaryProtoLookupService.class);

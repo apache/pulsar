@@ -24,9 +24,13 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -37,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
@@ -45,6 +50,9 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
@@ -193,5 +201,135 @@ public class BinaryProtoLookupServiceTest {
         redirectField.set(lookupResult, redirect);
 
         return lookupResult;
+    }
+
+    /**
+     * Verifies that getTopicsUnderNamespace() deduplicates concurrent requests and cleans up after completion.
+     *
+     * First, two concurrent calls with identical parameters should return the same CompletableFuture
+     * and trigger only one connection pool request (deduplication).
+     *
+     * Second, after the future completes, the map entry should be removed so a subsequent call
+     * with the same parameters creates a new future (cleanup).
+     *
+     * This test uses a never-completing connection future to isolate the deduplication logic
+     * without executing the network request path.
+     */
+
+    @Test(timeOut = 60000)
+    public void testGetTopicsUnderNamespaceDeduplication() throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool cnxPool = mock(ConnectionPool.class);
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(30000);
+        when(client.getConfiguration()).thenReturn(conf);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(client.getCnxPool()).thenReturn(cnxPool);
+
+        // Never-completing connection prevents the thenAcceptAsync callback in getTopicsUnderNamespace from executing,
+        // isolating only the deduplication logic without network calls.
+        CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
+        when(cnxPool.getConnection(any(ServiceNameResolver.class))).thenReturn(neverCompletes);
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
+
+        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, /*lookupPinnedExecutor*/ null)) {
+
+            NamespaceName ns = NamespaceName.get("public", "default");
+            Mode mode = Mode.PERSISTENT;
+            String pattern = ".*";
+            String topicsHash = null;
+
+            CompletableFuture<GetTopicsResult> f1 = lookup.getTopicsUnderNamespace(ns, mode, pattern, topicsHash);
+            CompletableFuture<GetTopicsResult> f1b = lookup.getTopicsUnderNamespace(ns, mode, pattern, topicsHash);
+
+            assertSame(f1b, f1, "Concurrent requests with identical parameters should return the same future");
+
+            verify(cnxPool, times(1)).getConnection(any(ServiceNameResolver.class));
+
+            GetTopicsResult payload = new GetTopicsResult(java.util.Collections.emptyList(), null, false, true);
+
+            // Complete the future. This triggers the whenComplete callback that removes the map entry.
+            f1.complete(payload);
+            assertTrue(f1.isDone());
+
+            // Verify cleanup: subsequent call with same parameters creates a new future.
+            CompletableFuture<GetTopicsResult> f2 = lookup.getTopicsUnderNamespace(ns, mode, pattern, topicsHash);
+            assertNotSame(f2, f1,
+                    "After completion, the deduplication map entry should be removed and a new future created");
+            verify(cnxPool, times(2)).getConnection(any(ServiceNameResolver.class));
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    /**
+     * Verifies that getTopicsUnderNamespace() treats different topicsHash values as distinct keys for deduplication.
+     *
+     * Requests with different topicsHash values should create separate futures and trigger separate connection
+     * pool requests. Cleanup is per key. Completing one future does not affect another in-flight entry.
+     *
+     * This test uses a never-completing connection future to isolate the deduplication logic without executing
+     * the network request path.
+     */
+    @Test(timeOut = 60000)
+    public void testGetTopicsUnderNamespaceDeduplicationDifferentHash() throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool cnxPool = mock(ConnectionPool.class);
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(30000);
+        when(client.getConfiguration()).thenReturn(conf);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(client.getCnxPool()).thenReturn(cnxPool);
+
+        // Never-completing connection prevents the thenAcceptAsync callback in getTopicsUnderNamespace from executing,
+        // isolating only the deduplication logic without network calls.
+        CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
+        when(cnxPool.getConnection(any(ServiceNameResolver.class))).thenReturn(neverCompletes);
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
+
+        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, null)) {
+
+            NamespaceName ns = NamespaceName.get("public", "default");
+            Mode mode = Mode.PERSISTENT;
+            String pattern = ".*";
+
+            CompletableFuture<GetTopicsResult> futureHashA = lookup.getTopicsUnderNamespace(ns, mode, pattern, "HashA");
+            CompletableFuture<GetTopicsResult> futureHashB = lookup.getTopicsUnderNamespace(ns, mode, pattern, "HashB");
+
+            // Verify different hash values create separate futures.
+            assertNotSame(futureHashA, futureHashB,
+                    "Requests with different topicsHash must not share the same future");
+
+            // Verify connection pool called twice, once for each distinct topicsHash.
+            verify(cnxPool, times(2)).getConnection(any(ServiceNameResolver.class));
+
+            GetTopicsResult payload = new GetTopicsResult(java.util.Collections.emptyList(), null, false, true);
+
+            futureHashA.complete(payload);
+
+            // Verify cleanup for HashA: subsequent call creates a new future.
+            CompletableFuture<GetTopicsResult> futureHashA2 =
+                    lookup.getTopicsUnderNamespace(ns, mode, pattern, "HashA");
+            assertNotSame(futureHashA2, futureHashA,
+                    "After completion, a call with the same topicsHash must create a new future");
+            verify(cnxPool, times(3)).getConnection(any(ServiceNameResolver.class));
+
+            // Verify HashB still in-flight: subsequent call returns the original future.
+            CompletableFuture<GetTopicsResult> futureHashB2 =
+                    lookup.getTopicsUnderNamespace(ns, mode, pattern, "HashB");
+            assertSame(futureHashB2, futureHashB,
+                    "An in-flight request for the same topicsHash must return the same future");
+            verify(cnxPool, times(3)).getConnection(any(ServiceNameResolver.class));
+        } finally {
+            scheduler.shutdownNow();
+        }
     }
 }
