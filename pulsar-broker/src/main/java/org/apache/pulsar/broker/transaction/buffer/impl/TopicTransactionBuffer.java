@@ -106,7 +106,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final AbortedTxnProcessor.SnapshotType snapshotType;
     private final MaxReadPositionCallBack maxReadPositionCallBack;
-    private volatile CompletableFuture<Void> firstSnapshottingFuture = new CompletableFuture<>();
     /** if the first snapshot is in progress, it will pending following publishing tasks. **/
     private final LinkedList<PendingAppendingTxnBufferTask> pendingAppendingTxnBufferTasks = new LinkedList<>();
 
