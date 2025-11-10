@@ -32,15 +32,17 @@
     <name>Pulsar IO :: AzureDataExplorer</name>
 
     <properties>
-        <kusto.sdk.version>5.2.0</kusto.sdk.version>
+        <kusto.sdk.version>7.0.3</kusto.sdk.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.projectreactor.netty</groupId>
-                <artifactId>reactor-netty-http</artifactId>
-                <version>${reactor-netty-http.version}</version>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <version>1.3.2</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
