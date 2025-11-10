@@ -258,7 +258,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private record PendingAppendingTxnBufferTask(TxnID txnId, long sequenceId, ByteBuf buffer,
-                                         CompletableFuture<Position> pendingPublishFuture) {}
+                                         CompletableFuture<Position> pendingPublishFuture) {
+
+        void fail(Throwable throwable) {
+            buffer.release();
+            pendingPublishFuture.completeExceptionally(throwable);
+        }
+    }
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
@@ -294,8 +300,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 synchronized (pendingAppendingTxnBufferTasks) {
                     PendingAppendingTxnBufferTask pendingTask = null;
                     while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
-                        pendingTask.buffer.release();
-                        pendingTask.pendingPublishFuture.completeExceptionally(throwable);
+                        pendingTask.fail(throwable);
                     }
                 }
             };
@@ -326,8 +331,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     + " snapshot.",
                             topic.getName(), e);
                     if (pendingTask != null) {
-                        pendingTask.buffer.release();
-                        pendingTask.pendingPublishFuture.completeExceptionally(e);
+                        pendingTask.fail(e);
                     }
                     failPendingTasks.accept(e);
                 }
@@ -638,10 +642,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (pendingAppendingTxnBufferTasks) {
             if (!checkIfClosed()) {
                 PendingAppendingTxnBufferTask pendingTask = null;
+                Throwable t = new BrokerServiceException.ServiceUnitNotReadyException("Topic is closed");
                 while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
-                    pendingTask.pendingPublishFuture.completeExceptionally(
-                            new BrokerServiceException.ServiceUnitNotReadyException("Topic is closed"));
-                    pendingTask.buffer.release();
+                    pendingTask.fail(t);
                 }
             }
             changeToCloseState();
