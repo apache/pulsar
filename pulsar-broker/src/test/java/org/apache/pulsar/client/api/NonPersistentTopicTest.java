@@ -362,13 +362,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
                     .subscribe();
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
-            byte[] msgData = "testData".getBytes();
             final int totalProduceMessages = 500;
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
             for (int i = 0; i < totalProduceMessages; i++) {
+                final int messageIndex = i;
                 executor.submit(() -> {
                     try {
-                        producer.send(msgData);
+                        String message = "my-message-" + messageIndex;
+                        producer.send(message.getBytes());
                     } catch (Exception e) {
                         log.error("Failed to send message", e);
                         failed.set(true);
