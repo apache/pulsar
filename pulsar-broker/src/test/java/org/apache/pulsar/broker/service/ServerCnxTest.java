@@ -48,7 +48,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.vertx.core.impl.ConcurrentHashSet;
 import java.io.Closeable;
 import java.io.IOException;
@@ -154,6 +153,7 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.EmptyVersion;
 import org.apache.pulsar.common.topics.TopicList;
@@ -1212,14 +1212,9 @@ public class ServerCnxTest {
     private class ClientChannel implements Closeable {
         private ClientChannelHelper clientChannelHelper = new ClientChannelHelper();
         private ServerCnx serverCnx = new ServerCnx(pulsar);
-        private EmbeddedChannel channel = new EmbeddedChannel(DefaultChannelId.newInstance(),
-                new LengthFieldBasedFrameDecoder(
-                5 * 1024 * 1024,
-                0,
-                4,
-                0,
-                4),
-                serverCnx);
+        private EmbeddedChannel channel =
+                new EmbeddedChannel(DefaultChannelId.newInstance(), FrameDecoderUtil.createFrameDecoder(),
+                        (ChannelHandler) serverCnx);
         public ClientChannel() {
             serverCnx.setAuthRole("");
         }
@@ -2850,20 +2845,13 @@ public class ServerCnxTest {
     }
 
     protected void resetChannel() throws Exception {
-        int maxMessageSize = 5 * 1024 * 1024;
         if (channel != null && channel.isActive()) {
             serverCnx.close();
             channel.close().get();
         }
         serverCnx = new ServerCnx(pulsar);
         serverCnx.setAuthRole("");
-        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(
-                maxMessageSize,
-                0,
-                4,
-                0,
-                4),
-                (ChannelHandler) serverCnx);
+        channel = new EmbeddedChannel(FrameDecoderUtil.createFrameDecoder(), (ChannelHandler) serverCnx);
     }
 
     protected void setChannelConnected() throws Exception {
