@@ -61,7 +61,7 @@ public class BinaryProtoLookupService implements LookupService {
     private final PulsarClientImpl client;
     private final ServiceNameResolver serviceNameResolver;
     private final boolean useTls;
-    private final ExecutorService scheduleExecutor;
+    private final ScheduledExecutorService scheduleExecutor;
     private final String listenerName;
     private final int maxLookupRedirects;
     private final ExecutorService lookupPinnedExecutor;
@@ -83,27 +83,29 @@ public class BinaryProtoLookupService implements LookupService {
 
     /**
      * @deprecated use {@link
-     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ExecutorService, ExecutorService)} instead.
+     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ScheduledExecutorService, ExecutorService)}
+     * instead.
      */
     @Deprecated
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
                                     boolean useTls,
-                                    ExecutorService scheduleExecutor)
+                                    ScheduledExecutorService scheduleExecutor)
             throws PulsarClientException {
         this(client, serviceUrl, null, useTls, scheduleExecutor);
     }
 
     /**
      * @deprecated use {@link
-     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ExecutorService, ExecutorService)} instead.
+     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ScheduledExecutorService, ExecutorService)}
+     * instead.
      */
     @Deprecated
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
                                     String listenerName,
                                     boolean useTls,
-                                    ExecutorService scheduleExecutor)
+                                    ScheduledExecutorService scheduleExecutor)
             throws PulsarClientException {
         this(client, serviceUrl, listenerName, useTls, scheduleExecutor, null);
     }
@@ -112,7 +114,7 @@ public class BinaryProtoLookupService implements LookupService {
                                     String serviceUrl,
                                     String listenerName,
                                     boolean useTls,
-                                    ExecutorService scheduleExecutor,
+                                    ScheduledExecutorService scheduleExecutor,
                                     ExecutorService lookupPinnedExecutor)
             throws PulsarClientException {
         this.client = client;
@@ -469,7 +471,7 @@ public class BinaryProtoLookupService implements LookupService {
                 return null;
             }
 
-            ((ScheduledExecutorService) scheduleExecutor).schedule(() -> {
+            scheduleExecutor.schedule(() -> {
                 log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
                                 + " {} ms", namespace, nextDelay);
                 remainingTime.addAndGet(-nextDelay);

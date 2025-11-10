@@ -1223,7 +1223,8 @@ public class PulsarClientImpl implements PulsarClient {
             return new HttpLookupService(instrumentProvider, conf, eventLoopGroup, timer, getNameResolver());
         } else {
             return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
-                    externalExecutorProvider.getExecutor());
+                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor(),
+                    this.lookupExecutorProvider.getExecutor());
         }
     }
 

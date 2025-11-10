@@ -33,6 +33,7 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
@@ -65,6 +66,7 @@ public class BinaryProtoLookupServiceTest {
     private BinaryProtoLookupService lookup;
     private TopicName topicName;
     private ExecutorService internalExecutor;
+    private ScheduledExecutorService scheduledExecutorService;
 
     @AfterMethod
     public void cleanup() throws Exception {
@@ -113,8 +115,11 @@ public class BinaryProtoLookupServiceTest {
                 Executors.newSingleThreadExecutor(new DefaultThreadFactory("pulsar-client-test-internal-executor"));
         doReturn(internalExecutor).when(client).getInternalExecutorService();
 
-        lookup = spy(new BinaryProtoLookupService(client, "pulsar://localhost:6650", null, false,
-                mock(ExecutorService.class), internalExecutor));
+        scheduledExecutorService = mock(ScheduledExecutorService.class);
+
+        ExecutorService lookupExecutor = MoreExecutors.newDirectExecutorService();
+        lookup = spy(new BinaryProtoLookupService(client, "pulsar://localhost:6650", null,
+                false, scheduledExecutorService, lookupExecutor));
 
         topicName = TopicName.get("persistent://tenant1/ns1/t1");
     }
