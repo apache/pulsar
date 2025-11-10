@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarMockLedgerHandle extends LedgerHandle {
 
-    final List<LedgerEntryImpl> entries =  Collections.synchronizedList(new ArrayList<>());
+    final List<LedgerEntryImpl> entries = Collections.synchronizedList(new ArrayList<>());
     final PulsarMockBookKeeper bk;
     final long id;
     final DigestType digest;
@@ -163,8 +163,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         }
 
         lastEntry = entries.size();
-        entries.add(LedgerEntryImpl.create(ledgerId, lastEntry, data.length, Unpooled.wrappedBuffer(data)));
         totalLengthCounter.addAndGet(data.length);
+        entries.add(LedgerEntryImpl.create(ledgerId, lastEntry, data.length, Unpooled.wrappedBuffer(data)));
         return lastEntry;
     }
 
@@ -196,9 +196,9 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                     lastEntry = entries.size();
                     byte[] storedData = new byte[data.readableBytes()];
                     data.readBytes(storedData);
+                    totalLengthCounter.addAndGet(storedData.length);
                     entries.add(LedgerEntryImpl.create(ledgerId, lastEntry,
                                                        storedData.length, Unpooled.wrappedBuffer(storedData)));
-                    totalLengthCounter.addAndGet(storedData.length);
                     return FutureUtils.value(lastEntry);
                 }
 
