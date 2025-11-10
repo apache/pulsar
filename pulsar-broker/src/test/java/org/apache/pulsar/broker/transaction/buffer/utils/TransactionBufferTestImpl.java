@@ -45,7 +45,7 @@ public class TransactionBufferTestImpl extends TopicTransactionBuffer {
     @Override
     protected CompletableFuture<Position> internalAppendBufferToTxn(TxnID txnId, ByteBuf buffer, long seq) {
         if (followingInternalAppendBufferToTxnFail) {
-            return CompletableFuture.failedFuture(new RuntimeException("fail"));
+            return CompletableFuture.failedFuture(new RuntimeException("failed because an injected error for test"));
         }
         return super.internalAppendBufferToTxn(txnId, buffer, seq);
     }

@@ -258,6 +258,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return this.txnCommittedCounter.sum();
     }
 
+    private record PendingAppendingTxnBufferTask(TxnID txnId, long sequenceId, ByteBuf buffer,
+                                         CompletableFuture<Position> pendingPublishFuture) {}
+
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         synchronized (pendingAppendingTxnBufferTasks) {
@@ -292,8 +295,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 synchronized (pendingAppendingTxnBufferTasks) {
                     PendingAppendingTxnBufferTask pendingTask = null;
                     while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
-                        pendingTask.getBuffer().release();
-                        pendingTask.getPendingPublishFuture().completeExceptionally(throwable);
+                        pendingTask.buffer.release();
+                        pendingTask.pendingPublishFuture.completeExceptionally(throwable);
                     }
                 }
             };
@@ -303,19 +306,18 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 try {
                     synchronized (pendingAppendingTxnBufferTasks) {
                         while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
-                            final ByteBuf data = pendingTask.getBuffer();
+                            final ByteBuf data = pendingTask.buffer;
                             final CompletableFuture<Position> pendingFuture =
-                                    pendingTask.getPendingPublishFuture();
-                            internalAppendBufferToTxn(pendingTask.getTxnId(), pendingTask.getBuffer(),
-                                    pendingTask.getSequenceId())
+                                    pendingTask.pendingPublishFuture;
+                            internalAppendBufferToTxn(pendingTask.txnId, pendingTask.buffer,
+                                    pendingTask.sequenceId)
                                     .whenComplete((positionAdded, ex3) -> {
+                                        data.release();
                                         if (ex3 != null) {
-                                            data.release();
                                             pendingFuture.completeExceptionally(ex3);
                                             return;
                                         }
                                         pendingFuture.complete(positionAdded);
-                                        data.release();
                                     });
                         }
                     }
@@ -325,8 +327,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     + " snapshot.",
                             topic.getName(), e);
                     if (pendingTask != null) {
-                        pendingTask.getBuffer().release();
-                        pendingTask.getPendingPublishFuture().completeExceptionally(e);
+                        pendingTask.buffer.release();
+                        pendingTask.pendingPublishFuture.completeExceptionally(e);
                     }
                     failPendingTasks.accept(e);
                 }
@@ -638,9 +640,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (!checkIfClosed()) {
                 PendingAppendingTxnBufferTask pendingTask = null;
                 while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
-                    pendingTask.getPendingPublishFuture().completeExceptionally(
+                    pendingTask.pendingPublishFuture.completeExceptionally(
                             new BrokerServiceException.ServiceUnitNotReadyException("Topic is closed"));
-                    pendingTask.getBuffer().release();
+                    pendingTask.buffer.release();
                 }
             }
             changeToCloseState();
