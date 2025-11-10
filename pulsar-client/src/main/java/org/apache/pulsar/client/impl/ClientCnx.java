@@ -27,7 +27,6 @@ import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
@@ -43,6 +42,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -166,7 +166,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
-    private final EventLoopGroup eventLoopGroup;
+    private final ScheduledExecutorService scheduledExecutor;
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ClientCnx.class, "numberOfRejectRequests");
@@ -251,12 +251,12 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public ClientCnx(InstrumentProvider instrumentProvider,
-                     ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
-        this(instrumentProvider, conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
+                     ClientConfigurationData conf, ScheduledExecutorService scheduledExecutor) {
+        this(instrumentProvider, conf, scheduledExecutor, Commands.getCurrentProtocolVersion());
     }
 
-    public ClientCnx(InstrumentProvider instrumentProvider, ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                     int protocolVersion) {
+    public ClientCnx(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                     ScheduledExecutorService scheduledExecutor, int protocolVersion) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
@@ -264,7 +264,7 @@ public class ClientCnx extends PulsarHandler {
                 new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
         this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
         this.authentication = conf.getAuthentication();
-        this.eventLoopGroup = eventLoopGroup;
+        this.scheduledExecutor = scheduledExecutor;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
@@ -289,7 +289,7 @@ public class ClientCnx extends PulsarHandler {
         this.localAddress = ctx.channel().localAddress();
         this.remoteAddress = ctx.channel().remoteAddress();
 
-        this.timeoutTask = this.eventLoopGroup
+        this.timeoutTask = this.scheduledExecutor
                 .scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkRequestTimeout), operationTimeoutMs,
                         operationTimeoutMs, TimeUnit.MILLISECONDS);
 
@@ -759,7 +759,7 @@ public class ClientCnx extends PulsarHandler {
             if (firstOneWaiting != null) {
                 maxLookupRequestSemaphore.release();
                 // schedule a new lookup in.
-                eventLoopGroup.execute(() -> {
+                scheduledExecutor.execute(() -> {
                     long newId = firstOneWaiting.getLeft();
                     TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
                     addPendingLookupRequests(newId, newFuture);
@@ -1291,7 +1291,7 @@ public class ClientCnx extends PulsarHandler {
         long rejectedRequests = NUMBER_OF_REJECTED_REQUESTS_UPDATER.getAndIncrement(this);
         if (rejectedRequests == 0) {
             // schedule timer
-            eventLoopGroup.schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
+            scheduledExecutor.schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
                                     rejectedRequestResetTimeSec, TimeUnit.SECONDS);
         } else if (rejectedRequests >= maxNumberOfRejectedRequestPerConnection) {
             log.error("{} Close connection because received {} rejected request in {} seconds ", ctx.channel(),
