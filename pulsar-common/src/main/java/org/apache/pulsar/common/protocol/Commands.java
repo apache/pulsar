@@ -1236,7 +1236,7 @@ public class Commands {
     public static BaseCommand newGetTopicsOfNamespaceResponseCommand(List<String> topics, String topicsHash,
                                                                      boolean filtered, boolean changed,
                                                                      long requestId) {
-        BaseCommand cmd = localCmd(Type.GET_TOPICS_OF_NAMESPACE_RESPONSE);
+        BaseCommand cmd = new BaseCommand().setType(Type.GET_TOPICS_OF_NAMESPACE_RESPONSE);
         CommandGetTopicsOfNamespaceResponse topicsResponse = cmd.setGetTopicsOfNamespaceResponse();
         topicsResponse.setRequestId(requestId);
         for (int i = 0; i < topics.size(); i++) {
@@ -1248,12 +1248,6 @@ public class Commands {
         topicsResponse.setFiltered(filtered);
         topicsResponse.setChanged(changed);
         return cmd;
-    }
-
-    public static ByteBuf newGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
-                                                          boolean filtered, boolean changed, long requestId) {
-        return serializeWithSize(newGetTopicsOfNamespaceResponseCommand(
-                topics, topicsHash, filtered, changed, requestId));
     }
 
     private static final ByteBuf cmdPing;
@@ -1635,7 +1629,7 @@ public class Commands {
      */
     public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                        List<String> topics) {
-        BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_SUCCESS);
+        BaseCommand cmd = new BaseCommand().setType(Type.WATCH_TOPIC_LIST_SUCCESS);
         cmd.setWatchTopicListSuccess()
                 .setRequestId(requestId)
                 .setWatcherId(watcherId);
@@ -1654,7 +1648,7 @@ public class Commands {
      */
     public static BaseCommand newWatchTopicUpdate(long watcherId,
                                               List<String> newTopics, List<String> deletedTopics, String topicsHash) {
-        BaseCommand cmd = localCmd(Type.WATCH_TOPIC_UPDATE);
+        BaseCommand cmd = new BaseCommand().setType(Type.WATCH_TOPIC_UPDATE);
         cmd.setWatchTopicUpdate()
                 .setWatcherId(watcherId)
                 .setTopicsHash(topicsHash)
@@ -1672,9 +1666,12 @@ public class Commands {
     }
 
     public static ByteBuf serializeWithSize(BaseCommand cmd) {
+        return serializeWithPrecalculatedSerializedSize(cmd, cmd.getSerializedSize());
+    }
+
+    public static ByteBuf serializeWithPrecalculatedSerializedSize(BaseCommand cmd, int cmdSize) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD]
-        int cmdSize = cmd.getSerializedSize();
         int totalSize = cmdSize + 4;
         int frameSize = totalSize + 4;
 
