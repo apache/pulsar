@@ -450,6 +450,12 @@ public class BinaryProtoLookupService implements LookupService {
             });
         }, lookupPinnedExecutor).whenComplete((r, t) -> {
             if (t != null) {
+                Throwable cause = FutureUtil.unwrapCompletionException(t);
+                if (cause instanceof PulsarClientException && !PulsarClientException.isRetriableError(cause)) {
+                    histoListTopics.recordFailure(System.nanoTime() - startTimeNanos);
+                    getTopicsResultFuture.completeExceptionally(cause);
+                    return;
+                }
                 long nowNanos = System.nanoTime();
                 if (nowNanos > retryUntilNanos) {
                     histoListTopics.recordFailure(System.nanoTime() - startTimeNanos);
