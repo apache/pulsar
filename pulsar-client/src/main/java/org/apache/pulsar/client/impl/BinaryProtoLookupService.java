@@ -70,7 +70,7 @@ public class BinaryProtoLookupService implements LookupService {
     private final ConcurrentHashMap<Pair<TopicName, Map<String, String>>, CompletableFuture<LookupTopicResult>>
             lookupInProgress = new ConcurrentHashMap<>();
 
-    private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
+    private final ConcurrentHashMap<PartitionedTopicMetadataKey, CompletableFuture<PartitionedTopicMetadata>>
             partitionedMetadataInProgress = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<TopicsUnderNamespaceKey, CompletableFuture<GetTopicsResult>>
@@ -192,8 +192,10 @@ public class BinaryProtoLookupService implements LookupService {
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
             TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
+        final PartitionedTopicMetadataKey key = new PartitionedTopicMetadataKey(
+                topicName, metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
         try {
-            return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {
+            return partitionedMetadataInProgress.computeIfAbsent(key, k -> {
                 CompletableFuture<PartitionedTopicMetadata> newFuture = getPartitionedTopicMetadataAsync(
                        topicName, metadataAutoCreationEnabled,
                         useFallbackForNonPIP344Brokers);
@@ -203,7 +205,7 @@ public class BinaryProtoLookupService implements LookupService {
         } finally {
             if (newFutureCreated.getValue() != null) {
                 newFutureCreated.getValue().whenComplete((v, ex) -> {
-                    partitionedMetadataInProgress.remove(topicName, newFutureCreated.getValue());
+                    partitionedMetadataInProgress.remove(key, newFutureCreated.getValue());
                 });
             }
         }
@@ -559,6 +561,49 @@ public class BinaryProtoLookupService implements LookupService {
                     + '}';
         }
     }
+
+    private static final class PartitionedTopicMetadataKey {
+        private final TopicName topicName;
+        private final boolean metadataAutoCreationEnabled;
+        private final boolean useFallbackForNonPIP344Brokers;
+
+        PartitionedTopicMetadataKey(TopicName topicName,
+                               boolean metadataAutoCreationEnabled,
+                               boolean useFallbackForNonPIP344Brokers) {
+            this.topicName = topicName;
+            this.metadataAutoCreationEnabled = metadataAutoCreationEnabled;
+            this.useFallbackForNonPIP344Brokers = useFallbackForNonPIP344Brokers;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            PartitionedTopicMetadataKey that = (PartitionedTopicMetadataKey) o;
+            return metadataAutoCreationEnabled == that.metadataAutoCreationEnabled
+                    && useFallbackForNonPIP344Brokers == that.useFallbackForNonPIP344Brokers
+                    && Objects.equals(topicName, that.topicName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(topicName, metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
+        }
+
+        @Override
+        public String toString() {
+            return "PartitionedTopicMetadataKey{"
+                    + "topicName=" + topicName
+                    + ", metadataAutoCreationEnabled=" + metadataAutoCreationEnabled
+                    + ", useFallbackForNonPIP344Brokers=" + useFallbackForNonPIP344Brokers
+                    + '}';
+        }
+    }
+
 
     private static final Logger log = LoggerFactory.getLogger(BinaryProtoLookupService.class);
 }

@@ -54,6 +54,7 @@ import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -328,6 +329,142 @@ public class BinaryProtoLookupServiceTest {
             assertSame(futureHashB2, futureHashB,
                     "An in-flight request for the same topicsHash must return the same future");
             verify(cnxPool, times(3)).getConnection(any(ServiceNameResolver.class));
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    /**
+     * Verifies that getPartitionedTopicMetadata() deduplicates concurrent requests and cleans up after completion.
+     *
+     * First, two concurrent calls with identical parameters (topicName, metadataAutoCreationEnabled,
+     * useFallbackForNonPIP344Brokers) should return the same CompletableFuture and trigger only one connection pool
+     * request (deduplication).
+     *
+     * Second, after the future completes, the map entry should be removed so a subsequent call
+     * with the same parameters creates a new future (cleanup).
+     *
+     * This test uses a never-completing connection future to isolate the deduplication logic
+     * without executing the network request path.
+     */
+    @Test(timeOut = 60000)
+    public void testPartitionedMetadataDeduplicationAndCleanup() throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool cnxPool = mock(ConnectionPool.class);
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(30000);
+        when(client.getConfiguration()).thenReturn(conf);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(client.getCnxPool()).thenReturn(cnxPool);
+
+        // Never-completing connection prevents the thenAcceptAsync callback in getPartitionedTopicMetadata
+        // from executing, isolating only the deduplication logic without network calls.
+        CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
+        when(cnxPool.getConnection(any(ServiceNameResolver.class))).thenReturn(neverCompletes);
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
+
+        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, null)) {
+
+            TopicName topic = TopicName.get("persistent://public/default/t1");
+            boolean metadataAutoCreationEnabled = true;
+            boolean useFallbackForNonPIP344Brokers = false;
+
+            CompletableFuture<PartitionedTopicMetadata> f1 = lookup.getPartitionedTopicMetadata(topic,
+                    metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
+            CompletableFuture<PartitionedTopicMetadata> f1b = lookup.getPartitionedTopicMetadata(topic,
+                    metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
+
+            // Dedup: same parameters share the same future and one getConnection call.
+            assertSame(f1b, f1,
+                    "Concurrent requests with identical parameters should return the same future");
+            verify(cnxPool, times(1)).getConnection(any(ServiceNameResolver.class));
+
+            // Complete the future. This triggers the whenComplete callback that removes the map entry.
+            f1.complete(new PartitionedTopicMetadata(0));
+            assertTrue(f1.isDone());
+
+            // Verify cleanup: after completion, same parameters create a new future and
+            // trigger another connection request.
+            CompletableFuture<PartitionedTopicMetadata> f2 = lookup.getPartitionedTopicMetadata(topic,
+                            metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
+            org.testng.Assert.assertNotSame(f2, f1,
+                    "After completion, the deduplication map entry should be removed and a new future created");
+            verify(cnxPool, times(2)).getConnection(any(ServiceNameResolver.class));
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    /**
+     * Verifies that different parameter combinations are treated as distinct keys.
+     *
+     * Calls that differ in metadataAutoCreationEnabled or useFallbackForNonPIP344Brokers must return different futures
+     * and trigger separate connection requests.
+     *
+     * Cleanup is per key. Completing one does not affect another in-flight entry.
+     */
+    @Test(timeOut = 60000)
+    public void testPartitionedMetadataDeduplicationDifferentParameterCombinations() throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool cnxPool = mock(ConnectionPool.class);
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(30000);
+        when(client.getConfiguration()).thenReturn(conf);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(client.getCnxPool()).thenReturn(cnxPool);
+
+        // Never-completing connection prevents the thenAcceptAsync callback in getPartitionedTopicMetadata
+        // from executing, so the test exercises only the deduplication map without network calls
+        CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
+        when(cnxPool.getConnection(any(ServiceNameResolver.class))).thenReturn(neverCompletes);
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
+
+        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, null)) {
+
+            TopicName topic = TopicName.get("persistent://public/default/t1");
+
+            // A: metadataAutoCreationEnabled=true, useFallbackForNonPIP344Brokers=false
+            CompletableFuture<PartitionedTopicMetadata> fa =
+                    lookup.getPartitionedTopicMetadata(topic, true, false);
+            // B: metadataAutoCreationEnabled=false, useFallbackForNonPIP344Brokers=false
+            CompletableFuture<PartitionedTopicMetadata> fb =
+                    lookup.getPartitionedTopicMetadata(topic, false, false);
+
+            assertNotSame(fa, fb,
+                    "Requests with different metadataAutoCreationEnabled must not share the same future");
+            verify(cnxPool, times(2)).getConnection(any(ServiceNameResolver.class));
+
+            // Complete the future. This triggers the whenComplete callback that removes the map entry.
+            fa.complete(new PartitionedTopicMetadata(0));
+
+            CompletableFuture<PartitionedTopicMetadata> fa2 =
+                    lookup.getPartitionedTopicMetadata(topic, true, false);
+            assertNotSame(fa2, fa,
+                    "After completion, a call with the same parameters must create a new future");
+            verify(cnxPool, times(3)).getConnection(any(ServiceNameResolver.class));
+
+            // The call with (metadataAutoCreationEnabled=false, useFallbackForNonPIP344Brokers=false) is still
+            // in flight. A new call with the same parameters must return the same future (fb).
+            CompletableFuture<PartitionedTopicMetadata> fb2 =
+                    lookup.getPartitionedTopicMetadata(topic, false, false);
+            assertSame(fb2, fb,
+                    "An in-flight request with the same parameters must return the original future");
+            verify(cnxPool, times(3)).getConnection(any(ServiceNameResolver.class));
+
+            // Also verify distinct fallback flag is treated as a separate key
+            CompletableFuture<PartitionedTopicMetadata> fc =
+                    lookup.getPartitionedTopicMetadata(topic, false, true);
+            assertNotSame(fc, fb,
+                    "Requests that differ in useFallbackForNonPIP344Brokers must not share the same future");
+            verify(cnxPool, times(4)).getConnection(any(ServiceNameResolver.class));
         } finally {
             scheduler.shutdownNow();
         }
