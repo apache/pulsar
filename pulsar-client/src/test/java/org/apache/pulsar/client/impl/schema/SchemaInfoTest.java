@@ -25,6 +25,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -289,8 +292,8 @@ public class SchemaInfoTest {
     }
 
     @Test(dataProvider = "schemas")
-    public void testSchemaInfoToString(SchemaInfo si, String jsonifiedStr) {
-        assertEquals(si.toString(), jsonifiedStr);
+    public void testSchemaInfoToString(SchemaInfo si, String jsonifiedStr) throws JSONException {
+        JSONAssert.assertEquals(si.toString(), jsonifiedStr, JSONCompareMode.NON_EXTENSIBLE);
     }
 
     public static class SchemaInfoBuilderTest {
@@ -327,7 +330,7 @@ public class SchemaInfoTest {
         }
 
         @Test
-        public void testNullPropertyValue() {
+        public void testNullPropertyValue() throws JSONException {
             final Map<String, String> map = new HashMap<>();
             map.put("key", null);
 
@@ -339,7 +342,7 @@ public class SchemaInfoTest {
                     .build();
 
             // null key will be skipped by Gson when serializing JSON to String
-            assertEquals(si.toString(), INT32_SCHEMA_INFO);
+            JSONAssert.assertEquals(si.toString(), INT32_SCHEMA_INFO, JSONCompareMode.NON_EXTENSIBLE);
         }
     }
 }
