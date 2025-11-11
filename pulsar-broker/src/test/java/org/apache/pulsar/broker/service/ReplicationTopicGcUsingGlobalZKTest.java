@@ -43,11 +43,6 @@ public class ReplicationTopicGcUsingGlobalZKTest extends ReplicationTopicGcTest 
 
     @Test(dataProvider = "topicTypes")
     public void testTopicGC(TopicType topicType) throws Exception {
-        if (topicType.equals(TopicType.PARTITIONED)) {
-            // Pulsar does not support the feature "brokerDeleteInactivePartitionedTopicMetadataEnabled" when enabling
-            // Geo-Replication with Global ZK.
-            return;
-        }
         super.testTopicGC(topicType);
     }
 
