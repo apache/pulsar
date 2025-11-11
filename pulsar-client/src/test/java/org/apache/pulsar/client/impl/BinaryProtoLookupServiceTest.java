@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -35,9 +36,16 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -45,18 +53,22 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
+import org.apache.pulsar.common.api.proto.CommandConnect;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.topics.TopicList;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -67,6 +79,8 @@ public class BinaryProtoLookupServiceTest {
     private TopicName topicName;
     private ExecutorService internalExecutor;
     private ScheduledExecutorService scheduledExecutorService;
+    private ConnectionPool cnxPool;
+    private ClientConfigurationData conf;
 
     @AfterMethod
     public void cleanup() throws Exception {
@@ -97,25 +111,26 @@ public class BinaryProtoLookupServiceTest {
 
         CompletableFuture<ClientCnx> connectionFuture = CompletableFuture.completedFuture(clientCnx);
 
-        ConnectionPool cnxPool = mock(ConnectionPool.class);
+        cnxPool = mock(ConnectionPool.class);
         when(cnxPool.getConnection(any(InetSocketAddress.class))).thenReturn(connectionFuture);
         when(cnxPool.getConnection(any(ServiceNameResolver.class))).thenReturn(connectionFuture);
 
-        ClientConfigurationData clientConfig = mock(ClientConfigurationData.class);
-        doReturn(0).when(clientConfig).getMaxLookupRedirects();
+        conf = new ClientConfigurationData();
+        conf.setMaxLookupRedirects(0);
 
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         doReturn(InstrumentProvider.NOOP).when(client).instrumentProvider();
         doReturn(cnxPool).when(client).getCnxPool();
-        doReturn(clientConfig).when(client).getConfiguration();
+        doReturn(conf).when(client).getConfiguration();
         doReturn(1L).when(client).newRequestId();
-        ClientConfigurationData data = new ClientConfigurationData();
-        doReturn(data).when(client).getConfiguration();
         internalExecutor =
                 Executors.newSingleThreadExecutor(new DefaultThreadFactory("pulsar-client-test-internal-executor"));
         doReturn(internalExecutor).when(client).getInternalExecutorService();
 
         scheduledExecutorService = mock(ScheduledExecutorService.class);
+        // just return a mock ScheduledFuture for scheduleAtFixedRate by default without any action
+        doReturn(mock(ScheduledFuture.class)).when(scheduledExecutorService)
+                .scheduleAtFixedRate(any(), anyLong(), anyLong(), any());
 
         ExecutorService lookupExecutor = MoreExecutors.newDirectExecutorService();
         lookup = spy(new BinaryProtoLookupService(client, "pulsar://localhost:6650", null,
@@ -473,5 +488,119 @@ public class BinaryProtoLookupServiceTest {
         } finally {
             scheduler.shutdownNow();
         }
+    }
+
+    @Test
+    public void testGetTopicsRetries() throws ExecutionException, InterruptedException {
+        AtomicReference<EmbeddedChannel> channelRef = configureEmbeddedChannel();
+
+        List<Runnable> scheduledTasks = configureScheduledTasks();
+
+        NamespaceName ns = NamespaceName.get("public", "default");
+        CommandGetTopicsOfNamespace.Mode mode = CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        String pattern = ".*";
+        String topicsHash = null;
+        CompletableFuture<GetTopicsResult> getTopicsFuture =
+                lookup.getTopicsUnderNamespace(ns, mode, pattern, topicsHash);
+
+        CommandGetTopicsOfNamespace cmdGetTopicsOfNamespace =
+                readCommand(channelRef.get(), Type.GET_TOPICS_OF_NAMESPACE, BaseCommand::getGetTopicsOfNamespace);
+        assertNotNull(cmdGetTopicsOfNamespace);
+
+        // no tasks
+        assertThat(scheduledTasks).isEmpty();
+
+        // close embedded connect
+        channelRef.get().close().get();
+
+        // the future shouldn't be completed yet
+        assertThat(getTopicsFuture).isNotDone();
+
+        // the task to retry has been scheduled
+        assertThat(scheduledTasks).hasSize(1);
+
+        // run tasks
+        scheduledTasks.forEach(Runnable::run);
+
+        List<String> topics = Collections.singletonList("persistent://public/default/test");
+        String topicsHash2 = TopicList.calculateHash(topics);
+        channelRef.get().writeInbound(Commands.serializeWithSize(
+                Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash2, true, true,
+                        cmdGetTopicsOfNamespace.getRequestId())));
+
+        assertThat(getTopicsFuture).succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(topicsResult -> {
+                    assertThat(topicsResult.getTopics()).containsExactly("persistent://public/default/test");
+                });
+    }
+
+    @Test
+    public void testGetTopicsRetriesExpire() throws ExecutionException, InterruptedException {
+        // set minimal timeout so that retries would expire
+        conf.setOperationTimeoutMs(1);
+
+        AtomicReference<EmbeddedChannel> channelRef = configureEmbeddedChannel();
+
+        List<Runnable> scheduledTasks = configureScheduledTasks();
+
+        NamespaceName ns = NamespaceName.get("public", "default");
+        CommandGetTopicsOfNamespace.Mode mode = CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        String pattern = ".*";
+        String topicsHash = null;
+        CompletableFuture<GetTopicsResult> getTopicsFuture =
+                lookup.getTopicsUnderNamespace(ns, mode, pattern, topicsHash);
+
+        CommandGetTopicsOfNamespace cmdGetTopicsOfNamespace =
+                readCommand(channelRef.get(), Type.GET_TOPICS_OF_NAMESPACE, BaseCommand::getGetTopicsOfNamespace);
+        assertNotNull(cmdGetTopicsOfNamespace);
+
+        // no tasks
+        assertThat(scheduledTasks).isEmpty();
+
+        // operation would have already expired and won't retry
+        Thread.sleep(100);
+
+        // close embedded connect
+        channelRef.get().close().get();
+
+        // the future should have been completed exceptionally
+        assertThat(getTopicsFuture).isCompletedExceptionally();
+    }
+
+    private List<Runnable> configureScheduledTasks() {
+        List<Runnable> tasks = Collections.synchronizedList(new ArrayList<>());
+        doAnswer(invocationOnMock -> {
+            Runnable runnable = invocationOnMock.getArgument(0);
+            tasks.add(runnable);
+            return mock(ScheduledFuture.class);
+        }).when(scheduledExecutorService)
+                .schedule(any(Runnable.class), anyLong(), any());
+        return tasks;
+    }
+
+    private AtomicReference<EmbeddedChannel> configureEmbeddedChannel() {
+        AtomicReference<EmbeddedChannel> channelRef = new AtomicReference<>();
+
+        doAnswer(invocationOnMock -> {
+            ClientCnx clientCnx = new ClientCnx(InstrumentProvider.NOOP, conf, scheduledExecutorService);
+            ChannelHandler clientCnxChannelHandler = clientCnx;
+            EmbeddedChannel channel = new EmbeddedChannel(clientCnxChannelHandler);
+            channelRef.set(channel);
+            CommandConnect cmd = readCommand(channel, Type.CONNECT, BaseCommand::getConnect);
+            assertNotNull(cmd);
+            channel.writeInbound(Commands.newConnected(Commands.getCurrentProtocolVersion(), true));
+            return CompletableFuture.completedFuture(clientCnx);
+        }).when(cnxPool).getConnection(any(ServiceNameResolver.class));
+        return channelRef;
+    }
+
+    private <T> T readCommand(EmbeddedChannel channel, BaseCommand.Type expectedType,
+                              Function<BaseCommand, T> extractFunction) {
+        ByteBuf buffer = (ByteBuf) channel.outboundMessages().remove();
+        BaseCommand cmd = new BaseCommand();
+        int cmdSize = (int) buffer.readUnsignedInt();
+        cmd.parseFrom(buffer, cmdSize);
+        assertThat(cmd.getType()).isEqualTo(expectedType);
+        return extractFunction.apply(cmd);
     }
 }

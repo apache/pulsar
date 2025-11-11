@@ -34,7 +34,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -411,15 +410,16 @@ public class BinaryProtoLookupService implements LookupService {
         try {
             return topicsUnderNamespaceInProgress.computeIfAbsent(key, k -> {
                 CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
-                AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+                long opTimeoutMs = client.getConfiguration().getOperationTimeoutMs();
                 Backoff backoff = new BackoffBuilder()
                         .setInitialTime(100, TimeUnit.MILLISECONDS)
-                        .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                        .setMandatoryStop(opTimeoutMs * 2, TimeUnit.MILLISECONDS)
                         .setMax(1, TimeUnit.MINUTES)
                         .create();
-
+                long startTimeNanos = System.nanoTime();
+                long retryUntilNanos = startTimeNanos + TimeUnit.MILLISECONDS.toNanos(opTimeoutMs);
                 newFutureCreated.setValue(topicsFuture);
-                getTopicsUnderNamespace(namespace, backoff, opTimeoutMs, topicsFuture, mode,
+                getTopicsUnderNamespace(namespace, backoff, startTimeNanos, retryUntilNanos, topicsFuture, mode,
                         topicsPattern, topicsHash);
                 return topicsFuture;
             });
@@ -435,50 +435,50 @@ public class BinaryProtoLookupService implements LookupService {
     private void getTopicsUnderNamespace(
                                          NamespaceName namespace,
                                          Backoff backoff,
-                                         AtomicLong remainingTime,
+                                         long startTimeNanos,
+                                         long retryUntilNanos,
                                          CompletableFuture<GetTopicsResult> getTopicsResultFuture,
                                          Mode mode,
                                          String topicsPattern,
                                          String topicsHash) {
-        long startTime = System.nanoTime();
-
-        client.getCnxPool().getConnection(serviceNameResolver).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnection(serviceNameResolver).thenComposeAsync(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
-                namespace.toString(), requestId, mode, topicsPattern, topicsHash);
-
-            clientCnx.newGetTopicsOfNamespace(request, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    histoListTopics.recordFailure(System.nanoTime() - startTime);
-                    getTopicsResultFuture.completeExceptionally(t);
-                } else {
-                    histoListTopics.recordSuccess(System.nanoTime() - startTime);
-                    if (log.isDebugEnabled()) {
-                        log.debug("[namespace: {}] Success get topics list in request: {}",
-                                namespace, requestId);
-                    }
-                    getTopicsResultFuture.complete(r);
-                }
+            ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(namespace.toString(), requestId, mode,
+                            topicsPattern, topicsHash);
+            return clientCnx.newGetTopicsOfNamespace(request, requestId).whenComplete((r, t) -> {
                 client.getCnxPool().releaseConnection(clientCnx);
             });
-        }, lookupPinnedExecutor).exceptionally((e) -> {
-            long nextDelay = Math.min(backoff.next(), remainingTime.get());
-            if (nextDelay <= 0) {
-                getTopicsResultFuture.completeExceptionally(
-                    new PulsarClientException.TimeoutException(
-                        format("Could not get topics of namespace %s within configured timeout",
-                            namespace.toString())));
-                return null;
+        }, lookupPinnedExecutor).whenComplete((r, t) -> {
+            if (t != null) {
+                long nowNanos = System.nanoTime();
+                if (nowNanos > retryUntilNanos) {
+                    histoListTopics.recordFailure(System.nanoTime() - startTimeNanos);
+                    log.warn("[namespace: {}] Error while getTopicsUnderNamespace -- No more retries left."
+                            + " Last error was {}", namespace, t.getMessage());
+                    getTopicsResultFuture.completeExceptionally(new PulsarClientException.TimeoutException(
+                            format("Could not get topics of namespace %s within configured timeout",
+                                    namespace.toString())));
+                } else {
+                    long nextDelay = backoff.next();
+                    log.warn("[namespace: {}] Error while getTopicsUnderNamespace -- Will try again in"
+                            + " {} ms. Error was {}", namespace, nextDelay, t.getMessage());
+                    if (!getTopicsResultFuture.isDone()) {
+                        scheduleExecutor.schedule(() -> {
+                            getTopicsUnderNamespace(namespace, backoff, startTimeNanos, retryUntilNanos,
+                                    getTopicsResultFuture, mode, topicsPattern, topicsHash);
+                        }, nextDelay, TimeUnit.MILLISECONDS);
+                    } else {
+                        log.info("[namespace: {}] Ignoring retry in getTopicsUnderNamespace -- Future is already "
+                                + "completed", namespace);
+                    }
+                }
+            } else {
+                histoListTopics.recordSuccess(System.nanoTime() - startTimeNanos);
+                if (log.isDebugEnabled()) {
+                    log.debug("[namespace: {}] Success get topics list", namespace);
+                }
+                getTopicsResultFuture.complete(r);
             }
-
-            scheduleExecutor.schedule(() -> {
-                log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
-                                + " {} ms", namespace, nextDelay);
-                remainingTime.addAndGet(-nextDelay);
-                getTopicsUnderNamespace(namespace, backoff, remainingTime, getTopicsResultFuture,
-                        mode, topicsPattern, topicsHash);
-            }, nextDelay, TimeUnit.MILLISECONDS);
-            return null;
         });
     }
 
