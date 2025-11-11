@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.RandomUtils;
@@ -69,7 +68,6 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -513,14 +511,6 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build().get();
 
-        // 2. Set a new future in transaction buffer as `transactionBufferFuture` to simulate whether the
-        // transaction buffer recover completely.
-        TransactionBufferTestImpl topicTransactionBuffer = (TransactionBufferTestImpl) persistentTopic
-                .getTransactionBuffer();
-        CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        CompletableFuture<Position> originalFuture = topicTransactionBuffer.getPublishFuture();
-        topicTransactionBuffer.setPublishFuture(completableFuture);
-        topicTransactionBuffer.setState(TopicTransactionBufferState.State.Ready);
         // Register this topic to the transaction in advance to avoid the sending request pending here.
         ((TransactionImpl) transaction).registerProducedTopic(topic).get(5, TimeUnit.SECONDS);
         // 3. Test the messages sent before transaction buffer ready is in order.
@@ -528,7 +518,6 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
             producer.newMessage(transaction).value(i).sendAsync();
         }
         // 4. Test the messages sent after transaction buffer ready is in order.
-        completableFuture.complete(originalFuture.get());
         for (int i = 50; i < 100; i++) {
             producer.newMessage(transaction).value(i).sendAsync();
         }
@@ -569,16 +558,17 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .get(5, TimeUnit.SECONDS);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf2.refCnt(), 1));
         // 2.3 Test sending message failed.
-        topicTransactionBuffer.setPublishFuture(FutureUtil.failedFuture(new Exception("fail")));
+        topicTransactionBuffer.setFollowingInternalAppendBufferToTxnFail(true);
         ByteBuf byteBuf3 = Unpooled.buffer();
         try {
             topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
                     .get(5, TimeUnit.SECONDS);
-            fail();
+            fail("this appending should fail because we injected an error");
         } catch (Exception e) {
-            assertEquals(e.getCause().getMessage(), "fail");
+            assertEquals(e.getCause().getMessage(), "failed because an injected error for test");
         }
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf3.refCnt(), 1));
+        topicTransactionBuffer.setFollowingInternalAppendBufferToTxnFail(false);
         // 3. release resource
         byteBuf1.release();
         byteBuf2.release();
