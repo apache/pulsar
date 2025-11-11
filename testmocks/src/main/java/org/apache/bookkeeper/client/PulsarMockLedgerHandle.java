@@ -19,17 +19,18 @@
 package org.apache.bookkeeper.client;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -53,7 +54,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarMockLedgerHandle extends LedgerHandle {
 
-    final ArrayList<LedgerEntryImpl> entries = Lists.newArrayList();
+    final List<LedgerEntryImpl> entries = Collections.synchronizedList(new ArrayList<>());
     final PulsarMockBookKeeper bk;
     final long id;
     final DigestType digest;
@@ -63,6 +64,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @VisibleForTesting
     @Getter
     boolean fenced = false;
+    // Count for total length of the entries
+    final AtomicLong totalLengthCounter = new AtomicLong(0);
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
                            DigestType digest, byte[] passwd) throws GeneralSecurityException {
@@ -73,7 +76,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         this.digest = digest;
         this.passwd = Arrays.copyOf(passwd, passwd.length);
 
-        readHandle = new PulsarMockReadHandle(bk, id, getLedgerMetadata(), entries, bk::getReadHandleInterceptor);
+        readHandle = new PulsarMockReadHandle(bk, id, getLedgerMetadata(), entries,
+                bk::getReadHandleInterceptor, totalLengthCounter);
     }
 
     @Override
@@ -151,6 +155,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         }
 
         lastEntry = entries.size();
+        totalLengthCounter.addAndGet(data.length);
         entries.add(LedgerEntryImpl.create(ledgerId, lastEntry, data.length, Unpooled.wrappedBuffer(data)));
         return lastEntry;
     }
@@ -185,6 +190,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                     lastEntry = entries.size();
                     byte[] storedData = new byte[data.readableBytes()];
                     data.readBytes(storedData);
+                    totalLengthCounter.addAndGet(storedData.length);
                     entries.add(LedgerEntryImpl.create(ledgerId, lastEntry,
                                                        storedData.length, Unpooled.wrappedBuffer(storedData)));
                     return FutureUtils.value(lastEntry);
@@ -225,12 +231,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public long getLength() {
-        long length = 0;
-        for (LedgerEntryImpl entry : entries) {
-            length += entry.getLength();
-        }
-
-        return length;
+        return totalLengthCounter.get();
     }
 
 
