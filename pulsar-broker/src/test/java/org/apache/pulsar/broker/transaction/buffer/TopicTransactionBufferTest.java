@@ -563,9 +563,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         try {
             topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
                     .get(5, TimeUnit.SECONDS);
-            fail();
+            fail("this appending should fail because we injected an error");
         } catch (Exception e) {
-            assertEquals(e.getCause().getMessage(), "fail");
+            assertEquals(e.getCause().getMessage(), "failed because an injected error for test");
         }
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf3.refCnt(), 1));
         topicTransactionBuffer.setFollowingInternalAppendBufferToTxnFail(false);
