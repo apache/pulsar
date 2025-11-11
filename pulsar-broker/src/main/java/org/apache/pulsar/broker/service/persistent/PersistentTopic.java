@@ -99,6 +99,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateDataConflictResolver;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -185,6 +187,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
@@ -3453,6 +3456,34 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    private CompletableFuture<Void> deleteSchemaAndPoliciesIfAllPartitionsDeleted() {
+        if (!TopicName.get(topic).isPartitioned()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName pTopicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        final BrokerService broker = getBrokerService();
+        final PulsarResources pulsarResources = broker.pulsar().getPulsarResources();
+        final TopicResources topicResources = pulsarResources.getTopicResources();
+        final TopicPoliciesService topicPoliciesService = broker.getPulsar().getTopicPoliciesService();
+        final SchemaStorage schemaStorage = broker.getPulsar().getSchemaStorage();
+        return topicResources.listPersistentTopicsAsync(pTopicName.getNamespaceObject()).thenApply(list -> {
+            for (String s : list) {
+                TopicName item = TopicName.get(s);
+                if (item.isPartitioned() && item.getPartitionedTopicName().equals(pTopicName.toString())) {
+                    return true;
+                }
+            }
+            return false;
+        }).thenCompose(partitionExists -> {
+            if (partitionExists) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return schemaStorage.delete(pTopicName.getSchemaName()).thenCompose(__ -> {
+                return topicPoliciesService.deleteTopicPoliciesAsync(pTopicName, false);
+            });
+        });
+    }
+
     private CompletableFuture<Void> tryToDeletePartitionedMetadata() {
         if (TopicName.get(topic).isPartitioned() && !deletePartitionedTopicMetadataWhileInactive()) {
             return CompletableFuture.completedFuture(null);
@@ -3464,7 +3495,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return partitionedTopicResources.partitionedTopicExistsAsync(topicName)
                 .thenCompose(partitionedTopicExist -> {
                     if (!partitionedTopicExist) {
-                        return CompletableFuture.completedFuture(null);
+                        return deleteSchemaAndPoliciesIfAllPartitionsDeleted();
                     } else {
                         return getBrokerService().pulsar().getPulsarResources().getNamespaceResources()
                                 .getPartitionedTopicResources().runWithMarkDeleteAsync(topicName, () ->
