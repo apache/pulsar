@@ -1506,13 +1506,14 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // modify mark delete and read position since we are able to persist new position for cursor
                 lock.writeLock().lock();
                 try {
+                    // Correct the variable "messagesConsumedCounter".
+                    // BTW, no need to change "messagesConsumedCounter" if new "markDeletePosition" is the same as the
+                    // old one.
                     int compareRes = comparePositions(markDeletePosition, newMarkDeletePosition);
-                    if (compareRes == 0) {
-                        // nothing to do.
-                    } else if (compareRes > 0) {
+                    if (compareRes > 0) {
                         MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), -getNumberOfEntries(
                                 Range.closedOpen(newMarkDeletePosition, markDeletePosition)));
-                    } else {
+                    } else if (compareRes < 0) {
                         MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), getNumberOfEntries(
                                 Range.closedOpen(markDeletePosition, newMarkDeletePosition)));
                     }

@@ -3882,7 +3882,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         boolean toIncluded = range.upperBoundType() == BoundType.CLOSED;
 
         // If the "fromPosition" is after "toPosition", then there is no entry in the range.
-        if (fromPosition.getLedgerId() > toPosition.getLedgerId() || (fromPosition.getLedgerId() == toPosition.getLedgerId()
+        if (fromPosition.getLedgerId() > toPosition.getLedgerId() ||
+            (fromPosition.getLedgerId() == toPosition.getLedgerId()
                 && fromPosition.getEntryId() > toPosition.getEntryId())) {
             return 0;
         }

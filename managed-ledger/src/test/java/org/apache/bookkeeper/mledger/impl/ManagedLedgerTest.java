@@ -4820,25 +4820,34 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ml.getNumberOfEntries(range26), 29);
 
         // From position that entry id is "-1" & positions in the same ledger.
-        Range<Position> range31 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(9));
+        Range<Position> range31 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(9));
         assertEquals(ml.getNumberOfEntries(range31), 10);
-        Range<Position> range32 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(9));
+        Range<Position> range32 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(9));
         assertEquals(ml.getNumberOfEntries(range32), 10);
-        Range<Position> range33 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(9));
+        Range<Position> range33 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(9));
         assertEquals(ml.getNumberOfEntries(range33), 9);
 
         // From position that entry id is "-1" & crosses ledgers.
-        Range<Position> range41 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(15));
+        Range<Position> range41 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(15));
         assertEquals(ml.getNumberOfEntries(range41), 16);
-        Range<Position> range42 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(15));
+        Range<Position> range42 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(15));
         assertEquals(ml.getNumberOfEntries(range42), 16);
-        Range<Position> range43 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(15));
+        Range<Position> range43 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(15));
         assertEquals(ml.getNumberOfEntries(range43), 15);
-        Range<Position> range44 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(25));
+        Range<Position> range44 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(25));
         assertEquals(ml.getNumberOfEntries(range44), 26);
-        Range<Position> range45 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(25));
+        Range<Position> range45 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(25));
         assertEquals(ml.getNumberOfEntries(range45), 26);
-        Range<Position> range46 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1), positions.get(25));
+        Range<Position> range46 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(25));
         assertEquals(ml.getNumberOfEntries(range46), 25);
 
         // Invalid range.
