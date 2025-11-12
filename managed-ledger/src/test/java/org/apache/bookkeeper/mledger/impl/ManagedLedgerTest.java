@@ -4956,6 +4956,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger1.getEntries(), 10);
         assertEquals(ledger2.getEntries(), 10);
 
+        // Normal case: pos1 == pos2.
+        assertEquals(cursor.comparePositions(positions.get(0), positions.get(0)), 0);
+        assertEquals(cursor.comparePositions(positions.get(9), positions.get(9)), 0);
+        assertEquals(cursor.comparePositions(positions.get(29), positions.get(29)), 0);
+        assertEquals(cursor.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1)), 0);
+
         // Normal case: pos1 < pos2.
         assertEquals(cursor.comparePositions(positions.get(0), positions.get(1)), -1);
         assertEquals(cursor.comparePositions(positions.get(0), positions.get(9)), -1);
