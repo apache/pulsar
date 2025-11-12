@@ -1462,15 +1462,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (pos1 == null || pos2 == null) {
             throw new IllegalArgumentException("Positions must not be null");
         }
-        if (pos1.getLedgerId() == pos2.getLedgerId() && pos1.getEntryId() == pos2.getEntryId()) {
-            return 0;
-        }
         if (pos1.getLedgerId() < ledger.getFirstPosition().getLedgerId()
-            || pos2.getLedgerId() < ledger.getFirstPosition().getLedgerId()
-            || pos1.getLedgerId() > ledger.getLastPosition().getLedgerId()
-            || pos2.getLedgerId() > ledger.getLastPosition().getLedgerId()) {
+                || pos2.getLedgerId() < ledger.getFirstPosition().getLedgerId()
+                || pos1.getLedgerId() > ledger.getLastPosition().getLedgerId()
+                || pos2.getLedgerId() > ledger.getLastPosition().getLedgerId()) {
             log.warn("[{}] [{}] Comparing un-exist position {} and {}", ledger.getName(), name, pos1, pos2,
-                new IllegalArgumentException("Comparing un-exist position"));
+                    new IllegalArgumentException("Comparing un-exist position"));
             return pos1.compareTo(pos2);
         }
         if (pos1.getLedgerId() == pos2.getLedgerId()) {
