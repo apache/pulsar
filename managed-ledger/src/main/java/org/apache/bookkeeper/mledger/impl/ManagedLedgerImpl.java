@@ -3893,8 +3893,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (li != null) {
                 // If the 2 positions are in the same ledger
                 long count = toPosition.getEntryId() - fromPosition.getEntryId() - 1;
-                count += fromIncluded ? 1 : 0;
-                count += toIncluded ? 1 : 0;
+                count += fromIncluded && fromPosition.getEntryId() >= 0 ? 1 : 0;
+                count += toIncluded && toPosition.getEntryId() >= 0 ? 1 : 0;
                 return count;
             } else {
                 // if the ledgerId is not in the ledgers, it means it has been deleted
@@ -3912,7 +3912,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         //    Add nothing if "toPosition" does not exit in "ledgers".
         //    Add nothing if "toPosition.entryId < 0".
         LedgerInfo toLedger = ledgers.get(toPosition.getLedgerId());
-        if (toPosition.getEntryId() > 0 && toLedger != null) {
+        if (toPosition.getEntryId() >= 0 && toLedger != null) {
             count += Math.min(toPosition.getEntryId(), toLedger.getEntries() - 1);
             count += toIncluded ? 1 : 0;
         }

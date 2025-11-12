@@ -1455,7 +1455,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     /**
      * Compare two positions. It is different with {@link Position#compareTo(Position)} when the params are invalid.
-     * For example: position-1 is "1:{latest entry}", and position-2 is "2:0", they are the same position.
+     * For example: position-1 is "1:{latest entry}", and position-2 is "2:-1", they are the same position.
      */
     private int comparePositions(Position pos1, Position pos2) {
         if (pos1 == null || pos2 == null) {
