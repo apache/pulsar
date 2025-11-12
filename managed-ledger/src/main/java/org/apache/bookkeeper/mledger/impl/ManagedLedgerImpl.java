@@ -3881,6 +3881,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         Position toPosition = range.upperEndpoint();
         boolean toIncluded = range.upperBoundType() == BoundType.CLOSED;
 
+        // If the "fromPosition" is after "toPosition", then there is no entry in the range.
+        if (fromPosition.getLedgerId() > toPosition.getLedgerId() || (fromPosition.getLedgerId() == toPosition.getLedgerId()
+                && fromPosition.getEntryId() > toPosition.getEntryId())) {
+            return 0;
+        }
+
+        // If the 2 positions are in the same ledger.
         if (fromPosition.getLedgerId() == toPosition.getLedgerId()) {
             LedgerInfo li = ledgers.get(toPosition.getLedgerId());
             if (li != null) {
@@ -3893,28 +3900,43 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // if the ledgerId is not in the ledgers, it means it has been deleted
                 return 0;
             }
-        } else {
-            long count = 0;
-            // If the from & to are pointing to different ledgers, then we need to :
-            // 1. Add the entries in the ledger pointed by toPosition
-            count += toPosition.getEntryId() < 0 ? 0 : toPosition.getEntryId();
-            count += toIncluded ? 1 : 0;
+        }
 
-            // 2. Add the entries in the ledger pointed by fromPosition
-            LedgerInfo li = ledgers.get(fromPosition.getLedgerId());
-            if (li != null) {
-                count += li.getEntries() - (fromPosition.getEntryId() + 1);
+        // If the "fromPosition.ledgerId" is larger than "toPosition.ledgerId".
+        // 1. Add the entries in the ledger pointed by toPosition.
+        // 2. Add the entries in the ledger pointed by fromPosition.
+        // 3. Add the whole ledgers entries in between.
+        long count = 0;
+
+        // 1. Add the entries in the ledger pointed by toPosition.
+        //    Add nothing if "toPosition" does not exit in "ledgers".
+        //    Add nothing if "toPosition.entryId < 0".
+        LedgerInfo toLedger = ledgers.get(toPosition.getLedgerId());
+        if (toPosition.getEntryId() > 0 && toLedger != null) {
+            count += Math.min(toPosition.getEntryId(), toLedger.getEntries() - 1);
+            count += toIncluded ? 1 : 0;
+        }
+
+        // 2. Add the entries in the ledger pointed by fromPosition.
+        //    Add nothing if "toPosition.entryId < 0".
+        //    Add nothing if "toPosition" does not exit in "ledgers".
+        LedgerInfo formLedger = ledgers.get(fromPosition.getLedgerId());
+        if (formLedger != null) {
+            if (fromPosition.getEntryId() < 0) {
+                count += formLedger.getEntries();
+            } else {
+                count += formLedger.getEntries() - (fromPosition.getEntryId() + 1);
                 count += fromIncluded ? 1 : 0;
             }
-
-            // 3. Add the whole ledgers entries in between
-            for (LedgerInfo ls : ledgers.subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false)
-                    .values()) {
-                count += ls.getEntries();
-            }
-
-            return count;
         }
+
+        // 3. Add the whole ledgers entries in between
+        for (LedgerInfo ls : ledgers.subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false)
+                .values()) {
+            count += ls.getEntries();
+        }
+
+        return count;
     }
 
     /**
