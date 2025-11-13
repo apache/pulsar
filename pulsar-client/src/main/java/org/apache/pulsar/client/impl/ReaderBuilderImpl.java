@@ -207,6 +207,22 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
+    public ReaderBuilder<T> enableMultiTopicsSinglePartitionReceiverQueueSize(
+            boolean multiTopicsSinglePartitionReceiverQueueSizeEnable) {
+        conf.setMultiTopicsSinglePartitionReceiverQueueSizeEnable(multiTopicsSinglePartitionReceiverQueueSizeEnable);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> multiTopicsSinglePartitionReceiverQueueSize(
+            int multiTopicsSinglePartitionReceiverQueueSize) {
+        checkArgument(multiTopicsSinglePartitionReceiverQueueSize >= 0,
+                "multiTopicsSinglePartitionReceiverQueueSize needs to be >= 0");
+        conf.setMultiTopicsSinglePartitionReceiverQueueSize(multiTopicsSinglePartitionReceiverQueueSize);
+        return this;
+    }
+
+    @Override
     public ReaderBuilder<T> readerName(String readerName) {
         conf.setReaderName(readerName);
         return this;
