@@ -3947,7 +3947,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // To support the use case "cursor.getNumberOfEntries()", which will use a "toPosition" that with an entry
             // id that is larger than the LAC.
             // To support this case, use "Long.MAX_VALUE" if the ledger is the last one.
-            long entriesInLedger = toLedger.getLedgerId() == currentLedger.getId()
+            long entriesInLedger = (currentLedger != null && toLedger.getLedgerId() == currentLedger.getId())
                     ? Long.MAX_VALUE : toLedger.getEntries();
             count += Math.min(toPosition.getEntryId(), entriesInLedger - 1);
             count += toIncluded ? 1 : 0;
