@@ -1453,32 +1453,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         return firstLedgerId == null ? null : PositionFactory.create(firstLedgerId, 0);
     }
 
-    /**
-     * Compare two positions. It is different with {@link Position#compareTo(Position)} when the params are invalid.
-     * For example: position-1 is "1:{latest entry}", and position-2 is "2:-1", they are the same position.
-     */
-    @VisibleForTesting
-    int comparePositions(Position pos1, Position pos2) {
-        if (pos1 == null || pos2 == null) {
-            throw new IllegalArgumentException("Positions must not be null");
-        }
-        if (pos1.getLedgerId() < ledger.getFirstPosition().getLedgerId()
-                || pos2.getLedgerId() < ledger.getFirstPosition().getLedgerId()
-                || pos1.getLedgerId() > ledger.getLastPosition().getLedgerId()
-                || pos2.getLedgerId() > ledger.getLastPosition().getLedgerId()) {
-            log.warn("[{}] [{}] Comparing un-exist position {} and {}", ledger.getName(), name, pos1, pos2,
-                    new IllegalArgumentException("Comparing un-exist position"));
-            return pos1.compareTo(pos2);
-        }
-        if (pos1.getLedgerId() == pos2.getLedgerId()) {
-            return Long.compare(pos1.getEntryId(), pos2.getEntryId());
-        }
-        if (!ledger.isValidPosition(pos1) || !ledger.isValidPosition(pos2)) {
-            return ledger.getNextValidPosition(pos1).compareTo(ledger.getNextValidPosition(pos2));
-        }
-        return pos1.compareTo(pos2);
-    }
-
     protected void internalResetCursor(Position proposedReadPosition,
                                        AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
         final Position newReadPosition;
@@ -1518,13 +1492,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // Correct the variable "messagesConsumedCounter".
                     // BTW, no need to change "messagesConsumedCounter" if new "markDeletePosition" is the same as the
                     // old one.
-                    int compareRes = comparePositions(markDeletePosition, newMarkDeletePosition);
+                    int compareRes = ledger.comparePositions(markDeletePosition, newMarkDeletePosition);
                     if (compareRes > 0) {
                         MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), -getNumberOfEntries(
-                                Range.closedOpen(newMarkDeletePosition, markDeletePosition)));
+                                Range.openClosed(newMarkDeletePosition, markDeletePosition)));
                     } else if (compareRes < 0) {
                         MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), getNumberOfEntries(
-                                Range.closedOpen(markDeletePosition, newMarkDeletePosition)));
+                                Range.openClosed(markDeletePosition, newMarkDeletePosition)));
                     }
                     markDeletePosition = newMarkDeletePosition;
                     lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, isCompactionCursor()

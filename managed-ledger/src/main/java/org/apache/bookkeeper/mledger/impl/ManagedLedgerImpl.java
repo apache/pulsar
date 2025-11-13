@@ -3869,6 +3869,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
+     * Compare two positions. It is different with {@link Position#compareTo(Position)} when the params are invalid.
+     * For example: position-1 is "1:{latest entry}", and position-2 is "2:-1", they are the same position.
+     */
+    @VisibleForTesting
+    int comparePositions(Position pos1, Position pos2) {
+        if (pos1 == null || pos2 == null) {
+            throw new IllegalArgumentException("Positions must not be null");
+        }
+        if (pos1.getLedgerId() < getFirstPosition().getLedgerId()
+                || pos2.getLedgerId() < getFirstPosition().getLedgerId()
+                || pos1.getLedgerId() > getLastPosition().getLedgerId()
+                || pos2.getLedgerId() > getLastPosition().getLedgerId()) {
+            log.warn("[{}] Comparing un-exist position {} and {}", name, pos1, pos2,
+                    new IllegalArgumentException("Comparing un-exist position"));
+            return pos1.compareTo(pos2);
+        }
+        if (pos1.getLedgerId() == pos2.getLedgerId()) {
+            return Long.compare(pos1.getEntryId(), pos2.getEntryId());
+        }
+        if (!isValidPosition(pos1) || !isValidPosition(pos2)) {
+            return getNextValidPosition(pos1).compareTo(getNextValidPosition(pos2));
+        }
+        return pos1.compareTo(pos2);
+    }
+
+    /**
      * Get the number of entries between a contiguous range of two positions.
      *
      * @param range
@@ -3880,6 +3906,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
         Position toPosition = range.upperEndpoint();
         boolean toIncluded = range.upperBoundType() == BoundType.CLOSED;
+        if (comparePositions(fromPosition, toPosition) > 0) {
+            log.warn("[{}] Getting number of entries with an invalid range {} and {}", name, fromPosition, toPosition);
+            throw new IllegalArgumentException("Invalid range " + range);
+        }
 
         // If the "fromPosition" is after "toPosition", then there is no entry in the range.
         if (fromPosition.getLedgerId() > toPosition.getLedgerId()

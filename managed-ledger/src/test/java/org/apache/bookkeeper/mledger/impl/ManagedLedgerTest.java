@@ -4935,7 +4935,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testCursorComparePositions() throws Exception {
+    public void testComparePositions() throws Exception {
         final String ledgerName = "ml_" + UUID.randomUUID().toString().replaceAll("-", "");
         final String cursorName = "test-cursor";
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -4957,78 +4957,78 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger2.getEntries(), 10);
 
         // Normal case: pos1 == pos2.
-        assertEquals(cursor.comparePositions(positions.get(0), positions.get(0)), 0);
-        assertEquals(cursor.comparePositions(positions.get(9), positions.get(9)), 0);
-        assertEquals(cursor.comparePositions(positions.get(29), positions.get(29)), 0);
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(0)), 0);
+        assertEquals(ml.comparePositions(positions.get(9), positions.get(9)), 0);
+        assertEquals(ml.comparePositions(positions.get(29), positions.get(29)), 0);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
                 PositionFactory.create(ledger2.getLedgerId(), -1)), 0);
 
         // Normal case: pos1 < pos2.
-        assertEquals(cursor.comparePositions(positions.get(0), positions.get(1)), -1);
-        assertEquals(cursor.comparePositions(positions.get(0), positions.get(9)), -1);
-        assertEquals(cursor.comparePositions(positions.get(0), positions.get(10)), -1);
-        assertEquals(cursor.comparePositions(positions.get(0), positions.get(19)), -1);
-        assertEquals(cursor.comparePositions(positions.get(0), positions.get(20)), -1);
-        assertEquals(cursor.comparePositions(positions.get(0), positions.get(29)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(1)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(9)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(10)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(19)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(20)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(29)), -1);
 
         // Normal case: pos1 > pos2.
-        assertEquals(cursor.comparePositions(positions.get(1), positions.get(0)), 1);
-        assertEquals(cursor.comparePositions(positions.get(9), positions.get(0)), 1);
-        assertEquals(cursor.comparePositions(positions.get(10), positions.get(0)), 1);
-        assertEquals(cursor.comparePositions(positions.get(19), positions.get(0)), 1);
-        assertEquals(cursor.comparePositions(positions.get(20), positions.get(0)), 1);
-        assertEquals(cursor.comparePositions(positions.get(29), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(1), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(9), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(10), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(19), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(20), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(29), positions.get(0)), 1);
 
         // Pos1 has negative entry id & both positions in the same ledger.
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger1.getLedgerId(), -1),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger1.getLedgerId(), -1),
                 positions.get(0)), -1);
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
                 positions.get(10)), -1);
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1),
                 positions.get(20)), -1);
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger1.getLedgerId(), -1),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger1.getLedgerId(), -1),
                 positions.get(0)), -1);
         // Pos1 has negative entry id & crosses ledgers.
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
                 positions.get(0)), 1);
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1),
                 positions.get(0)), 1);
         // Pos1 has negative entry id & the same value.
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1), positions.get(9)),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1), positions.get(9)),
                 0);
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1), positions.get(19)),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1), positions.get(19)),
                 0);
 
         // Pos2 has negative entry id & both positions in the same ledger.
-        assertEquals(cursor.comparePositions(positions.get(0), PositionFactory.create(ledger1.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger1.getLedgerId(), -1)),
                  1);
-        assertEquals(cursor.comparePositions(positions.get(10), PositionFactory.create(ledger2.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(10), PositionFactory.create(ledger2.getLedgerId(), -1)),
                  1);
-        assertEquals(cursor.comparePositions(positions.get(20), PositionFactory.create(ledger3.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(20), PositionFactory.create(ledger3.getLedgerId(), -1)),
                  1);
-        assertEquals(cursor.comparePositions(positions.get(0), PositionFactory.create(ledger1.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger1.getLedgerId(), -1)),
                  1);
         // Pos2 has negative entry id & crosses ledgers.
-        assertEquals(cursor.comparePositions(positions.get(0), PositionFactory.create(ledger2.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger2.getLedgerId(), -1)),
                 -1);
-        assertEquals(cursor.comparePositions(positions.get(0), PositionFactory.create(ledger3.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger3.getLedgerId(), -1)),
                 -1);
         // Pos2 has negative entry id & the same value.
-        assertEquals(cursor.comparePositions(positions.get(9), PositionFactory.create(ledger2.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(9), PositionFactory.create(ledger2.getLedgerId(), -1)),
                 0);
-        assertEquals(cursor.comparePositions(positions.get(19), PositionFactory.create(ledger3.getLedgerId(), -1)),
+        assertEquals(ml.comparePositions(positions.get(19), PositionFactory.create(ledger3.getLedgerId(), -1)),
                 0);
 
         // Pos1 does not exist in ledgers.
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger1.getLedgerId() - 1, 100),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger1.getLedgerId() - 1, 100),
                         positions.get(0)), -1);
-        assertEquals(cursor.comparePositions(PositionFactory.create(ledger3.getLedgerId() + 1, 0),
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId() + 1, 0),
                         positions.get(29)), 1);
 
         // Pos2 does not exist in ledgers.
-        assertEquals(cursor.comparePositions(positions.get(0),
+        assertEquals(ml.comparePositions(positions.get(0),
                         PositionFactory.create(ledger1.getLedgerId() - 1, 100)), 1);
-        assertEquals(cursor.comparePositions(positions.get(29),
+        assertEquals(ml.comparePositions(positions.get(29),
                 PositionFactory.create(ledger3.getLedgerId() + 1, 0)), -1);
 
         // cleanup.
