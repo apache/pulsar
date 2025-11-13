@@ -3944,7 +3944,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         //    Add nothing if "toPosition.entryId < 0".
         LedgerInfo toLedger = ledgers.get(toPosition.getLedgerId());
         if (toPosition.getEntryId() >= 0 && toLedger != null) {
-            count += Math.min(toPosition.getEntryId(), toLedger.getEntries() - 1);
+            long entriesInLedger = toLedger.getLedgerId() == currentLedger.getId()
+                    ? lastConfirmedEntry.getEntryId() + 1 : toLedger.getEntries();
+            count += Math.min(toPosition.getEntryId(), entriesInLedger - 1);
             count += toIncluded ? 1 : 0;
         }
 

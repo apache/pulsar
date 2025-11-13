@@ -4784,7 +4784,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, config);
         // Create a cursor to avoid entries being trimmed.
         ml.openCursor(cursorName);
-        int totalEntries = 30;
+        int totalEntries = 35;
         List<Position> positions = new ArrayList<>(totalEntries);
         for (int i = 0; i < totalEntries; i++) {
             Position pos = ml.addEntry(("entry-" + i).getBytes());
@@ -4794,8 +4794,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         LedgerInfo ledger1 = iterator.next();
         LedgerInfo ledger2 = iterator.next();
         LedgerInfo ledger3 = iterator.next();
+        LedgerInfo ledger4 = iterator.next();
         assertEquals(ledger1.getEntries(), 10);
         assertEquals(ledger2.getEntries(), 10);
+        assertEquals(ledger3.getEntries(), 10);
+        assertEquals(ledger4.getLedgerId(), ml.getCurrentLedger().getId());
 
         // Normal case: same ledger.
         Range<Position> range11 = Range.closed(positions.get(0), positions.get(9));
@@ -4818,6 +4821,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ml.getNumberOfEntries(range25), 29);
         Range<Position> range26 = Range.closedOpen(positions.get(0), positions.get(29));
         assertEquals(ml.getNumberOfEntries(range26), 29);
+
+        // Normal case: end with current ledger.
+        Range<Position> range27 = Range.closed(positions.get(0), positions.get(34));
+        assertEquals(ml.getNumberOfEntries(range27), 35);
 
         // From position that entry id is "-1" & positions in the same ledger.
         Range<Position> range31 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
