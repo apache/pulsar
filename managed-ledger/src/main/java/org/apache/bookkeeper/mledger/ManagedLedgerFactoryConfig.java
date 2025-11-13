@@ -148,6 +148,11 @@ public class ManagedLedgerFactoryConfig {
     private String managedCursorInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
 
     /**
+     * Number of threads to use for ML offload operations.
+     */
+    private int numManagedLedgerOffloadSchedulerThreads = Runtime.getRuntime().availableProcessors();
+
+    /**
      * ManagedCursorInfo compression threshold. If the origin metadata size below configuration.
      * compression will not apply.
      */
