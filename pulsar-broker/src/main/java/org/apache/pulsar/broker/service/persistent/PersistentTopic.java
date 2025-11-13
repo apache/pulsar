@@ -1518,19 +1518,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }
                 } else if (currentUsageCount() > 0) {
                     StringBuilder errorMsg = new StringBuilder("Topic has");
-                    errorMsg.append(" ").append(currentUsageCount()).append(" clients connected.");
-                    int consumerCount = subscriptions.values().stream().map(sub -> sub.getConsumers().size())
+                    errorMsg.append(" ").append(currentUsageCount())
+                        .append(currentUsageCount() == 1 ? " client" : " clients").append(" connected");
+                    long consumerCount = subscriptions.values().stream().map(sub -> sub.getConsumers().size())
                             .reduce(0, Integer::sum);
-                    int replicatorCount = 0;
-                    int producerCount = 0;
+                    long replicatorCount = 0;
+                    long producerCount = 0;
                     if (!producers.isEmpty()) {
-                        replicatorCount = producers.values().stream().filter(p -> p.isRemote()).map(p -> 1)
-                                .reduce(0, Integer::sum);
+                        replicatorCount = producers.values().stream().filter(Producer::isRemote).count();
                         if (producers.size() > replicatorCount) {
                             producerCount = producers.size() - replicatorCount;
                         }
                     }
-                    errorMsg.append(" Including").append(consumerCount).append(" consumers,")
+                    errorMsg.append(" Including").append(" ").append(consumerCount).append(" consumers,")
                         .append(" ").append(producerCount).append(" producers,").append(" and")
                         .append(" ").append(replicatorCount).append(" replicators.");
                     return FutureUtil.failedFuture(new TopicBusyException(errorMsg.toString()));
