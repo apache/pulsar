@@ -4825,6 +4825,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Normal case: end with current ledger.
         Range<Position> range27 = Range.closed(positions.get(0), positions.get(34));
         assertEquals(ml.getNumberOfEntries(range27), 35);
+        // Cover the following case.
+        // The use case "cursor.getNumberOfEntries()", which will use a "toPosition" that with an entry
+        // id that is larger than the LAC.
+        Range<Position> range28 = Range.closed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range28), 120);
 
         // From position that entry id is "-1" & positions in the same ledger.
         Range<Position> range31 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
