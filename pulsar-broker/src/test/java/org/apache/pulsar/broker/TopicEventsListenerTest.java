@@ -200,7 +200,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
             if (forceDelete) {
                 throw e;
             }
-            assertTrue(e.getMessage().contains("TTopic has")
+            assertTrue(e.getMessage().contains("Topic has")
                     && e.getMessage().contains("client"));
         }
 
