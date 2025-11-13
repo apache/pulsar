@@ -962,7 +962,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertThat(e.getMessage())
                     .isNotNull()
-                    .startsWith("Topic has 2 connected producers/consumers");
+                    .startsWith("Topic has 2 clients");
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 2);
