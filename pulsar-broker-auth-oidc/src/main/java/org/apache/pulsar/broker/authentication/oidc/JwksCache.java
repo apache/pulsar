@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -65,7 +66,7 @@ public class JwksCache {
     private final AuthenticationProvider authenticationProvider;
 
     JwksCache(AuthenticationProvider authenticationProvider, ServiceConfiguration config,
-              AsyncHttpClient httpClient, ApiClient apiClient) throws IOException {
+              AsyncHttpClient httpClient, ApiClient apiClient, ExecutorService cacheExecutor) throws IOException {
         this.authenticationProvider = authenticationProvider;
         // Store the clients
         this.httpClient = httpClient;
@@ -88,6 +89,7 @@ public class JwksCache {
             }
         };
         this.cache = Caffeine.newBuilder()
+                .executor(cacheExecutor)
                 .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
