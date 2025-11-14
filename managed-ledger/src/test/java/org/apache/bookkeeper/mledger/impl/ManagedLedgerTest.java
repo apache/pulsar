@@ -4994,9 +4994,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertNotEquals(ledger4.getLedgerId(), ml2.currentLedger.getId());
         Range<Position> range131 = Range.closed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
         assertEquals(ml2.getNumberOfEntries(range131), 131);
-        Range<Position> range132 = Range.openClosed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        Range<Position> range132 = Range.openClosed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(),
+            100));
         assertEquals(ml2.getNumberOfEntries(range132), 130);
-        Range<Position> range133 = Range.closedOpen(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        Range<Position> range133 = Range.closedOpen(positions.get(0), PositionFactory.create(ledger4.getLedgerId(),
+            100));
         assertEquals(ml2.getNumberOfEntries(range133), 130);
 
         // cleanup.
