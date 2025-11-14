@@ -555,7 +555,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             }
         };
         appender.start();
-        logger.get().addAppender(appender, null, null);
         logger.addAppender(appender);
 
         // create namespace-5 and topic
@@ -618,14 +617,14 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // since prepareInitPoliciesCacheAsync() throw exception when initPolicesCache(),
         // would clean readerCache and policyCacheInitMap
-        // sleep 500ms to make sure clean operation finish.
-        Thread.sleep(500);
         Assert.assertTrue(prepareFuture.isCompletedExceptionally());
-        future = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(future);
-        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
-                spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(readerCompletableFuture1);
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> future1 = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(future1);
+            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
+                    spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(readerCompletableFuture1);
+        });
 
 
         // make sure not do cleanCacheAndCloseReader() twice
@@ -661,7 +660,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             }
         };
         appender.start();
-        logger.get().addAppender(appender, null, null);
         logger.addAppender(appender);
 
         // create namespace-5 and topic
@@ -699,14 +697,14 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // since prepareInitPoliciesCacheAsync() throw exception when createReader,
         // would clean readerCache and policyCacheInitMap.
-        // sleep 500ms to make sure clean operation finish.
-        Thread.sleep(500);
         Assert.assertTrue(prepareFuture.isCompletedExceptionally());
-        future = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(future);
-        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
-                spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(readerCompletableFuture1);
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> future1 = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(future1);
+            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
+                    spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(readerCompletableFuture1);
+        });
 
 
         // make sure not do cleanCacheAndCloseReader() twice
