@@ -4942,6 +4942,31 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 PositionFactory.create(ledger3.getLedgerId(), 100));
         assertEquals(ml.getNumberOfEntries(range113), 29);
 
+        // Both "fromPosition" and "toPosition" have negative entry id & in the same ledger.
+        Range<Position> range121 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger1.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range121), 0);
+        Range<Position> range122 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger1.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range122), 0);
+        // Both "fromPosition" and "toPosition" have negative entry id & crosses ledgers.
+        Range<Position> range123 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range123), 10);
+        Range<Position> range124 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range124), 20);
+        Range<Position> range125 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1000));
+        assertEquals(ml.getNumberOfEntries(range125), 20);
+        try {
+            Range.openClosed(PositionFactory.create(ledger2.getLedgerId(), -10),
+            PositionFactory.create(ledger1.getLedgerId(), -1));
+            fail("Should have failed because the range is invalid.");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Invalid range"));
+        }
+
         // Cover the following case.
         // The use case "cursor.getNumberOfEntries()", which will use a "toPosition" that with an entry
         // id that is larger than the LAC.
@@ -4949,8 +4974,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.close();
         ManagedLedgerImpl ml2 =  (ManagedLedgerImpl) factory.open(ledgerName, config);
         assertNotEquals(ledger4.getLedgerId(), ml2.currentLedger.getId());
-        Range<Position> range121 = Range.closed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
-        assertEquals(ml2.getNumberOfEntries(range121), 131);
+        Range<Position> range131 = Range.closed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        assertEquals(ml2.getNumberOfEntries(range131), 131);
+
+
 
         // cleanup.
         ml2.delete();

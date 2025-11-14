@@ -3911,10 +3911,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             throw new IllegalArgumentException("Invalid range " + range);
         }
 
-        // If the "fromPosition" is after "toPosition", then there is no entry in the range.
+        // 1. If the "fromPosition" is after "toPosition", then there is no entry in the range.
+        // 2. If both "formPosition" and "toPosition" have negative entry id amd in the same ledger, then there is no
+        //    entry in the range.
         if (fromPosition.getLedgerId() > toPosition.getLedgerId()
             || (fromPosition.getLedgerId() == toPosition.getLedgerId()
-                && fromPosition.getEntryId() > toPosition.getEntryId())) {
+                && fromPosition.getEntryId() > toPosition.getEntryId())
+            || (fromPosition.getLedgerId() == toPosition.getLedgerId()
+                && fromPosition.getEntryId() < 0 && toPosition.getEntryId() < 0)) {
             return 0;
         }
 
