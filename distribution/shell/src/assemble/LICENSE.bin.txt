@@ -384,10 +384,10 @@ The Apache Software License, Version 2.0
     - simpleclient_tracer_otel-0.16.0.jar
     - simpleclient_tracer_otel_agent-0.16.0.jar
  * Log4J
-    - log4j-api-2.23.1.jar
-    - log4j-core-2.23.1.jar
-    - log4j-slf4j2-impl-2.23.1.jar
-    - log4j-web-2.23.1.jar
+    - log4j-api-2.25.2.jar
+    - log4j-core-2.25.2.jar
+    - log4j-slf4j2-impl-2.25.2.jar
+    - log4j-web-2.25.2.jar
  * OpenTelemetry
     - opentelemetry-api-1.45.0.jar
     - opentelemetry-api-incubator-1.45.0-alpha.jar
@@ -429,7 +429,7 @@ BSD 3-clause "New" or "Revised" License
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
-    - slf4j-api-2.0.13.jar
+    - slf4j-api-2.0.17.jar
  * The Checker Framework
     - checker-qual-3.33.0.jar
 
