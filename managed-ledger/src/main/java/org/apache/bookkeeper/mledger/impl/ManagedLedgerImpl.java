@@ -3877,7 +3877,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (pos1 == null || pos2 == null) {
             throw new IllegalArgumentException("Positions must not be null");
         }
-        if (pos1.getLedgerId() < getFirstPosition().getLedgerId()
+        if (ledgers.isEmpty() || pos1.getLedgerId() < getFirstPosition().getLedgerId()
                 || pos2.getLedgerId() < getFirstPosition().getLedgerId()
                 || pos1.getLedgerId() > getLastPosition().getLedgerId()
                 || pos2.getLedgerId() > getLastPosition().getLedgerId()) {
