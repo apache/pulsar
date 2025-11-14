@@ -552,18 +552,18 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // since prepareInitPoliciesCacheAsync() throw exception when initPolicesCache(),
         // would clean readerCache and policyCacheInitMap.
-        // sleep 500ms to make sure clean operation finish.
-        Thread.sleep(500);
         Assert.assertTrue(prepareFuture.isCompletedExceptionally());
-        future = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(future);
-        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
-                spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(readerCompletableFuture1);
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> future1 = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(future1);
+            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
+                    spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(readerCompletableFuture1);
+        });
 
 
         // make sure not do cleanPoliciesCacheInitMap() twice
-        // totally trigger prepareInitPoliciesCacheAsync() twice, so the time of cleanCacheAndCloseReader() is 2.
+        // totally trigger prepareInitPoliciesCacheAsync() twice, so the time of cleanPoliciesCacheInitMap() is 2.
         // in previous code, the time would be 3
         boolean logFound = logMessages.stream()
                 .anyMatch(msg -> msg.contains("Failed to create reader on __change_events topic"));
@@ -595,7 +595,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             }
         };
         appender.start();
-        logger.get().addAppender(appender, null, null);
         logger.addAppender(appender);
 
         // create namespace-5 and topic
@@ -633,18 +632,18 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // since prepareInitPoliciesCacheAsync() throw exception when createReader,
         // would clean readerCache and policyCacheInitMap.
-        // sleep 500ms to make sure clean operation finish.
-        Thread.sleep(500);
         Assert.assertTrue(prepareFuture.isCompletedExceptionally());
-        future = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(future);
-        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
-                spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
-        Assert.assertNull(readerCompletableFuture1);
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> future1 = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(future1);
+            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
+                    spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(readerCompletableFuture1);
+        });
 
 
         // make sure not do cleanPoliciesCacheInitMap() twice
-        // totally trigger prepareInitPoliciesCacheAsync() once, so the time of cleanCacheAndCloseReader() is 1.
+        // totally trigger prepareInitPoliciesCacheAsync() once, so the time of cleanPoliciesCacheInitMap() is 1.
         boolean logFound = logMessages.stream()
                 .anyMatch(msg -> msg.contains("Failed to create reader on __change_events topic"));
         assertTrue(logFound);
