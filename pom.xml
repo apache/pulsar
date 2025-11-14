@@ -180,12 +180,12 @@ flexible messaging model and an intuitive client API.</description>
     <narPluginPhase>package</narPluginPhase>
 
     <!-- apache commons -->
-    <commons-compress.version>1.27.1</commons-compress.version>
+    <commons-compress.version>1.28.0</commons-compress.version>
 
     <bookkeeper.version>4.17.2</bookkeeper.version>
     <zookeeper.version>3.9.4</zookeeper.version>
-    <commons-cli.version>1.9.0</commons-cli.version>
-    <commons-text.version>1.13.1</commons-text.version>
+    <commons-cli.version>1.11.0</commons-cli.version>
+    <commons-text.version>1.14.0</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
@@ -199,7 +199,7 @@ flexible messaging model and an intuitive client API.</description>
     <vertx.version>4.5.22</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.13</slf4j.version>
-    <commons.collections4.version>4.4</commons.collections4.version>
+    <commons.collections4.version>4.5.0</commons.collections4.version>
     <log4j2.version>2.23.1</log4j2.version>
     <!-- bouncycastle dependencies aren't necessarily aligned -->
     <bouncycastle.bcprov-jdk18on.version>1.78.1</bouncycastle.bcprov-jdk18on.version>
@@ -262,9 +262,9 @@ flexible messaging model and an intuitive client API.</description>
     <confluent.version>7.9.2</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
-    <commons-lang3.version>3.18.0</commons-lang3.version>
-    <commons-io.version>2.19.0</commons-io.version>
-    <commons-codec.version>1.18.0</commons-codec.version>
+    <commons-lang3.version>3.19.0</commons-lang3.version>
+    <commons-io.version>2.21.0</commons-io.version>
+    <commons-codec.version>1.20.0</commons-codec.version>
     <commons-logging.version>1.3.5</commons-logging.version>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
