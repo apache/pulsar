@@ -2956,14 +2956,6 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
     </repository>
     <repository>
-      <id>maven.restlet.org</id>
-      <name>maven.restlet.org</name>
-      <url>https://maven.restlet.talend.com</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
       <id>datastax-releases</id>
       <url>https://repo.aws.dsinternal.org/artifactory/datastax-releases-local</url>
       <snapshots>
