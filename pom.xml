@@ -3141,12 +3141,5 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </snapshots>
     </repository>
-    <repository>
-      <id>confluent</id>
-      <url>https://packages.confluent.io/maven/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
   </repositories>
 </project>
