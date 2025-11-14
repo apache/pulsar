@@ -4953,12 +4953,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Range<Position> range123 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
                 PositionFactory.create(ledger2.getLedgerId(), -1));
         assertEquals(ml.getNumberOfEntries(range123), 10);
-        Range<Position> range124 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+        Range<Position> range124 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -10),
                 PositionFactory.create(ledger3.getLedgerId(), -1));
         assertEquals(ml.getNumberOfEntries(range124), 20);
-        Range<Position> range125 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+        Range<Position> range125 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -10),
                 PositionFactory.create(ledger3.getLedgerId(), -1000));
         assertEquals(ml.getNumberOfEntries(range125), 20);
+        Range<Position> range126 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range126), 10);
+        Range<Position> range127 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range127), 20);
+        Range<Position> range128 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1000));
+        assertEquals(ml.getNumberOfEntries(range128), 20);
+        Range<Position> range129 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range129), 10);
+        Range<Position> range1210 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range1210), 20);
+        Range<Position> range1211 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1000));
+        assertEquals(ml.getNumberOfEntries(range1211), 20);
         try {
             Range.openClosed(PositionFactory.create(ledger2.getLedgerId(), -10),
             PositionFactory.create(ledger1.getLedgerId(), -1));
@@ -4976,8 +4994,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertNotEquals(ledger4.getLedgerId(), ml2.currentLedger.getId());
         Range<Position> range131 = Range.closed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
         assertEquals(ml2.getNumberOfEntries(range131), 131);
-
-
+        Range<Position> range132 = Range.openClosed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        assertEquals(ml2.getNumberOfEntries(range132), 130);
+        Range<Position> range133 = Range.closedOpen(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        assertEquals(ml2.getNumberOfEntries(range133), 130);
 
         // cleanup.
         ml2.delete();
