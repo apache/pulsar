@@ -233,31 +233,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
     }
 
-    @Override
-    public void onWebSocketText(String message) {
-        super.onWebSocketText(message);
-
-        try {
-            ConsumerCommand command = consumerCommandReader.readValue(message);
-            if ("permit".equals(command.type)) {
-                handlePermit(command);
-            } else if ("unsubscribe".equals(command.type)) {
-                handleUnsubscribe(command);
-            } else if ("negativeAcknowledge".equals(command.type)) {
-                handleNack(command);
-            } else if ("isEndOfTopic".equals(command.type)) {
-                handleEndOfTopic();
-            } else {
-                handleAck(command);
-            }
-        } catch (IOException e) {
-            log.warn("Failed to deserialize message id: {}", message, e);
-            close(WebSocketError.FailedToDeserializeFromJSON);
-        }
-    }
-
     // Check and notify consumer if reached end of topic.
-    private void handleEndOfTopic() {
+    @Override
+    protected void handleEndOfTopic() {
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received check reach the end of topic request from {} ", consumer.getTopic(),
                     subscription, getRemote().getInetSocketAddress().toString());
@@ -288,12 +266,18 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void handleUnsubscribe(ConsumerCommand command) throws PulsarClientException {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received unsubscribe request from {} ", consumer.getTopic(),
-                    subscription, getRemote().getInetSocketAddress().toString());
+    @Override
+    protected void handleUnsubscribe(ConsumerCommand command) {
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}/{}] Received unsubscribe request from {} ", consumer.getTopic(),
+                        subscription, getRemote().getInetSocketAddress().toString());
+            }
+            consumer.unsubscribe();
+        } catch (PulsarClientException e) {
+            log.warn("Failed to deserialize message id: {}", command, e);
+            close(WebSocketError.FailedToDeserializeFromJSON);
         }
-        consumer.unsubscribe();
     }
 
     private void checkResumeReceive() {
@@ -306,55 +290,73 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void handleAck(ConsumerCommand command) throws IOException {
-        // We should have received an ack
-        MessageId msgId = MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId));
-        if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
-                    subscription, msgId, getRemote().getInetSocketAddress().toString());
-        }
-
-        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
-        if (originalMsgId != null) {
-            consumer.acknowledgeAsync(originalMsgId).thenAccept(consumer -> numMsgsAcked.increment());
-        } else {
-            consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
-        }
-
-        checkResumeReceive();
-    }
-
-    private void handleNack(ConsumerCommand command) throws IOException {
-        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-            topic.toString());
-        if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received negative ack request of message {} from {} ", consumer.getTopic(),
-                    subscription, msgId, getRemote().getInetSocketAddress().toString());
-        }
-
-        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
-        if (originalMsgId != null) {
-            consumer.negativeAcknowledge(originalMsgId);
-        } else {
-            consumer.negativeAcknowledge(msgId);
-        }
-        checkResumeReceive();
-    }
-
-    private void handlePermit(ConsumerCommand command) throws IOException {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received {} permits request from {} ", consumer.getTopic(),
-                    subscription, command.permitMessages, getRemote().getInetSocketAddress().toString());
-        }
-        if (command.permitMessages == null) {
-            throw new IOException("Missing required permitMessages field for 'permit' command");
-        }
-        if (this.pullMode) {
-            int pending = pendingMessages.getAndAdd(-command.permitMessages);
-            if (pending >= 0) {
-                // Resume delivery
-                receiveMessage();
+    @Override
+    protected void handleAck(ConsumerCommand command) {
+        try {
+            // We should have received an ack
+            MessageId msgId = MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId));
+            if (log.isDebugEnabled()) {
+                log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
+                        subscription, msgId, getRemote().getInetSocketAddress().toString());
             }
+
+            MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
+            if (originalMsgId != null) {
+                consumer.acknowledgeAsync(originalMsgId).thenAccept(consumer -> numMsgsAcked.increment());
+            } else {
+                consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+            }
+
+            checkResumeReceive();
+        } catch (IOException e) {
+            log.warn("Failed to deserialize message id: {}", command, e);
+            close(WebSocketError.FailedToDeserializeFromJSON);
+        }
+    }
+
+    @Override
+    protected void handleNack(ConsumerCommand command) {
+        try {
+            MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+                topic.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("[{}/{}] Received negative ack request of message {} from {} ", consumer.getTopic(),
+                        subscription, msgId, getRemote().getInetSocketAddress().toString());
+            }
+
+            MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
+            if (originalMsgId != null) {
+                consumer.negativeAcknowledge(originalMsgId);
+            } else {
+                consumer.negativeAcknowledge(msgId);
+            }
+            checkResumeReceive();
+        } catch (IOException e) {
+            log.warn("Failed to deserialize message id: {}", command, e);
+            close(WebSocketError.FailedToDeserializeFromJSON);
+        }
+    }
+
+    @Override
+    protected void handlePermit(ConsumerCommand command) {
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}/{}] Received {} permits request from {} ", consumer.getTopic(),
+                        subscription, command.permitMessages, getRemote().getInetSocketAddress().toString());
+            }
+            if (command.permitMessages == null) {
+                throw new IOException("Missing required permitMessages field for 'permit' command");
+            }
+            if (this.pullMode) {
+                int pending = pendingMessages.getAndAdd(-command.permitMessages);
+                if (pending >= 0) {
+                    // Resume delivery
+                    receiveMessage();
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Failed to deserialize message id: {}", command, e);
+            close(WebSocketError.FailedToDeserializeFromJSON);
         }
     }
 
