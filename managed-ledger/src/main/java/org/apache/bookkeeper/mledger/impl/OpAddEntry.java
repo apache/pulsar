@@ -171,7 +171,20 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             }
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
+            State state = STATE_UPDATER.get(OpAddEntry.this);
+            if (state == State.INITIATED || state == State.COMPLETED || state == State.CLOSED) {
+                log.warn("[{}] OpAddEntry is already initiated or completed or closed, state={}", ml.getName(), state);
+                return;
+            }
+
             log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            ManagedLedgerException ex = ml.interceptorException;
+            if (ex == null) {
+                ex = new ManagedLedgerException("Unexpected state " + state + " when initiating add entry operation");
+                ml.fenceForInterceptorException(ex);
+            }
+            ml.pendingAddEntries.remove(this);
+            this.failed(ex);
         }
     }
 
