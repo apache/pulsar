@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import lombok.experimental.UtilityClass;
@@ -60,8 +61,14 @@ public class FrameDecoderUtil {
         pipeline.remove(FRAME_DECODER_HANDLER);
     }
 
-    private static LengthFieldBasedFrameDecoder createFrameDecoder(int maxMessageSize) {
+    @VisibleForTesting
+    public static LengthFieldBasedFrameDecoder createFrameDecoder(int maxMessageSize) {
         return new LengthFieldBasedFrameDecoder(
                 maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4);
+    }
+
+    @VisibleForTesting
+    public static LengthFieldBasedFrameDecoder createFrameDecoder() {
+        return createFrameDecoder(Commands.DEFAULT_MAX_MESSAGE_SIZE);
     }
 }

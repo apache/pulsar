@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.utils;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.util.Queue;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -52,6 +51,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 
 public class ClientChannelHelper {
@@ -61,7 +61,7 @@ public class ClientChannelHelper {
 
     public ClientChannelHelper() {
         int maxMessageSize = 5 * 1024 * 1024;
-        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(maxMessageSize, 0, 4, 0, 4), decoder);
+        channel = new EmbeddedChannel(FrameDecoderUtil.createFrameDecoder(), decoder);
     }
 
     public Object getCommand(Object obj) {
