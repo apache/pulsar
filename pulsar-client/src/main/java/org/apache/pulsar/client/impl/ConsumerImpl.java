@@ -2234,8 +2234,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 incomingQueueLock.unlock();
             }
 
-            // is channel is connected, we should send redeliver command to broker
-            if (cnx != null && isConnected(cnx)) {
+            // If a subscription command has been sent to the broker, it is necessary to allow the redelivery
+            // request to be sent to the broker without checking the connection state, as failing to do so would
+            // result in the client consumer epoch being bigger than the broker consumer epoch.
+            if (cnx != null) {
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
                         consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
                 if (currentSize > 0) {
@@ -2245,9 +2247,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
                             consumerName, currentSize);
                 }
-            } else {
-                log.warn("[{}] Send redeliver messages command but the client is reconnect or close, "
-                        + "so don't need to send redeliver command to broker", this);
             }
         }
     }
