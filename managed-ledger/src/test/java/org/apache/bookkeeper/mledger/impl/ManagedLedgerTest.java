@@ -4774,4 +4774,90 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor.close();
         ledger.close();
     }
+
+
+    @Test
+    public void testGetReaderPositions() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        // Setup test data
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetReaderPositions", config);
+
+        Map<Long, Pair<Long, Long>> readerPosition =
+                managedLedger.getReaderPositions(PositionFactory.create(0, 0), 10);
+        Assert.assertEquals(readerPosition.size(), 0);
+    }
+
+    @Test
+    public void testGetReaderPositions0() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        // Setup test data
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetReaderPositions", config);
+        ManagedCursor cursor = managedLedger.openCursor("cursor", InitialPosition.Earliest);
+
+        Position first = null;
+        for (int i = 0; i < 16; i++) {
+            Position position = managedLedger.addEntry(("entry-" + i).getBytes());
+            if (i == 0) {
+                first = position;
+            }
+        }
+        Assert.assertEquals(managedLedger.getLedgersInfo().size(), 4);
+
+        Map<Long, Pair<Long, Long>> readerPosition = managedLedger.getReaderPositions(first, 10);
+        Assert.assertEquals(readerPosition.size(), 2);
+
+        readerPosition = managedLedger.getReaderPositions(first, 200);
+        Assert.assertEquals(readerPosition.size(), 4);
+
+        readerPosition = managedLedger.getReaderPositions(PositionFactory.create(Integer.MAX_VALUE, 0), 10);
+        Assert.assertEquals(readerPosition.size(), 0);
+
+        readerPosition = managedLedger.getReaderPositions(PositionFactory.create(first.getLedgerId(), 0), 0);
+        Assert.assertEquals(readerPosition.size(), 0);
+
+        readerPosition = managedLedger.getReaderPositions(PositionFactory.create(first.getLedgerId(), 4), 100);
+        Assert.assertEquals(readerPosition.size(), 4);
+        Assert.assertEquals(ManagedLedgerImpl.getNumberOfEntries(readerPosition), 12);
+    }
+
+
+    @Test
+    public void testReadEntries() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testReadEntries", config);
+        ManagedCursor cursor = managedLedger.openCursor("cursor", InitialPosition.Earliest);
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 16; i++) {
+            positions.add(managedLedger.addEntry(("entry-" + i).getBytes()));
+        }
+
+        Assert.assertEquals(managedLedger.getLedgersInfo().size(), 4);
+
+        boolean failed = false;
+        try {
+            managedLedger.asyncReadEntries(PositionFactory.EARLIEST, 100).get();
+            failed = true;
+        } catch (Throwable t) {
+            // ignore
+        }
+        Assert.assertFalse(failed);
+
+        try {
+            managedLedger.asyncReadEntries(PositionFactory.LATEST, 100).get();
+            failed = true;
+        } catch (Throwable t) {
+            // ignore
+        }
+        Assert.assertFalse(failed);
+
+        for (int i = 0; i < 16; i++) {
+            Position p = positions.get(i);
+            List<Entry> entries = managedLedger.asyncReadEntries(p, 100).get();
+            Assert.assertEquals(entries.size(), 16 - i);
+        }
+    }
 }
