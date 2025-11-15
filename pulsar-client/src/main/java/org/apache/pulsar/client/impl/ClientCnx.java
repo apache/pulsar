@@ -29,7 +29,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -1440,18 +1439,6 @@ public class ClientCnx extends PulsarHandler {
        if (ctx != null) {
            ctx.close();
        }
-    }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof SslHandshakeCompletionEvent) {
-            SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
-            if (sslHandshakeCompletionEvent.cause() != null) {
-                log.warn("{} Got ssl handshake exception {}", ctx.channel(),
-                        sslHandshakeCompletionEvent);
-            }
-        }
-        ctx.fireUserEventTriggered(evt);
     }
 
     protected void closeWithException(Throwable e) {
