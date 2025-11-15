@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -30,10 +29,8 @@ import java.util.concurrent.CountDownLatch;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.cache.InflightReadsLimiter;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
@@ -137,10 +134,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         doAnswer(answer).when(spyCurrentLedger).readUnconfirmedAsync(anyLong(), anyLong());
 
         // Initialize "entryCache.estimatedEntrySize" to the correct value.
-        Object ctx = new Object();
-        SimpleReadEntriesCallback cb0 = new SimpleReadEntriesCallback();
-        entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, () -> 1, cb0, ctx);
-        cb0.entries.join();
+        releaseEntries(entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, () -> 1).get());
         int sizePerEntry = Long.valueOf(entryCache.getEstimatedEntrySize(ml.currentLedger)).intValue();
         Awaitility.await().untilAsserted(() -> {
             long remainingBytes = limiter.getRemainingBytes();
@@ -149,19 +143,30 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         log.info("remainingBytes 0: {}", limiter.getRemainingBytes());
 
         // Concurrency reading.
-
-        SimpleReadEntriesCallback cb1 = new SimpleReadEntriesCallback();
-        SimpleReadEntriesCallback cb2 = new SimpleReadEntriesCallback();
+        final var future1 = new CompletableFuture<List<Entry>>();
         threadFactory.newThread(() -> {
-            entryCache.asyncReadEntry(spyCurrentLedger, start1, end1, () -> 1, cb1, ctx);
+            entryCache.asyncReadEntry(spyCurrentLedger, start1, end1, () -> 1).whenComplete((entries, throwable) -> {
+                if (throwable == null) {
+                    future1.complete(entries);
+                } else {
+                    future1.completeExceptionally(throwable);
+                }
+            });
         }).start();
+        final var future2 = new CompletableFuture<List<Entry>>();
         threadFactory.newThread(() -> {
             try {
                 firstReadingStarted.await();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            entryCache.asyncReadEntry(spyCurrentLedger, start2, end2, () -> 1, cb2, ctx);
+            entryCache.asyncReadEntry(spyCurrentLedger, start2, end2, () -> 1).whenComplete((entries, throwable) -> {
+                if (throwable == null) {
+                    future2.complete(entries);
+                } else {
+                    future2.completeExceptionally(throwable);
+                }
+            });
         }).start();
 
         long bytesAcquired1 = calculateBytesSizeBeforeFirstReading(readCount1 + readCount2, sizePerEntry);
@@ -176,7 +181,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         // Complete the read1.
         Thread.sleep(3000);
         readCompleteSignal1.countDown();
-        cb1.entries.join();
+        releaseEntries(future1.get());
         long bytesAcquired2 = calculateBytesSizeBeforeFirstReading(readCount2, sizePerEntry);
         long remainingBytesExpected2 = totalCapacity - bytesAcquired2;
         log.info("acquired : {}", bytesAcquired2);
@@ -187,7 +192,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         });
 
         readCompleteSignal2.countDown();
-        cb2.entries.join();
+        releaseEntries(future2.get());
         Awaitility.await().untilAsserted(() -> {
             long remainingBytes = limiter.getRemainingBytes();
             log.info("remainingBytes 2: {}", remainingBytes);
@@ -202,24 +207,10 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         return entriesCount * perEntrySize;
     }
 
-    class SimpleReadEntriesCallback implements AsyncCallbacks.ReadEntriesCallback {
-
-        CompletableFuture<List<Byte>> entries = new CompletableFuture<>();
-
-        @Override
-        public void readEntriesComplete(List<Entry> entriesRead, Object ctx) {
-            List<Byte> list = new ArrayList<>(entriesRead.size());
-            for (Entry entry : entriesRead) {
-                byte b = entry.getDataBuffer().readByte();
-                list.add(b);
-                entry.release();
-            }
-            this.entries.complete(list);
-        }
-
-        @Override
-        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            this.entries.completeExceptionally(exception);
+    // The permits will only be released after entries are released
+    private void releaseEntries(List<Entry> entries) {
+        for (Entry entry : entries) {
+            entry.release();
         }
     }
 }
