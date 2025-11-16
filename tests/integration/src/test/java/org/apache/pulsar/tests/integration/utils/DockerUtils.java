@@ -46,6 +46,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.zip.GZIPOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
@@ -63,6 +66,13 @@ public class DockerUtils {
     
     // Diagnostic collection timeout
     private static final long DIAGNOSTIC_COLLECTION_TIMEOUT_SECONDS = 30;
+
+    // Metrics collection for observability enhancement
+    private static final AtomicInteger totalDockerCommands = new AtomicInteger(0);
+    private static final AtomicInteger timedOutDockerCommands = new AtomicInteger(0);
+    private static final AtomicLong totalDockerCommandExecutionTime = new AtomicLong(0);
+    private static final AtomicInteger totalDiagnosticCollections = new AtomicInteger(0);
+    private static final AtomicInteger failedDiagnosticCollections = new AtomicInteger(0);
 
     private static File getTargetDirectory(String containerId) {
         String base = System.getProperty("maven.buildDirectory");
@@ -185,11 +195,18 @@ public class DockerUtils {
                                                  String containerId,
                                                  String... cmd)
             throws ContainerExecException, ExecutionException, InterruptedException {
+        long startTime = System.currentTimeMillis();
+        boolean timedOut = false;
+        totalDockerCommands.incrementAndGet();
+        
         try {
             // Add timeout for Docker command execution to prevent infinite waiting
-            return runCommandAsync(docker, containerId, cmd)
+            ContainerExecResult result = runCommandAsync(docker, containerId, cmd)
                 .get(DEFAULT_DOCKER_COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return result;
         } catch (TimeoutException e) {
+            timedOut = true;
+            timedOutDockerCommands.incrementAndGet();
             // Collect diagnostics when timeout occurs
             collectDiagnostics(docker, containerId);
             throw new ContainerExecException(
@@ -202,6 +219,10 @@ public class DockerUtils {
                 throw (ContainerExecException) e.getCause();
             }
             throw e;
+        } finally {
+            long executionTime = System.currentTimeMillis() - startTime;
+            totalDockerCommandExecutionTime.addAndGet(executionTime);
+            LOG.debug("Docker command completed in {} ms, timed out: {}", executionTime, timedOut);
         }
     }
 
@@ -210,11 +231,18 @@ public class DockerUtils {
                                                        String containerId,
                                                        String... cmd)
             throws ContainerExecException, ExecutionException, InterruptedException {
+        long startTime = System.currentTimeMillis();
+        boolean timedOut = false;
+        totalDockerCommands.incrementAndGet();
+        
         try {
             // Add timeout for Docker command execution to prevent infinite waiting
-            return runCommandAsyncAsUser(userId, docker, containerId, cmd)
+            ContainerExecResult result = runCommandAsyncAsUser(userId, docker, containerId, cmd)
                 .get(DEFAULT_DOCKER_COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return result;
         } catch (TimeoutException e) {
+            timedOut = true;
+            timedOutDockerCommands.incrementAndGet();
             // Collect diagnostics when timeout occurs
             collectDiagnostics(docker, containerId);
             throw new ContainerExecException(
@@ -227,6 +255,10 @@ public class DockerUtils {
                 throw (ContainerExecException) e.getCause();
             }
             throw e;
+        } finally {
+            long executionTime = System.currentTimeMillis() - startTime;
+            totalDockerCommandExecutionTime.addAndGet(executionTime);
+            LOG.debug("Docker command (as user) completed in {} ms, timed out: {}", executionTime, timedOut);
         }
     }
 
@@ -450,6 +482,7 @@ public class DockerUtils {
      * This helps with debugging timeout issues.
      */
     private static void collectDiagnostics(DockerClient docker, String containerId) {
+        totalDiagnosticCollections.incrementAndGet();
         try {
             LOG.info("Collecting diagnostics for container {}", containerId);
             
@@ -495,10 +528,85 @@ public class DockerUtils {
                 LOG.warn("Failed to collect Pulsar logs", e);
             }
             
+            // Collect function-specific diagnostics for Pulsar Functions containers
+            collectFunctionSpecificDiagnostics(docker, containerId);
+            
             LOG.info("Finished collecting diagnostics for container {}", containerId);
         } catch (Exception e) {
+            failedDiagnosticCollections.incrementAndGet();
             LOG.error("Failed to collect diagnostics for container {}", containerId, e);
         }
+    }
+    
+    /**
+     * Collect function-specific diagnostics for Pulsar Functions containers.
+     * This includes function metadata, configuration files, and instance information.
+     */
+    private static void collectFunctionSpecificDiagnostics(DockerClient docker, String containerId) {
+        try {
+            // Get container name
+            String containerName = getContainerName(docker, containerId);
+            
+            // Collect configuration files
+            try {
+                LOG.info("Collecting configuration files for {}", containerName);
+                dumpContainerDirToTargetCompressed(docker, containerId, "/pulsar/conf");
+            } catch (Exception e) {
+                LOG.warn("Failed to collect configuration files", e);
+            }
+            
+            // Collect function metadata
+            try {
+                LOG.info("Collecting function metadata for {}", containerName);
+                // Try to get function information
+                CompletableFuture<ContainerExecResult> future = runCommandAsync(docker, containerId,
+                    "/pulsar/bin/pulsar-admin", "functions", "list");
+                
+                // Add a reasonable timeout for this diagnostic command
+                ContainerExecResult result = future.get(10, TimeUnit.SECONDS);
+                LOG.info("Functions in container {}: {}", containerName, result.getStdout());
+            } catch (Exception e) {
+                LOG.warn("Failed to collect function metadata", e);
+            }
+            
+        } catch (Exception e) {
+            LOG.error("Failed to collect function-specific diagnostics", e);
+        }
+    }
+    
+    /**
+     * Print a summary of Docker command metrics for observability.
+     * This helps in identifying performance bottlenecks and timeout issues.
+     */
+    public static void printDockerMetricsSummary() {
+        LOG.info("===== Docker Command Metrics Summary =====");
+        LOG.info("Total Docker commands executed: {}", totalDockerCommands.get());
+        LOG.info("Docker commands timed out: {}", timedOutDockerCommands.get());
+        LOG.info("Diagnostic collections attempted: {}", totalDiagnosticCollections.get());
+        LOG.info("Failed diagnostic collections: {}", failedDiagnosticCollections.get());
+        
+        if (totalDockerCommands.get() > 0) {
+            LOG.info("Docker command timeout rate: {}%", 
+                (timedOutDockerCommands.get() * 100.0 / totalDockerCommands.get()));
+        }
+        
+        if (totalDockerCommands.get() > 0) {
+            LOG.info("Average Docker command execution time: {} ms", 
+                totalDockerCommandExecutionTime.get() / totalDockerCommands.get());
+        }
+        LOG.info("=====================================");
+    }
+    
+    /**
+     * Reset all Docker command metrics.
+     * This is useful for cleaning up between test runs.
+     */
+    public static void resetDockerMetrics() {
+        totalDockerCommands.set(0);
+        timedOutDockerCommands.set(0);
+        totalDockerCommandExecutionTime.set(0);
+        totalDiagnosticCollections.set(0);
+        failedDiagnosticCollections.set(0);
     }
     
     /**
