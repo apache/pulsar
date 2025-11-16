@@ -23,8 +23,10 @@ import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -173,6 +175,10 @@ public class CmdTopicPolicies extends CmdBase {
         addCommand("get-replication-clusters", new GetReplicationClusters());
         addCommand("set-replication-clusters", new SetReplicationClusters());
         addCommand("remove-replication-clusters", new RemoveReplicationClusters());
+
+        addCommand("set-custom-metric-labels", new SetCustomMetricLabels());
+        addCommand("get-custom-metric-labels", new GetCustomMetricLabels());
+        addCommand("remove-custom-metric-labels", new RemoveCustomMetricLabels());
     }
 
     @Command(description = "Get entry filters for a topic")
@@ -2073,6 +2079,81 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             getTopicPolicies(false).deleteTopicPolicies(persistentTopic);
+        }
+    }
+
+    @Command(description = "Get custom metric labels for a topic")
+    private class GetCustomMetricLabels extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            print(getTopicPolicies(isGlobal).getCustomMetricLabels(persistentTopic));
+        }
+    }
+
+    @Command(description = "Set custom metric labels for a topic")
+    private class SetCustomMetricLabels extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = {"--labels", "-l"}, description = "Custom metric labels (key=value pairs, comma separated, e.g. sla_tier=gold,app_owner=team-a)", required = true)
+        private String labelsStr;
+
+        @Option(names = {"--global", "-g"}, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicated to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            Map<String, String> labels = new HashMap<>();
+
+            if (labelsStr != null && !labelsStr.trim().isEmpty()) {
+                String[] pairs = labelsStr.split(",");
+                for (String pair : pairs) {
+                    String[] kv = pair.split("=", 2);
+                    if (kv.length != 2) {
+                        throw new ParameterException("Invalid label format: " + pair + ". Expected format: key=value");
+                    }
+                    labels.put(kv[0].trim(), kv[1].trim());
+                }
+            }
+
+            getTopicPolicies(isGlobal).setCustomMetricLabels(persistentTopic, labels);
+        }
+    }
+
+    @Command(description = "Remove custom metric labels from a topic")
+    private class RemoveCustomMetricLabels extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = {"--keys", "-k"}, description = "Label keys to remove (comma separated, e.g. sla_tier,app_owner). If not specified, all labels will be removed.", required = false)
+        private String keysStr;
+
+        @Option(names = {"--global", "-g"}, description = "Whether to remove this policy globally. "
+                + "If set to true, the policy will be replicated to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+
+            if (keysStr != null && !keysStr.trim().isEmpty()) {
+                List<String> keys = Arrays.asList(keysStr.split(","));
+                keys = keys.stream().map(String::trim).collect(Collectors.toList());
+                getTopicPolicies(isGlobal).removeCustomMetricLabels(persistentTopic, false, keys);
+            } else {
+                // Remove all labels
+                getTopicPolicies(isGlobal).removeCustomMetricLabels(persistentTopic, true, null);
+            }
         }
     }
 
