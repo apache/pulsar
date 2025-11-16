@@ -44,7 +44,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.zip.GZIPOutputStream;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
@@ -56,6 +57,12 @@ import org.slf4j.LoggerFactory;
 
 public class DockerUtils {
     private static final Logger LOG = LoggerFactory.getLogger(DockerUtils.class);
+    
+    // Default timeout for Docker command execution
+    private static final long DEFAULT_DOCKER_COMMAND_TIMEOUT_SECONDS = 60;
+    
+    // Diagnostic collection timeout
+    private static final long DIAGNOSTIC_COLLECTION_TIMEOUT_SECONDS = 30;
 
     private static File getTargetDirectory(String containerId) {
         String base = System.getProperty("maven.buildDirectory");
@@ -103,8 +110,8 @@ public class DockerUtils {
                     future.complete(true);
                 }
             });
-            future.get();
-        } catch (RuntimeException | ExecutionException | IOException e) {
+            future.get(DIAGNOSTIC_COLLECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (RuntimeException | ExecutionException | IOException | TimeoutException e) {
             LOG.error("Error dumping log for {}", containerName, e);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -179,7 +186,17 @@ public class DockerUtils {
                                                  String... cmd)
             throws ContainerExecException, ExecutionException, InterruptedException {
         try {
-            return runCommandAsync(docker, containerId, cmd).get();
+            // Add timeout for Docker command execution to prevent infinite waiting
+            return runCommandAsync(docker, containerId, cmd)
+                .get(DEFAULT_DOCKER_COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            // Collect diagnostics when timeout occurs
+            collectDiagnostics(docker, containerId);
+            throw new ContainerExecException(
+                "Command execution timed out after " + DEFAULT_DOCKER_COMMAND_TIMEOUT_SECONDS + " seconds: " 
+                + String.join(" ", cmd),
+                containerId,
+                null);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof ContainerExecException) {
                 throw (ContainerExecException) e.getCause();
@@ -194,7 +211,17 @@ public class DockerUtils {
                                                        String... cmd)
             throws ContainerExecException, ExecutionException, InterruptedException {
         try {
-            return runCommandAsyncAsUser(userId, docker, containerId, cmd).get();
+            // Add timeout for Docker command execution to prevent infinite waiting
+            return runCommandAsyncAsUser(userId, docker, containerId, cmd)
+                .get(DEFAULT_DOCKER_COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            // Collect diagnostics when timeout occurs
+            collectDiagnostics(docker, containerId);
+            throw new ContainerExecException(
+                "Command execution timed out after " + DEFAULT_DOCKER_COMMAND_TIMEOUT_SECONDS + " seconds: " 
+                + String.join(" ", cmd),
+                containerId,
+                null);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof ContainerExecException) {
                 throw (ContainerExecException) e.getCause();
@@ -416,5 +443,86 @@ public class DockerUtils {
     public static Optional<String> getContainerCluster(DockerClient docker, String containerId) {
         return Optional.ofNullable(docker.inspectContainerCmd(containerId)
                 .exec().getConfig().getLabels().get("cluster"));
+    }
+    
+    /**
+     * Collect comprehensive diagnostics information when Docker command execution times out.
+     * This helps with debugging timeout issues.
+     */
+    private static void collectDiagnostics(DockerClient docker, String containerId) {
+        try {
+            LOG.info("Collecting diagnostics for container {}", containerId);
+            
+            // Collect container log
+            LOG.info("Collecting container log for {}", containerId);
+            dumpContainerLogToTarget(docker, containerId);
+            
+            // Collect container state
+            LOG.info("Collecting container state for {}", containerId);
+            InspectContainerResponse info = docker.inspectContainerCmd(containerId).exec();
+            LOG.error("Container state: {}", info.getState());
+            
+            // Collect running processes
+            LOG.info("Collecting running processes for {}", containerId);
+            try {
+                com.github.dockerjava.api.command.TopContainerResponse top = docker.topContainerCmd(containerId).exec();
+                LOG.error("Running processes: {}", top);
+            } catch (Exception e) {
+                LOG.error("Failed to collect running processes", e);
+            }
+            
+            // Collect container configuration
+            LOG.info("Collecting container configuration for {}", containerId);
+            LOG.error("Container config: {}", info.getConfig());
+            
+            // Collect container network settings
+            LOG.info("Collecting container network settings for {}", containerId);
+            LOG.error("Container network settings: {}", info.getNetworkSettings());
+            
+            // Try to collect function logs if this is a worker container
+            LOG.info("Collecting function logs for {}", containerId);
+            try {
+                dumpContainerDirToTargetCompressed(docker, containerId, "/pulsar/logs/functions");
+            } catch (Exception e) {
+                LOG.warn("Failed to collect function logs", e);
+            }
+            
+            // Try to collect Pulsar logs
+            LOG.info("Collecting Pulsar logs for {}", containerId);
+            try {
+                dumpContainerDirToTargetCompressed(docker, containerId, "/pulsar/logs");
+            } catch (Exception e) {
+                LOG.warn("Failed to collect Pulsar logs", e);
+            }
+            
+            LOG.info("Finished collecting diagnostics for container {}", containerId);
+        } catch (Exception e) {
+            LOG.error("Failed to collect diagnostics for container {}", containerId, e);
+        }
+    }
+    
+    /**
+     * Force kill a container if it's not responding.
+     * This should be used as a last resort when other methods fail.
+     */
+    public static void forceKillContainer(DockerClient docker, String containerId) {
+        try {
+            LOG.warn("Force killing container {}", containerId);
+            docker.killContainerCmd(containerId).exec();
+        } catch (Exception e) {
+            LOG.error("Failed to force kill container {}", containerId, e);
+        }
+    }
+    
+    /**
+     * Restart a container.
+     */
+    public static void restartContainer(DockerClient docker, String containerId) {
+        try {
+            LOG.info("Restarting container {}", containerId);
+            docker.restartContainerCmd(containerId).exec();
+        } catch (Exception e) {
+            LOG.error("Failed to restart container {}", containerId, e);
+        }
     }
 }
