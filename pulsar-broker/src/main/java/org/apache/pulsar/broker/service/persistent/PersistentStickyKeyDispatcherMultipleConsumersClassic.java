@@ -492,6 +492,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                     // can finally read more messages. It's safe to call readMoreEntries() multiple times.
                     readMoreEntries();
                 }
+
+                // Propagate mark-delete progress to topic-level tracker view
+                propagateMarkDeleteToTopicDelayedTracker();
             }
         });
     }
