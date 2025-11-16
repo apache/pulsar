@@ -608,29 +608,4 @@ public class DockerUtils {
         totalDiagnosticCollections.set(0);
         failedDiagnosticCollections.set(0);
     }
-    
-    /**
-     * Force kill a container if it's not responding.
-     * This should be used as a last resort when other methods fail.
-     */
-    public static void forceKillContainer(DockerClient docker, String containerId) {
-        try {
-            LOG.warn("Force killing container {}", containerId);
-            docker.killContainerCmd(containerId).exec();
-        } catch (Exception e) {
-            LOG.error("Failed to force kill container {}", containerId, e);
-        }
-    }
-    
-    /**
-     * Restart a container.
-     */
-    public static void restartContainer(DockerClient docker, String containerId) {
-        try {
-            LOG.info("Restarting container {}", containerId);
-            docker.restartContainerCmd(containerId).exec();
-        } catch (Exception e) {
-            LOG.error("Failed to restart container {}", containerId, e);
-        }
-    }
 }
