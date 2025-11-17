@@ -534,12 +534,12 @@ The Apache Software License, Version 2.0
     - io.opentelemetry-opentelemetry-sdk-logs-1.56.0.jar
     - io.opentelemetry-opentelemetry-sdk-metrics-1.56.0.jar
     - io.opentelemetry-opentelemetry-sdk-trace-1.56.0.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.6.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.6-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.6-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.6-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.6-alpha.jar
-    - io.opentelemetry.semconv-opentelemetry-semconv-1.29.0-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-2.21.0.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-2.21.0-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-resources-2.21.0-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-2.21.0-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-2.21.0-alpha.jar
+    - io.opentelemetry.semconv-opentelemetry-semconv-1.37.0.jar
     - com.google.cloud.opentelemetry-detector-resources-support-0.33.0.jar
     - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.48.0-alpha.jar
   * Spotify completable-futures
