@@ -76,7 +76,7 @@ public class LinuxBrokerHostUsageImplTest {
             double totalLimit = linuxBrokerHostUsage.getTotalNicLimitWithConfiguration(nics);
             Assert.assertEquals(totalLimit, 3.0 * 1000 * 1000 * 3);
             double totalNicLimitRx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
-            double totalNicLimitTx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
+            double totalNicLimitTx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthOut().limit;
             Assert.assertEquals(totalNicLimitRx, 3.0 * 1000 * 1000 * 3);
             Assert.assertEquals(totalNicLimitTx, 3.0 * 1000 * 1000 * 3);
         }
