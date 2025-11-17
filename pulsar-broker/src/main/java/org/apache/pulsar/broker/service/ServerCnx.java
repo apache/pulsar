@@ -2838,7 +2838,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Send response {} for new txn request {}", tcId.getId(), requestId);
+                        log.debug("Send response {} for new txn request {}", txnID, requestId);
                     }
                     commandSender.sendNewTxnResponse(requestId, txnID, tcId.getId());
                 } else {

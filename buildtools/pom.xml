@@ -48,8 +48,8 @@
     <maven.compiler.target>1.8</maven.compiler.target>
     <maven.compiler.release>8</maven.compiler.release>
     <surefire.version>3.1.0</surefire.version>
-    <log4j2.version>2.23.1</log4j2.version>
-    <slf4j.version>2.0.13</slf4j.version>
+    <log4j2.version>2.25.2</log4j2.version>
+    <slf4j.version>2.0.17</slf4j.version>
     <testng.version>7.7.1</testng.version>
     <commons-lang3.version>3.19.0</commons-lang3.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
