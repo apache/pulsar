@@ -3095,14 +3095,16 @@ public class CmdTopics extends CmdBase {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = {"--labels", "-l"}, description = "Custom metric labels (key=value pairs, comma separated, e.g. sla_tier=gold,app_owner=team-a)", required = true)
+        @Option(names = {"--labels",
+            "-l"}, description = "Custom metric labels (key=value pairs, comma separated, e.g. sla_tier=gold,"
+            + "app_owner=team-a)", required = true)
         private String labelsStr;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(topicName);
             Map<String, String> labels = new HashMap<>();
-            
+
             if (labelsStr != null && !labelsStr.trim().isEmpty()) {
                 String[] pairs = labelsStr.split(",");
                 for (String pair : pairs) {
@@ -3123,16 +3125,24 @@ public class CmdTopics extends CmdBase {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = {"--keys", "-k"}, description = "Label keys to remove (comma separated, e.g. sla_tier,app_owner). If not specified, all labels will be removed.", required = false)
+        @Option(names = {"--keys", "-k"}, description = "Label keys to remove"
+            + " (comma separated, e.g. sla_tier,app_owner). If not specified, "
+            + "all labels will be removed.", required = false)
         private String keysStr;
+
+        @Option(names = {"--all", "-a"}, description = "Remove all labels", required = false)
+        private boolean removeAll;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(topicName);
-            
-            if (keysStr != null && !keysStr.trim().isEmpty()) {
+
+            if (!removeAll) {
                 List<String> keys = Arrays.asList(keysStr.split(","));
                 keys = keys.stream().map(String::trim).collect(Collectors.toList());
+                if (keys.isEmpty()) {
+                    throw new ParameterException("No label keys specified for removal.");
+                }
                 getAdmin().topicPolicies().removeCustomMetricLabels(topic, false, keys);
             } else {
                 // Remove all labels
