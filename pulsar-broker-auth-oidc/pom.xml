@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.0.15</version>
+    <version>3.0.16-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-auth-oidc</artifactId>
