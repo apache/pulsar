@@ -227,7 +227,7 @@ public class OpenTelemetryServiceTest {
 
         // Buffer Pool Metrics
         // Replaces jvm_buffer_pool_used_bytes
-        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.usage"));
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.used"));
         // Replaces jvm_buffer_pool_capacity_bytes
         assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.limit"));
         // Replaces jvm_buffer_pool_used_buffers
