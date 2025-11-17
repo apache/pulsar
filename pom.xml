@@ -184,7 +184,7 @@ flexible messaging model and an intuitive client API.</description>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.788</aws-sdk.version>
     <aws-sdk2.version>2.32.28</aws-sdk2.version>
-    <avro.version>1.11.4</avro.version>
+    <avro.version>1.11.5</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
