@@ -391,6 +391,7 @@ The Apache Software License, Version 2.0
  * OpenTelemetry
     - opentelemetry-api-1.56.0.jar
     - opentelemetry-api-incubator-1.56.0-alpha.jar
+    - opentelemetry-common-1.56.0.jar
     - opentelemetry-context-1.56.0.jar
 
  * BookKeeper
