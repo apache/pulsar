@@ -314,9 +314,9 @@ flexible messaging model and an intuitive client API.</description>
     <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
-    <testcontainers.version>1.20.4</testcontainers.version>
+    <testcontainers.version>1.21.3</testcontainers.version>
     <!-- Set docker-java.version to the version of docker-java used in org.testcontainers:testcontainers pom -->
-    <docker-java.version>3.4.0</docker-java.version>
+    <docker-java.version>3.4.2</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
     <restassured.version>5.4.0</restassured.version>
     <kerby.version>1.1.1</kerby.version>
