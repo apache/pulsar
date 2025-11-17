@@ -338,12 +338,12 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
  * Apache Commons
-    - commons-codec-1.18.0.jar
-    - commons-io-2.19.0.jar
+    - commons-codec-1.20.0.jar
+    - commons-io-2.21.0.jar
     - commons-logging-1.3.5.jar
-    - commons-lang3-3.18.0.jar
-    - commons-text-1.13.1.jar
-    - commons-compress-1.27.1.jar
+    - commons-lang3-3.19.0.jar
+    - commons-text-1.14.0.jar
+    - commons-compress-1.28.0.jar
     - commons-beanutils-1.11.0.jar
     - commons-collections-3.2.2.jar
     - commons-configuration2-2.12.0.jar
