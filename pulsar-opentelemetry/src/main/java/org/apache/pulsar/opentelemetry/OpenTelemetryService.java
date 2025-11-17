@@ -76,7 +76,7 @@ public class OpenTelemetryService implements Closeable {
                 // Cardinality limit includes the overflow attribute set, so we need to add 1.
                 "otel.java.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1),
                 // Reduce number of allocations by using reusable data mode.
-                "otel.java.experimental.exporter.memory_mode", MemoryMode.REUSABLE_DATA.name()
+                "otel.java.exporter.memory_mode", MemoryMode.REUSABLE_DATA.name()
         ));
 
         sdkBuilder.addResourceCustomizer(
