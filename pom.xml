@@ -285,9 +285,9 @@ flexible messaging model and an intuitive client API.</description>
     <jna.version>5.12.1</jna.version>
     <kubernetesclient.version>18.0.0</kubernetesclient.version>
     <jose4j.version>0.9.4</jose4j.version>
-    <okhttp3.version>4.9.3</okhttp3.version>
+    <okhttp3.version>5.3.1</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
-    <okio.version>3.4.0</okio.version>
+    <okio.version>3.16.3</okio.version>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
@@ -1631,23 +1631,17 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>com.squareup.okhttp3</groupId>
-        <artifactId>okhttp</artifactId>
+        <artifactId>okhttp-bom</artifactId>
         <version>${okhttp3.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.squareup.okhttp3</groupId>
-        <artifactId>okhttp-urlconnection</artifactId>
-        <version>${okhttp3.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.squareup.okhttp3</groupId>
-        <artifactId>logging-interceptor</artifactId>
-        <version>${okhttp3.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>com.squareup.okio</groupId>
-        <artifactId>okio</artifactId>
+        <artifactId>okio-bom</artifactId>
         <version>${okio.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>

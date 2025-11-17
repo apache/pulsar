@@ -418,11 +418,11 @@ The Apache Software License, Version 2.0
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.38.0.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp3
-     - com.squareup.okhttp3-logging-interceptor-4.9.3.jar
-     - com.squareup.okhttp3-okhttp-4.9.3.jar
+     - com.squareup.okhttp3-logging-interceptor-5.3.1.jar
+     - com.squareup.okhttp3-okhttp-5.3.1.jar
  * Okio
-     - com.squareup.okio-okio-3.4.0.jar
-     - com.squareup.okio-okio-jvm-3.4.0.jar
+     - com.squareup.okio-okio-3.16.3.jar
+     - com.squareup.okio-okio-jvm-3.16.3.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-1.8.20.jar
