@@ -519,21 +519,21 @@ The Apache Software License, Version 2.0
   * RoaringBitmap
     - org.roaringbitmap-RoaringBitmap-1.2.0.jar
   * OpenTelemetry
-    - io.opentelemetry-opentelemetry-api-1.45.0.jar
-    - io.opentelemetry-opentelemetry-api-incubator-1.45.0-alpha.jar
-    - io.opentelemetry-opentelemetry-context-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-common-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-prometheus-1.45.0-alpha.jar
-    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-common-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-logs-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-metrics-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-trace-1.45.0.jar
+    - io.opentelemetry-opentelemetry-api-1.56.0.jar
+    - io.opentelemetry-opentelemetry-api-incubator-1.56.0-alpha.jar
+    - io.opentelemetry-opentelemetry-context-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-common-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-prometheus-1.56.0-alpha.jar
+    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-common-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-logs-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-metrics-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-trace-1.56.0.jar
     - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.6.jar
     - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.6-alpha.jar
     - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.6-alpha.jar

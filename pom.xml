@@ -306,7 +306,7 @@ flexible messaging model and an intuitive client API.</description>
     the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
     <zstd-jni.version>1.5.7-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.45.0</opentelemetry.version>
+    <opentelemetry.version>1.56.0</opentelemetry.version>
     <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
     <opentelemetry.instrumentation.version>1.33.6</opentelemetry.instrumentation.version>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
