@@ -21,5 +21,5 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$SCRIPT_DIR/.."
 mvn -am -pl tests/docker-images/java-test-image -Pcore-modules,-main,integrationTests,docker \
-  -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dcheckstyle.skip=true -Dlicense.skip=true \
+  -DskipTests -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dcheckstyle.skip=true -Dlicense.skip=true \
   "$@" install
