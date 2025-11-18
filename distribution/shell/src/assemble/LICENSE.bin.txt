@@ -385,9 +385,10 @@ The Apache Software License, Version 2.0
     - log4j-slf4j2-impl-2.25.3.jar
     - log4j-web-2.25.3.jar
  * OpenTelemetry
-    - opentelemetry-api-1.45.0.jar
-    - opentelemetry-api-incubator-1.45.0-alpha.jar
-    - opentelemetry-context-1.45.0.jar
+    - opentelemetry-api-1.56.0.jar
+    - opentelemetry-api-incubator-1.56.0-alpha.jar
+    - opentelemetry-common-1.56.0.jar
+    - opentelemetry-context-1.56.0.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.17.3.jar
