@@ -38,7 +38,7 @@
   -->
 
   <properties>
-    <amazon-kinesis-producer.version>1.0.4</amazon-kinesis-producer.version>
+    <amazon-kinesis-producer.version>1.0.6</amazon-kinesis-producer.version>
     <protobuf-java.version>4.29.0</protobuf-java.version>
   </properties>
 
