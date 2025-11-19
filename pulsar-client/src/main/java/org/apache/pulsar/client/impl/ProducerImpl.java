@@ -255,14 +255,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 try {
                     msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
                 } catch (CryptoException e) {
-                    if (!producerCreatedFuture.isDone()) {
                         log.warn("[{}] [{}] [{}] Failed to add public key cipher.", topic, producerName, producerId);
-                        producerCreatedFuture.completeExceptionally(
-                                PulsarClientException.wrap(e,
-                                        String.format("The producer %s of the topic %s "
-                                                        + "adds the public key cipher was failed",
-                                                producerName, topic)));
-                    }
                 }
             }), 0L, 4L, TimeUnit.HOURS);
         }
@@ -2414,6 +2407,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 batchMessageContainer.resetPayloadAfterFailedPublishing();
                 log.warn("[{}] [{}] Failed to create batch message for sending. Batch payloads have been reset and"
                                 + " messages will be retried in subsequent batches.", topic, producerName, t);
+                if (t instanceof PulsarClientException.CryptoException) {
+                    shouldScheduleNextBatchFlush = false;
+                }
             } finally {
                 if (shouldScheduleNextBatchFlush) {
                     maybeScheduleBatchFlushTask();

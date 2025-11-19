@@ -3189,9 +3189,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
                             .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
                             .create();
-            Assert.fail("Producer creation should not succeed if failing to read key");
         } catch (Exception e) {
-            // ok
+            Assert.fail("Producer creation should not fail if failing to read key");
         }
 
         // 2. Producer with valid key name
@@ -3333,6 +3332,204 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 100000)
+    public void testSendFailureWhenProducerFailsToLoadEncryptionKey() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+        }
+
+        // 1. Invalid key name
+        try {
+            @Cleanup
+            Producer<byte[]> producer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
+                            .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
+                            .enableBatching(false).create();
+            producer.send("my-test-message".getBytes());
+            Assert.fail("Producer send should not succeed if failing to read key");
+        } catch (Exception e) {
+           // OK
+        }
+        // 2. Invalid key name with ProducerCryptoFailureAction.SEND
+        try {
+            @Cleanup
+            Producer<byte[]> producer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
+                            .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
+                            .cryptoFailureAction(ProducerCryptoFailureAction.SEND)
+                            .enableBatching(false).create();
+            MessageId messageId = producer.send("my-test-message".getBytes());
+            Assert.assertNotNull(messageId);
+        } catch (Exception e) {
+            Assert.fail("Producer send should not fail if crypto failure action is ProducerCryptoFailureAction.SEND");
+        }
+    }
+
+    @Test(timeOut = 100000)
+    public void testSendFailureWhenProducerFailsToLoadEncryptionKeyWithBatching() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+        }
+
+        // 1. Invalid key name
+        try {
+            @Cleanup
+            Producer<byte[]> producer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
+                            .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
+                            .create();
+            for (int i = 0; i < 10; i++) {
+                producer.send(("my-message-" + i).getBytes());
+            }
+            Assert.fail("Producer send should not succeed if failing to read key");
+        } catch (Exception e) {
+            // OK
+        }
+        // 2. Invalid key name with ProducerCryptoFailureAction.SEND
+        try {
+            @Cleanup
+            Producer<byte[]> producer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
+                            .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
+                            .cryptoFailureAction(ProducerCryptoFailureAction.SEND)
+                            .create();
+            int cnt = 0;
+            for (int i = 0; i < 10; i++) {
+                producer.send(("my-message-" + i).getBytes());
+                cnt++;
+            }
+            Assert.assertEquals(cnt, 10);
+        } catch (Exception e) {
+            Assert.fail("Producer send should not fail if crypto failure action is ProducerCryptoFailureAction.SEND");
+        }
+    }
+
+    @Test(timeOut = 100000)
+    public void testSendFailureWhenProducerFailsToLoadEncryptionKeyWithChunking() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+        }
+
+        // 1. Invalid key name
+        try {
+            @Cleanup
+            Producer<byte[]> producer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
+                            .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
+                            .enableBatching(false).enableChunking(true).create();
+            producer.send("my-test-message".getBytes());
+            Assert.fail("Producer send should not succeed if failing to read key");
+        } catch (Exception e) {
+            // OK
+        }
+        // 2. Invalid key name with ProducerCryptoFailureAction.SEND
+        try {
+            @Cleanup
+            Producer<byte[]> producer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
+                            .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
+                            .cryptoFailureAction(ProducerCryptoFailureAction.SEND)
+                            .enableBatching(false).enableChunking(true).create();
+            MessageId messageId = producer.send("my-test-message".getBytes());
+            Assert.assertNotNull(messageId);
+        } catch (Exception e) {
+            Assert.fail("Producer send should not fail if crypto failure action is ProducerCryptoFailureAction.SEND");
+        }
     }
 
     private String decryptMessage(TopicMessageImpl<byte[]> msg,
