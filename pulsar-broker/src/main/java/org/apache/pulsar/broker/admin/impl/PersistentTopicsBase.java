@@ -2220,7 +2220,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     try {
                                         pulsar().getAdminClient().topics()
                                                 .createSubscriptionAsync(topicNamePartition.toString(),
-                                                        subscriptionName, targetMessageId, false, properties)
+                                                        subscriptionName, targetMessageId, replicated, properties)
                                                 .handle((r, ex) -> {
                                                     if (ex != null) {
                                                         // fail the operation on unknown exception or

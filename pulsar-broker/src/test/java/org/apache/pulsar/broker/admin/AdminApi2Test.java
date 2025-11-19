@@ -2318,6 +2318,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(dataProvider = "trueFalse")
+    public void testCreateReplicatedSubscriptionForPartitionedTopic(boolean replicated) throws Exception {
+        final String topic = newUniqueName("persistent://" + defaultNamespace + "/topic");
+        admin.topics().createPartitionedTopic(topic, 10);
+        admin.topics().createSubscription(topic, "sub", MessageId.earliest, replicated);
+        for (int i = 0; i < 10; i++) {
+            String individualPartition = TopicName.get(topic).getPartition(i).toString();
+            TopicStats stats = admin.topics().getStats(individualPartition);
+            assertEquals(stats.getSubscriptions().get("sub").isReplicated(), replicated);
+        }
+    }
+
+    @Test(dataProvider = "trueFalse")
+    public void testCreateReplicatedSubscriptionForNonPartitionedTopic(boolean replicated) throws Exception {
+        final String topic = newUniqueName("persistent://" + defaultNamespace + "/topic");
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, "sub", MessageId.earliest, replicated);
+        TopicStats stats = admin.topics().getStats(topic);
+        assertEquals(stats.getSubscriptions().get("sub").isReplicated(), replicated);
+    }
+
     @Test
     public void testMaxSubscriptionsPerTopic() throws Exception {
         restartClusterAfterTest();
