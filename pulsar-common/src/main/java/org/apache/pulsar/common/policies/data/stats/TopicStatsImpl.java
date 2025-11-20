@@ -186,6 +186,9 @@ public class TopicStatsImpl implements TopicStats {
     /** The last publish timestamp in epoch milliseconds. */
     public long lastPublishTimeStamp;
 
+    /** The number of messages that exceed TTL delay. */
+    public long exceedTTLDelayMessages;
+
     public List<? extends PublisherStats> getPublishers() {
         return Stream.concat(publishers.stream().sorted(
                                 Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))),
@@ -264,6 +267,7 @@ public class TopicStatsImpl implements TopicStats {
         this.oldestBacklogMessageSubscriptionName = null;
         this.topicCreationTimeStamp = 0;
         this.lastPublishTimeStamp = 0;
+        this.exceedTTLDelayMessages = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -295,6 +299,7 @@ public class TopicStatsImpl implements TopicStats {
         this.committedTxnCount = stats.committedTxnCount;
         this.backlogQuotaLimitTime = stats.backlogQuotaLimitTime;
         this.backlogQuotaLimitSize = stats.backlogQuotaLimitSize;
+        this.exceedTTLDelayMessages += stats.exceedTTLDelayMessages;
         if (stats.oldestBacklogMessageAgeSeconds > this.oldestBacklogMessageAgeSeconds) {
             this.oldestBacklogMessageAgeSeconds = stats.oldestBacklogMessageAgeSeconds;
             this.oldestBacklogMessageSubscriptionName = stats.oldestBacklogMessageSubscriptionName;
