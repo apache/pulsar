@@ -683,6 +683,9 @@ jobs:
           - name: Upgrade
             group: UPGRADE
 
+          - name: Kubernetes
+            group: PULSAR_K8S
+
     steps:
       - name: checkout
         uses: actions/checkout@v4

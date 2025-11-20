@@ -267,7 +267,7 @@ The Apache Software License, Version 2.0
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
     - com.google.code.gson-gson-2.8.9.jar
-    - io.gsonfire-gson-fire-1.8.5.jar
+    - io.gsonfire-gson-fire-1.9.0.jar
  * Guava
     - com.google.guava-guava-33.4.8-jre.jar
     - com.google.guava-failureaccess-1.0.3.jar
@@ -472,9 +472,9 @@ The Apache Software License, Version 2.0
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-18.0.0.jar
-    - io.kubernetes-client-java-api-18.0.0.jar
-    - io.kubernetes-client-java-proto-18.0.0.jar
+    - io.kubernetes-client-java-23.0.0.jar
+    - io.kubernetes-client-java-api-23.0.0.jar
+    - io.kubernetes-client-java-proto-23.0.0.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar
