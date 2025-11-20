@@ -130,6 +130,7 @@ public abstract class AbstractPulsarStandaloneK8STest {
         if (k3sContainer != null) {
             copyLogsToTargetDirectory();
             k3sContainer.stop();
+            kubeConfigFile.delete();
         }
     }
 
