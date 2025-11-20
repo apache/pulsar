@@ -27,6 +27,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.RbacAuthorizationV1Api;
+import io.kubernetes.client.openapi.models.CoreV1EventList;
 import io.kubernetes.client.openapi.models.RbacV1SubjectBuilder;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodBuilder;
@@ -132,9 +133,9 @@ public abstract class AbstractPulsarStandaloneK8STest {
 
     private void copyLogsToTargetDirectory() {
         if (apiClient != null) {
+            File targetDirectoryForLogs = getTargetDirectoryForLogs();
             Exec exec = new Exec(apiClient);
             try {
-                File targetDirectoryForLogs = getTargetDirectoryForLogs();
                 log.info("Copying logs from Pulsar standalone pod to target directory: {}", targetDirectoryForLogs);
                 Process process = exec.newExecutionBuilder(getNamespace(), PULSAR_STANDALONE_POD,
                         new String[]{"sh", "-c", "cd /pulsar/logs && tar cf - *"}
@@ -150,6 +151,16 @@ public abstract class AbstractPulsarStandaloneK8STest {
                 }
             } catch (Exception e) {
                 log.error("Error copying logs from Pulsar standalone pod to target directory.", e);
+            }
+
+            CoreV1Api coreApi = new CoreV1Api(apiClient);
+            File eventsFile = new File(targetDirectoryForLogs, "k8s_events.json");
+            try {
+                log.info("Copying events from Kubernetes cluster namespace {} to {}.", getNamespace(), eventsFile);
+                CoreV1EventList eventList = coreApi.listNamespacedEvent(getNamespace()).execute();
+                Files.writeString(eventsFile.toPath(), eventList.toJson());
+            } catch (Exception e) {
+                log.error("Error copying events from Kubernetes cluster to {}.", eventsFile, e);
             }
         }
     }
