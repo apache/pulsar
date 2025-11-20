@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -1394,6 +1395,8 @@ public class KubernetesRuntimeTest {
         when(appsApi.deleteNamespacedStatefulSet(
                 argThat(hasTranslatedFunctionName),
                 anyString())).thenReturn(request);
+        when(request.gracePeriodSeconds(anyInt())).thenReturn(request);
+        when(request.propagationPolicy(anyString())).thenReturn(request);
         when(request.execute()).thenReturn(new V1Status());
 
         AppsV1Api.APIreadNamespacedStatefulSetRequest request2 =
