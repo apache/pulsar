@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.k8s;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.core.command.ExecStartResultCallback;
+import io.kubernetes.client.Exec;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -53,6 +54,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator;
+import org.apache.tools.tar.TarEntry;
+import org.apache.tools.tar.TarInputStream;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.k3s.K3sContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -75,6 +78,7 @@ public abstract class AbstractPulsarStandaloneK8STest {
     private static final int PULSAR_NODE_PORT = 30101;
     private static final int PULSAR_HTTP_NODE_PORT = 30102;
     private static final String K3S_IMAGE_NAME = "rancher/k3s:v1.33.5-k3s1";
+    private static final String PULSAR_STANDALONE_POD = "pulsar-standalone-pod";
     K3sContainer k3sContainer;
     KubeConfig kubeConfig;
     @Getter
@@ -121,8 +125,47 @@ public abstract class AbstractPulsarStandaloneK8STest {
     @AfterClass(alwaysRun = true)
     public final void cleanupCluster() throws InterruptedException {
         if (k3sContainer != null) {
+            copyLogsToTargetDirectory();
             k3sContainer.stop();
         }
+    }
+
+    private void copyLogsToTargetDirectory() {
+        if (apiClient != null) {
+            Exec exec = new Exec(apiClient);
+            try {
+                File targetDirectoryForLogs = getTargetDirectoryForLogs();
+                log.info("Copying logs from Pulsar standalone pod to target directory: {}", targetDirectoryForLogs);
+                Process process = exec.newExecutionBuilder(getNamespace(), PULSAR_STANDALONE_POD,
+                        new String[]{"sh", "-c", "cd /pulsar/logs && tar cf - *"}
+                ).setTty(false).setStdin(false).setStderr(false).setStdout(true).execute();
+                try (TarInputStream tarInputStream = new TarInputStream(process.getInputStream())) {
+                    TarEntry tarEntry;
+                    while ((tarEntry = tarInputStream.getNextEntry()) != null) {
+                        if (tarEntry.isFile()) {
+                            File targetFile = new File(targetDirectoryForLogs, new File(tarEntry.getName()).getName());
+                            Files.copy(tarInputStream, targetFile.toPath());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error copying logs from Pulsar standalone pod to target directory.", e);
+            }
+        }
+    }
+
+    private File getTargetDirectoryForLogs() {
+        String base = System.getProperty("maven.buildDirectory");
+        if (base == null) {
+            base = "target";
+        }
+        // use the container-logs directory since it's used in CI for integration tests as the file location
+        File directory = new File(new File(base, "container-logs"),
+                "k8s_" + getClass().getSimpleName() + "_" + System.currentTimeMillis());
+        if (!directory.exists() && !directory.mkdirs()) {
+            log.error("Error creating directory for logs.");
+        }
+        return directory;
     }
 
     protected String getPulsarImageName() {
@@ -218,7 +261,7 @@ public abstract class AbstractPulsarStandaloneK8STest {
         V1PodBuilder podBuilder = new V1PodBuilder();
         var containerBuilder = podBuilder
                 .withNewMetadata()
-                .withName("pulsar-standalone-pod")
+                .withName(PULSAR_STANDALONE_POD)
                 .addToLabels("app", "pulsar")
                 .addToLabels("component", "standalone")
                 .endMetadata()
