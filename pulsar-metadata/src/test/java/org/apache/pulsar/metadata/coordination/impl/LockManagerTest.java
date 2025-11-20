@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata;
+package org.apache.pulsar.metadata.coordination.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
@@ -34,18 +35,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.MetadataCache;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.apache.pulsar.metadata.api.*;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
@@ -383,4 +384,29 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             assertFalse(lock.getLockExpiredFuture().isDone());
         });
     }
+
+    @Test(dataProvider = "impl")
+    public void lockDeletedAndReacquiredWithBookieInfo(String __, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        final List<Notification> notifications = new ArrayList<>();
+        store.registerListener(notifications::add);
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup
+        LockManager<BookieServiceInfo> lockManager = coordinationService.getLockManager(BookieServiceInfo.class);
+        String key = newKey();
+        ResourceLockImpl<BookieServiceInfo> lock = (ResourceLockImpl<BookieServiceInfo>)lockManager.acquireLock(key, new BookieServiceInfo()).join();
+        lock.silentRevalidateOnce().join();
+        // wait for 1 sec
+        Thread.sleep(1000);
+
+        Assert.assertEquals(notifications.size(), 1);
+        final Notification notification = notifications.get(0);
+        Assert.assertEquals(notification.getType(), NotificationType.Created);
+        Assert.assertEquals(notification.getPath(), key);
+
+    }
+
 }
