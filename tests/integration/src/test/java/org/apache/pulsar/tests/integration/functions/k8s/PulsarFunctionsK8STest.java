@@ -19,9 +19,12 @@
 package org.apache.pulsar.tests.integration.functions.k8s;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.kubernetes.client.Exec;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1Secret;
 import io.kubernetes.client.openapi.models.V1SecretBuilder;
 import java.io.IOException;
@@ -86,9 +89,12 @@ public class PulsarFunctionsK8STest extends AbstractPulsarStandaloneK8STest {
         }
 
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant("public");
-        functionConfig.setNamespace("default");
-        functionConfig.setName("test-function");
+        String fnTenant = "public";
+        String fnNamespace = "default";
+        String fnName = "test-function";
+        functionConfig.setTenant(fnTenant);
+        functionConfig.setNamespace(fnNamespace);
+        functionConfig.setName(fnName);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setClassName(PulsarFunctionsJavaTest.EXCLAMATION_JAVA_CLASS);
         functionConfig.setJar(CommandGenerator.JAVAJAR);
@@ -109,14 +115,14 @@ public class PulsarFunctionsK8STest extends AbstractPulsarStandaloneK8STest {
         log.info("Waiting for function to be created");
         Awaitility.await().ignoreExceptions().pollDelay(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(30))
                 .untilAsserted(() -> {
-            FunctionStatus functionStatus = admin.functions().getFunctionStatus("public", "default", "test-function");
+            FunctionStatus functionStatus = admin.functions().getFunctionStatus(fnTenant, fnNamespace, fnName);
             assertThat(functionStatus.getNumInstances()).isEqualTo(1);
             assertThat(functionStatus.getNumRunning()).isEqualTo(1);
         });
         log.info("Function created successfully");
 
         // Validate that k8s secrets were provided as environment variables to the function pod
-        String podName = "pf-public-default-test-function-0";
+        String podName = "pf-%s-%s-%s-0".formatted(fnTenant, fnNamespace, fnName);
         Exec exec = new Exec(getApiClient());
         Process process = exec.newExecutionBuilder(getNamespace(), podName, new String[]{"sh", "-c",
                         "echo \"secret1=$secret1,secret2=$secret2\""})
@@ -142,8 +148,38 @@ public class PulsarFunctionsK8STest extends AbstractPulsarStandaloneK8STest {
         assertThat(message).isNotNull();
         assertThat(message.getValue()).isEqualTo("Hello!");
 
+
+        log.info("Stopping function");
+        admin.functions().stopFunction(fnTenant, fnNamespace, fnName);
+        Awaitility.await().ignoreExceptions().pollDelay(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(30))
+                .untilAsserted(() -> {
+                    FunctionStatus functionStatus = admin.functions().getFunctionStatus(fnTenant, fnNamespace, fnName);
+                    assertThat(functionStatus.getNumInstances()).isEqualTo(1);
+                    assertThat(functionStatus.getNumRunning()).isEqualTo(0);
+                });
+
+        log.info("Starting function");
+        admin.functions().startFunction(fnTenant, fnNamespace, fnName);
+        Awaitility.await().ignoreExceptions().pollDelay(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(30))
+                .untilAsserted(() -> {
+                    FunctionStatus functionStatus = admin.functions().getFunctionStatus(fnTenant, fnNamespace, fnName);
+                    assertThat(functionStatus.getNumInstances()).isEqualTo(1);
+                    assertThat(functionStatus.getNumRunning()).isEqualTo(1);
+                });
+
         log.info("Waiting for function to be deleted");
-        admin.functions().deleteFunction("public", "default", "test-function");
+        admin.functions().deleteFunction(fnTenant, fnNamespace, fnName);
         log.info("Function deleted successfully");
+
+        log.info("Waiting for function pod to be deleted");
+        CoreV1Api coreApi = new CoreV1Api(getApiClient());
+        Awaitility.await().pollDelay(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            assertThatExceptionOfType(ApiException.class).isThrownBy(
+                    () -> coreApi.readNamespacedPod(getNamespace(), podName).execute())
+                    .satisfies(apiException -> {
+                assertThat(apiException.getCode()).isEqualTo(404);
+            });
+        });
+        log.info("Function pod deleted successfully");
     }
 }
