@@ -19,8 +19,10 @@
 package org.apache.pulsar.tests.integration.k8s;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
-import com.github.dockerjava.core.command.ExecStartResultCallback;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.StreamType;
 import io.kubernetes.client.Exec;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiClient;
@@ -197,32 +199,49 @@ public abstract class AbstractPulsarStandaloneK8STest {
         return "default";
     }
 
-    // This method imports the local image into the k3s container's containerd registry so that it can be used
-    // to create pods. image pull policy should be set to Never when using the image.
-    private void importPulsarImage() {
-        // Save local image from Docker
-        InputStream imageStream = dockerClient.saveImageCmd(getPulsarImageName()).exec();
+    private void importPulsarImage() throws InterruptedException {
+        importImageToK3S(getPulsarImageName());
+    }
 
-        // Create exec instance with stdin
-        String containerId = k3sContainer.getContainerId();
-
-        ExecCreateCmdResponse execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
-                .withAttachStdin(true)
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .withCmd("ctr", "images", "import", "/dev/stdin")
-                .exec();
-
-        // Start exec and stream data
-        try (InputStream is = imageStream) {
+    /**
+     * Imports a local Docker image into the k3s container's containerd registry.
+     * This method allows the image to be used by Kubernetes pods within the k3s cluster.
+     * When using this imported image in pod specs, the imagePullPolicy should be set to "Never"
+     * since the image is already available locally in the cluster.
+     * @param imageName The name of the Docker image to import
+     * @throws UncheckedIOException if there is an error during image import
+     * @throws InterruptedException if the import is interrupted
+     */
+    protected void importImageToK3S(String imageName) throws InterruptedException {
+        // Stream the saved image directly to "ctr images import -" inside the k3s container
+        try (InputStream is = dockerClient.saveImageCmd(imageName).exec()) {
+            String[] importCommand = {"ctr", "images", "import", "-"};
+            ExecCreateCmdResponse execCreateCmdResponse = dockerClient.execCreateCmd(k3sContainer.getContainerId())
+                    .withAttachStdin(true)
+                    .withAttachStdout(true)
+                    .withAttachStderr(true)
+                    .withTty(false)
+                    .withCmd(importCommand)
+                    .exec();
             dockerClient.execStartCmd(execCreateCmdResponse.getId())
                     .withStdIn(is)
-                    .exec(new ExecStartResultCallback(System.out, System.err))
+                    .withTty(false)
+                    .withDetach(false)
+                    .exec(new ResultCallbackTemplate<>() {
+                        @Override
+                        public void onNext(Frame frame) {
+                            String logMessage =
+                                    String.join(" ", importCommand) + ": " + new String(frame.getPayload()).trim();
+                            if (frame.getStreamType() == StreamType.STDERR) {
+                                log.error(logMessage);
+                            } else {
+                                log.info(logMessage);
+                            }
+                        }
+                    })
                     .awaitCompletion();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 
