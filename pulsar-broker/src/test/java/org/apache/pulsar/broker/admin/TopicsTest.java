@@ -33,6 +33,7 @@ import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -86,6 +87,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAcks;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -868,4 +870,62 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 + "kv.encoding.type=SEPARATED, key.schema.type=STRING}) to topic persistent:"
                 + "//my-tenant/my-namespace/my-topic"));
     }
+
+    @Test
+    public void testProduceWithAutoConsumeSchema() throws Exception {
+        String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
+        admin.topics().createNonPartitionedTopic(topicName);
+        GenericSchema jsonSchema = GenericJsonSchema.of(JSONSchema.of(SchemaDefinition.builder()
+                .withPojo(PC.class).build()).getSchemaInfo());
+        // use producer to create topic schema
+        Producer producer = pulsarClient.newProducer(jsonSchema).topic(topicName).create();
+        producer.close();
+
+        PC pc = new PC("dell", "alienware", 2021, GPU.AMD,
+                new Seller("WA", "main street", 98004));
+        PC anotherPc = new PC("asus", "rog", 2020, GPU.NVIDIA,
+                new Seller("CA", "back street", 90232));
+
+        @Cleanup
+        Consumer<?> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topicName)
+                .subscriptionName("auto-schema-sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        SchemaInfoWithVersion schemaInfoWithVersion = admin.schemas().getSchemaInfoWithVersion(topicName);
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        ProducerMessages producerMessages = new ProducerMessages();
+        producerMessages.setSchemaVersion(schemaInfoWithVersion.getVersion());
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\""
+                + ObjectMapperFactory.getMapper().writer().writeValueAsString(pc).replace("\"", "\\\"")
+                + "\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\""
+                + ObjectMapperFactory.getMapper().writer().writeValueAsString(anotherPc).replace("\"", "\\\"")
+                + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        producerMessages.setMessages(createMessages(message));
+        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false,
+                producerMessages);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+
+        List<PC> expected = Arrays.asList(pc, anotherPc);
+        for (int i = 0; i < 2; i++) {
+            Message<?> msg = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertTrue(msg.getValue() instanceof GenericJsonRecord);
+            GenericJsonRecord genericJsonRecord = (GenericJsonRecord) msg.getValue();
+            Assert.assertEquals(genericJsonRecord.getField("brand"), expected.get(i).getBrand());
+            Assert.assertEquals(genericJsonRecord.getField("model"), expected.get(i).getModel());
+            Assert.assertEquals(genericJsonRecord.getField("year"), expected.get(i).getYear());
+            Assert.assertEquals(genericJsonRecord.getField("gpu"), expected.get(i).getGpu().name());
+            Map<String, Object> seller = (Map<String, Object>) genericJsonRecord.getField("seller");
+            Assert.assertEquals(seller.get("state"), expected.get(i).getSeller().getState());
+            Assert.assertEquals(seller.get("street"), expected.get(i).getSeller().getStreet());
+            Assert.assertEquals(seller.get("zipCode"), expected.get(i).getSeller().getZipCode());
+        }
+    }
+
 }
