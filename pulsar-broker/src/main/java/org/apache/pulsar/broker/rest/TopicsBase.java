@@ -196,7 +196,7 @@ public class TopicsBase extends PersistentTopicsBase {
         try {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
-            List<Message> messages = buildMessage(request, schema, producerName, topicName);
+            List<Message> messages = buildMessage(request, schema, producerName, topicName, schemaVersion);
             List<CompletableFuture<Position>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             for (int index = 0; index < messages.size(); index++) {
@@ -237,7 +237,7 @@ public class TopicsBase extends PersistentTopicsBase {
         try {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
-            List<Message> messages = buildMessage(request, schema, producerName, topicName);
+            List<Message> messages = buildMessage(request, schema, producerName, topicName, schemaVersion);
             List<CompletableFuture<Position>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             // Try to publish messages to all partitions this broker owns in round robin mode.
@@ -627,7 +627,7 @@ public class TopicsBase extends PersistentTopicsBase {
 
     // Build pulsar message from REST request.
     private List<Message> buildMessage(ProducerMessages producerMessages, Schema schema,
-                                       String producerName, TopicName topicName) {
+                                       String producerName, TopicName topicName, SchemaVersion schemaVersion) {
         List<ProducerMessage> messages;
         List<Message> pulsarMessages = new ArrayList<>();
 
@@ -637,11 +637,7 @@ public class TopicsBase extends PersistentTopicsBase {
             messageMetadata.setProducerName(producerName);
             messageMetadata.setPublishTime(System.currentTimeMillis());
             messageMetadata.setSequenceId(message.getSequenceId());
-            if (producerMessages.getSchemaVersion() != -1) {
-                LongSchemaVersion longSchemaVersion = new LongSchemaVersion(producerMessages.getSchemaVersion());
-                messageMetadata.setSchemaVersion(longSchemaVersion.bytes());
-            }
-
+            messageMetadata.setSchemaVersion(schemaVersion.bytes());
             if (null != message.getReplicationClusters()) {
                 messageMetadata.addAllReplicateTos(message.getReplicationClusters());
             }
