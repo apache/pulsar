@@ -919,12 +919,16 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             GenericJsonRecord genericJsonRecord = (GenericJsonRecord) msg.getValue();
             Assert.assertEquals(genericJsonRecord.getField("brand"), expected.get(i).getBrand());
             Assert.assertEquals(genericJsonRecord.getField("model"), expected.get(i).getModel());
-            Assert.assertEquals(genericJsonRecord.getField("year"), expected.get(i).getYear());
+            Number year = (Number) genericJsonRecord.getField("year");
+            Assert.assertEquals(year.intValue(), expected.get(i).getYear());
             Assert.assertEquals(genericJsonRecord.getField("gpu"), expected.get(i).getGpu().name());
-            Map<String, Object> seller = (Map<String, Object>) genericJsonRecord.getField("seller");
-            Assert.assertEquals(seller.get("state"), expected.get(i).getSeller().getState());
-            Assert.assertEquals(seller.get("street"), expected.get(i).getSeller().getStreet());
-            Assert.assertEquals(seller.get("zipCode"), expected.get(i).getSeller().getZipCode());
+            Object seller = genericJsonRecord.getField("seller");
+            Assert.assertTrue(seller instanceof GenericJsonRecord);
+            GenericJsonRecord sellerGenericJsonRecord = (GenericJsonRecord) seller;
+            Assert.assertEquals(sellerGenericJsonRecord.getField("state"), expected.get(i).getSeller().getState());
+            Assert.assertEquals(sellerGenericJsonRecord.getField("street"), expected.get(i).getSeller().getStreet());
+            Number zipCode = (Number) sellerGenericJsonRecord.getField("zipCode");
+            Assert.assertEquals(zipCode.longValue(), expected.get(i).getSeller().getZipCode());
         }
     }
 
