@@ -637,6 +637,11 @@ public class TopicsBase extends PersistentTopicsBase {
             messageMetadata.setProducerName(producerName);
             messageMetadata.setPublishTime(System.currentTimeMillis());
             messageMetadata.setSequenceId(message.getSequenceId());
+            if (producerMessages.getSchemaVersion() != -1) {
+                LongSchemaVersion longSchemaVersion = new LongSchemaVersion(producerMessages.getSchemaVersion());
+                messageMetadata.setSchemaVersion(longSchemaVersion.bytes());
+            }
+
             if (null != message.getReplicationClusters()) {
                 messageMetadata.addAllReplicateTos(message.getReplicationClusters());
             }
