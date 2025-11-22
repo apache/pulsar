@@ -1868,16 +1868,35 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test(dataProvider = "producerAccessMode")
-    public void testReplicatorProducerWithExclusiveAccessMode(ProducerAccessMode producerAccessMode) throws Exception {
+    public void testReplicatorProducerWithExclusiveProducer(ProducerAccessMode producerAccessMode) throws Exception {
         final String topicName =
                 BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/exclusive-topic");
         final String subscribeName = "subscribe_1";
         final byte[] msgValue = "test".getBytes();
 
-        // cluster1 replicates exclusive-topic messages to cluster2, but cluster2 has an exclusive producer.
+        // cluster1 replicates topic messages to cluster2 first, so the replicator producer is added in cluster2
+        // then add an exclusive producer in cluster2
         @Cleanup Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
         @Cleanup Producer<byte[]> producer2 =
                 client2.newProducer().topic(topicName).accessMode(producerAccessMode).create();
+        @Cleanup Consumer<byte[]> consumer2 =
+                client2.newConsumer().topic(topicName).subscriptionName(subscribeName).subscribe();
+        producer1.newMessage().value(msgValue).send();
+        pulsar1.getBrokerService().checkReplicationPolicies();
+        assertEquals(consumer2.receive(10, TimeUnit.SECONDS).getValue(), msgValue);
+    }
+
+    @Test(dataProvider = "producerAccessMode")
+    public void testExclusiveProducerWithReplicatorProducer(ProducerAccessMode producerAccessMode) throws Exception {
+        final String topicName =
+                BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/exclusive-topic");
+        final String subscribeName = "subscribe_1";
+        final byte[] msgValue = "test".getBytes();
+
+        // cluster2 has an exclusive producer first, then cluster1 replicates topic messages to cluster2
+        @Cleanup Producer<byte[]> producer2 =
+                client2.newProducer().topic(topicName).accessMode(producerAccessMode).create();
+        @Cleanup Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
         @Cleanup Consumer<byte[]> consumer2 =
                 client2.newConsumer().topic(topicName).subscriptionName(subscribeName).subscribe();
         producer1.newMessage().value(msgValue).send();
