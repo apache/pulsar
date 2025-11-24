@@ -1189,6 +1189,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // after enabled message listener.
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
+
+            MessageImpl<T> innerMessage = (MessageImpl<T>) (msg instanceof TopicMessageImpl
+                    ? ((TopicMessageImpl<T>) msg).getMessage() : msg);
+            if (!receivedConsumer.isValidConsumerEpoch(innerMessage)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Skipping processing message since the consumer epoch is not valid. {}", topic,
+                            subscription, msg.getMessageId());
+                }
+                return;
+            }
+
             MessageId id;
             if (this instanceof ConsumerImpl) {
                 id = MessageIdAdvUtils.discardBatch(msg.getMessageId());
