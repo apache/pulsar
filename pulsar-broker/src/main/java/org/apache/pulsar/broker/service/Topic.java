@@ -400,6 +400,7 @@ public interface Topic {
 
     /**
      * Get exceed TTL delay messages number
+     *
      * @return
      */
     default long getExceedTTLDelayMessages() {
