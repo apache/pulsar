@@ -677,7 +677,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private void cleanupMultiConsumer() {
         if (unAckedMessageTracker != null) {
             unAckedMessageTracker.close();
-            unAckedMessageTracker = null;
         }
         if (partitionsAutoUpdateTimeout != null) {
             partitionsAutoUpdateTimeout.cancel();

@@ -87,7 +87,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final MessageListenerExecutor messageListenerExecutor;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
-    protected UnAckedMessageTracker unAckedMessageTracker;
+    protected final UnAckedMessageTracker unAckedMessageTracker;
     final GrowableArrayBlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdAdv, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -1155,12 +1155,36 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void callMessageListener(Message<T> msg) {
         try {
+            State state = getState();
+            if (state == State.Closing || state == State.Closed) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Consumer has been closed. Skipping message {}.", topic, subscription,
+                            msg.getMessageId());
+                }
+                msg.release();
+                return;
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Calling message listener for message {}", topic, subscription,
                         msg.getMessageId());
             }
             ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl)
                     ? ((TopicMessageImpl<T>) msg).receivedByconsumer : (ConsumerImpl) this;
+
+            // check the internal consumer state
+            if (receivedConsumer != this) {
+                State receivedByConsumerState = receivedConsumer.getState();
+                if (receivedByConsumerState == State.Closing || receivedByConsumerState == State.Closed) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] Consumer that received the message has been closed. Skipping message {}.",
+                                topic, subscription, msg.getMessageId());
+                    }
+                    msg.release();
+                    return;
+                }
+            }
+
             // Increase the permits here since we will not increase permits while receive messages from consumer
             // after enabled message listener.
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl

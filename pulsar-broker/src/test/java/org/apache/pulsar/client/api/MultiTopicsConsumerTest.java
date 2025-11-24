@@ -35,15 +35,21 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
@@ -54,6 +60,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
 import org.mockito.AdditionalAnswers;
 import org.mockito.Mockito;
@@ -63,6 +70,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     private ScheduledExecutorService internalExecutorServiceDelegate;
@@ -431,5 +439,79 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         }
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+    }
+
+    @Test(timeOut = 30000)
+    public void testMessageListenerStopsProcessingAfterClosing() throws Exception {
+        int numMessages = 100;
+        String topic1 = newTopicName();
+        String topic2 = newTopicName();
+        final CountDownLatch consumerClosedLatch = new CountDownLatch(1);
+        final CountDownLatch messageProcessedLatch = new CountDownLatch(1);
+        AtomicInteger messageProcessedCount = new AtomicInteger(0);
+        AtomicInteger messagesQueuedForExecutor = new AtomicInteger(0);
+        AtomicInteger messagesCurrentlyInExecutor = new AtomicInteger(0);
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topics(List.of(topic1, topic2))
+                .subscriptionName("my-subscriber-name")
+                .messageListenerExecutor(new MessageListenerExecutor() {
+                    @Override
+                    public void execute(Message<?> message, Runnable runnable) {
+                        messagesQueuedForExecutor.incrementAndGet();
+                        messagesCurrentlyInExecutor.incrementAndGet();
+                        executor.execute(() -> {
+                            try {
+                                runnable.run();
+                            } finally {
+                                messagesCurrentlyInExecutor.decrementAndGet();
+                            }
+                        });
+                    }
+                })
+                .messageListener((c1, msg) -> {
+                    messageProcessedCount.incrementAndGet();
+                    c1.acknowledgeAsync(msg);
+                    messageProcessedLatch.countDown();
+                    try {
+                        consumerClosedLatch.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                }).subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic1)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        assertTrue(messageProcessedLatch.await(5, TimeUnit.SECONDS));
+        // wait until all messages have been queued in the listener
+        Awaitility.await().untilAsserted(() -> assertEquals(messagesQueuedForExecutor.get(), numMessages));
+        @Cleanup
+        TestLogAppender testLogAppender = TestLogAppender.create(Optional.empty());
+        consumer.close();
+        consumerClosedLatch.countDown();
+        // only a single message should be processed
+        assertEquals(messageProcessedCount.get(), 1);
+        // wait until all messages have been drained from the executor
+        Awaitility.await().untilAsserted(() -> assertEquals(messagesCurrentlyInExecutor.get(), 0));
+        testLogAppender.getEvents().forEach(logEvent -> {
+            if (logEvent.getLevel() == Level.ERROR) {
+                org.apache.logging.log4j.message.Message logEventMessage = logEvent.getMessage();
+                fail("No error should be logged when closing a consumer. Got: " + logEventMessage
+                        .getFormattedMessage() + " throwable:" + logEventMessage.getThrowable());
+            }
+        });
     }
 }
