@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +57,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     protected volatile PulsarClientImpl client;
     protected volatile Producer<MetadataEvent> producer;
     protected volatile Consumer<MetadataEvent> consumer;
+    private final Set<String> metadataExclusions;
     private final CopyOnWriteArrayList<Function<MetadataEvent, CompletableFuture<Void>>>
     listeners = new CopyOnWriteArrayList<>();
 
@@ -86,6 +88,18 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         if (!StringUtils.isNotBlank(topicName)) {
             log.info("Metadata synchronizer is disabled");
         }
+        String exclusions = pulsar.getConfig().getMetadataSyncEventExclusions();
+        if (!StringUtils.isBlank(exclusions)) {
+            this.metadataExclusions = Set.of();
+        } else {
+            this.metadataExclusions = Arrays.stream(exclusions.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toUnmodifiableSet());
+            if (!this.metadataExclusions.isEmpty()) {
+                log.info("Metadata synchronizer configured with exclusions: {}", this.metadataExclusions);
+            }
+        }
     }
 
     public void start() throws PulsarServerException {
@@ -102,9 +116,13 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     @Override
     public CompletableFuture<Void> notify(MetadataEvent event) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        publishAsync(event, future);
-        return future;
+        if (isMetadataEventExcluded(event)) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            publishAsync(event, future);
+            return future;
+        }
     }
 
     @Override
@@ -322,5 +340,28 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             brokerService.executor().schedule(() -> closeResource(asyncCloseable, future), waitTimeMs,
                     TimeUnit.MILLISECONDS);
         });
+    }
+
+    /**
+     * Checks if a metadata event should be excluded from synchronization based on the configured exclusion patterns.
+     * Events are excluded if their path starts with any of the configured exclusion prefixes.
+     *
+     * @param  metadataEvent The metadata vent to check
+     * @return true if the event should be excluded, false otherwise
+     */
+    private boolean isMetadataEventExcluded(MetadataEvent metadataEvent) {
+        String path = metadataEvent.getPath();
+        if (path == null || metadataExclusions.isEmpty()){
+            return false;
+        }
+        for (String exclusion : metadataExclusions) {
+            if (path.startsWith(exclusion)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Excluding metadata event for path: {} (matched exclusion: {})", path, exclusion);
+                }
+                return  true;
+            }
+        }
+        return false;
     }
 }

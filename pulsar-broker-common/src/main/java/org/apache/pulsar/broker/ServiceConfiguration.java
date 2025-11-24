@@ -589,6 +589,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String configurationMetadataSyncEventTopic = null;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata events to be excluded from synchronization between Pulsar "
+                    + "clusters deployed on different cloud platforms."
+    )
+    private String metadataSyncEventExclusions = null;
+
+    @FieldContext(
             dynamic = true,
             doc = "Factory class-name to create topic with custom workflow"
         )

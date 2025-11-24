@@ -184,13 +184,130 @@ public class LocalMemoryMetadataStoreTest {
         assertEquals(store1.get(path).get().get().getValue(), value2);
     }
 
+    @Test
+    public void testMatadataEventExclusions() throws Exception {
+        // Create synchronizer with exclusions
+        TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+        sync.addExclusions("/admin/");
+        sync.addExclusions("/excluded/");
+        sync.addExclusions("/bookkeeper/");
+
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
+                MetadataStoreConfig.builder().synchronizer(sync).build());
+
+        // Test 1: Path should be excluded (/admin/)
+        String excludedPath1 = "/admin/config";
+        byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+        store1.put(excludedPath1, value, Optional.empty()).join();
+
+        // Wait a bit and verify that the event was not notified
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath1),
+                "Event for excluded path /admin/ should not be notified");
+
+        // Test 2: Another excluded path (/excluded/)
+        String excludedPath2 = "/excluded/something";
+        store1.put(excludedPath2, value, Optional.empty()).join();
+
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath2),
+                "Event for excluded path /excluded/ should not be notified");
+
+        // Test 3: Path that should not be excluded
+        String normalPath = "/data/test";
+        store1.put(normalPath, value, Optional.empty()).join();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(normalPath) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath),
+                "Event for normal path should be notified");
+        assertEquals(sync.notifiedEvents.get(normalPath).getPath(), normalPath);
+
+        // Test 4: Path that start with excluded prefix
+        String excludedPath3 = "/bookkeeper/ledgers/00001";
+        store1.put(excludedPath3, value, Optional.empty()).join();
+
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath3),
+                "Event for excluded path /bookkeeper/ should not be notified");
+
+        // Test 5: Similar path but not excluded
+        String normalPath2 = "/bookkeeping/data";
+        store1.put(normalPath2, value, Optional.empty()).join();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(normalPath2) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath2),
+                "Event for path /bookkeeping/data should be notified");
+    }
+
+    @Test
+    public void testMetadataEventExclusionsWithDelete() throws Exception {
+        TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+        sync.addExclusions("/temp/");
+
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
+                MetadataStoreConfig.builder().synchronizer(sync).build());
+
+        String excludedPath = "/temp/session";
+        byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+
+        // Put operation should be excluded
+        store1.put(excludedPath, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath),
+                "Put event for the excluded path should not be notified");
+
+        // Delete operation should also be excluded
+        store1.delete(excludedPath, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath),
+                "Delete event for the excluded path should not be notified");
+    }
+
+    @Test
+    public void testMetadataEventsNoExclusions() throws Exception {
+        // Synchronizer without exclusions
+        TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
+                MetadataStoreConfig.builder().synchronizer(sync).build());
+
+        String path = "/any/path";
+        byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+        store1.put(path, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(path) != null);
+        assertNotNull(sync.notifiedEvents.get(path),
+        "Event should be notified when no exclusions are configured");
+    }
+
     static class TestMetadataEventSynchronizer implements MetadataEventSynchronizer {
         public Map<String, MetadataEvent> notifiedEvents = new ConcurrentHashMap<>();
         public String clusterName = "test";
         public volatile Function<MetadataEvent, CompletableFuture<Void>> listener;
+        private final HashSet<String> exclusions = new HashSet<>();
+
+        public void addExclusions(String exclusionPrefix) {
+            exclusions.add(exclusionPrefix);
+        }
+
+        private boolean isExcluded(String path) {
+            if (path == null || exclusions.isEmpty()) {
+                return false;
+            }
+            return exclusions.stream().anyMatch(path::startsWith);
+        }
 
         @Override
         public CompletableFuture<Void> notify(MetadataEvent event) {
+            // Check if the event path is excluded
+            if (isExcluded(event.getPath())){
+                return CompletableFuture.completedFuture(null);
+            }
             notifiedEvents.put(event.getPath(), event);
             return CompletableFuture.completedFuture(null);
         }
