@@ -186,7 +186,7 @@ public class TopicStatsImpl implements TopicStats {
     /** The last publish timestamp in epoch milliseconds. */
     public long lastPublishTimeStamp;
 
-    /** The number of messages that exceed TTL delay. */
+    /** The number of delay messages that exceed TTL delay. */
     public long exceedTTLDelayMessages;
 
     public List<? extends PublisherStats> getPublishers() {

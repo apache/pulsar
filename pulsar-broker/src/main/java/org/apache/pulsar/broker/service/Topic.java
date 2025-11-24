@@ -393,7 +393,7 @@ public interface Topic {
     TopicAttributes getTopicAttributes();
 
     /**
-     * Increment exceed TTL delay message
+     * Increment exceed TTL delay message number.
      */
     default void incrementExceedTTLDelayMessages() {
     }
