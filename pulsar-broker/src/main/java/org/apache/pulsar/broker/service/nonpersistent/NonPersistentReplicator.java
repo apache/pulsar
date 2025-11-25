@@ -55,7 +55,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                                    BrokerService brokerService, PulsarClientImpl replicationClient,
                                    PulsarAdmin replicationAdmin) throws PulsarServerException {
         super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
-                replicationClient);
+                replicationClient, replicationAdmin);
         // NonPersistentReplicator does not support limitation so far, so reset pending queue size to the default value.
         producerBuilder.maxPendingMessages(1000);
         producerBuilder.blockIfQueueFull(false);
