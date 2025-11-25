@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -57,6 +58,7 @@ public abstract class AbstractReplicator implements Replicator {
     protected final String remoteCluster;
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
+    protected final PulsarAdmin replicationAdmin;
     protected String replicatorId;
     @Getter
     protected final Topic localTopic;
@@ -107,7 +109,8 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
-                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient)
+                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient,
+                              PulsarAdmin replicationAdmin)
             throws PulsarServerException {
         this.brokerService = brokerService;
         this.localTopic = localTopic;
@@ -117,6 +120,7 @@ public abstract class AbstractReplicator implements Replicator {
         this.remoteTopicName = remoteTopicName;
         this.remoteCluster = StringInterner.intern(remoteCluster);
         this.replicationClient = replicationClient;
+        this.replicationAdmin = replicationAdmin;
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
