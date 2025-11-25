@@ -50,7 +50,7 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     }
 
     private AutoProduceBytesSchema(AutoProduceBytesSchema<T> other) {
-        this.schema = other.schema;
+        this.schema = other.schema != null ? other.schema.clone() : null;
         this.userProvidedSchema = other.userProvidedSchema;
         this.requireSchemaValidation = other.requireSchemaValidation;
     }

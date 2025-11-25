@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
@@ -62,6 +65,14 @@ public class AutoProduceBytesSchemaTest {
         assertFalse(castedClone3.hasUserProvidedSchema());
         assertTrue(castedClone3.schemaInitialized());
         assertEquals(castedClone3.getSchemaInfo().getType(), SchemaType.STRING);
+    }
+
+    @Test
+    public void testInnerSchemaGetsCloned() {
+        Schema<String> stringSchema = spy(Schema.STRING);
+        AutoProduceBytesSchema<String> schema = new AutoProduceBytesSchema<>(stringSchema);
+        schema.clone();
+        verify(stringSchema, times(1)).clone();
     }
 
 }
