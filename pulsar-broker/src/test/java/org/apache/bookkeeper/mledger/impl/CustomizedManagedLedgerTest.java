@@ -81,7 +81,7 @@ public class CustomizedManagedLedgerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testRecreateConsumerAfterOnePartGc() throws Exception {
+    public void testNoMemoryLeakWhenExpireMessages() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
 
