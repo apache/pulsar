@@ -82,7 +82,8 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
-        public ManagedLedger open(String name, ManagedLedgerConfig config) throws InterruptedException, ManagedLedgerException {
+        public ManagedLedger open(String name, ManagedLedgerConfig config) throws InterruptedException,
+                ManagedLedgerException {
             return new CustomizedManagedLedger((ManagedLedgerImpl) delegate.open(name, config));
         }
         @Override
