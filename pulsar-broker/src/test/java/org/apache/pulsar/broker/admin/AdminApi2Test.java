@@ -326,6 +326,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         return new Object[][] { { true }, { false } };
     }
 
+    @DataProvider(name = "trueFalse")
+    public static Object[][] trueFalse() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
 
     /**
      * It verifies http error code when updating partitions to ensure compatibility.
