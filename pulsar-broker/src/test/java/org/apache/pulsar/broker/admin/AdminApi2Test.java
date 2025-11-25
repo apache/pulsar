@@ -3916,7 +3916,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
-        
+
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
             .topic(topic)
@@ -3937,7 +3937,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(partitionedTopic, 3);
         admin.topicPolicies().setRetention(partitionedTopic,
                 new RetentionPolicies(-1, 10));
-        
+
         @Cleanup
         Producer<byte[]> partitionedProducer = client.newProducer()
             .topic(partitionedTopic)
