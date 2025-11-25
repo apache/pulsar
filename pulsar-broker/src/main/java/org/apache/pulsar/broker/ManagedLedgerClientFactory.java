@@ -54,6 +54,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerClientFactory.class);
     private static final String DEFAULT_STORAGE_CLASS_NAME = "bookkeeper";
     private BookkeeperManagedLedgerStorageClass defaultStorageClass;
+    @VisibleForTesting
     protected ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
