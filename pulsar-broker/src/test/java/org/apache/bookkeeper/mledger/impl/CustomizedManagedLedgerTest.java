@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.TimeUnit;
-import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -37,7 +36,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -57,27 +55,13 @@ public class CustomizedManagedLedgerTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @EqualsAndHashCode.Include
     protected void doInitConf() throws Exception {
         super.doInitConf();
         conf.setManagedLedgerStorageClassName(
             CustomizedManagedLedgerStorageForTest.class.getName());
         conf.setManagedLedgerCacheSizeMB(10);
-        conf.setManagedLedgerCacheEvictionFrequency(60_000);
-        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(60_000);
-    }
-
-    private enum SubscribeTopicType {
-        MULTI_PARTITIONED_TOPIC,
-        REGEX_TOPIC;
-    }
-
-    @DataProvider(name = "subscribeTopicTypes")
-    public Object[][] subTopicTypes() {
-        return new Object[][]{
-                {SubscribeTopicType.MULTI_PARTITIONED_TOPIC},
-                {SubscribeTopicType.REGEX_TOPIC}
-        };
+        conf.setManagedLedgerCacheEvictionFrequency(1000);
+        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(1000);
     }
 
     @Test
