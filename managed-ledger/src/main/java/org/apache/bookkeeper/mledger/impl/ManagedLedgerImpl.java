@@ -3734,8 +3734,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 || pos2.getLedgerId() < getFirstPosition().getLedgerId()
                 || pos1.getLedgerId() > getLastPosition().getLedgerId()
                 || pos2.getLedgerId() > getLastPosition().getLedgerId()) {
-            log.warn("[{}] Comparing un-exist position {} and {}", name, pos1, pos2,
-                    new IllegalArgumentException("Comparing un-exist position"));
             return pos1.compareTo(pos2);
         }
         if (pos1.getLedgerId() == pos2.getLedgerId()) {
