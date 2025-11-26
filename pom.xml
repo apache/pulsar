@@ -261,7 +261,7 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>7.9.2</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
-    <asynchttpclient.version>2.12.4</asynchttpclient.version>
+    <asynchttpclient.version>3.0.4</asynchttpclient.version>
     <commons-lang3.version>3.19.0</commons-lang3.version>
     <commons-io.version>2.21.0</commons-io.version>
     <commons-codec.version>1.20.0</commons-codec.version>

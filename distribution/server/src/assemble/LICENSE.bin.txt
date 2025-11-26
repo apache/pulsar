@@ -391,8 +391,8 @@ The Apache Software License, Version 2.0
  * AirCompressor
     - io.airlift-aircompressor-0.27.jar
  * AsyncHttpClient
-    - org.asynchttpclient-async-http-client-2.12.4.jar
-    - org.asynchttpclient-async-http-client-netty-utils-2.12.4.jar
+    - org.asynchttpclient-async-http-client-3.0.4.jar
+    - org.asynchttpclient-async-http-client-netty-utils-3.0.4.jar
  * Jetty
     - org.eclipse.jetty-jetty-client-9.4.58.v20250814.jar
     - org.eclipse.jetty-jetty-continuation-9.4.58.v20250814.jar
