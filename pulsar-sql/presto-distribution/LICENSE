@@ -447,7 +447,7 @@ The Apache Software License, Version 2.0
     - commons-lang-2.6.jar
     - commons-logging-1.2.jar
   * GSON
-    - gson-2.8.9.jar
+    - gson-2.13.2.jar
   * JSON Simple
     - json-simple-1.1.1.jar
   * Snappy
