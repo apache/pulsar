@@ -720,5 +720,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         BrokerTestUtil.logTopicStats(log, admin, topic);
     }
 
+    @DataProvider(name = "trueFalse")
+    public static Object[][] trueFalse() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }
