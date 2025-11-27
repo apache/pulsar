@@ -645,6 +645,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
