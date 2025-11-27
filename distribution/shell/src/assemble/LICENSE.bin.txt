@@ -345,7 +345,6 @@ The Apache Software License, Version 2.0
     - commons-text-1.14.0.jar
     - commons-compress-1.28.0.jar
     - commons-beanutils-1.11.0.jar
-    - commons-collections-3.2.2.jar
     - commons-configuration2-2.12.0.jar
  * Netty
     - netty-buffer-4.1.128.Final.jar
