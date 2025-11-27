@@ -249,7 +249,7 @@ flexible messaging model and an intuitive client API.</description>
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hadoop3.version>3.4.1</hadoop3.version>
+    <hadoop3.version>3.4.2</hadoop3.version>
     <dnsjava3.version>3.6.2</dnsjava3.version>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
     <hbase.version>2.6.3-hadoop3</hbase.version>
@@ -641,6 +641,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1735,6 +1739,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>commons-beanutils</groupId>
         <artifactId>commons-beanutils</artifactId>
         <version>${commons-beanutils.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
