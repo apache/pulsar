@@ -59,6 +59,7 @@ public abstract class AbstractReplicator implements Replicator {
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
     protected final PulsarAdmin replicationAdmin;
+    protected final PulsarAdmin admin;
     protected String replicatorId;
     @Getter
     protected final Topic localTopic;
@@ -122,6 +123,7 @@ public abstract class AbstractReplicator implements Replicator {
         this.replicationClient = replicationClient;
         this.replicationAdmin = replicationAdmin;
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
+        this.admin = brokerService.pulsar().getAdminClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
         this.replicatorId = String.format("%s | %s",
