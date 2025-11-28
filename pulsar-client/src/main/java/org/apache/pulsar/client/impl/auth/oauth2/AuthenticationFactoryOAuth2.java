@@ -78,6 +78,7 @@ public final class AuthenticationFactoryOAuth2 {
         private Duration connectTimeout;
         private Duration readTimeout;
         private String trustCertsFilePath;
+        private String wellKnownMetadataPath;
 
         private ClientCredentialsBuilder() {
         }
@@ -164,6 +165,17 @@ public final class AuthenticationFactoryOAuth2 {
         }
 
         /**
+         * Optional well-known metadata path
+         *
+         * @param wellKnownMetadataPath the well-known metadata path
+         * @return the builder
+         */
+        public ClientCredentialsBuilder wellKnownMetadataPath(String wellKnownMetadataPath) {
+            this.wellKnownMetadataPath = wellKnownMetadataPath;
+            return this;
+        }
+
+        /**
          * Authenticate with client credentials.
          *
          * @return an Authentication object
@@ -177,6 +189,7 @@ public final class AuthenticationFactoryOAuth2 {
                     .connectTimeout(connectTimeout)
                     .readTimeout(readTimeout)
                     .trustCertsFilePath(trustCertsFilePath)
+                    .wellKnownMetadataPath(wellKnownMetadataPath)
                     .build();
             return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
         }

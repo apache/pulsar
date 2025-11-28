@@ -36,6 +36,8 @@ import org.asynchttpclient.Response;
  */
 public class DefaultMetadataResolver implements MetadataResolver {
 
+    private static final String DEFAULT_WELL_KNOWN_METADATA_PATH = "/.well-known/openid-configuration";
+
     private final URL metadataUrl;
     private final ObjectReader objectReader;
     private final AsyncHttpClient httpClient;
@@ -50,9 +52,14 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * Gets a well-known metadata URL for the given OAuth issuer URL.
      *
      * @param issuerUrl The authorization server's issuer identifier
+     * @param httpClient The HTTP client
+     * @param wellKnownMetadataPath The well-known metadata path
      * @return a resolver
      */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient) {
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient, String wellKnownMetadataPath) {
+        if (wellKnownMetadataPath != null) {
+            return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl, wellKnownMetadataPath), httpClient);
+        }
         return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl), httpClient);
     }
 
@@ -60,16 +67,27 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * Gets a well-known metadata URL for the given OAuth issuer URL.
      *
      * @param issuerUrl The authorization server's issuer identifier
+     * @param wellKnownMetadataPath The well-known metadata path
      * @return a URL
      * @see <a href="https://tools.ietf.org/id/draft-ietf-oauth-discovery-08.html#ASConfig">
      * OAuth Discovery: Obtaining Authorization Server Metadata</a>
      */
-    public static URL getWellKnownMetadataUrl(URL issuerUrl) {
+    public static URL getWellKnownMetadataUrl(URL issuerUrl, String wellKnownMetadataPath) {
         try {
-            return URI.create(issuerUrl.toExternalForm() + "/.well-known/openid-configuration").normalize().toURL();
+            return URI.create(issuerUrl.toExternalForm() + wellKnownMetadataPath).normalize().toURL();
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e);
         }
+    }
+
+    /**
+     * Gets a well-known metadata URL for the given OAuth issuer URL using the default path.
+     *
+     * @param issuerUrl The authorization server's issuer identifier
+     * @return a URL
+     */
+    public static URL getWellKnownMetadataUrl(URL issuerUrl) {
+        return getWellKnownMetadataUrl(issuerUrl, DEFAULT_WELL_KNOWN_METADATA_PATH);
     }
 
     /**

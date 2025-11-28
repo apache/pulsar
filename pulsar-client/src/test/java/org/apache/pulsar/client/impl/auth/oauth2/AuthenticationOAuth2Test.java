@@ -85,6 +85,7 @@ public class AuthenticationOAuth2Test {
         params.put("issuerUrl", "http://localhost");
         params.put("audience", "http://localhost");
         params.put("scope", "http://localhost");
+        params.put("wellKnownMetadataPath", "/.well-known/custom-path");
         ObjectMapper mapper = new ObjectMapper();
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
@@ -134,6 +135,12 @@ public class AuthenticationOAuth2Test {
     public void testMetadataResolver() throws MalformedURLException {
         URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(URI.create("http://localhost/path/oauth").toURL());
         assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", url.toString());
+        
+        // custom wellKnownMetadataPath
+        URL customUrl = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(), 
+                "/.well-known/custom-path");
+        assertEquals("http://localhost/path/oauth/.well-known/custom-path", customUrl.toString());
     }
 
     @Test

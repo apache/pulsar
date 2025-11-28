@@ -36,11 +36,13 @@ public class AuthenticationFactoryOAuth2Test {
         Duration connectTimeout = Duration.parse("PT11S");
         Duration readTimeout = Duration.ofSeconds(31);
         String trustCertsFilePath = null;
+        String wellKnownMetadataPath = "/.well-known/custom-path";
         try (Authentication authentication =
                      AuthenticationFactoryOAuth2.clientCredentialsBuilder().issuerUrl(issuerUrl)
                              .credentialsUrl(credentialsUrl).audience(audience).scope(scope)
                              .connectTimeout(connectTimeout).readTimeout(readTimeout)
-                             .trustCertsFilePath(trustCertsFilePath).build()) {
+                             .trustCertsFilePath(trustCertsFilePath)
+                             .wellKnownMetadataPath(wellKnownMetadataPath).build()) {
             assertTrue(authentication instanceof AuthenticationOAuth2);
         }
     }
