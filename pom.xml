@@ -649,6 +649,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-extension-autoconfigure-spi</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
