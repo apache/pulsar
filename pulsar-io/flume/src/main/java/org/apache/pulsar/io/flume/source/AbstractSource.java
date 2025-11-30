@@ -91,18 +91,17 @@ public abstract class AbstractSource<V> extends PushSource<V> {
                 while (running) {
                     BlockingQueue<Map<String, Object>> blockingQueue = SinkOfFlume.getQueue();
                     while (blockingQueue != null && !blockingQueue.isEmpty()) {
-                        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                        ObjectOutput out = null;
-                        out = new ObjectOutputStream(bos);
-                        Map<String, Object> message = blockingQueue.take();
-                        out.writeObject(message.get("body"));
-                        out.flush();
-                        byte[] m = bos.toByteArray();
-                        String m1 = new String(m);
-                        bos.close();
-                        FlumeRecord flumeRecord = new FlumeRecord<>();
-                        flumeRecord.setRecord(extractValue(m1));
-                        consume(flumeRecord);
+                        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                             ObjectOutput out = new ObjectOutputStream(bos)) {
+                            Map<String, Object> message = blockingQueue.take();
+                            out.writeObject(message.get("body"));
+                            out.flush();
+                            byte[] m = bos.toByteArray();
+                            String m1 = new String(m);
+                            FlumeRecord flumeRecord = new FlumeRecord<>();
+                            flumeRecord.setRecord(extractValue(m1));
+                            consume(flumeRecord);
+                        }
                     }
                 }
             } catch (Exception e) {

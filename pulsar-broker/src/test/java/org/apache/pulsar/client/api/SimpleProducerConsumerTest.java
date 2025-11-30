@@ -81,6 +81,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -330,6 +331,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             assertFalse(pulsar.getConfiguration().isStrictlyVerifySubscriptionName());
         });
+    }
+
+    @Test(timeOut = 5000)
+    public void pulsarClientClockCheckTest() {
+        assertThatThrownBy(
+                () -> PulsarClient.builder()
+                    .serviceUrl(lookupUrl.toString())
+                    .clock(null)
+                    .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("clock must not be null");
     }
 
     @Test(timeOut = 100000)
@@ -4032,14 +4044,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 1) Test receiveAsync is interrupted
         CountDownLatch countDownLatch = new CountDownLatch(1);
         new Thread(() -> {
+            CountDownLatch subCountDownLatch = new CountDownLatch(1);
             try {
                 new Thread(() -> {
                     try {
+                        subCountDownLatch.await();
                         consumer.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                consumer.receiveAsync().get();
+                CompletableFuture<Message<String>> futhre = consumer.receiveAsync();
+                subCountDownLatch.countDown();
+                futhre.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -4056,13 +4072,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                CountDownLatch subCountDownLatch = new CountDownLatch(1);
                 new Thread(() -> {
                     try {
+                        subCountDownLatch.await();
                         consumer2.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                consumer2.batchReceiveAsync().get();
+                CompletableFuture<Messages<String>> future = consumer2.batchReceiveAsync();
+                subCountDownLatch.countDown();
+                future.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -4079,13 +4099,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                CountDownLatch subCountDownLatch = new CountDownLatch(1);
                 new Thread(() -> {
                     try {
+                        subCountDownLatch.await();
                         partitionedTopicConsumer.close();
-                    } catch (PulsarClientException ignore) {
+                    } catch (PulsarClientException | InterruptedException ignore) {
                     }
                 }).start();
-                partitionedTopicConsumer.batchReceiveAsync().get();
+                CompletableFuture<Messages<String>> future =
+                        partitionedTopicConsumer.batchReceiveAsync();
+                subCountDownLatch.countDown();
+                future.get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
@@ -5361,5 +5386,51 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @DataProvider
+    public Object[][] trimLedgerBeforeGetStats() {
+        return new Object[][] {
+                {true},
+                {false}
+        };
+    }
+
+    @Test(dataProvider = "trimLedgerBeforeGetStats")
+    public void testBacklogAfterCreatedSubscription(boolean trimLegderBeforeGetStats) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp");
+        String mlName = TopicName.get(topic).getPersistenceNamingEncoding();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
+        if (!trimLegderBeforeGetStats) {
+            config.setRetentionTime(3600, TimeUnit.SECONDS);
+        }
+        ManagedLedgerFactory factory = pulsar.getDefaultManagedLedgerFactory();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        for (int i = 0; i < 4; i++) {
+            producer.send("message-" + i);
+            Thread.sleep(1000);
+        }
+        producer.close();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        assertEquals(persistentTopic.getManagedLedger(), ml);
+
+        if (trimLegderBeforeGetStats) {
+            CompletableFuture<Void> trimLedgerFuture = new CompletableFuture<>();
+            ml.trimConsumedLedgersInBackground(trimLedgerFuture);
+            trimLedgerFuture.join();
+            assertEquals(ml.getLedgersInfo().size(), 1);
+            assertEquals(ml.getCurrentLedgerEntries(), 0);
+        }
+
+        admin.topics().createSubscription(topic, "sub1", MessageId.latest);
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub1").getMsgBacklog(), 0);
+
+        // cleanup
+        admin.topics().delete(topic, false);
     }
 }

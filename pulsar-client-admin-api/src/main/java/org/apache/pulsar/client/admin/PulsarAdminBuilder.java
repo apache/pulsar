@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 
 /**
  * Builder class for a {@link PulsarAdmin} instance.
@@ -393,4 +394,17 @@ public interface PulsarAdminBuilder {
      * @throws IllegalArgumentException if the length of description exceeds 64
      */
     PulsarAdminBuilder description(String description);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (only support IO/event loops, timers, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the adminClient builder instance
+     */
+    PulsarAdminBuilder sharedResources(PulsarClientSharedResources sharedResources);
+
 }

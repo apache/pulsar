@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -27,7 +26,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,13 +36,17 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.CompletionCallback;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
@@ -64,6 +66,8 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -111,6 +115,8 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -165,8 +171,66 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenAccept(__ -> log.info("[{}] Created namespace {}", clientAppId(), namespaceName));
     }
 
-    protected CompletableFuture<List<String>> internalGetListOfTopics(Policies policies,
+    protected CompletableFuture<List<String>> internalGetListOfTopics(AsyncResponse response, Policies policies,
                                                                       CommandGetTopicsOfNamespace.Mode mode) {
+        // Use maxTopicListInFlightLimiter to limit inflight get topic listing responses
+        // to avoid OOME caused by a lot of clients using HTTP service lookups to list topics
+        AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter =
+                pulsar().getBrokerService().getMaxTopicListInFlightLimiter();
+        TopicListSizeResultCache.ResultHolder listSizeHolder = pulsar().getBrokerService().getTopicListSizeResultCache()
+                .getTopicListSize(namespaceName.toString(), mode);
+        // setup the permit cancellation function
+        AtomicBoolean permitRequestCancelled = new AtomicBoolean(false);
+        BooleanSupplier isPermitRequestCancelled = permitRequestCancelled::get;
+        // add callback that releases permits when the response completes
+        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> initialPermitsRef =
+                new AtomicReference<>();
+        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> permitsRef = new AtomicReference<>();
+        response.register(new CompletionCallback() {
+            @Override
+            public void onComplete(Throwable throwable) {
+                if (throwable != null) {
+                    // for failed request
+                    // handle resetting the TopicListSizeResultCache.ResultHolder
+                    listSizeHolder.resetIfInitializing();
+                    // cancel any pending permit request
+                    permitRequestCancelled.set(true);
+                }
+                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit initialPermit = initialPermitsRef.get();
+                if (initialPermit != null) {
+                    maxTopicListInFlightLimiter.release(initialPermit);
+                }
+                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit permits = permitsRef.get();
+                if (permits != null) {
+                    maxTopicListInFlightLimiter.release(permits);
+                }
+            }
+        });
+        return listSizeHolder.getSizeAsync().thenCompose(initialSize -> maxTopicListInFlightLimiter.acquire(initialSize,
+                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled).exceptionally(t -> {
+            throw new CompletionException(
+                    new RestException(Status.TOO_MANY_REQUESTS, "Failed due to heap memory limit exceeded"));
+        }).thenCompose(initialPermits -> {
+            initialPermitsRef.set(initialPermits);
+            // perform the actual get list of topics operation
+            return doInternalGetListOfTopics(policies, mode).thenCompose(topicList -> {
+                long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topicList);
+                listSizeHolder.updateSize(actualSize);
+                return maxTopicListInFlightLimiter.update(initialPermits, actualSize, isPermitRequestCancelled)
+                        .exceptionally(t -> {
+                            throw new CompletionException(new RestException(Status.TOO_MANY_REQUESTS,
+                                    "Failed due to heap memory limit exceeded"));
+                        }).thenApply(permits -> {
+                            permitsRef.set(permits);
+                            initialPermitsRef.set(null);
+                            return topicList;
+                        });
+            });
+        }));
+    }
+
+    private CompletableFuture<List<String>> doInternalGetListOfTopics(Policies policies,
+                                                                     CommandGetTopicsOfNamespace.Mode mode) {
         switch (mode) {
             case ALL:
                 return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
@@ -221,7 +285,8 @@ public abstract class NamespacesBase extends AdminResource {
         precheckWhenDeleteNamespace(namespaceName, force)
                 .thenCompose(policies -> {
                     final CompletableFuture<List<String>> topicsFuture;
-                    if (policies == null || CollectionUtils.isEmpty(policies.replication_clusters)){
+                    if (policies == null || !pulsar().getBrokerService()
+                            .isCurrentClusterAllowed(namespaceName, policies)) {
                         topicsFuture = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
                     } else {
                         topicsFuture = pulsar().getNamespaceService().getFullListOfTopics(namespaceName);
@@ -418,22 +483,25 @@ public abstract class NamespacesBase extends AdminResource {
                                 return CompletableFuture.completedFuture(null);
                             }
                             Policies policies = policiesOpt.get();
-                            Set<String> replicationClusters = policies.replication_clusters;
-                            if (replicationClusters.size() > 1) {
+                            // Just keep the behavior of V1 namespace being the same as before.
+                            if (!nsName.isV2() && policies.replication_clusters.isEmpty()
+                                    && policies.allowed_clusters.isEmpty()) {
+                                return CompletableFuture.completedFuture(policies);
+                            }
+                            String cluster = policies.getClusterThatCanDeleteNamespace();
+                            if (cluster == null) {
                                 // There are still more than one clusters configured for the global namespace
                                 throw new RestException(Status.PRECONDITION_FAILED,
-                                        "Cannot delete the global namespace " + nsName + ". There are still more than "
-                                        + "one replication clusters configured.");
+                                    "Cannot delete the global namespace " + nsName + ". There are still more than "
+                                    + "one replication clusters configured.");
                             }
-                            if (replicationClusters.size() == 1
-                                    && !policies.replication_clusters.contains(config().getClusterName())) {
+                            if (!cluster.equals(config().getClusterName())) {
                                 // the only replication cluster is other cluster, redirect
-                                String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
-                                return clusterResources().getClusterAsync(replCluster)
+                                return clusterResources().getClusterAsync(cluster)
                                         .thenCompose(replClusterDataOpt -> {
                                             ClusterData replClusterData = replClusterDataOpt
                                                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                                                            "Cluster " + replCluster + " does not exist"));
+                                                            "Cluster " + cluster + " does not exist"));
                                             URL replClusterUrl;
                                             try {
                                                 if (!replClusterData.isBrokerClientTlsEnabled()) {
@@ -453,7 +521,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                     .replaceQueryParam("authoritative", false).build();
                                             if (log.isDebugEnabled()) {
                                                 log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                                        clientAppId(), redirect, replCluster);
+                                                        clientAppId(), redirect, cluster);
                                             }
                                             throw new WebApplicationException(
                                                     Response.temporaryRedirect(redirect).build());
@@ -503,22 +571,25 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(policies -> {
                     CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
                     if (namespaceName.isGlobal()) {
-
-                        if (policies.replication_clusters.size() > 1) {
+                        // Just keep the behavior of V1 namespace being the same as before.
+                        if (!namespaceName.isV2() && policies.replication_clusters.isEmpty()
+                                && policies.allowed_clusters.isEmpty()) {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        String cluster = policies.getClusterThatCanDeleteNamespace();
+                        if (cluster == null) {
                             // There are still more than one clusters configured for the global namespace
                             throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
                                     + namespaceName
                                     + ". There are still more than one replication clusters configured.");
                         }
-                        if (policies.replication_clusters.size() == 1
-                                && !policies.replication_clusters.contains(config().getClusterName())) {
+                        if (!cluster.equals(config().getClusterName())) { // No need to change.
                             // the only replication cluster is other cluster, redirect
-                            String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
-                            future = clusterResources().getClusterAsync(replCluster)
+                            future = clusterResources().getClusterAsync(cluster)
                                     .thenCompose(clusterData -> {
                                         if (clusterData.isEmpty()) {
                                             throw new RestException(Status.NOT_FOUND,
-                                                    "Cluster " + replCluster + " does not exist");
+                                                    "Cluster " + cluster + " does not exist");
                                         }
                                         ClusterData replClusterData = clusterData.get();
                                         URL replClusterUrl;
@@ -542,7 +613,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                         .replaceQueryParam("authoritative", false).build();
                                         if (log.isDebugEnabled()) {
                                             log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                                    clientAppId(), redirect, replCluster);
+                                                    clientAppId(), redirect, cluster);
                                         }
                                         throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                                     });
@@ -739,6 +810,9 @@ public abstract class NamespacesBase extends AdminResource {
                         subscriptionName, role, null/* additional auth-data json */));
     }
 
+    /**
+     * Directly get the replication clusters for a namespace, without checking allowed clusters.
+     */
     protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.READ)
                 .thenAccept(__ -> {
@@ -778,21 +852,19 @@ public abstract class NamespacesBase extends AdminResource {
                                                     "Invalid cluster id: " + clusterId);
                                         }
                                         return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
-                                                .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
-                                                        .thenCompose(nsPolicies -> {
-                                                            if (nsPolicies.allowed_clusters.isEmpty()) {
-                                                                return validateClusterForTenantAsync(
-                                                                        namespaceName.getTenant(), clusterId);
-                                                            }
-                                                            if (!nsPolicies.allowed_clusters.contains(clusterId)) {
-                                                                String msg = String.format("Cluster [%s] is not in the "
-                                                                        + "list of allowed clusters list for namespace "
-                                                                        + "[%s]", clusterId, namespaceName.toString());
-                                                                log.info(msg);
-                                                                throw new RestException(Status.FORBIDDEN, msg);
-                                                            }
-                                                            return CompletableFuture.completedFuture(null);
-                                                        }));
+                                            .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
+                                                .thenCompose(nsPolicies -> {
+                                                    if (!Policies.checkNewReplicationClusters(nsPolicies,
+                                                            replicationClusterSet)) {
+                                                        String msg = String.format("Cluster [%s] is not in the "
+                                                                + "list of allowed clusters list for namespace "
+                                                                + "[%s]", clusterId, namespaceName.toString());
+                                                        log.info(msg);
+                                                        throw new RestException(Status.BAD_REQUEST, msg);
+                                                    }
+                                                    return validateClusterForTenantAsync(
+                                                            namespaceName.getTenant(), clusterId);
+                                                }));
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
                         }))
@@ -962,9 +1034,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 bookieAffinityGroup,
                                 policies.namespaceAntiAffinityGroup,
                                 policies.migrated))
-                        .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
-                                bookieAffinityGroup,
-                                null));
+                        .orElseGet(() -> new LocalPolicies(getDefaultBundleData(), bookieAffinityGroup, null));
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
                         namespaceName, localPolicies);
                 return localPolicies;
@@ -973,6 +1043,8 @@ public abstract class NamespacesBase extends AdminResource {
             log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (RestException re) {
+            throw re;
         } catch (Exception e) {
             log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
                     e);
@@ -1789,11 +1861,12 @@ public abstract class NamespacesBase extends AdminResource {
                         policies.bookieAffinityGroup,
                         antiAffinityGroup,
                         policies.migrated))
-                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
-                                null, antiAffinityGroup))
+                        .orElseGet(() -> new LocalPolicies(getDefaultBundleData(), null, antiAffinityGroup))
             );
             log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
                     namespaceName, antiAffinityGroup);
+        } catch (RestException re) {
+            throw re;
         } catch (Exception e) {
             log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
                     e);
@@ -1967,13 +2040,17 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
-        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
-            // Default to local cluster
-            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        if (!policies.checkAllowedAndReplicationClusters()) {
+            String msg = String.format("[%s] All replication clusters should be included in allowed clusters."
+                    + " Repl clusters: %s, allowed clusters: %s",
+                    ns.toString(), policies.replication_clusters, policies.allowed_clusters);
+            log.info(msg);
+            throw new RestException(Status.BAD_REQUEST, msg);
         }
+        pulsar().getBrokerService().setCurrentClusterAllowedIfNoClusterIsAllowed(ns, policies);
 
         // Validate cluster names and permissions
-        return policies.replication_clusters.stream()
+        return Stream.concat(policies.replication_clusters.stream(), policies.allowed_clusters.stream())
                     .map(cluster -> validateClusterForTenantAsync(ns.getTenant(), cluster))
                     .reduce(CompletableFuture.completedFuture(null), (a, b) -> a.thenCompose(ignore -> b))
             .thenAccept(__ -> {
@@ -2805,9 +2882,10 @@ public abstract class NamespacesBase extends AdminResource {
                             policies.bookieAffinityGroup,
                             policies.namespaceAntiAffinityGroup,
                             migrated))
-                    .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
-                            null, null, migrated)));
+                    .orElseGet(() -> new LocalPolicies(getDefaultBundleData(), null, null, migrated)));
             log.info("Successfully updated migration on namespace {}", namespaceName);
+        } catch (RestException re) {
+            throw re;
         } catch (Exception e) {
             log.error("Failed to update migration on namespace {}", namespaceName, e);
             throw new RestException(e);
@@ -2864,16 +2942,15 @@ public abstract class NamespacesBase extends AdminResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Cannot specify global in the list of allowed clusters");
                     }
-                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(namespacePolicies -> {
-                        namespacePolicies.replication_clusters.forEach(replicationCluster -> {
-                            if (!clusterIds.contains(replicationCluster)) {
-                                throw new RestException(Status.BAD_REQUEST,
-                                        String.format("Allowed clusters do not contain the replication cluster %s. "
-                                                + "Please remove the replication cluster if the cluster is not allowed "
-                                                + "for this namespace", replicationCluster));
-                            }
-                        });
-                        return Sets.newHashSet(clusterIds);
+                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(nsPolicies -> {
+                        Set<String> clusterSet = Sets.newHashSet(clusterIds);
+                        if (!Policies.checkNewAllowedClusters(nsPolicies, clusterSet)){
+                            throw new RestException(Status.BAD_REQUEST,
+                                    String.format("Allowed clusters do not contain the replication cluster %s. "
+                                        + "Please remove the replication cluster if the cluster is not allowed "
+                                        + "for this namespace", nsPolicies.replication_clusters));
+                        }
+                        return clusterSet;
                     });
                 })
                 // Verify the allowed clusters are valid and they do not contain the peer clusters.
@@ -2896,6 +2973,9 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
+    /**
+     * Directly get the allowed clusters for a namespace, without checking replication clusters.
+     */
     protected CompletableFuture<Set<String>> internalGetNamespaceAllowedClustersAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.READ)
                 .thenAccept(__ -> {
@@ -2907,5 +2987,22 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenApply(policies -> policies.allowed_clusters);
     }
 
+    // TODO remove this sync method after async refactor
+    private BundlesData getDefaultBundleData() {
+        try {
+            return getDefaultBundleDataAsync().get(config().getMetadataStoreOperationTimeoutSeconds(),
+                    TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace-policy configuration for namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    private CompletableFuture<BundlesData> getDefaultBundleDataAsync() {
+        return namespaceResources().getPoliciesAsync(namespaceName).thenApply(
+                optionalPolicies -> optionalPolicies.isPresent() ? optionalPolicies.get().bundles :
+                        getBundles(config().getDefaultNumberOfNamespaceBundles()));
+    }
 
 }

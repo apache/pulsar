@@ -966,9 +966,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // the broker id is used in the load manager to identify the broker
             // it should not be used for making connections to the broker
-            this.brokerId =
-                    String.format("%s:%s", advertisedAddress, config.getWebServicePort()
-                            .or(config::getWebServicePortTls).orElseThrow());
+            this.brokerId = createBrokerId();
 
             if (this.compactionServiceFactory == null) {
                 this.compactionServiceFactory = loadCompactionServiceFactory();
@@ -1096,6 +1094,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         } finally {
             mutex.unlock();
         }
+    }
+
+    private String createBrokerId() {
+        // Remove any trailing dot from the absolute FQDN in the broker id to prevent it from impacting
+        // broker entries in the metadata store when making the advertised address absolute
+        String brokerIdHostPart = advertisedAddress.replaceFirst("\\.$", "");
+        // Although broker id contains a hostname and port, it is not meant to be used for connecting to the broker,
+        // It is simply a unique identifier for the broker.
+        return String.format("%s:%s", brokerIdHostPart, config.getWebServicePort()
+                .or(config::getWebServicePortTls).orElseThrow());
     }
 
     public void runWhenReadyForIncomingRequests(Runnable runnable) {

@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
@@ -512,11 +514,13 @@ public class KubernetesRuntimeFactoryTest {
         KubernetesRuntimeFactory kubernetesRuntimeFactory = getKuberentesRuntimeFactory();
         CoreV1Api coreV1Api = Mockito.mock(CoreV1Api.class);
         V1ConfigMap v1ConfigMap = new V1ConfigMap();
-        Mockito.doReturn(v1ConfigMap).when(coreV1Api).readNamespacedConfigMap(any(), any(), any());
+        CoreV1Api.APIreadNamespacedConfigMapRequest request = mock(CoreV1Api.APIreadNamespacedConfigMapRequest.class);
+        Mockito.doReturn(request).when(coreV1Api).readNamespacedConfigMap(any(), any());
+        doReturn(v1ConfigMap).when(request).execute();
         KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap,
                 changeConfigNamespace, kubernetesRuntimeFactory);
         Mockito.verify(coreV1Api, Mockito.times(1)).readNamespacedConfigMap(
-                eq(changeConfigMap), eq(changeConfigNamespace), eq(null));
+                eq(changeConfigMap), eq(changeConfigNamespace));
         KubernetesRuntimeFactory expected = getKuberentesRuntimeFactory();
         assertEquals(kubernetesRuntimeFactory, expected);
 
@@ -527,7 +531,7 @@ public class KubernetesRuntimeFactoryTest {
         KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap,
                 changeConfigNamespace, kubernetesRuntimeFactory);
         Mockito.verify(coreV1Api, Mockito.times(2)).readNamespacedConfigMap(
-                eq(changeConfigMap), eq(changeConfigNamespace), eq(null));
+                eq(changeConfigMap), eq(changeConfigNamespace));
 
        assertEquals(kubernetesRuntimeFactory.getPulsarDockerImageName(), "test_dockerImage2");
        assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "test_imagePullPolicy2");

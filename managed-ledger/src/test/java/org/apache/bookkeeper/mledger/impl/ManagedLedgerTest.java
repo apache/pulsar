@@ -42,6 +42,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -2722,6 +2723,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testGetNumberOfEntries() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        initManagedLedgerConfig(managedLedgerConfig);
+        managedLedgerConfig.setMaxEntriesPerLedger(5);
+        ManagedLedgerImpl managedLedger =
+                (ManagedLedgerImpl) factory.open("testGetNumberOfEntries", managedLedgerConfig);
+        // open cursor to prevent ledger to be deleted when ledger rollover
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) managedLedger.openCursor("cursor");
+        int numberOfEntries = 10;
+        List<Position> positions = new ArrayList<>(numberOfEntries);
+        for (int i = 0; i < numberOfEntries; i++) {
+            positions.add(managedLedger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        Position mdPos = positions.get(numberOfEntries - 1);
+        Position rdPos = PositionFactory.create(mdPos.getLedgerId(), mdPos.getEntryId() + 1);
+        managedCursor.delete(positions);
+        // trigger ledger rollover and wait for the new ledger created
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals("LedgerOpened", WhiteboxImpl.getInternalState(managedLedger, "state").toString());
+        });
+        managedLedger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getLedgersInfo().size(), 1);
+            assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.LedgerOpened);
+        });
+
+        long length = managedLedger.getNumberOfEntries(Range.closed(mdPos, rdPos));
+        assertEquals(length, 0);
+    }
+
+    @Test
     public void testEstimatedBacklogSize() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testEstimatedBacklogSize");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -4592,5 +4624,485 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ml.getLedgersInfo().get(firstLedger).getPropertiesCount(), 0);
         Assert.assertEquals(ml.getLedgersInfo().get(lastLedger).getPropertiesCount(), 0);
+    }
+
+    /**
+     * Verifies that ledger trimming respects the persistent cursor position, not just the in-memory position.
+     *
+     * <p><b>Test Flow:</b>
+     * <ol>
+     *   <li><b>Setup:</b> Create 60 entries across multiple ledgers (10 entries per ledger)
+     *   <li><b>Initial Acks:</b> Delete entries 0, 5-9 and wait for persistence
+     *       <ul><li>Persistent position: entry 0</li><li>In-memory position: entry 0</li></ul>
+     *   <li><b>Inject Delay:</b> Add 30-second delay to BookKeeper writes (simulates slow ZK/BK)
+     *   <li><b>Delayed Acks:</b> Asynchronously delete entries 1-4
+     *       <ul><li>Persistent position: entry 0 (delayed)</li><li>In-memory position: entry 9</li></ul>
+     *   <li><b>Pre-Trim Sync:</b> Call {@code maybeUpdateCursorBeforeTrimmingConsumedLedger()}
+     *   <li><b>Trigger Trim:</b> Start ledger trimming process
+     *   <li><b>Verify:</b> First ledger is preserved because persistent position (entry 0) still points to it
+     * </ol>
+     *
+     * <p><b>Success Criteria:</b>
+     * The first ledger must NOT be deleted, preventing the cursor from pointing to a non-existent
+     * ledger after topic reload. This avoids negative backlog calculations.
+     *
+     * <p><b>What This Tests:</b>
+     * Ensures that {@code maybeUpdateCursorBeforeTrimmingConsumedLedger()} correctly uses the
+     * persistent cursor position (not in-memory) when determining which ledgers are safe to trim.
+     */
+    @Test
+    public void testCursorPointsToDeletedLedgerAfterTrim() throws Exception {
+        final String ledgerName = "testCursorPointsToDeletedLedgerAfterTrimAndReload";
+        final String cursorName = "test-cursor";
+
+        // ===== SETUP: Create managed ledger with small ledgers =====
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+
+        // ===== PHASE 1: Write entries to create multiple ledgers =====
+        int totalEntries = 60;
+        log.info("=== PHASE 1: Writing {} entries to create multiple ledgers ===", totalEntries);
+        for (int i = 0; i < totalEntries; i++) {
+            Position pos = ledger.addEntry(("message-" + i).getBytes());
+            log.info("Added entry: {}", pos);
+        }
+
+        List<LedgerInfo> ledgersAfterWrite = ledger.getLedgersInfoAsList();
+        log.info("Created {} ledgers: {}", ledgersAfterWrite.size(),
+                ledgersAfterWrite.stream()
+                        .map(l -> String.format("L%d(%d entries)", l.getLedgerId(), l.getEntries()))
+                        .toArray());
+
+        assertTrue(ledgersAfterWrite.size() >= 5, "Should have at least 5 ledgers");
+        long firstLedgerId = ledgersAfterWrite.get(0).getLedgerId();
+
+        // ===== PHASE 2: Initial acknowledgments (entries 0, 5-9) and wait for persistence =====
+        log.info("=== PHASE 2: Acknowledging initial entries in first ledger {} ===", firstLedgerId);
+        List<Entry> entries = cursor.readEntries(10);
+
+        // Delete entries 5-9 first (out of order)
+        log.info("Deleting entries 5-9");
+        for (int i = 5; i < 10; i++) {
+            cursor.delete(entries.get(i).getPosition());
+        }
+
+        // Delete entry 0, which advances mark-delete position
+        log.info("Deleting entry 0 - this advances mark-delete position");
+        cursor.delete(entries.get(0).getPosition());
+
+        // Verify in-memory cursor position
+        Position initialMarkDelete = cursor.getMarkDeletedPosition();
+        assertEquals(initialMarkDelete.getLedgerId(), firstLedgerId,
+                "Mark-delete should be in first ledger");
+        assertEquals(initialMarkDelete.getEntryId(), entries.get(0).getEntryId(),
+                "Mark-delete should be at entry 0");
+
+        // Wait for this position to be persisted
+        log.info("Waiting for initial mark-delete position to persist: {}", initialMarkDelete);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cursor.getPersistentMarkDeletedPosition(), initialMarkDelete,
+                    "Persistent position should catch up to in-memory position");
+        });
+        log.info("Initial position persisted successfully");
+
+        // ===== PHASE 3: Inject delay to simulate slow persistence =====
+        long delay = 30;
+        log.info("=== PHASE 3: Injecting {}s delay for cursor persistence ===",
+                delay);
+        bkc.addEntryResponseDelay(delay, TimeUnit.SECONDS);
+
+        // ===== PHASE 4: Asynchronously acknowledge entries 1-4 (persistence will be delayed) =====
+        log.info("=== PHASE 4: Asynchronously acknowledging entries 1-4 (will be delayed) ===");
+        for (int i = 1; i < 5; i++) {
+            final int index = i;
+            cursor.asyncDelete(entries.get(i).getPosition(), new AsyncCallbacks.DeleteCallback() {
+                @Override
+                public void deleteComplete(Object ctx) {
+                    log.info("Entry {} deletion completed", index);
+                }
+
+                @Override
+                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("Entry {} deletion failed", index, exception);
+                }
+            }, null);
+        }
+
+        // Verify in-memory position has advanced to entry 9
+        Position newMarkDelete = cursor.getMarkDeletedPosition();
+        assertEquals(newMarkDelete.getLedgerId(), firstLedgerId,
+                "Mark-delete should still be in first ledger");
+        assertEquals(newMarkDelete.getEntryId(), entries.get(9).getEntryId(),
+                "Mark-delete should have advanced to entry 9 (in-memory)");
+        log.info("In-memory mark-delete position: {}", newMarkDelete);
+
+        // ===== PHASE 5: Update cursor before trimming (important synchronization point) =====
+        log.info("=== PHASE 5: Calling maybeUpdateCursorBeforeTrimmingConsumedLedger ===");
+        ledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
+
+        // ===== PHASE 6: Trigger ledger trimming =====
+        log.info("=== PHASE 6: Triggering ledger trimming ===");
+        CompletableFuture<Void> trimFuture = new CompletableFuture<>();
+        ledger.trimConsumedLedgersInBackground(trimFuture);
+        trimFuture.get();
+        log.info("Trimming completed");
+
+        // ===== VERIFICATION: Ledgers should NOT be trimmed =====
+        log.info("=== VERIFICATION ===");
+
+        // Persistent position should still be at old position (entry 0)
+        Position persistentPosition = cursor.getPersistentMarkDeletedPosition();
+        assertEquals(persistentPosition, initialMarkDelete,
+                "Persistent position should not have advanced (delayed)");
+        log.info("Persistent mark-delete position (as expected): {}", persistentPosition);
+        log.info("In-memory mark-delete position: {}", newMarkDelete);
+
+        // First ledger should still exist (not trimmed)
+        Awaitility.await().untilAsserted(() -> {
+            long firstRemainingLedger = ledger.getFirstPosition().getLedgerId();
+            assertEquals(firstRemainingLedger, ledgersAfterWrite.get(0).getLedgerId(),
+                    "First ledger should NOT be trimmed because persistent cursor position "
+                            + "is still pointing to it (entry 0)");
+        });
+        log.info("SUCCESS: First ledger {} was correctly preserved", firstLedgerId);
+
+        // ===== CLEANUP =====
+        entries.forEach(Entry::release);
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test
+    public void testGetNumberOfEntriesWithRangeParam() throws Exception {
+        final String ledgerName = "ml_" + UUID.randomUUID().toString().replaceAll("-", "");
+        final String cursorName = "test-cursor";
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        // Create a cursor to avoid entries being trimmed.
+        ml.openCursor(cursorName);
+        int totalEntries = 35;
+        List<Position> positions = new ArrayList<>(totalEntries);
+        for (int i = 0; i < totalEntries; i++) {
+            Position pos = ml.addEntry(("entry-" + i).getBytes());
+            positions.add(pos);
+        }
+        Iterator<LedgerInfo> iterator = ml.getLedgersInfo().values().iterator();
+        LedgerInfo ledger1 = iterator.next();
+        LedgerInfo ledger2 = iterator.next();
+        LedgerInfo ledger3 = iterator.next();
+        LedgerInfo ledger4 = iterator.next();
+        assertEquals(ledger1.getEntries(), 10);
+        assertEquals(ledger2.getEntries(), 10);
+        assertEquals(ledger3.getEntries(), 10);
+        assertEquals(ledger4.getLedgerId(), ml.getCurrentLedger().getId());
+
+        // Normal case: same ledger.
+        Range<Position> range11 = Range.closed(positions.get(0), positions.get(9));
+        assertEquals(ml.getNumberOfEntries(range11), 10);
+        Range<Position> range12 = Range.openClosed(positions.get(1), positions.get(9));
+        assertEquals(ml.getNumberOfEntries(range12), 8);
+        Range<Position> range13 = Range.closedOpen(positions.get(2), positions.get(9));
+        assertEquals(ml.getNumberOfEntries(range13), 7);
+
+        // Normal case: crosses ledgers.
+        Range<Position> range21 = Range.closed(positions.get(0), positions.get(19));
+        assertEquals(ml.getNumberOfEntries(range21), 20);
+        Range<Position> range22 = Range.openClosed(positions.get(0), positions.get(19));
+        assertEquals(ml.getNumberOfEntries(range22), 19);
+        Range<Position> range23 = Range.closedOpen(positions.get(0), positions.get(19));
+        assertEquals(ml.getNumberOfEntries(range23), 19);
+        Range<Position> range24 = Range.closed(positions.get(0), positions.get(29));
+        assertEquals(ml.getNumberOfEntries(range24), 30);
+        Range<Position> range25 = Range.openClosed(positions.get(0), positions.get(29));
+        assertEquals(ml.getNumberOfEntries(range25), 29);
+        Range<Position> range26 = Range.closedOpen(positions.get(0), positions.get(29));
+        assertEquals(ml.getNumberOfEntries(range26), 29);
+
+        // Normal case: end with current ledger.
+        Range<Position> range27 = Range.closed(positions.get(0), positions.get(34));
+        assertEquals(ml.getNumberOfEntries(range27), 35);
+        // Cover the following case.
+        // The use case "cursor.getNumberOfEntries()", which will use a "toPosition" that with an entry
+        // id that is larger than the LAC.
+        Range<Position> range28 = Range.closed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range28), 131);
+
+        // From position that entry id is "-1" & positions in the same ledger.
+        Range<Position> range31 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(9));
+        assertEquals(ml.getNumberOfEntries(range31), 10);
+        Range<Position> range32 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(9));
+        assertEquals(ml.getNumberOfEntries(range32), 10);
+        Range<Position> range33 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(9));
+        assertEquals(ml.getNumberOfEntries(range33), 9);
+
+        // From position that entry id is "-1" & crosses ledgers.
+        Range<Position> range41 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(15));
+        assertEquals(ml.getNumberOfEntries(range41), 16);
+        Range<Position> range42 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(15));
+        assertEquals(ml.getNumberOfEntries(range42), 16);
+        Range<Position> range43 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(15));
+        assertEquals(ml.getNumberOfEntries(range43), 15);
+        Range<Position> range44 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(25));
+        assertEquals(ml.getNumberOfEntries(range44), 26);
+        Range<Position> range45 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(25));
+        assertEquals(ml.getNumberOfEntries(range45), 26);
+        Range<Position> range46 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(25));
+        assertEquals(ml.getNumberOfEntries(range46), 25);
+
+        // Invalid range.
+        try {
+            Range.closed(positions.get(1), PositionFactory.create(ledger1.getLedgerId(), -1));
+            fail("Should have failed because the range is invalid.");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Invalid range"));
+        }
+        try {
+            Range.closed(positions.get(29), positions.get(0));
+            fail("Should have failed because the range is invalid.");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Invalid range"));
+        }
+
+        // "To position" that entry id is "-1" & crosses ledgers.
+        Range<Position> range61 = Range.closed(positions.get(1), PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range61), 9);
+        Range<Position> range62 = Range.closedOpen(positions.get(1), PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range62), 9);
+        Range<Position> range63 = Range.openClosed(positions.get(1), PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range63), 8);
+        Range<Position> range64 = Range.closed(positions.get(1), PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range64), 19);
+        Range<Position> range65 = Range.closedOpen(positions.get(1), PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range65), 19);
+        Range<Position> range66 = Range.openClosed(positions.get(1), PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range66), 18);
+
+        // "From position" is the latest entry of a ledger.
+        Range<Position> range71 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), 9), positions.get(10));
+        assertEquals(ml.getNumberOfEntries(range71), 2);
+        Range<Position> range72 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), 9), positions.get(10));
+        assertEquals(ml.getNumberOfEntries(range72), 1);
+        Range<Position> range73 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), 9), positions.get(10));
+        assertEquals(ml.getNumberOfEntries(range73), 1);
+
+        // "From position" is the latest entry of a ledger, and "to position" has a negative entry id.
+        Range<Position> range81 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range81), 1);
+        Range<Position> range82 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range82), 0);
+        Range<Position> range83 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range83), 1);
+
+        // "From position" is the latest entry of a ledger, and "to position" has a negative entry id & crosses ledgers.
+        Range<Position> range91 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range91), 11);
+        Range<Position> range92 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range92), 10);
+        Range<Position> range93 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range93), 11);
+
+        // "To Position" is larger than LAC.
+        Range<Position> range101 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger3.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range101), 21);
+        Range<Position> range102 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger3.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range102), 20);
+        Range<Position> range103 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), 9),
+                PositionFactory.create(ledger3.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range103), 20);
+
+        // "From position" is smaller than the first one.
+        Range<Position> range111 = Range.closed(PositionFactory.create(ledger1.getLedgerId() - 1, 9),
+                PositionFactory.create(ledger3.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range111), 30);
+        Range<Position> range112 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId() - 1, 9),
+                PositionFactory.create(ledger3.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range112), 30);
+        Range<Position> range113 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId() - 1, 9),
+                PositionFactory.create(ledger3.getLedgerId(), 100));
+        assertEquals(ml.getNumberOfEntries(range113), 29);
+
+        // Both "fromPosition" and "toPosition" have negative entry id & in the same ledger.
+        Range<Position> range121 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger1.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range121), 0);
+        Range<Position> range122 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger1.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range122), 0);
+        // Both "fromPosition" and "toPosition" have negative entry id & crosses ledgers.
+        Range<Position> range123 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range123), 10);
+        Range<Position> range124 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range124), 20);
+        Range<Position> range125 = Range.closed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1000));
+        assertEquals(ml.getNumberOfEntries(range125), 20);
+        Range<Position> range126 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range126), 10);
+        Range<Position> range127 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range127), 20);
+        Range<Position> range128 = Range.openClosed(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1000));
+        assertEquals(ml.getNumberOfEntries(range128), 20);
+        Range<Position> range129 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range129), 10);
+        Range<Position> range1210 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1));
+        assertEquals(ml.getNumberOfEntries(range1210), 20);
+        Range<Position> range1211 = Range.closedOpen(PositionFactory.create(ledger1.getLedgerId(), -10),
+                PositionFactory.create(ledger3.getLedgerId(), -1000));
+        assertEquals(ml.getNumberOfEntries(range1211), 20);
+        try {
+            Range.openClosed(PositionFactory.create(ledger2.getLedgerId(), -10),
+            PositionFactory.create(ledger1.getLedgerId(), -1));
+            fail("Should have failed because the range is invalid.");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Invalid range"));
+        }
+
+        // Cover the following case.
+        // The use case "cursor.getNumberOfEntries()", which will use a "toPosition" that with an entry
+        // id that is larger than the LAC.
+        // The difference with above one: the LAC is not in the latest ledger.
+        ml.close();
+        ManagedLedgerImpl ml2 =  (ManagedLedgerImpl) factory.open(ledgerName, config);
+        assertNotEquals(ledger4.getLedgerId(), ml2.currentLedger.getId());
+        Range<Position> range131 = Range.closed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(), 100));
+        assertEquals(ml2.getNumberOfEntries(range131), 131);
+        Range<Position> range132 = Range.openClosed(positions.get(0), PositionFactory.create(ledger4.getLedgerId(),
+            100));
+        assertEquals(ml2.getNumberOfEntries(range132), 130);
+        Range<Position> range133 = Range.closedOpen(positions.get(0), PositionFactory.create(ledger4.getLedgerId(),
+            100));
+        assertEquals(ml2.getNumberOfEntries(range133), 130);
+
+        // cleanup.
+        ml2.delete();
+    }
+
+    @Test
+    public void testComparePositions() throws Exception {
+        final String ledgerName = "ml_" + UUID.randomUUID().toString().replaceAll("-", "");
+        final String cursorName = "test-cursor";
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        // Create a cursor to avoid entries being trimmed.
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor(cursorName);
+        int totalEntries = 30;
+        List<Position> positions = new ArrayList<>(totalEntries);
+        for (int i = 0; i < totalEntries; i++) {
+            Position pos = ml.addEntry(("entry-" + i).getBytes());
+            positions.add(pos);
+        }
+        Iterator<LedgerInfo> iterator = ml.getLedgersInfo().values().iterator();
+        LedgerInfo ledger1 = iterator.next();
+        LedgerInfo ledger2 = iterator.next();
+        LedgerInfo ledger3 = iterator.next();
+        assertEquals(ledger1.getEntries(), 10);
+        assertEquals(ledger2.getEntries(), 10);
+
+        // Normal case: pos1 == pos2.
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(0)), 0);
+        assertEquals(ml.comparePositions(positions.get(9), positions.get(9)), 0);
+        assertEquals(ml.comparePositions(positions.get(29), positions.get(29)), 0);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
+                PositionFactory.create(ledger2.getLedgerId(), -1)), 0);
+
+        // Normal case: pos1 < pos2.
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(1)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(9)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(10)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(19)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(20)), -1);
+        assertEquals(ml.comparePositions(positions.get(0), positions.get(29)), -1);
+
+        // Normal case: pos1 > pos2.
+        assertEquals(ml.comparePositions(positions.get(1), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(9), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(10), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(19), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(20), positions.get(0)), 1);
+        assertEquals(ml.comparePositions(positions.get(29), positions.get(0)), 1);
+
+        // Pos1 has negative entry id & both positions in the same ledger.
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(0)), -1);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
+                positions.get(10)), -1);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1),
+                positions.get(20)), -1);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger1.getLedgerId(), -1),
+                positions.get(0)), -1);
+        // Pos1 has negative entry id & crosses ledgers.
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1),
+                positions.get(0)), 1);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1),
+                positions.get(0)), 1);
+        // Pos1 has negative entry id & the same value.
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger2.getLedgerId(), -1), positions.get(9)),
+                0);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId(), -1), positions.get(19)),
+                0);
+
+        // Pos2 has negative entry id & both positions in the same ledger.
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger1.getLedgerId(), -1)),
+                 1);
+        assertEquals(ml.comparePositions(positions.get(10), PositionFactory.create(ledger2.getLedgerId(), -1)),
+                 1);
+        assertEquals(ml.comparePositions(positions.get(20), PositionFactory.create(ledger3.getLedgerId(), -1)),
+                 1);
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger1.getLedgerId(), -1)),
+                 1);
+        // Pos2 has negative entry id & crosses ledgers.
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger2.getLedgerId(), -1)),
+                -1);
+        assertEquals(ml.comparePositions(positions.get(0), PositionFactory.create(ledger3.getLedgerId(), -1)),
+                -1);
+        // Pos2 has negative entry id & the same value.
+        assertEquals(ml.comparePositions(positions.get(9), PositionFactory.create(ledger2.getLedgerId(), -1)),
+                0);
+        assertEquals(ml.comparePositions(positions.get(19), PositionFactory.create(ledger3.getLedgerId(), -1)),
+                0);
+
+        // Pos1 does not exist in ledgers.
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger1.getLedgerId() - 1, 100),
+                        positions.get(0)), -1);
+        assertEquals(ml.comparePositions(PositionFactory.create(ledger3.getLedgerId() + 1, 0),
+                        positions.get(29)), 1);
+
+        // Pos2 does not exist in ledgers.
+        assertEquals(ml.comparePositions(positions.get(0),
+                        PositionFactory.create(ledger1.getLedgerId() - 1, 100)), 1);
+        assertEquals(ml.comparePositions(positions.get(29),
+                PositionFactory.create(ledger3.getLedgerId() + 1, 0)), -1);
+
+        // cleanup.
+        ml.delete();
     }
 }
