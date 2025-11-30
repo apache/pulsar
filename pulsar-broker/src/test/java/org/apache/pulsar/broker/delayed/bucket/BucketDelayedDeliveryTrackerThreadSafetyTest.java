@@ -55,7 +55,6 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
 
     private BucketDelayedDeliveryTracker tracker;
     private AbstractPersistentDispatcherMultipleConsumers dispatcher;
-    private ManagedCursor cursor;
     private Timer timer;
     private BucketSnapshotStorage storage;
     private ExecutorService executorService;
@@ -63,7 +62,7 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
     @BeforeMethod
     public void setUp() throws Exception {
         dispatcher = mock(AbstractPersistentDispatcherMultipleConsumers.class);
-        cursor = mock(ManagedCursor.class);
+        final ManagedCursor cursor = mock(ManagedCursor.class);
         timer = mock(Timer.class);
         storage = mock(BucketSnapshotStorage.class);
 
@@ -1002,9 +1001,6 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
                 throw new AssertionError("Deadlock detected - test did not complete within timeout");
             }
         }
-
-        // Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-        //         assertEquals(deliverableMessagesCount.get(), totalMessages));
 
         // Verify operations completed successfully
         assertTrue(completedOperations.get() > 0, "Some operations should complete");

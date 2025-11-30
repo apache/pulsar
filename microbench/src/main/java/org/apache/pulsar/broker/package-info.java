@@ -22,6 +22,6 @@
  *
  * <p>This package contains JMH benchmarks for testing the performance
  * characteristics of the BucketDelayedDeliveryTracker, particularly
- * focusing on thread safety improvements with StampedLock optimistic reads.
+ * focusing on thread safety improvements with ReentrantReadWriteLock.
  */
 package org.apache.pulsar.broker;

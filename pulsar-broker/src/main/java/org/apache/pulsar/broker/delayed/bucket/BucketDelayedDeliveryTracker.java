@@ -122,6 +122,24 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final ExecutorService bucketSnapshotExecutor;
     private final AtomicBoolean bucketSnapshotInProgress = new AtomicBoolean(false);
+    /**
+     * Bucket that is currently being sealed into an immutable bucket.
+     *
+     * <p>Lifecycle:
+     * <ul>
+     *   <li>When a mutable bucket reaches the threshold to be persisted, it is assigned to
+     *       {@code bucketBeingSealed} under the {@link #writeLock} and a fresh {@link #lastMutableBucket}
+     *       is created for new messages.</li>
+     *   <li>While a bucket is being sealed, messages whose ledger id falls into its range are not written
+     *       to this bucket anymore. Instead they are routed directly to {@link #sharedBucketPriorityQueue}
+     *       and de-duplication is done using the current {@link #lastMutableBucket} bitmap.</li>
+     *   <li>Once {@link #createBucketSnapshotAsync(MutableBucket)} finishes (successfully or exceptionally),
+     *       this field is cleared. This transition also happens under the {@link #writeLock}.</li>
+     * </ul>
+     *
+     * <p>All access to this field must be done under {@link #writeLock} to keep bucket routing and sealing
+     * consistent across threads.</p>
+     */
     private volatile MutableBucket bucketBeingSealed = null;
 
     private final Lock readLock;
@@ -198,7 +216,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.readLock = rwLock.readLock();
         this.writeLock = rwLock.writeLock();
         bucketSnapshotExecutor = Executors.newSingleThreadScheduledExecutor(
-                new ExecutorProvider.ExtendedThreadFactory("bucket-creation"));
+                new ExecutorProvider.ExtendedThreadFactory(context.getName() + "bucket-creation"));
 
         try {
             long recoveredMessages = recoverBucketSnapshot();
@@ -422,6 +440,30 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
     }
 
+    /**
+     * Add a delayed message to the tracker.
+     *
+     * <p>Routing rules (under {@link #writeLock} for the mutating part):
+     * <ul>
+     *   <li>If the message already exists, it is ignored.</li>
+     *   <li>If the delivery time is before the cutoff, it is dropped.</li>
+     *   <li>If the current {@link #lastMutableBucket} has accumulated enough indexes and the message
+     *       ledger id is strictly after its range, a snapshot is triggered:
+     *       <ul>
+     *         <li>The current {@code lastMutableBucket} is moved to {@link #bucketBeingSealed}.</li>
+     *         <li>A fresh {@code lastMutableBucket} is created for subsequent messages.</li>
+     *         <li>Sealing and persistence happen asynchronously in
+     *             {@link #createBucketSnapshotAsync(MutableBucket)}.</li>
+     *       </ul>
+     *   </li>
+     *   <li>Messages whose ledger id falls into the range of a bucket that is currently being sealed, or
+     *       into an already immutable bucket, or before the current {@code lastMutableBucket} range,
+     *       are routed directly to {@link #sharedBucketPriorityQueue} and tracked only via the bitmap
+     *       of the current {@code lastMutableBucket}. This mirrors the original behaviour where
+     *       messages for closed ranges are not re-added to mutable buckets.</li>
+     *   <li>All remaining messages are added to {@code lastMutableBucket}.</li>
+     * </ul>
+     */
     @Override
     public boolean addMessage(long ledgerId, long entryId, long deliverAt) {
         readLock.lock();
@@ -449,42 +491,41 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             }
 
             final MutableBucket sealingBucket = this.bucketBeingSealed;
-            if (sealingBucket != null
+            final boolean sealingBucketContainsLedger = sealingBucket != null
                     && ledgerId >= sealingBucket.startLedgerId
-                    && ledgerId <= sealingBucket.endLedgerId) {
+                    && ledgerId <= sealingBucket.endLedgerId;
+
+            boolean existBucket = findImmutableBucket(ledgerId).isPresent();
+
+            if (!sealingBucketContainsLedger
+                    && !existBucket
+                    && ledgerId > lastMutableBucket.endLedgerId
+                    && lastMutableBucket.size() >= minIndexCountPerBucket
+                    && !lastMutableBucket.isEmpty()
+                    && bucketSnapshotInProgress.compareAndSet(false, true)) {
+                // Create bucket snapshot using current lastMutableBucket as the bucket to seal.
+                final MutableBucket bucketToSeal = this.lastMutableBucket;
+                this.bucketBeingSealed = bucketToSeal;
+                this.lastMutableBucket = new MutableBucket(context.getName(), context.getCursor(),
+                        FutureUtil.Sequencer.create(), bucketToSeal.getBucketSnapshotStorage());
+                bucketSnapshotExecutor.execute(() -> {
+                    try {
+                        createBucketSnapshotAsync(bucketToSeal);
+                    } finally {
+                        bucketSnapshotInProgress.set(false);
+                    }
+                });
+            }
+
+            if (sealingBucketContainsLedger || ledgerId < lastMutableBucket.startLedgerId || existBucket) {
+                // If message belongs to a bucket currently being sealed, or an existing immutable bucket,
+                // or has ledgerId smaller than current lastMutableBucket range, we put it directly into
+                // the shared queue and track its index bit in the current mutable bucket.
                 sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
-                sealingBucket.putIndexBit(ledgerId, entryId);
+                lastMutableBucket.putIndexBit(ledgerId, entryId);
             } else {
-                boolean existBucket = findImmutableBucket(ledgerId).isPresent();
-
-                if (!existBucket
-                        && ledgerId > lastMutableBucket.endLedgerId
-                        && lastMutableBucket.size() >= minIndexCountPerBucket
-                        && !lastMutableBucket.isEmpty()
-                        && bucketSnapshotInProgress.compareAndSet(false, true)) {
-                    // Create bucket snapshot
-                    this.bucketBeingSealed = this.lastMutableBucket;
-                    this.lastMutableBucket = new MutableBucket(context.getName(), context.getCursor(),
-                            FutureUtil.Sequencer.create(), this.lastMutableBucket.getBucketSnapshotStorage());
-                    bucketSnapshotExecutor.execute(() -> {
-                        try {
-                            createBucketSnapshotAsync();
-                        } finally {
-                            bucketSnapshotInProgress.set(false);
-                        }
-                    });
-                }
-
-                if (ledgerId < lastMutableBucket.startLedgerId || existBucket) {
-                    // If (ledgerId < startLedgerId || existBucket)
-                    // means that message index belong to previous bucket range,
-                    // enter sharedBucketPriorityQueue directly
-                    sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
-                    lastMutableBucket.putIndexBit(ledgerId, entryId);
-                } else {
-                    checkArgument(ledgerId >= lastMutableBucket.endLedgerId);
-                    lastMutableBucket.addMessage(ledgerId, entryId, deliverAt);
-                }
+                checkArgument(ledgerId >= lastMutableBucket.endLedgerId);
+                lastMutableBucket.addMessage(ledgerId, entryId, deliverAt);
             }
 
             numberDelayedMessages.incrementAndGet();
@@ -660,13 +701,32 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         });
     }
 
-    private void createBucketSnapshotAsync() {
-        final MutableBucket bucketToSeal = this.bucketBeingSealed;
-        if (bucketToSeal == null || bucketToSeal.isEmpty()) {
-            this.bucketBeingSealed = null;
+    /**
+     * Seal the given mutable bucket into an immutable one and persist its snapshot.
+     *
+     * <p>This method is always executed on {@link #bucketSnapshotExecutor} and never mutates the
+     * actively written {@link #lastMutableBucket}. The {@code bucketToSeal} instance is detached
+     * from writes before this method is scheduled.</p>
+     *
+     * <p>On success, {@link #afterCreateImmutableBucket(Pair, long)} is called under the
+     * {@link #writeLock}, the new immutable bucket is registered in {@link #immutableBuckets},
+     * and {@link #bucketBeingSealed} is cleared. On failure or empty bucket, only the
+     * {@code bucketBeingSealed} state is cleared.</p>
+     *
+     * @param bucketToSeal the mutable bucket that was selected under the write lock when the
+     *                     snapshot was triggered; it must not be modified by callers afterwards
+     */
+    private void createBucketSnapshotAsync(MutableBucket bucketToSeal) {
+        if (bucketToSeal == null) {
             return;
         }
+
         try {
+            if (bucketToSeal.isEmpty()) {
+                clearBucketBeingSealed(bucketToSeal);
+                return;
+            }
+
             long createStartTime = System.currentTimeMillis();
             stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
@@ -675,15 +735,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             this.maxIndexesPerBucketSnapshotSegment,
                             this.sharedBucketPriorityQueue);
             if (immutableBucketDelayedIndexPair == null) {
+                clearBucketBeingSealed(bucketToSeal);
                 return;
             }
 
             writeLock.lock();
             try {
                 afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
-                if (this.bucketBeingSealed == bucketToSeal) {
-                    this.bucketBeingSealed = null;
-                }
+                clearBucketBeingSealedUnsafe(bucketToSeal);
 
                 if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
                     asyncMergeBucketSnapshot();
@@ -691,16 +750,42 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             } finally {
                 writeLock.unlock();
             }
+        } catch (Throwable t) {
+            log.error("[{}] Failed to create bucket snapshot", context.getName(), t);
+            clearBucketBeingSealed(bucketToSeal);
+        }
+    }
+
+    /**
+     * Clear {@link #bucketBeingSealed} if it still refers to the given bucket.
+     *
+     * <p>This method acquires the {@link #writeLock}. Use
+     * {@link #clearBucketBeingSealedUnsafe(MutableBucket)} instead when the caller already
+     * holds the write lock.</p>
+     */
+    private void clearBucketBeingSealed(MutableBucket bucketToSeal) {
+        writeLock.lock();
+        try {
+            clearBucketBeingSealedUnsafe(bucketToSeal);
         } finally {
-            if (this.bucketBeingSealed == bucketToSeal) {
-                this.bucketBeingSealed = null;
-            }
+            writeLock.unlock();
+        }
+    }
+
+    /**
+     * Clear {@link #bucketBeingSealed} without acquiring the {@link #writeLock}.
+     *
+     * <p>Callers must already hold {@link #writeLock} when invoking this method.</p>
+     */
+    private void clearBucketBeingSealedUnsafe(MutableBucket bucketToSeal) {
+        if (this.bucketBeingSealed == bucketToSeal) {
+            this.bucketBeingSealed = null;
         }
     }
 
     @Override
     public boolean hasMessageAvailable() {
-        writeLock.lock();
+        readLock.lock();
         try {
             long cutoffTime = getCutoffTime();
 
@@ -710,7 +795,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             }
             return hasMessageAvailable;
         } finally {
-            writeLock.unlock();
+            readLock.unlock();
         }
     }
 
@@ -899,6 +984,16 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             log.warn("[{}] Failed wait to snapshot generate", context.getName(), e);
         } finally {
             bucketSnapshotExecutor.shutdown();
+            try {
+                if (!bucketSnapshotExecutor.awaitTermination(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
+                    log.warn("[{}] bucketSnapshotExecutor did not terminate in the specified time.",
+                            context.getName());
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("[{}] Interrupted while waiting for bucketSnapshotExecutor to terminate.",
+                        context.getName(), ie);
+            }
         }
     }
 
