@@ -247,7 +247,7 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
-    <debezium.version>3.2.4.Final</debezium.version>
+    <debezium.version>3.2.5.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
     <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
