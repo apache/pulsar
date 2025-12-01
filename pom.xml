@@ -682,10 +682,6 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.inferred</groupId>
             <artifactId>freebuilder</artifactId>
           </exclusion>
-          <exclusion>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-sdk-extension-autoconfigure-spi</artifactId>
-          </exclusion>
         </exclusions>
       </dependency>
 
