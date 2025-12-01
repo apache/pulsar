@@ -23,18 +23,20 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-
+import java.util.regex.Pattern;
+import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
@@ -46,8 +48,6 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 public class LocalMemoryMetadataStoreTest {
 
@@ -185,34 +185,35 @@ public class LocalMemoryMetadataStoreTest {
     }
 
     @Test
-    public void testMatadataEventExclusions() throws Exception {
+    public void testMetadataSyncWithSimpleRegexExclusions() throws Exception {
         // Create synchronizer with exclusions
         TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
-        sync.addExclusions("/admin/");
-        sync.addExclusions("/excluded/");
-        sync.addExclusions("/bookkeeper/");
+        sync.addRegexExclusions("/admin/.*");
+        sync.addRegexExclusions("/temp/session.*");
+
 
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create("memory:local",
                 MetadataStoreConfig.builder().synchronizer(sync).build());
 
-        // Test 1: Path should be excluded (/admin/)
-        String excludedPath1 = "/admin/config";
         byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+
+        // Test 1: Path should be excluded (/admin/)
+        String excludedPath1 = "/admin/schemas";
         store1.put(excludedPath1, value, Optional.empty()).join();
 
         // Wait a bit and verify that the event was not notified
         Thread.sleep(100);
         assertNull(sync.notifiedEvents.get(excludedPath1),
-                "Event for excluded path /admin/ should not be notified");
+                "Event for /admin/schemas should be excluded");
 
-        // Test 2: Another excluded path (/excluded/)
-        String excludedPath2 = "/excluded/something";
+        // Test 2: Another excluded path (/temp/session123)
+        String excludedPath2 = "/temp/session123";
         store1.put(excludedPath2, value, Optional.empty()).join();
 
         Thread.sleep(100);
         assertNull(sync.notifiedEvents.get(excludedPath2),
-                "Event for excluded path /excluded/ should not be notified");
+                "Event for /temp/session123 should be excluded");
 
         // Test 3: Path that should not be excluded
         String normalPath = "/data/test";
@@ -221,85 +222,278 @@ public class LocalMemoryMetadataStoreTest {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
                 sync.notifiedEvents.get(normalPath) != null);
         assertNotNull(sync.notifiedEvents.get(normalPath),
-                "Event for normal path should be notified");
-        assertEquals(sync.notifiedEvents.get(normalPath).getPath(), normalPath);
+                "Event for /data/test path should be notified");
+    }
 
-        // Test 4: Path that start with excluded prefix
-        String excludedPath3 = "/bookkeeper/ledgers/00001";
+    @Test
+    public void testMetadataSyncWithNegativeLookaheadRegex() throws Exception {
+        TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+        // Exclude all path EXCEPT those starting with /important
+        sync.addRegexExclusions("^(?!/important/).*");
+
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
+                MetadataStoreConfig.builder().synchronizer(sync).build());
+
+        byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+
+        // Test 1: Path starting with /important/ - should be notified
+        String importantPath = "/important/config";
+        store1.put(importantPath, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(importantPath) != null);
+        assertNotNull(sync.notifiedEvents.get(importantPath),
+                "Event for /important/config path should be notified (negative lookahead doesn't match)");
+
+        // Test 2: Other path - should be excluded
+        String excludedPath1 = "/temp/data";
+        store1.put(excludedPath1, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath1),
+                "Event for /temp/data should be excluded (matches negative lookahead)");
+
+        // Test 3: Another non-important path - should be excluded
+        String excludedPath2 = "/admin/schemas";
+        store1.put(excludedPath2, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath2),
+                "Event for /admin/schemas should be excluded (matches negative lookahead)");
+    }
+
+    @Test
+    public void testMetadataSyncWithComplexCharacterClassRegex() throws Exception {
+        TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+        // Exclude /namespace/{lowercase-only}/temp*
+        sync.addRegexExclusions("/namespace/[a-z]+/temp.*");
+        // Exclude admin test resources for schemas or topics
+        sync.addRegexExclusions("/admin/(schemas|topics)/test.*");
+
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
+                MetadataStoreConfig.builder().synchronizer(sync).build());
+
+        byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+
+        // Test 1: Matches character class pattern
+        String excludedPath1 = "/namespace/public/temp123";
+        store1.put(excludedPath1, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath1),
+                "Event for /namespace/public/temp123 should be excluded");
+
+        // Test 2: Doesn't match character class (has numbers)
+        String normalPath1 = "/namespace/public123/temp";
+        store1.put(normalPath1, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(normalPath1) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath1),
+                "Event for /namespace/public123/temp path should be notified");
+
+        // Test 3: Matches alternation (schemas)
+        String excludedPath2 = "/admin/schemas/test-schema";
+        store1.put(excludedPath2, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath2),
+                "Event for /admin/schemas/test-schema should be excluded");
+
+        // Test 4: Matches alternation (topics)
+        String excludedPath3 = "/admin/topics/test-topic";
         store1.put(excludedPath3, value, Optional.empty()).join();
-
         Thread.sleep(100);
         assertNull(sync.notifiedEvents.get(excludedPath3),
-                "Event for excluded path /bookkeeper/ should not be notified");
+                "Event for /admin/topics/test-topic should be excluded");
 
-        // Test 5: Similar path but not excluded
-        String normalPath2 = "/bookkeeping/data";
+        // Test 5: Doesn't match alternation
+        String normalPath2 = "/admin/functions/test-function";
         store1.put(normalPath2, value, Optional.empty()).join();
-
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
                 sync.notifiedEvents.get(normalPath2) != null);
         assertNotNull(sync.notifiedEvents.get(normalPath2),
-                "Event for path /bookkeeping/data should be notified");
+                "Event for /admin/functions/test-function path should be notified");
     }
 
     @Test
-    public void testMetadataEventExclusionsWithDelete() throws Exception {
+    public void testMetadataSyncWithMultipleNegativeLookaheadRegex() throws Exception {
         TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
-        sync.addExclusions("/temp/");
+        // Exclude all path EXCEPT those starting with /production/ OR /critical/
+        // Using negative lookahead with alternation
+        sync.addRegexExclusions("^(?!/(production|critical)/).*");
 
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create("memory:local",
                 MetadataStoreConfig.builder().synchronizer(sync).build());
 
-        String excludedPath = "/temp/session";
         byte[] value = "value".getBytes(StandardCharsets.UTF_8);
 
-        // Put operation should be excluded
+        // Test 1: Path starting with /production/ - should be notified
+        String productionPath = "/production/config";
+        store1.put(productionPath, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(productionPath) != null);
+        assertNotNull(sync.notifiedEvents.get(productionPath),
+                "Event for /production/config path should be notified");
+
+        // Test 2: Path starting with /critical/ - should be notified
+        String criticalPath = "/critical/data";
+        store1.put(criticalPath, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(criticalPath) != null);
+        assertNotNull(sync.notifiedEvents.get(criticalPath),
+                "Event for /critical/data path should be notified");
+
+        // Test 3: Other path - should be excluded
+        String excludedPath = "excludedPath";
         store1.put(excludedPath, value, Optional.empty()).join();
         Thread.sleep(100);
         assertNull(sync.notifiedEvents.get(excludedPath),
-                "Put event for the excluded path should not be notified");
-
-        // Delete operation should also be excluded
-        store1.delete(excludedPath, Optional.empty()).join();
-        Thread.sleep(100);
-        assertNull(sync.notifiedEvents.get(excludedPath),
-                "Delete event for the excluded path should not be notified");
+                "Event for excludedPath should be excluded");
     }
 
     @Test
-    public void testMetadataEventsNoExclusions() throws Exception {
-        // Synchronizer without exclusions
+    public void testMetadataSyncWithAnchoredRegex() throws Exception {
         TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+        sync.addRegexExclusions("^/admin/.*"); // Anchored at start
+        sync.addRegexExclusions(".*/tmp$"); //Anchored at end
 
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create("memory:local",
                 MetadataStoreConfig.builder().synchronizer(sync).build());
 
-        String path = "/any/path";
         byte[] value = "value".getBytes(StandardCharsets.UTF_8);
-        store1.put(path, value, Optional.empty()).join();
+
+        // Test 1: Matches start anchor
+        String excludedPath1 = "/admin/schemas";
+        store1.put(excludedPath1, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath1),
+                "Event for /admin/schemas should be excluded");
+
+        // Test 2: Matches end anchor
+        String excludedPath2 = "/data/tmp";
+        store1.put(excludedPath2, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath2),
+                "Event for /data/tmp should be excluded");
+
+        // Test 3: Doesn't match end anchor
+        String normalPath = "/data/tmp/file";
+        store1.put(normalPath, value, Optional.empty()).join();
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
-                sync.notifiedEvents.get(path) != null);
-        assertNotNull(sync.notifiedEvents.get(path),
-        "Event should be notified when no exclusions are configured");
+                sync.notifiedEvents.get(normalPath) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath),
+                "Event for /data/tmp/file path should be notified");
+
+    }
+
+    @Test
+    public void testMetadataSyncWithCombinedComplexRegex() throws Exception {
+        TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+        // Complex pattern: Exclude /cache/* OR /temp/* but NOT if the path ends with important
+        sync.addRegexExclusions("^/(cache|temp)/(?!.*important$).*");
+
+
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
+                MetadataStoreConfig.builder().synchronizer(sync).build());
+
+        byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+
+        // Test 1: /cache path without important - should be excluded
+        String excludedPath1 = "/cache/data";
+        store1.put(excludedPath1, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath1),
+                "Event for /cache/data should be excluded");
+
+        // Test 2: /temp path without important - should be excluded
+        String excludedPath2 = "/temp/session";
+        store1.put(excludedPath2, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath2),
+                "Event for /temp/session should be excluded");
+
+        // Test 3: /cache path ending with important - should be notified
+        String normalPath1 = "/cache/data/important";
+        store1.put(normalPath1, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(normalPath1) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath1),
+                "Event for /cache/data/important path should be notified");
+
+        // Test 4: Different path - should be notified
+        String normalPath2 = "/data/test";
+        store1.put(normalPath2, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(normalPath2) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath2),
+                "Event for /data/test path should be notified");
+    }
+
+    @Test
+    public void testMetadataSyncWithDeleteAndComplexRegex() throws Exception {
+        TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
+        // Exclude temporary or cache paths
+        sync.addRegexExclusions("^/(cache|temp)/.*");
+
+
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
+                MetadataStoreConfig.builder().synchronizer(sync).build());
+
+        byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+
+        // Test 1: Put and delete on excluded path
+        String excludedPath = "/temp/session";
+        store1.put(excludedPath, value, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath),
+                "Put event for /temp/session should be excluded");
+        store1.delete(excludedPath, Optional.empty()).join();
+        Thread.sleep(100);
+        assertNull(sync.notifiedEvents.get(excludedPath),
+                "Delete event for /temp/session should be excluded");
+
+        // Test 2: Put and delete on normal path
+        String normalPath = "/data/test";
+        store1.put(normalPath, value, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(normalPath) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath),
+                "Put event for /data/test should be notified");
+        assertEquals(sync.notifiedEvents.get(normalPath).getType(), NotificationType.Modified);
+        store1.delete(normalPath, Optional.empty()).join();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                sync.notifiedEvents.get(normalPath) != null);
+        assertNotNull(sync.notifiedEvents.get(normalPath),
+                "Delete event for /data/test should be notified");
+        assertEquals(sync.notifiedEvents.get(normalPath).getType(), NotificationType.Deleted);
+
     }
 
     static class TestMetadataEventSynchronizer implements MetadataEventSynchronizer {
         public Map<String, MetadataEvent> notifiedEvents = new ConcurrentHashMap<>();
         public String clusterName = "test";
         public volatile Function<MetadataEvent, CompletableFuture<Void>> listener;
-        private final HashSet<String> exclusions = new HashSet<>();
+        private final List<Pattern> exclusionPatterns = new CopyOnWriteArrayList<>();
 
-        public void addExclusions(String exclusionPrefix) {
-            exclusions.add(exclusionPrefix);
+        public void addRegexExclusions(String regexPattern) {
+            Pattern pattern = Pattern.compile(regexPattern);
+            exclusionPatterns.add(pattern);
         }
 
         private boolean isExcluded(String path) {
-            if (path == null || exclusions.isEmpty()) {
+            if (path == null) {
                 return false;
             }
-            return exclusions.stream().anyMatch(path::startsWith);
+            // Check regex pattern exclusions
+            if (!exclusionPatterns.isEmpty()){
+                for (Pattern pattern : exclusionPatterns) {
+                    if(pattern.matcher(path).matches()) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         @Override

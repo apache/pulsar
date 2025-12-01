@@ -21,13 +21,15 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -57,7 +59,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     protected volatile PulsarClientImpl client;
     protected volatile Producer<MetadataEvent> producer;
     protected volatile Consumer<MetadataEvent> consumer;
-    private final Set<String> metadataExclusions;
+    private final List<Pattern> exclusionsPatterns;
     private final CopyOnWriteArrayList<Function<MetadataEvent, CompletableFuture<Void>>>
     listeners = new CopyOnWriteArrayList<>();
 
@@ -90,16 +92,33 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         }
         String exclusions = pulsar.getConfig().getMetadataSyncEventExclusions();
         if (!StringUtils.isBlank(exclusions)) {
-            this.metadataExclusions = Set.of();
+            this.exclusionsPatterns = List.of();
         } else {
-            this.metadataExclusions = Arrays.stream(exclusions.split(","))
+            this.exclusionsPatterns = Arrays.stream(exclusions.split(","))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toUnmodifiableSet());
-            if (!this.metadataExclusions.isEmpty()) {
-                log.info("Metadata synchronizer configured with exclusions: {}", this.metadataExclusions);
+                    .map(exclusion -> compileExclusionPattern(exclusion))
+                    .filter(pattern -> pattern != null)
+                    .collect(Collectors.toUnmodifiableList());
+            if (!this.exclusionsPatterns.isEmpty()) {
+                log.info("Metadata synchronizer configured with exclusions: {}", this.exclusionsPatterns);
             }
         }
+    }
+
+    /*
+    * Compiles an exclusion string into a regex pattern
+    * @param exclusion - The exclusion string to compile
+    * @return Compiled Pattern object
+    */
+    private Pattern compileExclusionPattern(String exclusion) {
+        try {
+            return Pattern.compile(exclusion);
+        } catch (PatternSyntaxException pse) {
+            log.warn("Invalid exclusion pattern: '{}', error: {}. Pattern will be ignored",
+                    exclusion, pse.getMessage());
+        }
+        return null;
     }
 
     public void start() throws PulsarServerException {
@@ -116,13 +135,9 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     @Override
     public CompletableFuture<Void> notify(MetadataEvent event) {
-        if (isMetadataEventExcluded(event)) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            publishAsync(event, future);
-            return future;
-        }
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        publishAsync(event, future);
+        return future;
     }
 
     @Override
@@ -217,7 +232,11 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                     if (listeners.size() == 0) {
                         c.acknowledgeAsync(msg);
                         return;
-
+                    }
+                    // Applying exclusion at consumer
+                    if (isMetadataEventExcluded(msg.getValue())) {
+                        c.acknowledgeAsync(msg);
+                        return;
                     }
                     if (listeners.size() == 1) {
                         listeners.get(0).apply(msg.getValue()).thenApply(__ -> c.acknowledgeAsync(msg))
@@ -344,20 +363,22 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     /**
      * Checks if a metadata event should be excluded from synchronization based on the configured exclusion patterns.
-     * Events are excluded if their path starts with any of the configured exclusion prefixes.
+     * Events are excluded if their path matches any of the configured regex patterns.
+     * Patterns are standard Java regular expressions evaluated against the full event path
      *
-     * @param  metadataEvent The metadata vent to check
+     * @param  metadataEvent The metadata event to check
      * @return true if the event should be excluded, false otherwise
      */
     private boolean isMetadataEventExcluded(MetadataEvent metadataEvent) {
         String path = metadataEvent.getPath();
-        if (path == null || metadataExclusions.isEmpty()){
+        if (path == null || exclusionsPatterns.isEmpty()){
             return false;
         }
-        for (String exclusion : metadataExclusions) {
-            if (path.startsWith(exclusion)) {
+        for (Pattern pattern : exclusionsPatterns) {
+            if (pattern.matcher(path).matches()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Excluding metadata event for path: {} (matched exclusion: {})", path, exclusion);
+                    log.debug("Excluding metadata event for path: {} (matched pattern: {})",
+                            path, pattern.pattern());
                 }
                 return  true;
             }
