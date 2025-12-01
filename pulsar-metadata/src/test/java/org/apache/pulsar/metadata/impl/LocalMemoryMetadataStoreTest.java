@@ -342,11 +342,11 @@ public class LocalMemoryMetadataStoreTest {
                 "Event for /critical/data path should be notified");
 
         // Test 3: Other path - should be excluded
-        String excludedPath = "excludedPath";
+        String excludedPath = "/data/temp";
         store1.put(excludedPath, value, Optional.empty()).join();
         Thread.sleep(100);
         assertNull(sync.notifiedEvents.get(excludedPath),
-                "Event for excludedPath should be excluded");
+                "Event for /data/temp should be excluded");
     }
 
     @Test
