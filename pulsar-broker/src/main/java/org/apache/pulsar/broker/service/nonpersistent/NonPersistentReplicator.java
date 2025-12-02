@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Replicator;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -51,9 +52,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     private final NonPersistentReplicatorStatsImpl stats = new NonPersistentReplicatorStatsImpl();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
-            BrokerService brokerService, PulsarClientImpl replicationClient) throws PulsarServerException {
+                                   BrokerService brokerService, PulsarClientImpl replicationClient,
+                                   PulsarAdmin replicationAdmin) throws PulsarServerException {
         super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
-                replicationClient);
+                replicationClient, replicationAdmin);
         // NonPersistentReplicator does not support limitation so far, so reset pending queue size to the default value.
         producerBuilder.maxPendingMessages(1000);
         producerBuilder.blockIfQueueFull(false);
