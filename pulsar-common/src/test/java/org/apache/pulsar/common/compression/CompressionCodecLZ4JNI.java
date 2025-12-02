@@ -23,8 +23,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import lombok.extern.slf4j.Slf4j;
 import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Decompressor;
 import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4SafeDecompressor;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
@@ -44,7 +44,7 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
 
     private static final LZ4Factory lz4Factory = LZ4Factory.fastestInstance();
     private static final LZ4Compressor compressor = lz4Factory.fastCompressor();
-    private static final LZ4Decompressor decompressor = lz4Factory.safeDecompressor();
+    private static final LZ4SafeDecompressor decompressor = lz4Factory.safeDecompressor();
 
     @Override
     public ByteBuf encode(ByteBuf source) {
