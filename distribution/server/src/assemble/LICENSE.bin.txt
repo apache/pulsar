@@ -577,7 +577,7 @@ Protocol Buffers License
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
-    - com.sun.activation-jakarta.activation-1.2.2.jar
+    - com.sun.activation-jakarta.activation-2.0.1.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
  * HK2 - Dependency Injection Kernel
@@ -600,7 +600,7 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
-    - jakarta.activation-jakarta.activation-api-1.2.2.jar
+    - jakarta.activation-jakarta.activation-api-2.0.1.jar
  * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.3.jar
 
 Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
