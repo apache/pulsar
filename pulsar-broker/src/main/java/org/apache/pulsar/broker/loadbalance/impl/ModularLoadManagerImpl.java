@@ -794,6 +794,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 }
             }
 
+            writeBrokerDataOnZooKeeper(true);
             updateBundleSplitMetrics(splitCount);
         }
 
