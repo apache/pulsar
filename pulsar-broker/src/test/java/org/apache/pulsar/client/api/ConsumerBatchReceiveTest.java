@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -729,6 +731,24 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         // if BatchReceivePolicy.DEFAULT_MULTI_TOPICS_DISABLE_POLICY can not receive the multi topics messages,
         // the test should fail
         Assert.fail();
+    }
+
+    @Test(timeOut = 10000)
+    public void testBatchReceiveAckWithNullMessages() throws Exception {
+        final String topic = BrokerTestUtil
+                .newUniqueName("persistent://my-property/my-ns/testBatchReceiveAckWithNullMessages");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(topic)
+                .subscribe();
+        Messages<?> messages = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledge(messages)
+        ).isInstanceOf(PulsarClientException.class)
+                .hasMessage("Cannot handle messages with null messages");
+
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBatchReceiveTest.class);

@@ -24,6 +24,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -329,6 +330,21 @@ public class TransactionTest extends TransactionTestBase {
         } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
         }
+    }
+    @Test(timeOut = 10000)
+    public void testAckTnxWithNullMessageId() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://tnx/ns1/testAckTnxWithNullMessageId");
+        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .subscribe();
+        List<MessageId> messageIdList = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledgeAsync(messageIdList, null).get()
+        )
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Cannot handle messages with null messageIdList")
+                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
     }
 
     @Test
