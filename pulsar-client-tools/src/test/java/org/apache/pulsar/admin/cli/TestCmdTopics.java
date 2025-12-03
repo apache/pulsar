@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
@@ -46,6 +47,7 @@ import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
+import org.apache.pulsar.client.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -307,5 +309,147 @@ public class TestCmdTopics {
         cmdTopics.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -1".split("\\s+"));
         verify(mockTopics, times(1)).setPersistence("persistent://public/default/topic",
                 new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
+
+    @Test
+    public void testSkipMessages() throws Exception {
+        String topic = "persistent://public/default/testCancelDelayed";
+
+        cmdTopics.run(new String[]{
+                "skip-messages", topic,
+                "-s", "test-sub",
+                "--messageId-triplet", "123:45"
+        });
+
+        verify(mockTopics).skipMessages(eq(topic), eq("test-sub"),
+                argThat((SkipMessageIdsRequest req) -> {
+                    if (req == null) {
+                        return false;
+                    }
+                    if (req.getType() == null || !req.getType().equals("messageId")) {
+                        return false;
+                    }
+                    Object ids = req.getMessageIds();
+                    if (!(ids instanceof List)) {
+                        return false;
+                    }
+                    List<?> l = (List<?>) ids;
+                    if (l.size() != 1) {
+                        return false;
+                    }
+                    Object i0 = l.get(0);
+                    if (!(i0 instanceof SkipMessageIdsRequest.MessageIdItem)) {
+                        return false;
+                    }
+                    SkipMessageIdsRequest.MessageIdItem m0 = (SkipMessageIdsRequest.MessageIdItem) i0;
+                    return m0.getLedgerId() == 123L && m0.getEntryId() == 45L && m0.getBatchIndex() == null;
+                }));
+    }
+
+    @Test
+    public void testSkipMessagesWithBatchIndex() throws Exception {
+        String topic = "persistent://public/default/testSkipMessagesWithBatchIndex";
+
+        cmdTopics.run(new String[]{
+                "skip-messages", topic,
+                "-s", "test-sub",
+                "--messageId-triplet", "123:45:2"
+        });
+
+        verify(mockTopics).skipMessages(eq(topic), eq("test-sub"),
+                argThat((SkipMessageIdsRequest req) -> {
+                    if (req == null) {
+                        return false;
+                    }
+                    if (req.getType() == null || !req.getType().equals("messageId")) {
+                        return false;
+                    }
+                    Object ids = req.getMessageIds();
+                    if (!(ids instanceof List)) {
+                        return false;
+                    }
+                    List<?> l = (List<?>) ids;
+                    if (l.size() != 1) {
+                        return false;
+                    }
+                    Object i0 = l.get(0);
+                    if (!(i0 instanceof SkipMessageIdsRequest.MessageIdItem)) {
+                        return false;
+                    }
+                    SkipMessageIdsRequest.MessageIdItem m0 = (SkipMessageIdsRequest.MessageIdItem) i0;
+                    return m0.getLedgerId() == 123L && m0.getEntryId() == 45L
+                            && Integer.valueOf(2).equals(m0.getBatchIndex());
+                }));
+    }
+
+    @Test
+    public void testSkipMessagesWithBase64Ids() throws Exception {
+        String topic = "persistent://public/default/testSkipMessagesWithBase64";
+
+        cmdTopics.run(new String[]{
+                "skip-messages", topic,
+                "-s", "test-sub",
+                "--messageId-base64", "CLlgEAQwAA==",
+                "--messageId-base64", "CLlgEAYwAA=="
+        });
+
+        verify(mockTopics).skipMessages(eq(topic), eq("test-sub"),
+                argThat((SkipMessageIdsRequest req) -> {
+                    if (req == null) {
+                        return false;
+                    }
+                    if (req.getType() == null || !req.getType().equals("byteArray")) {
+                        return false;
+                    }
+                    Object ids = req.getMessageIds();
+                    if (!(ids instanceof List)) {
+                        return false;
+                    }
+                    List<?> list = (List<?>) ids;
+                    return list.size() == 2
+                            && "CLlgEAQwAA==".equals(list.get(0))
+                            && "CLlgEAYwAA==".equals(list.get(1));
+                }));
+    }
+
+    @Test
+    public void testSkipMessagesWithTriplets() throws Exception {
+        String topic = "persistent://public/default/testSkipMessagesWithTriplets";
+
+        cmdTopics.run(new String[]{
+                "skip-messages", topic,
+                "-s", "test-sub",
+                "--messageId-triplet", "123:45",
+                "--messageId-triplet", "124:46:2"
+        });
+
+        verify(mockTopics).skipMessages(eq(topic), eq("test-sub"),
+                argThat((SkipMessageIdsRequest req) -> {
+                    if (req == null) {
+                        return false;
+                    }
+                    if (req.getType() == null || !req.getType().equals("messageId")) {
+                        return false;
+                    }
+                    Object ids = req.getMessageIds();
+                    if (!(ids instanceof List<?> list)) {
+                        return false;
+                    }
+                    if (list.size() != 2) {
+                        return false;
+                    }
+                    Object i0 = list.get(0);
+                    Object i1 = list.get(1);
+                    if (!(i0 instanceof SkipMessageIdsRequest.MessageIdItem m0)
+                            || !(i1 instanceof SkipMessageIdsRequest.MessageIdItem m1)) {
+                        return false;
+                    }
+                    return m0.getLedgerId() == 123L
+                            && m0.getEntryId() == 45L
+                            && m0.getBatchIndex() == null
+                            && m1.getLedgerId() == 124L
+                            && m1.getEntryId() == 46L
+                            && Integer.valueOf(2).equals(m1.getBatchIndex());
+                }));
     }
 }
