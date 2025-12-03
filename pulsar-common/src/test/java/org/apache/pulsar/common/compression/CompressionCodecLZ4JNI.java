@@ -67,8 +67,8 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
         ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
 
         ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-        decompressor.decompress(encodedNio, encodedNio.position(), uncompressedNio, uncompressedNio.position(),
-                uncompressedNio.remaining());
+        decompressor.decompress(encodedNio, encodedNio.position(), encodedNio.remaining(),
+                uncompressedNio, uncompressedNio.position(), uncompressedNio.remaining());
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;
