@@ -32,7 +32,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -53,17 +52,13 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @BeforeMethod
     protected void setup() throws Exception {
-        //No-op
+        // configure pulsarAdmin connectionsPerBroker to 1, to reproduce issue 24879
+        conf.getProperties().put("brokerClient_connectionsPerBroker", 1);
     }
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    @Override
-    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
-        pulsarAdminBuilder.maxConnectionsPerHost(1);
     }
 
     @Test
