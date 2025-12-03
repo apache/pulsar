@@ -53,10 +53,14 @@ Configuration:
 
     # Console
     Console:
-      name: Console
-      target: SYSTEM_OUT
-      PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      - name: Console
+        target: SYSTEM_OUT
+        PatternLayout:
+          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      - name: ConsoleJsonEcs
+        target: SYSTEM_OUT
+        JsonTemplateLayout:
+          eventTemplateUri: "classpath:EcsLayout.json"
 
     # Rolling file appender configuration
     RollingFile:
