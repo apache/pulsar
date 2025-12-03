@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ActiveManagedCursorContainerImpl;
 import org.apache.bookkeeper.mledger.impl.MockManagedCursor;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.NoopDelayedDeliveryContext;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -73,6 +74,16 @@ public class BucketDelayedDeliveryTrackerBenchmark {
     private MockBucketSnapshotStorage storage;
     private NoopDelayedDeliveryContext context;
     private AtomicLong messageIdGenerator;
+    /**
+     * In real Pulsar usage, {@link DelayedDeliveryTracker#addMessage(long, long, long)} is invoked
+     * by a single dispatcher thread and messages arrive in order of (ledgerId, entryId).
+     * <p>
+     * To reflect this invariant in the benchmark, all write operations that end up calling
+     * {@code tracker.addMessage(...)} are serialized via this mutex so that the tracker only
+     * ever observes a single writer with monotonically increasing ids, even when JMH runs the
+     * benchmark method with multiple threads.
+     */
+    private final Object writeMutex = new Object();
 
     @Setup(Level.Trial)
     public void setup() throws Exception {
@@ -99,7 +110,10 @@ public class BucketDelayedDeliveryTrackerBenchmark {
         ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
         MockManagedCursor cursor = MockManagedCursor.createCursor(container, "test-cursor",
                 PositionFactory.create(0, 0));
-        context = new NoopDelayedDeliveryContext("delayed-JMH", cursor);
+        // Use the same "<topic> / <cursor>" naming pattern as real dispatchers,
+        // so that Bucket.asyncSaveBucketSnapshot can correctly derive topicName.
+        String dispatcherName = "persistent://public/default/jmh-topic / " + cursor.getName();
+        context = new NoopDelayedDeliveryContext(dispatcherName, cursor);
     }
 
     private void createTracker() throws Exception {
@@ -135,6 +149,19 @@ public class BucketDelayedDeliveryTrackerBenchmark {
         }
     }
 
+    /**
+     * Serialize calls to {@link BucketDelayedDeliveryTracker#addMessage(long, long, long)} and
+     * ensure (ledgerId, entryId) are generated in a strictly increasing sequence, matching the
+     * real dispatcher single-threaded behaviour.
+     */
+    private boolean addMessageSequential(long deliverAt, int entryIdModulo) {
+        synchronized (writeMutex) {
+            long id = messageIdGenerator.getAndIncrement();
+            long entryId = id % entryIdModulo;
+            return tracker.addMessage(id, entryId, deliverAt);
+        }
+    }
+
     private boolean performReadOperation() {
         int operation = ThreadLocalRandom.current().nextInt(3);
         switch (operation) {
@@ -161,9 +188,8 @@ public class BucketDelayedDeliveryTrackerBenchmark {
     }
 
     private boolean performWriteOperation() {
-        long id = messageIdGenerator.getAndIncrement();
         long deliverAt = System.currentTimeMillis() + ThreadLocalRandom.current().nextLong(5000, 30000);
-        return tracker.addMessage(id, id % 1000, deliverAt);
+        return addMessageSequential(deliverAt, 1000);
     }
 
     // =============================================================================
@@ -181,9 +207,8 @@ public class BucketDelayedDeliveryTrackerBenchmark {
     @Benchmark
     @Threads(4)
     public boolean benchmarkConcurrentAddMessage() {
-        long id = messageIdGenerator.getAndIncrement();
         long deliverAt = System.currentTimeMillis() + ThreadLocalRandom.current().nextLong(10000, 60000);
-        return tracker.addMessage(id, id % 1000, deliverAt);
+        return addMessageSequential(deliverAt, 1000);
     }
 
     @Benchmark
@@ -192,8 +217,7 @@ public class BucketDelayedDeliveryTrackerBenchmark {
         // Create some messages ready for delivery
         long currentTime = System.currentTimeMillis();
         for (int i = 0; i < 5; i++) {
-            long id = messageIdGenerator.getAndIncrement();
-            tracker.addMessage(id, id % 100, currentTime - 1000);
+            addMessageSequential(currentTime - 1000, 100);
         }
         return tracker.getScheduledMessages(10);
     }
