@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
@@ -57,8 +58,11 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     @VisibleForTesting
     protected ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
-    private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
-            bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().recordStats().buildAsync();
+    private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper> bkEnsemblePolicyToBkClientMap =
+            Caffeine.newBuilder()
+                    .executor(MoreExecutors.directExecutor())
+                    .recordStats()
+                    .buildAsync();
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public ManagedLedgerClientFactory() {
