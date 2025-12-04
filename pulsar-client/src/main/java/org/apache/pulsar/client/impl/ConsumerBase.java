@@ -80,6 +80,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected static final double MEMORY_THRESHOLD_FOR_RECEIVER_QUEUE_SIZE_EXPANSION = 0.75;
 
     protected final String subscription;
+    @Getter
     protected final ConsumerConfigurationData<T> conf;
     protected final String consumerName;
     protected final CompletableFuture<Consumer<T>> subscribeFuture;

@@ -437,6 +437,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     private transient OpenTelemetry openTelemetry;
 
+    @ApiModelProperty(
+            name = "tracingEnabled",
+            value = "Whether to enable OpenTelemetry distributed tracing. When enabled, "
+                    + "tracing interceptors are automatically added to producers and consumers."
+    )
+    private boolean tracingEnabled = false;
+
     /**
      * Gets the authentication settings for the client.
      *
