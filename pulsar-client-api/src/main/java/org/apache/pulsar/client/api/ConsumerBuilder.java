@@ -423,6 +423,46 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> receiverQueueSize(int receiverQueueSize);
 
     /**
+     * Sets whether to enable {@link #multiTopicsSinglePartitionReceiverQueueSize(int)} config or not.
+     *
+     * <p>By default, this config is false, then every partition consumer's receiverQueueSize is equal to
+     * multi-topics consumer's receiverQueueSize.
+     *
+     * <p>If set to true, then every partition consumer's receiverQueueSize in multi-topics consumer is set to
+     * {@link #multiTopicsSinglePartitionReceiverQueueSize(int)}
+     *
+     * <p>Attention: Partitioned-topic's receiverQueueSize calculate logic is a little bit different from
+     * non-partitioned topic, see {@link #maxTotalReceiverQueueSizeAcrossPartitions(int)}
+     *
+     * @param multiTopicsSinglePartitionReceiverQueueSizeEnable
+     *            enable multiTopicsSinglePartitionReceiverQueueSize or not
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> enableMultiTopicsSinglePartitionReceiverQueueSize(
+            boolean multiTopicsSinglePartitionReceiverQueueSizeEnable);
+
+    /**
+     * Sets single partition consumer's receiverQueueSize in multi-topics consumer.
+     *
+     * <p>Attention: This config only takes effect when
+     * {@link #enableMultiTopicsSinglePartitionReceiverQueueSize(boolean)} is set to true.
+     *
+     * <p>For partitioned-topic with n partitions, Pulsar creates n independent ConsumerImpl instances for each
+     * partition. For non-partitioned topic, Pulsar creates one ConsumerImpl instance.
+     *
+     * <p>This config just set each ConsumerImpl's receiverQueueSize to multiTopicsSingleConsumerReceiverQueueSize in
+     * multi-topics consumer.
+     *
+     * <p>For partitioned-topic, each partition consumer's receiverQueueSize is the min value of receiverQueueSize and
+     * (maxTotalReceiverQueueSizeAcrossPartitions / numPartitions)
+     *
+     * @param multiTopicsSinglePartitionReceiverQueueSize
+     *            the receiverQueueSize of single partition consumer in multi-topics consumer
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> multiTopicsSinglePartitionReceiverQueueSize(int multiTopicsSinglePartitionReceiverQueueSize);
+
+    /**
      * Sets amount of time for group consumer acknowledgments.
      *
      * <p>By default, the consumer uses a 100 ms grouping time to send out acknowledgments to the broker.
