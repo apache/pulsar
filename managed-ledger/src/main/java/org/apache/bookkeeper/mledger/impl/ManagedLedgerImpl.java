@@ -3959,12 +3959,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // 2. Add the entries in the ledger pointed by fromPosition.
         //    Add nothing if "toPosition.entryId < 0".
         //    Add nothing if "toPosition" does not exit in "ledgers".
-        LedgerInfo formLedger = ledgers.get(fromPosition.getLedgerId());
-        if (formLedger != null) {
+        LedgerInfo fromLedger = ledgers.get(fromPosition.getLedgerId());
+        if (fromLedger != null) {
             if (fromPosition.getEntryId() < 0) {
-                count += formLedger.getEntries();
+                count += fromLedger.getEntries();
             } else {
-                count += formLedger.getEntries() - (fromPosition.getEntryId() + 1);
+                count += fromLedger.getEntries() - (fromPosition.getEntryId() + 1);
                 count += fromIncluded ? 1 : 0;
             }
         }
