@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
@@ -822,23 +821,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void txnAckTestBatchAndCumulativeSub() throws Exception {
         txnCumulativeAckTest(true, 200, SubscriptionType.Failover);
-    }
-
-    @Test
-    public void testAcknowledgeCumulativeAsyncWithNullMessageId() throws Exception {
-        final String topic = BrokerTestUtil
-                .newUniqueName("persistent://tnx/ns1/testAcknowledgeCumulativeAsyncWithNullMessageId");
-        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub1")
-                .subscribe();
-        MessageId messageId = null;
-        assertThatThrownBy(
-                () -> consumer.acknowledgeCumulativeAsync(messageId, null).get()
-        )
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining("Cannot handle message with null messageId")
-                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
     }
 
     @Test

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +25,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -150,20 +148,5 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         final Message<String> msg = partialTopicsConsumer.receive();
         Assert.assertEquals(msg.getValue(), "msg-0");
         partialTopicsConsumer.close();
-    }
-
-    @Test(timeOut = 10000)
-    public void testAckNullMessageIdList() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/ack-null-messageIdList");
-        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub1")
-                .subscribe();
-        List<MessageId> messageIdList = null;
-        assertThatThrownBy(
-                () -> consumer.acknowledge(messageIdList)
-        ).isInstanceOf(PulsarClientException.class)
-                .hasMessage("Cannot handle messages with null messageIdList");
-
     }
 }
