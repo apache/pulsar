@@ -660,6 +660,16 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                             buckets.get(0).startLedgerId,
                                             buckets.get(buckets.size() - 1).endLedgerId);
 
+                            if (immutableBucketDelayedIndexPair == null) {
+                                // No delayed indexes remained in the segments to merge.
+                                // Keep the existing buckets as-is and skip creating a new one.
+                                log.warn("[{}] Skip merging bucket snapshot, no remaining indexes found, "
+                                                + "startLedgerId: {}, endLedgerId: {}",
+                                        context.getName(), buckets.get(0).startLedgerId,
+                                        buckets.get(buckets.size() - 1).endLedgerId);
+                                return;
+                            }
+
                             // Merge bit map to new bucket
                             Map<Long, RoaringBitmap> delayedIndexBitMap =
                                     new HashMap<>(buckets.get(0).getDelayedIndexBitMap());

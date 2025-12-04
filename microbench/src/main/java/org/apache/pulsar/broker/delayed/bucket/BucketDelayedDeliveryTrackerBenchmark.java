@@ -58,15 +58,15 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
-@Warmup(iterations = 3, time = 2)
-@Measurement(iterations = 5, time = 3)
+@Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
+@Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
 @Fork(1)
 public class BucketDelayedDeliveryTrackerBenchmark {
 
     @Param({"90_10", "80_20", "70_30", "50_50"})
     public String readWriteRatio;
 
-    @Param({"1000", "5000", "10000"})
+    @Param({"1000", "5000", "8000"})
     public int initialMessages;
 
     private BucketDelayedDeliveryTracker tracker;
@@ -74,6 +74,22 @@ public class BucketDelayedDeliveryTrackerBenchmark {
     private MockBucketSnapshotStorage storage;
     private NoopDelayedDeliveryContext context;
     private AtomicLong messageIdGenerator;
+    /**
+     * Maximum number of additional unique (ledgerId, entryId) positions to
+     * introduce per trial on top of {@link #initialMessages}. This allows
+     * controlling the memory footprint of the benchmark while still applying
+     * sustained write pressure to the tracker.
+     *
+     * <p>Use {@code -p maxAdditionalUniqueMessages=...} on the JMH command line
+     * to tune the load. The default value is conservative for local runs.</p>
+     */
+    @Param({"1000000"})
+    public long maxAdditionalUniqueMessages;
+    /**
+     * Upper bound on the absolute message id that will be used to derive
+     * (ledgerId, entryId) positions during a single trial.
+     */
+    private long maxUniqueMessageId;
     /**
      * In real Pulsar usage, {@link DelayedDeliveryTracker#addMessage(long, long, long)} is invoked
      * by a single dispatcher thread and messages arrive in order of (ledgerId, entryId).
@@ -91,6 +107,9 @@ public class BucketDelayedDeliveryTrackerBenchmark {
         createTracker();
         preloadMessages();
         messageIdGenerator = new AtomicLong(initialMessages + 1);
+        // Allow a bounded number of additional unique messages per trial to avoid
+        // unbounded memory growth while still stressing the indexing logic.
+        maxUniqueMessageId = initialMessages + maxAdditionalUniqueMessages;
     }
 
     @TearDown(Level.Trial)
@@ -157,8 +176,14 @@ public class BucketDelayedDeliveryTrackerBenchmark {
     private boolean addMessageSequential(long deliverAt, int entryIdModulo) {
         synchronized (writeMutex) {
             long id = messageIdGenerator.getAndIncrement();
-            long entryId = id % entryIdModulo;
-            return tracker.addMessage(id, entryId, deliverAt);
+            // Limit the number of distinct positions that are introduced into the tracker
+            // to keep memory usage bounded. Once the upper bound is reached, we re-use
+            // the last position id so that subsequent calls behave like updates to
+            // existing messages and are short-circuited by containsMessage checks.
+            long boundedId = Math.min(id, maxUniqueMessageId);
+            long ledgerId = boundedId;
+            long entryId = boundedId % entryIdModulo;
+            return tracker.addMessage(ledgerId, entryId, deliverAt);
         }
     }
 

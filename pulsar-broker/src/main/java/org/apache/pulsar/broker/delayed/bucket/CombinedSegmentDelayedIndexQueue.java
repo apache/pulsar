@@ -48,7 +48,23 @@ class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
     private CombinedSegmentDelayedIndexQueue(List<List<SnapshotSegment>> segmentLists) {
         this.kpq = new PriorityQueue<>(segmentLists.size(), COMPARATOR_NODE);
         for (List<SnapshotSegment> segmentList : segmentLists) {
-            Node node = new Node(segmentList, 0, 0);
+            if (segmentList == null || segmentList.isEmpty()) {
+                // Skip empty segment lists, there is nothing to merge from them.
+                continue;
+            }
+
+            // Advance to the first non-empty segment in this list.
+            int segmentListCursor = 0;
+            while (segmentListCursor < segmentList.size()
+                    && segmentList.get(segmentListCursor).getIndexesCount() == 0) {
+                segmentListCursor++;
+            }
+            if (segmentListCursor >= segmentList.size()) {
+                // All segments are empty, skip this list entirely.
+                continue;
+            }
+
+            Node node = new Node(segmentList, segmentListCursor, 0);
             kpq.offer(node);
         }
     }
