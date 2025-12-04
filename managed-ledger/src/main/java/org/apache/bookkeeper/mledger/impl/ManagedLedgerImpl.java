@@ -3950,6 +3950,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // than the LAC.
             // To support this case, use "Long.MAX_VALUE" if the ledger is the last one.
             long entriesInLedger = comparePositions(toPosition, lastConfirmedEntry) >= 0
+                    || toPosition.getLedgerId() == lastConfirmedEntry.getLedgerId()
                     ? Long.MAX_VALUE : toLedger.getEntries();
             count += Math.min(toPosition.getEntryId(), entriesInLedger - 1);
             count += toIncluded ? 1 : 0;
