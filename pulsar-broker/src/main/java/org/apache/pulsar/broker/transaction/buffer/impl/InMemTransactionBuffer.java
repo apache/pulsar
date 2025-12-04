@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -47,7 +48,7 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 /**
  * The in-memory implementation of {@link TransactionBuffer}.
  */
-class InMemTransactionBuffer implements TransactionBuffer {
+public class InMemTransactionBuffer implements TransactionBuffer {
 
     /**
      * A class represents the buffer of a transaction.
@@ -269,10 +270,10 @@ class InMemTransactionBuffer implements TransactionBuffer {
                                                      ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
-        CompletableFuture appendFuture = new CompletableFuture();
+        CompletableFuture<Position> appendFuture = new CompletableFuture<>();
         try {
             txnBuffer.appendEntry(sequenceId, buffer);
-            appendFuture.complete(null);
+            appendFuture.complete(PositionFactory.create(-1, -1));
         } catch (TransactionBufferException.TransactionSealedException e) {
             appendFuture.completeExceptionally(e);
         }
