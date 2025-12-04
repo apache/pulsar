@@ -63,7 +63,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -89,7 +88,6 @@ import org.asynchttpclient.Response;
 import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.asynchttpclient.uri.Uri;
-import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
 import org.glassfish.jersey.client.spi.AsyncConnectorCallback;
@@ -124,11 +122,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
-        this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
-                (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
-                PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
-                autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression, null);
+        // client is not used, but we need to keep it for compatibility with old code
+        this(conf.getConnectionTimeoutMs(), conf.getReadTimeoutMs(), conf.getRequestTimeoutMs(),
+                autoCertRefreshTimeSeconds, conf, acceptGzipCompression, null);
     }
 
     @SneakyThrows
@@ -220,7 +216,6 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(false);
-        confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
         confBuilder.setConnectTimeout(connectTimeoutMs);
         confBuilder.setReadTimeout(readTimeoutMs);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
