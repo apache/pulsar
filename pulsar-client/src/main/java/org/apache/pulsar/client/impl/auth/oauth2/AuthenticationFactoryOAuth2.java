@@ -167,7 +167,7 @@ public final class AuthenticationFactoryOAuth2 {
         /**
          * Optional well-known metadata path
          *
-         * @param wellKnownMetadataPath the well-known metadata path
+         * @param wellKnownMetadataPath the well-known metadata path (must start with "/.well-known/")
          * @return the builder
          */
         public ClientCredentialsBuilder wellKnownMetadataPath(String wellKnownMetadataPath) {

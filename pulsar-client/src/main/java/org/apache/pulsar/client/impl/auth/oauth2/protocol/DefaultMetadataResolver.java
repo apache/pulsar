@@ -36,7 +36,8 @@ import org.asynchttpclient.Response;
  */
 public class DefaultMetadataResolver implements MetadataResolver {
 
-    private static final String DEFAULT_WELL_KNOWN_METADATA_PATH = "/.well-known/openid-configuration";
+    private static final String WELL_KNOWN_PREFIX = "/.well-known/";
+    private static final String DEFAULT_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "openid-configuration";
 
     private final URL metadataUrl;
     private final ObjectReader objectReader;
@@ -53,7 +54,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
      *
      * @param issuerUrl The authorization server's issuer identifier
      * @param httpClient The HTTP client
-     * @param wellKnownMetadataPath The well-known metadata path
+     * @param wellKnownMetadataPath The well-known metadata path (must start with "/.well-known/")
      * @return a resolver
      */
     public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient, String wellKnownMetadataPath) {
@@ -67,14 +68,21 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * Gets a well-known metadata URL for the given OAuth issuer URL.
      *
      * @param issuerUrl The authorization server's issuer identifier
-     * @param wellKnownMetadataPath The well-known metadata path
+     * @param wellKnownMetadataPath The well-known metadata path (must start with "/.well-known/")
      * @return a URL
      * @see <a href="https://tools.ietf.org/id/draft-ietf-oauth-discovery-08.html#ASConfig">
      * OAuth Discovery: Obtaining Authorization Server Metadata</a>
      */
     public static URL getWellKnownMetadataUrl(URL issuerUrl, String wellKnownMetadataPath) {
         try {
-            return URI.create(issuerUrl.toExternalForm() + wellKnownMetadataPath).normalize().toURL();
+            if (wellKnownMetadataPath == null || wellKnownMetadataPath.isEmpty()) {
+                return URI.create(issuerUrl.toExternalForm() + DEFAULT_WELL_KNOWN_METADATA_PATH).normalize().toURL();
+            }
+            if (wellKnownMetadataPath.startsWith(WELL_KNOWN_PREFIX)) {
+                return URI.create(issuerUrl.toExternalForm() + wellKnownMetadataPath).normalize().toURL();
+            } else {
+                throw new IllegalArgumentException("Metadata path must start with '" + WELL_KNOWN_PREFIX + "', but was: " + wellKnownMetadataPath);
+            }
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e);
         }
