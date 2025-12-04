@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newPartitionMetadataResponse;
 import static org.testng.AssertJUnit.fail;
-
 import com.google.common.collect.Sets;
 import java.util.Queue;
 import java.util.Set;
@@ -130,7 +129,8 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
             future.get();
             fail();
         } catch (Exception e) {
-            Assert.assertTrue(FutureUtil.unwrapCompletionException(e) instanceof PulsarClientException.TimeoutException);
+            Assert.assertTrue(FutureUtil.unwrapCompletionException(e)
+                    instanceof PulsarClientException.TimeoutException);
         }
 
         Set<CompletableFuture<ClientCnx>> clientCnxs = client.getCnxPool().getConnections();
