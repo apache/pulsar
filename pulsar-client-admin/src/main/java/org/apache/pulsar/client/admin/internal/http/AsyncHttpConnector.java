@@ -53,7 +53,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
 import lombok.Data;
@@ -120,9 +119,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     @Setter
     private boolean followRedirects = true;
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+    public AsyncHttpConnector(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
-        // client is not used, but we need to keep it for compatibility with old code
         this(conf.getConnectionTimeoutMs(), conf.getReadTimeoutMs(), conf.getRequestTimeoutMs(),
                 autoCertRefreshTimeSeconds, conf, acceptGzipCompression, null);
     }
