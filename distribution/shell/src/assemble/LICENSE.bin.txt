@@ -422,6 +422,7 @@ The Apache Software License, Version 2.0
  * RoaringBitmap -- RoaringBitmap-1.2.0.jar
  * Fastutil -- fastutil-8.5.16.jar
  * JSpecify -- jspecify-1.0.0.jar
+ * Kotlin Standard Lib -- annotations-26.0.2.jar
 
 BSD 3-clause "New" or "Revised" License
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
