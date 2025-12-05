@@ -118,8 +118,12 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
 
     @Test
     public void testSnapshotCachePruningByEqualDistance() {
-        ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 10000,
-                range -> range.upperEndpoint().getEntryId() - range.lowerEndpoint().getEntryId());
+        int maxSnapshotToCache = 10_000;
+        int addSnapshotCount = 1_000_000;
+
+        ReplicatedSubscriptionSnapshotCache cache =
+                new ReplicatedSubscriptionSnapshotCache("my-subscription", maxSnapshotToCache,
+                        range -> range.upperEndpoint().getEntryId() - range.lowerEndpoint().getEntryId());
 
         long ledgerIdCluster1 = 1;
         long entryIdCluster1 = 0;
@@ -127,7 +131,7 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         long entryIdCluster2 = 0;
         Random random = new Random();
 
-        for (int i = 0; i < 1_000_000; i++) {
+        for (int i = 0; i < addSnapshotCount; i++) {
             ReplicatedSubscriptionsSnapshot snapshot = new ReplicatedSubscriptionsSnapshot()
                     .setSnapshotId(UUID.randomUUID().toString());
             snapshot.setLocalMessageId().setLedgerId(ledgerIdCluster1).setEntryId(entryIdCluster1);
@@ -141,7 +145,7 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         }
 
         List<ReplicatedSubscriptionSnapshotCache.SnapshotEntry> snapshots = cache.getSnapshots();
-        assertEquals(10000, snapshots.size());
+        assertEquals(snapshots.size(), maxSnapshotToCache);
         ReplicatedSubscriptionSnapshotCache.SnapshotEntry second = snapshots.get(1);
         ReplicatedSubscriptionSnapshotCache.SnapshotEntry secondLast = snapshots.get(snapshots.size() - 2);
         long distance = secondLast.position().getEntryId() - second.position().getEntryId();
@@ -154,7 +158,7 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
             Position nextPosition = snapshots.get(i + 1).position();
             long distanceToNext = nextPosition.getEntryId() - position.getEntryId();
             System.out.println(i + ": " + position + " -> " + nextPosition + " distance to next: " + distanceToNext
-                    + " to previous: " + snapshots.get(i).distanceToPrevious().longValue());
+                    + " to previous: " + snapshots.get(i).distanceToPrevious());
             maxDistance = Math.max(maxDistance, distanceToNext);
             minDistance = Math.min(minDistance, distanceToNext);
         }

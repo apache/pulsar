@@ -22,11 +22,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.ToLongFunction;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.util.StringInterner;
@@ -38,62 +39,153 @@ import org.apache.pulsar.common.util.StringInterner;
 public class ReplicatedSubscriptionSnapshotCache {
     private final String subscription;
     private final ToLongFunction<Range<Position>> distanceFunction;
-    private final List<SnapshotEntry> snapshots;
+    private SnapshotEntry head;
     private final int maxSnapshotToCache;
     private SnapshotEntry lastEntry;
+    private int numberOfSnapshots = 0;
+    private SnapshotEntry lastSortedEntry;
+    private final SortedSet<SnapshotEntry> sortedSnapshots;
 
     public ReplicatedSubscriptionSnapshotCache(String subscription, int maxSnapshotToCache,
                                                ToLongFunction<Range<Position>> distanceFunction) {
         this.subscription = subscription;
         this.distanceFunction = distanceFunction;
-        this.snapshots = new ArrayList<>();
+        if (maxSnapshotToCache < 3) {
+            throw new IllegalArgumentException("maxSnapshotToCache must be >= 3");
+        }
         this.maxSnapshotToCache = maxSnapshotToCache;
+        this.sortedSnapshots = new TreeSet<>();
     }
 
     /**
      * Memory footprint estimate for one SnapshotEntry with shared String cluster instances.
      *
      * Assumptions:
-     * - 64-bit JVM with compressed OOPs
-     * - Cluster name strings are shared/reused across entries
-     * - 2 ClusterEntry objects per SnapshotEntry
+     * - 64-bit JVM with compressed OOPs enabled (default for heap sizes < 32GB)
+     * - Cluster name strings are shared/interned across entries
+     * - 2 ClusterEntry objects per SnapshotEntry (typical case)
      * - Each entry has its own Position objects
      * - 1 of the ClusterEntry objects is for the local cluster and shares the local cluster position
-     * - Default ArrayList capacity accommodating 2 elements
-     * - 8-byte memory alignment
+     * - List.of() creates ImmutableCollections.List12 for 2-element lists
+     * - 8-byte memory alignment padding applied where needed
      *
      * Breakdown:
      *
-     * 1. SnapshotEntry object header: ~16 bytes
+     * 1. SnapshotEntry object: ~32 bytes
+     *    - Object header (mark + klass): 12 bytes
+     *    - Position position: 4 bytes (reference)
+     *    - List<ClusterEntry> clusters: 4 bytes (reference)
+     *    - long distanceToPrevious: 8 bytes
+     *    - SnapshotEntry next: 4 bytes (reference)
+     *    - SnapshotEntry prev: 4 bytes (reference)
+     *    - Alignment padding: 4 bytes
+     *    Subtotal: 40 bytes
      *
-     * 2. Position position: ~32 bytes
-     *    - Object header: 16 bytes
-     *    - 2 long fields: 16 bytes
+     * 2. Position object (snapshot position): ~32 bytes
+     *    - Object header: 12 bytes
+     *    - long ledgerId: 8 bytes
+     *    - long entryId: 8 bytes
+     *    - Alignment padding: 4 bytes
+     *    Subtotal: 32 bytes
      *
-     * 3. List<ClusterEntry> clusters with 2 entries: ~32 bytes
-     *    - ImmutableCollections.List12 object: 16 bytes
-     *    - 2 slots (references): 16 bytes
+     * 3. ImmutableCollections.List12 (for 2 elements): ~32 bytes
+     *    - Object header: 12 bytes
+     *    - Object e0: 4 bytes (reference to first ClusterEntry)
+     *    - Object e1: 4 bytes (reference to second ClusterEntry)
+     *    - Alignment padding: 12 bytes
+     *    Subtotal: 32 bytes
      *
-     * 4. 2x ClusterEntry (without String objects): ~64 bytes
-     *    Each ClusterEntry: ~32 bytes
-     *    - Object header: 16 bytes
-     *    - String cluster reference: 8 bytes (shared, not counted)
-     *    - Position reference: 8 bytes
+     * 4. ClusterEntry objects (2 instances): ~64 bytes
+     *    Each ClusterEntry (Java record): ~24 bytes
+     *    - Object header: 12 bytes
+     *    - String cluster: 4 bytes (reference, string itself is shared/interned)
+     *    - Position position: 4 bytes (reference)
+     *    - Alignment padding: 4 bytes
+     *    Subtotal per entry: 24 bytes × 2 = 48 bytes
      *
-     * 5. Additional position instance: ~32 bytes
-     *     - Object header: 16 bytes
-     *     - 2 long fields: 16 bytes
+     *    With alignment to 8 bytes: 48 → 48 bytes
+     *    Actual total for both: 48 bytes
      *
-     * 6. MutableLong distanceToPrevious: ~24 bytes
-     *    - Object header: 16 bytes
-     *    - long value: 8 bytes
+     * 5. Additional Position object (for non-local cluster): ~32 bytes
+     *    - Object header: 12 bytes
+     *    - long ledgerId: 8 bytes
+     *    - long entryId: 8 bytes
+     *    - Alignment padding: 4 bytes
+     *    Subtotal: 32 bytes
      *
-     * Total per SnapshotEntry: ~200 bytes
+     * Total per SnapshotEntry: 40 + 32 + 32 + 48 + 32 = ~184 bytes
      *
-     * Note: Actual memory consumption may vary based on JVM implementation,
-     * garbage collection behavior, and runtime optimizations.
+     * Rounded estimate: ~184-192 bytes per entry
+     *
+     * Note: Actual memory consumption may vary based on:
+     * - JVM implementation and version
+     * - Whether compressed OOPs are enabled
+     * - Garbage collection and heap layout
+     * - Runtime optimizations (escape analysis, object allocation elimination)
+     * - Number of clusters per snapshot (this estimate assumes 2)
      */
-    record SnapshotEntry(Position position, List<ClusterEntry> clusters, MutableLong distanceToPrevious) {}
+    static class SnapshotEntry implements Comparable<SnapshotEntry> {
+        private final Position position;
+        private final List<ClusterEntry> clusters;
+        private long distanceToPrevious;
+        private SnapshotEntry next;
+        private SnapshotEntry prev;
+
+        SnapshotEntry(Position position, List<ClusterEntry> clusters, long distanceToPrevious) {
+            this.position = position;
+            this.clusters = clusters;
+            this.distanceToPrevious = distanceToPrevious;
+        }
+
+        Position position() {
+            return position;
+        }
+
+        List<ClusterEntry> clusters() {
+            return clusters;
+        }
+
+        long distanceToPrevious() {
+            return distanceToPrevious;
+        }
+
+        void setDistanceToPrevious(long distanceToPrevious) {
+            this.distanceToPrevious = distanceToPrevious;
+        }
+
+        SnapshotEntry next() {
+            return next;
+        }
+
+        void setNext(SnapshotEntry next) {
+            this.next = next;
+        }
+
+        SnapshotEntry prev() {
+            return prev;
+        }
+
+        void setPrev(SnapshotEntry prev) {
+            this.prev = prev;
+        }
+
+        long totalDistance() {
+            return distanceToPrevious + (next != null ? next.distanceToPrevious : 0L);
+        }
+
+        @Override
+        public int compareTo(SnapshotEntry o) {
+            int retval = Long.compare(totalDistance(), o.totalDistance());
+            if (retval != 0) {
+                return retval;
+            }
+            retval = position.compareTo(o.position);
+            if (retval != 0) {
+                return retval;
+            }
+            return Integer.compare(clusters.hashCode(), o.clusters.hashCode());
+        }
+    }
 
     public record ClusterEntry(String cluster, Position position) {}
 
@@ -107,8 +199,11 @@ public class ReplicatedSubscriptionSnapshotCache {
         if (lastEntry != null && position.compareTo(lastEntry.position) <= 0) {
             // clear the entries in the cache if the new snapshot is older than the last one
             // this means that the subscription has been resetted
-            snapshots.clear();
+            head = null;
             lastEntry = null;
+            numberOfSnapshots = 0;
+            sortedSnapshots.clear();
+            lastSortedEntry = null;
         }
 
         List<ClusterEntry> clusterEntryList = snapshot.getClustersList().stream()
@@ -128,41 +223,72 @@ public class ReplicatedSubscriptionSnapshotCache {
         } else if (clusterEntryList.size() == 3) {
             clusterEntryList = List.of(clusterEntryList.get(0), clusterEntryList.get(1), clusterEntryList.get(2));
         }
-        SnapshotEntry entry = new SnapshotEntry(position, clusterEntryList, new MutableLong(
-                lastEntry == null ? 0L : distanceFunction.applyAsLong(Range.open(lastEntry.position, position))));
+        SnapshotEntry entry = new SnapshotEntry(position, clusterEntryList,
+                lastEntry == null ? 0L : distanceFunction.applyAsLong(Range.open(lastEntry.position, position)));
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Added new replicated-subscription snapshot at {} -- {}", subscription, position,
                     snapshot.getSnapshotId());
         }
 
-        snapshots.add(entry);
-        lastEntry = entry;
+        if (head == null) {
+            head = entry;
+            lastEntry = entry;
+        } else {
+            lastEntry.setNext(entry);
+            entry.setPrev(lastEntry);
+            lastEntry = entry;
+        }
+        numberOfSnapshots++;
 
         // Prune the cache
-        if (snapshots.size() > maxSnapshotToCache) {
+        if (numberOfSnapshots > maxSnapshotToCache) {
             removeSingleEntryWithMinimumTotalDistanceToPreviousAndNext();
         }
     }
 
     private void removeSingleEntryWithMinimumTotalDistanceToPreviousAndNext() {
-        int minIndex = -1;
-        long minDistance = Long.MAX_VALUE;
-        // skip the first and last entry
-        for (int i = 1; i < snapshots.size() - 1; i++) {
-            long distance = snapshots.get(i).distanceToPrevious.longValue()
-                    + snapshots.get(i + 1).distanceToPrevious.longValue();
-            if (distance < minDistance) {
-                minDistance = distance;
-                minIndex = i;
+        SnapshotEntry current = lastSortedEntry != null ? lastSortedEntry.next : head.next;
+        while (current != null && current != lastEntry) {
+            sortedSnapshots.add(current);
+            lastSortedEntry = current;
+            current = current.next;
+        }
+        SnapshotEntry minEntry = sortedSnapshots.first();
+        sortedSnapshots.remove(minEntry);
+        SnapshotEntry minEntryNext = minEntry.next;
+        SnapshotEntry minEntryPrevious = minEntry.prev;
+
+        // remove minEntryPrevious and minEntryNext from the sorted set since the distance will be updated
+        if (minEntryNext != lastEntry) {
+            sortedSnapshots.remove(minEntryNext);
+        }
+        if (minEntryPrevious != head) {
+            sortedSnapshots.remove(minEntryPrevious);
+        }
+
+        // remove minEntry from the linked list
+        minEntryPrevious.setNext(minEntryNext);
+        minEntryNext.setPrev(minEntryPrevious);
+        numberOfSnapshots--;
+        if (lastSortedEntry == minEntry) {
+            if (minEntryPrevious != head) {
+                lastSortedEntry = minEntryPrevious;
+            } else {
+                lastSortedEntry = null;
             }
         }
-        if (minIndex >= 0) {
-            snapshots.remove(minIndex);
-            SnapshotEntry updateEntry = snapshots.get(minIndex);
-            SnapshotEntry previousEntry = snapshots.get(minIndex - 1);
-            updateEntry.distanceToPrevious
-                    .setValue(distanceFunction.applyAsLong(Range.open(previousEntry.position, updateEntry.position)));
+
+        // update distanceToPrevious for the next entry
+        minEntryNext.setDistanceToPrevious(
+                distanceFunction.applyAsLong(Range.open(minEntryPrevious.position, minEntryNext.position)));
+
+        // add entries back so that they are sorted
+        if (minEntryNext != lastEntry) {
+            sortedSnapshots.add(minEntryNext);
+        }
+        if (minEntryPrevious != head) {
+            sortedSnapshots.add(minEntryPrevious);
         }
     }
 
@@ -173,20 +299,32 @@ public class ReplicatedSubscriptionSnapshotCache {
     public synchronized SnapshotResult advancedMarkDeletePosition(Position pos) {
         SnapshotEntry snapshot = null;
 
-        while (!snapshots.isEmpty()) {
-            Position first = snapshots.get(0).position();
-            if (first.compareTo(pos) > 0) {
+        SnapshotEntry current = head;
+
+        while (current != null) {
+            if (current.position.compareTo(pos) > 0) {
                 // Snapshot is associated which an higher position, so it cannot be used now
                 break;
-            } else {
-                // This snapshot is potentially good. Continue the search for to see if there is a higher snapshot we
-                // can use
-                snapshot = snapshots.remove(0);
             }
+            // This snapshot is potentially good. Continue the search for to see if there is a higher snapshot we
+            // can use
+            snapshot = current;
+            if (current == lastSortedEntry) {
+                lastSortedEntry = null;
+            }
+            current = current.next;
+            head = current;
+            if (head != null) {
+                sortedSnapshots.remove(head);
+            }
+            numberOfSnapshots--;
         }
 
-        if (snapshots.isEmpty()) {
+        if (head == null) {
             lastEntry = null;
+        } else {
+            head.setPrev(null);
+            head.setDistanceToPrevious(0L);
         }
 
         if (log.isDebugEnabled()) {
@@ -203,6 +341,12 @@ public class ReplicatedSubscriptionSnapshotCache {
 
     @VisibleForTesting
     List<SnapshotEntry> getSnapshots() {
+        List<SnapshotEntry> snapshots = new ArrayList<>(numberOfSnapshots);
+        SnapshotEntry current = head;
+        while (current != null) {
+            snapshots.add(current);
+            current = current.next;
+        }
         return snapshots;
     }
 }
