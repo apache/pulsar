@@ -596,7 +596,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         Position position = topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf)
                 .get(5, TimeUnit.SECONDS);
         // 2.position should be (-1, -1) with InMemTransactionBuffer
-        assertEquals(position, PositionFactory.create(-1, -1));
+        assertEquals(PositionFactory.EARLIEST, position);
         // 3. release resource
         byteBuf.release();
     }

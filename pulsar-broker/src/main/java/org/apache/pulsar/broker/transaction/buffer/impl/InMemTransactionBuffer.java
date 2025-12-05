@@ -273,7 +273,7 @@ public class InMemTransactionBuffer implements TransactionBuffer {
         CompletableFuture<Position> appendFuture = new CompletableFuture<>();
         try {
             txnBuffer.appendEntry(sequenceId, buffer);
-            appendFuture.complete(PositionFactory.create(-1, -1));
+            appendFuture.complete(PositionFactory.EARLIEST);
         } catch (TransactionBufferException.TransactionSealedException e) {
             appendFuture.completeExceptionally(e);
         }
