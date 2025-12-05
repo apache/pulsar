@@ -24,7 +24,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.netty.ssl.DefaultSslEngineFactory;
@@ -33,13 +32,13 @@ public class PulsarHttpAsyncSslEngineFactory extends DefaultSslEngineFactory {
 
     private final PulsarSslFactory pulsarSslFactory;
     private final String host;
-    private final ClientConfigurationData conf;
+    private final boolean enableHostnameVerification;
 
     public PulsarHttpAsyncSslEngineFactory(PulsarSslFactory pulsarSslFactory, String host,
-                                           ClientConfigurationData conf) {
+                                           boolean enableHostnameVerification) {
         this.pulsarSslFactory = pulsarSslFactory;
         this.host = host;
-        this.conf = conf;
+        this.enableHostnameVerification = enableHostnameVerification;
     }
 
     @Override
@@ -50,7 +49,7 @@ public class PulsarHttpAsyncSslEngineFactory extends DefaultSslEngineFactory {
             parameters.setServerNames(Collections.singletonList(new SNIHostName(host)));
         }
 
-        if (conf.isTlsHostnameVerificationEnable()) {
+        if (enableHostnameVerification) {
             parameters.setEndpointIdentificationAlgorithm("HTTPS");
         }
 
