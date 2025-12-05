@@ -246,6 +246,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     public void testPartitions() throws Exception {
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
+        admin.namespaces().createNamespace("sample/test/local");
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
