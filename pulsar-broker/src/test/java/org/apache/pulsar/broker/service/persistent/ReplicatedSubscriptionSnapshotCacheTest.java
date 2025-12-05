@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.testng.annotations.Test;
@@ -30,7 +35,8 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
 
     @Test
     public void testSnapshotCache() {
-        ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 10);
+        ReplicatedSubscriptionSnapshotCache cache =
+                new ReplicatedSubscriptionSnapshotCache("my-subscription", 10, range -> 0);
 
         assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
         assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(100, 0)));
@@ -58,13 +64,14 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
 
         assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
         assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 0)));
-        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(1, 1));
+        ReplicatedSubscriptionSnapshotCache.SnapshotResult
+                snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(1, 1));
         assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-1");
+        assertEquals(snapshot.position(), PositionFactory.create(1, 1));
 
         snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 6));
         assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-5");
+        assertEquals(snapshot.position(), PositionFactory.create(5, 5));
 
         // Snapshots should have been now removed
         assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(2, 2)));
@@ -73,7 +80,8 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
 
     @Test
     public void testSnapshotCachePruning() {
-        ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 3);
+        ReplicatedSubscriptionSnapshotCache cache =
+                new ReplicatedSubscriptionSnapshotCache("my-subscription", 3, range -> 1);
 
         ReplicatedSubscriptionsSnapshot s1 = new ReplicatedSubscriptionsSnapshot()
                 .setSnapshotId("snapshot-1");
@@ -96,14 +104,73 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         cache.addNewSnapshot(s3);
         cache.addNewSnapshot(s4);
 
-        // Snapshot-1 was already pruned
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 1)));
-        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(2, 2));
+        ReplicatedSubscriptionSnapshotCache.SnapshotResult
+                snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(2, 2));
         assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-2");
+        // Snapshot-2 was already pruned
+        assertEquals(snapshot.position(), PositionFactory.create(1, 1));
 
         snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 5));
         assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-4");
+        assertEquals(snapshot.position(), PositionFactory.create(4, 4));
+    }
+
+
+    @Test
+    public void testSnapshotCachePruningByEqualDistance() {
+        ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 10000,
+                range -> range.upperEndpoint().getEntryId() - range.lowerEndpoint().getEntryId());
+
+        long ledgerIdCluster1 = 1;
+        long entryIdCluster1 = 0;
+        long ledgerIdCluster2 = 2;
+        long entryIdCluster2 = 0;
+        Random random = new Random();
+
+        for (int i = 0; i < 1_000_000; i++) {
+            ReplicatedSubscriptionsSnapshot snapshot = new ReplicatedSubscriptionsSnapshot()
+                    .setSnapshotId(UUID.randomUUID().toString());
+            snapshot.setLocalMessageId().setLedgerId(ledgerIdCluster1).setEntryId(entryIdCluster1);
+            snapshot.addCluster().setCluster("cluster1").setMessageId().setLedgerId(ledgerIdCluster1)
+                    .setEntryId(entryIdCluster1);
+            snapshot.addCluster().setCluster("cluster2").setMessageId().setLedgerId(ledgerIdCluster2)
+                    .setEntryId(entryIdCluster2);
+            cache.addNewSnapshot(snapshot);
+            entryIdCluster1 += 100 + random.nextInt(1000);
+            entryIdCluster2 += 100 + random.nextInt(1000);
+        }
+
+        List<ReplicatedSubscriptionSnapshotCache.SnapshotEntry> snapshots = cache.getSnapshots();
+        assertEquals(10000, snapshots.size());
+        ReplicatedSubscriptionSnapshotCache.SnapshotEntry second = snapshots.get(1);
+        ReplicatedSubscriptionSnapshotCache.SnapshotEntry secondLast = snapshots.get(snapshots.size() - 2);
+        long distance = secondLast.position().getEntryId() - second.position().getEntryId();
+        long averageDistance = distance / snapshots.size();
+
+        long maxDistance = 0;
+        long minDistance = Long.MAX_VALUE;
+        for (int i = 0; i < snapshots.size() - 1; i++) {
+            Position position = snapshots.get(i).position();
+            Position nextPosition = snapshots.get(i + 1).position();
+            long distanceToNext = nextPosition.getEntryId() - position.getEntryId();
+            System.out.println(i + ": " + position + " -> " + nextPosition + " distance to next: " + distanceToNext
+                    + " to previous: " + snapshots.get(i).distanceToPrevious().longValue());
+            maxDistance = Math.max(maxDistance, distanceToNext);
+            minDistance = Math.min(minDistance, distanceToNext);
+        }
+
+        System.out.println("Min distance: " + minDistance);
+        System.out.println("Average distance: " + averageDistance);
+        System.out.println("Max distance: " + maxDistance);
+
+        Position markDeletePosition =
+                PositionFactory.create(ledgerIdCluster1, second.position().getEntryId() + random.nextLong(distance));
+
+        assertThat(cache.advancedMarkDeletePosition(markDeletePosition)).satisfies(snapshotResult -> {
+            long snapshotDistance = markDeletePosition.getEntryId() - snapshotResult.position().getEntryId();
+            assertThat(snapshotDistance).describedAs("snapshot result: %s markDeletePosition: %s", snapshotResult,
+                    markDeletePosition).isLessThanOrEqualTo(averageDistance * 2);
+        });
+
     }
 }
