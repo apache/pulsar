@@ -93,6 +93,7 @@ public class PulsarAdminImplTest {
     @SneakyThrows
     public void testPulsarAdminAsyncHttpConnectorSuccessWithoutRetry() {
         int readTimeoutMs = 5000;
+        int requestTimeoutMs = 5000;
         int serverDelayMs = 3000;
         server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
                 .inScenario("read-success-without-retry")
@@ -107,7 +108,7 @@ public class PulsarAdminImplTest {
         conf.setServiceUrl("http://localhost:" + server.port());
         conf.setConnectionTimeoutMs(2000);
         conf.setReadTimeoutMs(readTimeoutMs);
-        conf.setRequestTimeoutMs(-1);
+        conf.setRequestTimeoutMs(requestTimeoutMs);
 
         @Cleanup
         PulsarAdminImpl admin = new PulsarAdminImpl(conf.getServiceUrl(), conf, null);
@@ -126,6 +127,7 @@ public class PulsarAdminImplTest {
     @SneakyThrows
     public void testPulsarAdminAsyncHttpConnectorTimeoutWithoutRetry() {
         int readTimeoutMs = 5000;
+        int requestTimeoutMs = 5000;
         int serverDelayMs = 8000;
 
         server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
@@ -141,7 +143,7 @@ public class PulsarAdminImplTest {
         conf.setServiceUrl("http://localhost:" + server.port());
         conf.setConnectionTimeoutMs(2000);
         conf.setReadTimeoutMs(readTimeoutMs);
-        conf.setRequestTimeoutMs(-1);
+        conf.setRequestTimeoutMs(requestTimeoutMs);
 
         @Cleanup
         PulsarAdminImpl admin = new PulsarAdminImpl(conf.getServiceUrl(), conf, null);
