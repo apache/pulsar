@@ -234,7 +234,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                         && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
-        confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+        confBuilder.setSslEngineFactory(
+                new PulsarHttpAsyncSslEngineFactory(sslFactory, null, conf));
     }
 
     protected AsyncHttpClient createAsyncHttpClient(AsyncHttpClientConfig asyncHttpClientConfig) {
@@ -260,7 +261,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         }
         String hostname = conf.isTlsHostnameVerificationEnable() ? null : serviceNameResolver
                 .resolveHostUri().getHost();
-        SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, hostname);
+        SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, hostname, conf);
         confBuilder.setSslEngineFactory(sslEngineFactory);
         confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());

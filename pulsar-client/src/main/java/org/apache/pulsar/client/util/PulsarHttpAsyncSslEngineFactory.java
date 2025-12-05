@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.util;
 
+import com.fasterxml.jackson.databind.introspect.ClassIntrospector;
 import java.util.Collections;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.netty.ssl.DefaultSslEngineFactory;
@@ -32,20 +34,27 @@ public class PulsarHttpAsyncSslEngineFactory extends DefaultSslEngineFactory {
 
     private final PulsarSslFactory pulsarSslFactory;
     private final String host;
+    private final ClientConfigurationData conf;
 
-    public PulsarHttpAsyncSslEngineFactory(PulsarSslFactory pulsarSslFactory, String host) {
+    public PulsarHttpAsyncSslEngineFactory(PulsarSslFactory pulsarSslFactory, String host, ClientConfigurationData conf) {
         this.pulsarSslFactory = pulsarSslFactory;
         this.host = host;
+        this.conf = conf;
     }
 
     @Override
     protected void configureSslEngine(SSLEngine sslEngine, AsyncHttpClientConfig config) {
         super.configureSslEngine(sslEngine, config);
+        SSLParameters parameters = sslEngine.getSSLParameters();
         if (StringUtils.isNotBlank(host)) {
-            SSLParameters parameters = sslEngine.getSSLParameters();
             parameters.setServerNames(Collections.singletonList(new SNIHostName(host)));
-            sslEngine.setSSLParameters(parameters);
         }
+
+        if (conf.isTlsHostnameVerificationEnable()) {
+            parameters.setEndpointIdentificationAlgorithm("HTTPS");
+        }
+
+        sslEngine.setSSLParameters(parameters);
     }
 
     @Override
