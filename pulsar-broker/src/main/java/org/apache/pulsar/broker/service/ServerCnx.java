@@ -2042,6 +2042,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
                     send.getNumMessages(), send.isIsChunk(), send.isMarker(), position);
         }
+
+        // count delayed message times exceeding the ttl policy time
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+        if (msgMetadata.hasDeliverAtTime() && service.getPulsar()
+                .isMessageDelayTimeExceedTTL(producer.getTopic(), msgMetadata.getDeliverAtTime())) {
+            producer.getTopic().incrementExceedTTLDelayMessages();
+        }
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {

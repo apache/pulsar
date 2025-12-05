@@ -190,6 +190,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -296,6 +297,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
+
+    private final Rate exceedTTLDelayMessage = new Rate();
 
     private volatile PersistentTopicAttributes persistentTopicAttributes = null;
     private static final AtomicReferenceFieldUpdater<PersistentTopic, PersistentTopicAttributes>
@@ -2770,6 +2773,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.addEntryLatencyStatsUsec.refresh();
         NamespaceStats.add(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
         this.addEntryLatencyStatsUsec.reset();
+        this.exceedTTLDelayMessage.calculateRate();
     }
 
     public double getLastUpdatedAvgPublishRateInMsg() {
@@ -2843,6 +2847,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
         stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
         stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
+        stats.exceedTTLDelayMessages = getExceedTTLDelayMessages();
 
         replicators.forEach((cluster, replicator) -> {
             ReplicatorStatsImpl replicatorStats = replicator.computeStats();
@@ -4916,5 +4921,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         return future;
+    }
+
+    @Override
+    public void incrementExceedTTLDelayMessages() {
+        this.exceedTTLDelayMessage.recordEvent();
+    }
+
+    @Override
+    public long getExceedTTLDelayMessages() {
+        return this.exceedTTLDelayMessage.getCount();
     }
 }

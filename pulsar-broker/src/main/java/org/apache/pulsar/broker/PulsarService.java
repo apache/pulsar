@@ -2252,4 +2252,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
         return healthChecker;
     }
+
+    /**
+     * Check if message delay time exceeds TTL
+     *
+     * @param topic
+     * @param deliverAtTime
+     * @return true if message delay time exceeds TTL, false otherwise
+     */
+    public boolean isMessageDelayTimeExceedTTL(Topic topic, long deliverAtTime) {
+        return deliverAtTime
+                >= topic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get() * 1000 + System.currentTimeMillis();
+    }
+
 }
