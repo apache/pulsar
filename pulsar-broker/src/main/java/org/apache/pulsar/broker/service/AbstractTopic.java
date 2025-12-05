@@ -301,6 +301,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters(), isGlobalPolicies);
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
                 .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled(), isGlobalPolicies);
+        topicPolicies.getCustomMetricLabels().updateTopicValue(data.getCustomMetricLabels(), isGlobalPolicies);
         this.subscriptionPolicies = data.getSubscriptionPolicies();
 
         updateEntryFilters();
