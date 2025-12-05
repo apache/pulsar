@@ -412,6 +412,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    private static void validateMessageIds(List<MessageId> messageIdList) throws PulsarClientException {
+        if (messageIdList == null) {
+            throw new PulsarClientException.InvalidMessageException("Cannot handle messages with null messageIdList");
+        }
+        for (MessageId messageId : messageIdList) {
+            validateMessageId(messageId);
+        }
+    }
+
+    private static void validateMessages(Messages<?> messages) throws PulsarClientException {
+        if (messages == null) {
+            throw new PulsarClientException.InvalidMessageException("Cannot handle messages with null messages");
+        }
+        for (Message<?> message : messages) {
+            validateMessageId(message);
+        }
+    }
     @Override
     public void acknowledge(Message<?> message) throws PulsarClientException {
         validateMessageId(message);
@@ -434,6 +451,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public void acknowledge(List<MessageId> messageIdList) throws PulsarClientException {
         try {
+            validateMessageIds(messageIdList);
             acknowledgeAsync(messageIdList).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -446,6 +464,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public void acknowledge(Messages<?> messages) throws PulsarClientException {
         try {
+            validateMessages(messages);
             acknowledgeAsync(messages).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -631,6 +650,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId,
                                                     Transaction txn) {
+        try {
+            validateMessageId(messageId);
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
+        }
         TransactionImpl txnImpl = null;
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
@@ -650,6 +674,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Transaction txn) {
+        try {
+            validateMessageId(messageId);
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
+        }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive/non-failover subscription"));
@@ -671,6 +700,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
                                                            Map<String, Long> properties,
                                                            TransactionImpl txn) {
+        try {
+            validateMessageIds(messageIdList);
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
+        }
         CompletableFuture<Void> ackFuture;
         if (txn != null && this instanceof ConsumerImpl) {
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
