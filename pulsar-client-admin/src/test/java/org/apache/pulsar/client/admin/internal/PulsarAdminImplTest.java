@@ -28,7 +28,6 @@ import static org.testng.Assert.assertEquals;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
-import java.io.IOException;
 import java.util.List;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
@@ -50,7 +49,7 @@ public class PulsarAdminImplTest {
     WireMockServer server;
 
     @BeforeClass(alwaysRun = true)
-    void beforeClass() throws IOException {
+    void beforeClass() {
         server = new WireMockServer(WireMockConfiguration.wireMockConfig()
                 .port(0));
         server.start();
@@ -113,8 +112,7 @@ public class PulsarAdminImplTest {
         @Cleanup
         PulsarAdminImpl admin = new PulsarAdminImpl(conf.getServiceUrl(), conf, null);
         List<String> clusters = admin.clusters().getClusters();
-        assertThat(clusters).hasSize(1);
-        assertThat(clusters).contains("test-cluster");
+        assertThat(clusters).containsOnly("test-cluster");
 
         server.verify(1, getRequestedFor(urlEqualTo("/admin/v2/clusters")));
         String scenarioState = server.getAllScenarios().getScenarios().stream()
@@ -190,8 +188,7 @@ public class PulsarAdminImplTest {
         @Cleanup
         PulsarAdminImpl admin = new PulsarAdminImpl(conf.getServiceUrl(), conf, null);
         List<String> clusters = admin.clusters().getClusters();
-        assertThat(clusters).hasSize(1);
-        assertThat(clusters).contains("test-cluster");
+        assertThat(clusters).containsOnly("test-cluster");
 
         server.verify(2, getRequestedFor(urlEqualTo("/admin/v2/clusters")));
         String scenarioState = server.getAllScenarios().getScenarios().stream()
