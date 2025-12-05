@@ -27,6 +27,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -91,8 +92,8 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(DEFAULT_MAX_REDIRECTS);
-        confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        confBuilder.setConnectTimeout(Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS));
+        confBuilder.setReadTimeout(Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override

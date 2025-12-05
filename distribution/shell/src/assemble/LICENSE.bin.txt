@@ -400,8 +400,7 @@ The Apache Software License, Version 2.0
   * AirCompressor
      - aircompressor-0.27.jar
  * AsyncHttpClient
-    - async-http-client-2.12.4.jar
-    - async-http-client-netty-utils-2.12.4.jar
+    - async-http-client-3.0.4.jar
  * Jetty
     - jetty-client-9.4.58.v20250814.jar
     - jetty-http-9.4.58.v20250814.jar
@@ -422,6 +421,7 @@ The Apache Software License, Version 2.0
  * RoaringBitmap -- RoaringBitmap-1.2.0.jar
  * Fastutil -- fastutil-8.5.16.jar
  * JSpecify -- jspecify-1.0.0.jar
+ * Kotlin Standard Lib -- annotations-26.0.2.jar
 
 BSD 3-clause "New" or "Revised" License
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
@@ -432,7 +432,7 @@ MIT License
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
-    - jakarta.activation-1.2.2.jar
+    - jakarta.activation-2.0.1.jar
  * WebSocket Server API -- javax.websocket-client-api-1.0.jar
  * HK2 - Dependency Injection Kernel
     - hk2-api-2.6.1.jar
@@ -451,7 +451,7 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
-    - jakarta.activation-api-1.2.2.jar
+    - jakarta.activation-api-2.0.1.jar
     - validation-api-1.1.0.Final.jar
  * Jakarta XML Binding -- jakarta.xml.bind-api-2.3.3.jar
 

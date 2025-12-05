@@ -69,11 +69,9 @@ abstract class FlowBase implements Flow {
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
+        confBuilder.setConnectTimeout(getParameterDuration(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
                         DEFAULT_CONNECT_TIMEOUT));
-        confBuilder.setReadTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
+        confBuilder.setReadTimeout(getParameterDuration(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
             try {
@@ -87,17 +85,14 @@ abstract class FlowBase implements Flow {
         return new DefaultAsyncHttpClient(confBuilder.build());
     }
 
-    private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
-        Duration duration;
+    private Duration getParameterDuration(String name, Duration value, Duration defaultValue) {
         if (value == null) {
             log.info("Configuration for [{}] is using the default value: [{}]", name, defaultValue);
-            duration = defaultValue;
+            return defaultValue;
         } else {
             log.info("Configuration for [{}] is: [{}]", name, value);
-            duration = value;
+            return value;
         }
-
-        return (int) duration.toMillis();
     }
 
     public void initialize() throws PulsarClientException {
