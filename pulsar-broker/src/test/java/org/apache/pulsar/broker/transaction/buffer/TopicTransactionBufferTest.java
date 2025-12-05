@@ -595,7 +595,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         ByteBuf byteBuf = Unpooled.buffer();
         Position position = topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf)
                 .get(5, TimeUnit.SECONDS);
-        // 2.position should be (-1, -1) with InMemTransactionBuffer
+        // 2.position should be PositionFactory.EARLIEST with InMemTransactionBuffer
         assertEquals(PositionFactory.EARLIEST, position);
         // 3. release resource
         byteBuf.release();
