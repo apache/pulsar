@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
@@ -145,8 +144,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
-                .connectTimeout(this.clientConfigData.getConnectionTimeoutMs(), TimeUnit.MILLISECONDS)
-                .readTimeout(this.clientConfigData.getReadTimeoutMs(), TimeUnit.MILLISECONDS)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
         boolean useTls = clientConfigData.getServiceUrl().startsWith("https://");
