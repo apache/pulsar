@@ -250,7 +250,7 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.version>3.2.5.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
     <debezium.mysql.version>9.4.0</debezium.mysql.version>
-    <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
+    <jsonwebtoken.version>0.13.0</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop3.version>3.4.2</hadoop3.version>
     <dnsjava3.version>3.6.2</dnsjava3.version>
@@ -1208,18 +1208,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-api</artifactId>
+        <artifactId>jjwt-bom</artifactId>
         <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-impl</artifactId>
-        <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-jackson</artifactId>
-        <version>${jsonwebtoken.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
