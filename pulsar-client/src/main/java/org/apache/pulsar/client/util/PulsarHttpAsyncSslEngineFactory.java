@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.util;
 
-import com.fasterxml.jackson.databind.introspect.ClassIntrospector;
 import java.util.Collections;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
@@ -36,7 +35,8 @@ public class PulsarHttpAsyncSslEngineFactory extends DefaultSslEngineFactory {
     private final String host;
     private final ClientConfigurationData conf;
 
-    public PulsarHttpAsyncSslEngineFactory(PulsarSslFactory pulsarSslFactory, String host, ClientConfigurationData conf) {
+    public PulsarHttpAsyncSslEngineFactory(PulsarSslFactory pulsarSslFactory, String host,
+                                           ClientConfigurationData conf) {
         this.pulsarSslFactory = pulsarSslFactory;
         this.host = host;
         this.conf = conf;

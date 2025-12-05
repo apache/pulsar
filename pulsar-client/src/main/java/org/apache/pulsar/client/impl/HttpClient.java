@@ -125,7 +125,8 @@ public class HttpClient implements Closeable {
                 }
                 String hostname = conf.isTlsHostnameVerificationEnable() ? null : serviceNameResolver
                         .resolveHostUri().getHost();
-                SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(this.sslFactory, hostname, conf);
+                SslEngineFactory sslEngineFactory =
+                        new PulsarHttpAsyncSslEngineFactory(this.sslFactory, hostname, conf);
                 confBuilder.setSslEngineFactory(sslEngineFactory);
 
 
