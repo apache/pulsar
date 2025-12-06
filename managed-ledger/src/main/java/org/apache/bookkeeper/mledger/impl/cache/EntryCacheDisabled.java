@@ -22,10 +22,10 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManaged
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -68,9 +68,9 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-                               final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenAcceptAsync(
+    public CompletableFuture<List<Entry>> asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry,
+                                                         IntSupplier expectedReadCount) {
+        return ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenApplyAsync(
                 ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;
@@ -89,21 +89,18 @@ public class EntryCacheDisabled implements EntryCache {
                     ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
-                    callback.readEntriesComplete(entries, ctx);
-                }, ml.getExecutor()).exceptionally(exception -> {
-            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-            return null;
-        });
+                    return entries;
+                }, ml.getExecutor());
     }
 
     @Override
-    public void asyncReadEntry(ReadHandle lh, Position position, AsyncCallbacks.ReadEntryCallback callback,
-                               Object ctx) {
+    public CompletableFuture<Entry> asyncReadEntry(ReadHandle lh, Position position) {
+        final var future = new CompletableFuture<Entry>();
         ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                 (ledgerEntries, exception) -> {
                     if (exception != null) {
                         ml.invalidateLedgerHandle(lh);
-                        callback.readEntryFailed(createManagedLedgerException(exception), ctx);
+                        future.completeExceptionally(createManagedLedgerException(exception));
                         return;
                     }
 
@@ -116,15 +113,15 @@ public class EntryCacheDisabled implements EntryCache {
                             ml.getMbean().recordReadEntriesOpsCacheMisses(1, returnEntry.getLength());
                             ml.getFactory().getMbean().recordCacheMiss(1, returnEntry.getLength());
                             ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
-                            callback.readEntryComplete(returnEntry, ctx);
+                            future.complete(returnEntry);
                         } else {
-                            callback.readEntryFailed(new ManagedLedgerException("Could not read given position"),
-                                    ctx);
+                            future.completeExceptionally(new ManagedLedgerException("Could not read given position"));
                         }
                     } finally {
                         ledgerEntries.close();
                     }
                 }, ml.getExecutor());
+        return future;
     }
 
     @Override

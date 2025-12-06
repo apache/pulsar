@@ -1078,8 +1078,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     ctx, maxPosition, skipCondition, true);
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
-                op.recycle();
-                callback.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException(), ctx);
+                op.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException());
                 return;
             }
 
@@ -1190,7 +1189,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             return null;
         });
         if (op != null) {
-            op.recycle();
+            final var msg = op.toString();
+            op.readEntriesFailed(new ManagedLedgerException.CancelledException(msg + " is cancelled"));
         }
         return op != null && op != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR;
     }
@@ -2968,7 +2968,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(this,
                 OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
         if (opReadEntry != null && opReadEntry != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
-            opReadEntry.readEntriesFailed(new CursorAlreadyClosedException("Cursor is closing"), opReadEntry.ctx);
+            opReadEntry.readEntriesFailed(new CursorAlreadyClosedException("Cursor is closing"));
         }
     }
 
@@ -3538,7 +3538,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug("[{}] [{}] Cursor is already closed, ignoring notification", ledger.getName(), name);
                 }
                 opReadEntry.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException(
-                        "Cursor was already closed"), opReadEntry.ctx);
+                        "Cursor was already closed"));
                 return;
             }
             PENDING_READ_OPS_UPDATER.incrementAndGet(this);
