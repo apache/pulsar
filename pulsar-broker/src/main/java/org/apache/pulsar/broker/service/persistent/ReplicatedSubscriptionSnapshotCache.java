@@ -39,9 +39,9 @@ import org.apache.pulsar.common.util.StringInterner;
 public class ReplicatedSubscriptionSnapshotCache {
     private final String subscription;
     private final ToLongFunction<Range<Position>> distanceFunction;
-    private SnapshotEntry head;
     private final int maxSnapshotToCache;
-    private SnapshotEntry lastEntry;
+    private SnapshotEntry head;
+    private SnapshotEntry tail;
     private int numberOfSnapshots = 0;
     private SnapshotEntry lastSortedEntry;
     private final SortedSet<SnapshotEntry> sortedSnapshots;
@@ -196,11 +196,11 @@ public class ReplicatedSubscriptionSnapshotCache {
         Position position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
 
 
-        if (lastEntry != null && position.compareTo(lastEntry.position) <= 0) {
+        if (tail != null && position.compareTo(tail.position) <= 0) {
             // clear the entries in the cache if the new snapshot is older than the last one
             // this means that the subscription has been resetted
             head = null;
-            lastEntry = null;
+            tail = null;
             numberOfSnapshots = 0;
             sortedSnapshots.clear();
             lastSortedEntry = null;
@@ -224,7 +224,7 @@ public class ReplicatedSubscriptionSnapshotCache {
             clusterEntryList = List.of(clusterEntryList.get(0), clusterEntryList.get(1), clusterEntryList.get(2));
         }
         SnapshotEntry entry = new SnapshotEntry(position, clusterEntryList,
-                lastEntry == null ? 0L : distanceFunction.applyAsLong(Range.open(lastEntry.position, position)));
+                tail == null ? 0L : distanceFunction.applyAsLong(Range.open(tail.position, position)));
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Added new replicated-subscription snapshot at {} -- {}", subscription, position,
@@ -233,11 +233,11 @@ public class ReplicatedSubscriptionSnapshotCache {
 
         if (head == null) {
             head = entry;
-            lastEntry = entry;
+            tail = entry;
         } else {
-            lastEntry.setNext(entry);
-            entry.setPrev(lastEntry);
-            lastEntry = entry;
+            tail.setNext(entry);
+            entry.setPrev(tail);
+            tail = entry;
         }
         numberOfSnapshots++;
 
@@ -249,7 +249,7 @@ public class ReplicatedSubscriptionSnapshotCache {
 
     private void removeSingleEntryWithMinimumTotalDistanceToPreviousAndNext() {
         SnapshotEntry current = lastSortedEntry != null ? lastSortedEntry.next : head.next;
-        while (current != null && current != lastEntry) {
+        while (current != null && current != tail) {
             sortedSnapshots.add(current);
             lastSortedEntry = current;
             current = current.next;
@@ -260,7 +260,7 @@ public class ReplicatedSubscriptionSnapshotCache {
         SnapshotEntry minEntryPrevious = minEntry.prev;
 
         // remove minEntryPrevious and minEntryNext from the sorted set since the distance will be updated
-        if (minEntryNext != lastEntry) {
+        if (minEntryNext != tail) {
             sortedSnapshots.remove(minEntryNext);
         }
         if (minEntryPrevious != head) {
@@ -284,7 +284,7 @@ public class ReplicatedSubscriptionSnapshotCache {
                 distanceFunction.applyAsLong(Range.open(minEntryPrevious.position, minEntryNext.position)));
 
         // add entries back so that they are sorted
-        if (minEntryNext != lastEntry) {
+        if (minEntryNext != tail) {
             sortedSnapshots.add(minEntryNext);
         }
         if (minEntryPrevious != head) {
@@ -321,7 +321,7 @@ public class ReplicatedSubscriptionSnapshotCache {
         }
 
         if (head == null) {
-            lastEntry = null;
+            tail = null;
         } else {
             head.setPrev(null);
             head.setDistanceToPrevious(0L);
