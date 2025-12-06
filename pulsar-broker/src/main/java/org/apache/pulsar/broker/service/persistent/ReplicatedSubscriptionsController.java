@@ -47,7 +47,6 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
-import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
@@ -126,19 +125,19 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
     }
 
-    public void localSubscriptionUpdated(String subscriptionName, ReplicatedSubscriptionsSnapshot snapshot) {
+    public void localSubscriptionUpdated(String subscriptionName,
+                                         ReplicatedSubscriptionSnapshotCache.SnapshotResult snapshot) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Updating subscription to snapshot {}", topic, subscriptionName,
-                    snapshot.getClustersList().stream()
-                            .map(cmid -> String.format("%s -> %d:%d", cmid.getCluster(),
-                                    cmid.getMessageId().getLedgerId(), cmid.getMessageId().getEntryId()))
+                    snapshot.clusters().stream()
+                            .map(entry -> String.format("%s -> %s", entry.cluster(), entry.position()))
                             .collect(Collectors.toList()));
         }
 
         Map<String, MarkersMessageIdData> clusterIds = new TreeMap<>();
-        for (int i = 0, size = snapshot.getClustersCount(); i < size; i++) {
-            ClusterMessageId cmid = snapshot.getClusterAt(i);
-            clusterIds.put(cmid.getCluster(), cmid.getMessageId());
+        for (ReplicatedSubscriptionSnapshotCache.ClusterEntry cluster : snapshot.clusters()) {
+            clusterIds.put(cluster.cluster(), new MarkersMessageIdData().setLedgerId(cluster.position().getLedgerId())
+                    .setEntryId(cluster.position().getEntryId()));
         }
 
         ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
