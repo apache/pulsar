@@ -2142,20 +2142,31 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     remoteAddress, redeliver.getConsumerId(),
                     redeliver.hasConsumerEpoch() ? redeliver.getConsumerEpoch() : null);
         }
-
-        CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
-
-        if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            Consumer consumer = consumerFuture.getNow(null);
-            if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
-                consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
-            } else {
-                if (redeliver.hasConsumerEpoch()) {
-                    consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch());
+        boolean hasConsumerEpoch = redeliver.hasConsumerEpoch();
+        List<MessageIdData> messageIdsList = redeliver.getMessageIdsList();
+        int messageIdsCount = redeliver.getMessageIdsCount();
+        long consumerId = redeliver.getConsumerId();
+        long consumerEpoch = redeliver.getConsumerEpoch();
+        CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
+        if (consumerFuture != null) {
+            consumerFuture.thenAccept((consumer) -> {
+                if (messageIdsCount > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
+                    consumer.redeliverUnacknowledgedMessages(messageIdsList);
                 } else {
-                    consumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+                    if (hasConsumerEpoch) {
+                        consumer.redeliverUnacknowledgedMessages(consumerEpoch);
+                    } else {
+                        consumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+                    }
                 }
-            }
+            }).exceptionally(e -> {
+                // if consumerFuture completed exceptionally, don't need to process this redeliver command
+                // because, consumer will reconnect
+                log.warn("[{}] ignore this redeliverUnacknowledged request from consumer {}, consumerEpoch {}",
+                        remoteAddress, redeliver.getConsumerId(),
+                        redeliver.hasConsumerEpoch() ? redeliver.getConsumerEpoch() : null, e);
+                return null;
+            });
         }
     }
 
