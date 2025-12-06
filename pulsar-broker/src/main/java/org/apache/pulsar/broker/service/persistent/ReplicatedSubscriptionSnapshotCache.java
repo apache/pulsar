@@ -340,7 +340,7 @@ public class ReplicatedSubscriptionSnapshotCache {
     }
 
     @VisibleForTesting
-    List<SnapshotEntry> getSnapshots() {
+    synchronized List<SnapshotEntry> getSnapshots() {
         List<SnapshotEntry> snapshots = new ArrayList<>(numberOfSnapshots);
         SnapshotEntry current = head;
         while (current != null) {
