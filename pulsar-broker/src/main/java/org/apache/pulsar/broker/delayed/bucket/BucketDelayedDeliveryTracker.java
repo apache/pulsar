@@ -663,10 +663,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             if (immutableBucketDelayedIndexPair == null) {
                                 // No delayed indexes remained in the segments to merge.
                                 // Keep the existing buckets as-is and skip creating a new one.
-                                log.warn("[{}] Skip merging bucket snapshot, no remaining indexes found, "
-                                                + "startLedgerId: {}, endLedgerId: {}",
-                                        context.getName(), buckets.get(0).startLedgerId,
-                                        buckets.get(buckets.size() - 1).endLedgerId);
                                 return;
                             }
 
@@ -867,6 +863,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
                 ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(snapshotKey);
                 if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+                    // All message of current snapshot segment are scheduled, try load next snapshot segment
+                    if (bucket.merging) {
+                        log.info("[{}] Skip load to wait for bucket snapshot merge finish, bucketKey:{}",
+                                context.getName(), bucket.bucketKey());
+                        break;
+                    }
+
                     // This is the last message of a segment. We need to load the next one.
                     // Trigger the load and stop processing more messages in this run.
                     // The positions collected so far will be returned.
@@ -971,12 +974,29 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public void close() {
-        List<CompletableFuture<Long>> completableFutures = Collections.emptyList();
         writeLock.lock();
         try {
             super.close();
             lastMutableBucket.close();
             sharedBucketPriorityQueue.close();
+        } finally {
+            writeLock.unlock();
+        }
+        bucketSnapshotExecutor.shutdown();
+        try {
+            if (!bucketSnapshotExecutor.awaitTermination(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
+                log.warn("[{}] bucketSnapshotExecutor did not terminate in the specified time.",
+                        context.getName());
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.warn("[{}] Interrupted while waiting for bucketSnapshotExecutor to terminate.",
+                    context.getName(), ie);
+        }
+
+        List<CompletableFuture<Long>> completableFutures = Collections.emptyList();
+        writeLock.lock();
+        try {
             try {
                 completableFutures = immutableBuckets.asMapOfRanges().values().stream()
                         .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
@@ -986,24 +1006,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         } finally {
             writeLock.unlock();
         }
+
         try {
             if (!completableFutures.isEmpty()) {
                 FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
             }
         } catch (Exception e) {
             log.warn("[{}] Failed wait to snapshot generate", context.getName(), e);
-        } finally {
-            bucketSnapshotExecutor.shutdown();
-            try {
-                if (!bucketSnapshotExecutor.awaitTermination(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
-                    log.warn("[{}] bucketSnapshotExecutor did not terminate in the specified time.",
-                            context.getName());
-                }
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                log.warn("[{}] Interrupted while waiting for bucketSnapshotExecutor to terminate.",
-                        context.getName(), ie);
-            }
         }
     }
 
@@ -1045,7 +1054,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return findImmutableBucket(ledgerId).map(bucket -> bucket.containsMessage(ledgerId, entryId))
                 .orElse(false);
     }
-
 
     public Map<String, TopicMetricBean> genTopicMetricMap() {
         stats.recordNumOfBuckets(immutableBuckets.asMapOfRanges().size() + 1);
