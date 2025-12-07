@@ -185,6 +185,12 @@ public class ReplicatedSubscriptionSnapshotCache {
             }
             return Integer.compare(clusters.hashCode(), o.clusters.hashCode());
         }
+
+        @Override
+        public String toString() {
+            return String.format("SnapshotEntry(position=%s, clusters=%s, distanceToPrevious=%d)", position, clusters,
+                    distanceToPrevious);
+        }
     }
 
     public record ClusterEntry(String cluster, Position position) {}
@@ -280,8 +286,7 @@ public class ReplicatedSubscriptionSnapshotCache {
         }
 
         // update distanceToPrevious for the next entry
-        minEntryNext.setDistanceToPrevious(
-                distanceFunction.applyAsLong(Range.open(minEntryPrevious.position, minEntryNext.position)));
+        minEntryNext.setDistanceToPrevious(minEntryNext.distanceToPrevious + minEntry.distanceToPrevious);
 
         // add entries back so that they are sorted
         if (minEntryNext != tail) {
