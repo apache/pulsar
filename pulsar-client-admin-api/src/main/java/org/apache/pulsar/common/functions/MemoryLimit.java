@@ -16,25 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.common.functions;
 
-// CHECKSTYLE.OFF: IllegalImport
-import io.netty.util.internal.PlatformDependent;
-// CHECKSTYLE.ON: IllegalImport
+import lombok.Data;
+import lombok.experimental.Accessors;
 
-public class DirectMemoryUtils {
-
-    /**
-     * PlatformDependent.maxDirectMemory can be inaccurate if java property `io.netty.maxDirectMemory` are setted.
-     * Cache the result in this field.
-     */
-    private static final long JVM_MAX_DIRECT_MEMORY = PlatformDependent.estimateMaxDirectMemory();
-
-    public static long jvmMaxDirectMemory() {
-        return JVM_MAX_DIRECT_MEMORY;
-    }
-
-    public static long jvmMaxDirectMemoryPercentage(double percent) {
-        return (long) (DirectMemoryUtils.jvmMaxDirectMemory() * (percent / 100));
-    }
+/**
+ * Memory limit set for the pulsar client used by all instances.
+ * If {@code limitInBytes} and {@code percentOfMaxDirectMemory} are both set,
+ * the minimum of the two will be used.
+ */
+@Data
+@Accessors(chain = true)
+public class MemoryLimit {
+    Long limitInBytes;
+    Double percentOfMaxDirectMemory;
 }
