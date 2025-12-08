@@ -25,21 +25,18 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class GeoPersistentReplicator extends PersistentReplicator {
-    private Position lastNonMarkerPosition;
 
     public GeoPersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster,
                                    String remoteCluster, BrokerService brokerService,
@@ -117,22 +114,16 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                MessageMetadata messageMetadata = msg.getMessageBuilder();
-
-                if (!messageMetadata.hasMarkerType()) {
-                    lastNonMarkerPosition = entry.getPosition();
-                }
-
-                if (Markers.isTxnMarker(messageMetadata)) {
+                if (Markers.isTxnMarker(msg.getMessageBuilder())) {
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
                 }
-                if (messageMetadata.hasTxnidLeastBits() && messageMetadata.hasTxnidMostBits()) {
-                    TxnID tx = new TxnID(messageMetadata.getTxnidMostBits(),
-                            messageMetadata.getTxnidLeastBits());
+                if (msg.getMessageBuilder().hasTxnidLeastBits() && msg.getMessageBuilder().hasTxnidMostBits()) {
+                    TxnID tx = new TxnID(msg.getMessageBuilder().getTxnidMostBits(),
+                            msg.getMessageBuilder().getTxnidLeastBits());
                     if (topic.isTxnAborted(tx, entry.getPosition())) {
                         cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                         inFlightTask.incCompletedEntries();
@@ -143,9 +134,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 }
 
                 if (isEnableReplicatedSubscriptions) {
-                    Position localPosition =
-                            lastNonMarkerPosition != null ? lastNonMarkerPosition : entry.getPosition();
-                    checkReplicatedSubscriptionMarker(localPosition, msg, headersAndPayload);
+                    checkReplicatedSubscriptionMarker(entry.getPosition(), msg, headersAndPayload);
                 }
 
                 if (msg.isReplicated()) {
@@ -231,10 +220,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     });
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
-                    messageMetadata.clearTxnidMostBits();
-                    messageMetadata.clearTxnidLeastBits();
+                    msg.getMessageBuilder().clearTxnidMostBits();
+                    msg.getMessageBuilder().clearTxnidLeastBits();
                     // Add props for sequence checking.
-                    messageMetadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
+                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
                             .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
                     msgOut.recordEvent(headersAndPayload.readableBytes());
                     stats.incrementMsgOutCounter();
