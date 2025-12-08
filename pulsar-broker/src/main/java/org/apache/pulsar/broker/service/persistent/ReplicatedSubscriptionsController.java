@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
@@ -91,6 +92,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             .help("Counter of timed out snapshots").register();
 
     private final OpenTelemetryReplicatedSubscriptionStats stats;
+
+    private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
@@ -219,61 +222,71 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void startNewSnapshot() {
-        cleanupTimedOutSnapshots();
-
-        if (lastCompletedSnapshotStartTime == 0 && !pendingSnapshots.isEmpty()) {
-            // 1. If the remote cluster has disabled subscription replication or there's an incorrect config,
-            //    it will not respond to SNAPSHOT_REQUEST. Therefore, lastCompletedSnapshotStartTime will remain 0,
-            //    making it unnecessary to resend the request.
-            // 2. This approach prevents sending additional SNAPSHOT_REQUEST to both local_topic and remote_topic.
-            // 3. Since it's uncertain when the remote cluster will enable subscription replication,
-            //    the timeout mechanism of pendingSnapshots is used to ensure retries.
-            //
-            // In other words, when hit this case, The frequency of sending SNAPSHOT_REQUEST
-            // will use `replicatedSubscriptionsSnapshotTimeoutSeconds`.
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] PendingSnapshot exists but has never succeeded. "
-                        + "Skipping snapshot creation until pending snapshot timeout.", topic.getName());
-            }
+        if (!isRunning.compareAndSet(false, true)) {
+            log.warn("[{}] Snapshot already in progress. Skipping new snapshot.", topic.getName());
             return;
         }
 
-        if (topic.getLastMaxReadPositionMovedForwardTimestamp() < lastCompletedSnapshotStartTime
-                || topic.getLastMaxReadPositionMovedForwardTimestamp() == 0) {
-            // There was no message written since the last snapshot, we can skip creating a new snapshot
-            if (log.isDebugEnabled()) {
+        try {
+            cleanupTimedOutSnapshots();
+
+            if (lastCompletedSnapshotStartTime == 0 && !pendingSnapshots.isEmpty()) {
+                // 1. If the remote cluster has disabled subscription replication or there's an incorrect config,
+                //    it will not respond to SNAPSHOT_REQUEST. Therefore, lastCompletedSnapshotStartTime will remain 0,
+                //    making it unnecessary to resend the request.
+                // 2. This approach prevents sending additional SNAPSHOT_REQUEST to both local_topic and remote_topic.
+                // 3. Since it's uncertain when the remote cluster will enable subscription replication,
+                //    the timeout mechanism of pendingSnapshots is used to ensure retries.
+                //
+                // In other words, when hit this case, The frequency of sending SNAPSHOT_REQUEST
+                // will use `replicatedSubscriptionsSnapshotTimeoutSeconds`.
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] PendingSnapshot exists but has never succeeded. "
+                            + "Skipping snapshot creation until pending snapshot timeout.", topic.getName());
+                }
+                return;
+            }
+
+            if (topic.getLastMaxReadPositionMovedForwardTimestamp() < lastCompletedSnapshotStartTime
+                    || topic.getLastMaxReadPositionMovedForwardTimestamp() == 0) {
+                // There was no message written since the last snapshot, we can skip creating a new snapshot
+                if (log.isDebugEnabled()) {
                 log.debug("[{}] There is no new data in topic. Skipping snapshot creation.", topic.getName());
+                }
+                return;
             }
-            return;
-        }
 
-        MutableBoolean anyReplicatorDisconnected = new MutableBoolean();
-        topic.getReplicators().forEach((cluster, replicator) -> {
-            if (!replicator.isConnected()) {
-                anyReplicatorDisconnected.setTrue();
-            }
-        });
+            MutableBoolean anyReplicatorDisconnected = new MutableBoolean();
+            topic.getReplicators().forEach((cluster, replicator) -> {
+                if (!replicator.isConnected()) {
+                    anyReplicatorDisconnected.setTrue();
+                }
+            });
 
-        if (anyReplicatorDisconnected.isTrue()) {
-            // Do not attempt to create snapshot when some of the clusters are not reachable
-            if (log.isDebugEnabled()) {
+            if (anyReplicatorDisconnected.isTrue()) {
+                // Do not attempt to create snapshot when some of the clusters are not reachable
+                if (log.isDebugEnabled()) {
                 log.debug("[{}] Do not attempt to create snapshot when some of the clusters are not reachable.",
                         topic.getName());
+                }
+                return;
             }
-            return;
-        }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Starting snapshot creation.", topic.getName());
-        }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Starting snapshot creation.", topic.getName());
+            }
 
-        pendingSnapshotsMetric.inc();
-        stats.recordSnapshotStarted();
-        ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
-                topic.getReplicators().keySet(), topic.getBrokerService().pulsar().getConfiguration(),
-                Clock.systemUTC());
-        pendingSnapshots.put(builder.getSnapshotId(), builder);
-        builder.start();
+            pendingSnapshotsMetric.inc();
+            stats.recordSnapshotStarted();
+            ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
+                    topic.getReplicators().keySet(), topic.getBrokerService().pulsar().getConfiguration(),
+                    Clock.systemUTC());
+            pendingSnapshots.put(builder.getSnapshotId(), builder);
+            builder.start();
+
+        } finally {
+            isRunning.set(false);
+        }
     }
 
     public Optional<String> getLastCompletedSnapshotId() {
