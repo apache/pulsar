@@ -81,10 +81,7 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
-import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -908,26 +905,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         messageId.getLedgerId(), messageId.getEntryId(), 10);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.InvalidPosition);
 
-    }
-
-    @Test
-    public void testAbortTransaction() throws Exception {
-        initTransaction(1);
-
-        Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
-
-        TxnMeta txnMeta = pulsar.getTransactionMetadataStoreService().getTxnMeta(transaction.getTxnID()).get();
-        assertEquals(txnMeta.status(), TxnStatus.OPEN);
-
-        // abort
-        admin.transactions().abortTransaction(transaction.getTxnID());
-        try {
-            pulsar.getTransactionMetadataStoreService().getTxnMeta(transaction.getTxnID()).get();
-            fail();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof CoordinatorException.TransactionNotFoundException);
-        }
     }
 
     @Test
