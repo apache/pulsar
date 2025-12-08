@@ -31,7 +31,6 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
@@ -53,7 +52,6 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
     private ReplicatedSubscriptionsController controller;
     private List<ByteBuf> markers;
     private List<ByteBuf> releaseQueue;
-    private long lastEntryId;
 
     @BeforeMethod
     public void setup() {
@@ -72,15 +70,10 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
             ByteBuf marker = invocation.getArgument(0, ByteBuf.class);
             Commands.skipMessageMetadata(marker);
             markers.add(marker);
-            return CompletableFuture.completedFuture(PositionFactory.create(1, lastEntryId++));
-        }).when(controller).writeMarkerAsync(any(ByteBuf.class));
-        doAnswer(invocation -> {
-            ByteBuf marker = invocation.getArgument(0, ByteBuf.class);
-            Commands.skipMessageMetadata(marker);
-            markers.add(marker);
-            lastEntryId++;
             return null;
-        }).when(controller).writeMarker(any(ByteBuf.class));
+        })
+                .when(controller)
+                .writeMarker(any(ByteBuf.class));
     }
 
     @AfterMethod
@@ -127,7 +120,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(snapshot.getClusterAt(0).getMessageId().getEntryId(), 11);
 
         assertEquals(snapshot.getLocalMessageId().getLedgerId(), 1);
-        assertEquals(snapshot.getLocalMessageId().getEntryId(), 0);
+        assertEquals(snapshot.getLocalMessageId().getEntryId(), 1);
     }
 
     private ReplicatedSubscriptionsSnapshotRequest parseReplicatedSubscriptionsSnapshotRequest()
@@ -166,7 +159,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                 .setMessageId()
                 .setLedgerId(11)
                 .setEntryId(11);
-        builder.receivedSnapshotResponse(PositionFactory.create(1, lastEntryId++), response1);
+        builder.receivedSnapshotResponse(PositionFactory.create(1, 1), response1);
 
         // No markers should be sent out
         assertTrue(markers.isEmpty());
@@ -178,7 +171,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                 .setMessageId()
                 .setLedgerId(22)
                 .setEntryId(22);
-        builder.receivedSnapshotResponse(PositionFactory.create(1, lastEntryId++), response2);
+        builder.receivedSnapshotResponse(PositionFactory.create(2, 2), response2);
 
         // Since we have 2 remote clusters, a 2nd round of snapshot will be taken
         assertEquals(markers.size(), 1);
@@ -193,7 +186,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                 .setMessageId()
                 .setLedgerId(33)
                 .setEntryId(33);
-        builder.receivedSnapshotResponse(PositionFactory.create(1, lastEntryId++), response3);
+        builder.receivedSnapshotResponse(PositionFactory.create(3, 3), response3);
 
         // No markers should be sent out
         assertTrue(markers.isEmpty());
@@ -205,7 +198,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                 .setMessageId()
                 .setLedgerId(44)
                 .setEntryId(44);
-        builder.receivedSnapshotResponse(PositionFactory.create(1, lastEntryId++), response4);
+        builder.receivedSnapshotResponse(PositionFactory.create(4, 4), response4);
 
         // At this point the snapshot should be created
         assertEquals(markers.size(), 1);
@@ -219,8 +212,8 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(snapshot.getClusterAt(1).getMessageId().getLedgerId(), 22);
         assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 22);
 
-        assertEquals(snapshot.getLocalMessageId().getLedgerId(), 1);
-        assertEquals(snapshot.getLocalMessageId().getEntryId(), 2);
+        assertEquals(snapshot.getLocalMessageId().getLedgerId(), 4);
+        assertEquals(snapshot.getLocalMessageId().getEntryId(), 4);
     }
 
     @Test
