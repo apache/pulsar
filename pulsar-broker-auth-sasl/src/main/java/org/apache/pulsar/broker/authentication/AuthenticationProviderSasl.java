@@ -121,6 +121,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         }
         this.signer = new SaslRoleTokenSigner(secret);
         this.authStates = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(config.getMaxInflightSaslContext())
                 .expireAfterWrite(config.getInflightSaslContextExpiryMs(), TimeUnit.MILLISECONDS).build();
         CacheMetricsCollector.CAFFEINE.addCache("auth-sasl-states-cache", authStates);

@@ -26,4 +26,8 @@ public interface OffloadedLedgerHandle {
     default long lastAccessTimestamp() {
         return -1;
     }
+
+    default int getPendingRead() {
+        return 0;
+    }
 }

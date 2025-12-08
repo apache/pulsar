@@ -36,7 +36,7 @@ jobs:
     if: (github.repository == 'apache/pulsar') && (github.event.pull_request.state == 'open')
     permissions:
       pull-requests: write 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Labeling
         uses: apache/pulsar-test-infra/docbot@master

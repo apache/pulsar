@@ -29,7 +29,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Multiple brokers with a real test Zookeeper server (instead of the mock server)
+ * Multiple brokers with a real test Zookeeper server (instead of the mock server).
  */
 @Slf4j
 public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
@@ -39,7 +39,9 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        testZKServer = new TestZKServer();
+        if (testZKServer == null) {
+            testZKServer = new TestZKServer();
+        }
     }
 
     @Override
@@ -64,11 +66,16 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     }
 
     @Override
-    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
-        return super.createPulsarTestContextBuilder(conf)
-                .spyNoneByDefault()
-                .localMetadataStore(createMetadataStore(MetadataStoreConfig.METADATA_STORE))
+    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+        builder.localMetadataStore(createMetadataStore(MetadataStoreConfig.METADATA_STORE))
                 .configurationMetadataStore(createMetadataStore(MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
+    }
+
+    @Override
+    protected PulsarTestContext.Builder createAdditionalPulsarTestContextBuilder(ServiceConfiguration conf) {
+        return createPulsarTestContextBuilder(conf)
+                .reuseSpyConfig(pulsarTestContext)
+                .bookKeeperClient(pulsarTestContext.getBookKeeperClient());
     }
 
     @NonNull

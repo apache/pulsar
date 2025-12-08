@@ -234,7 +234,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
     }
 
     public void testSupportsGetPartitionedMetadataWithoutAutoCreation() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName( "persistent://" + NAMESPACE + "/tp");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + NAMESPACE + "/tp");
         admin.topics().createNonPartitionedTopic(topic);
         PulsarClientImpl clientWitBinaryLookup = (PulsarClientImpl) PulsarClient.builder()
                 .maxNumberOfRejectedRequestPerConnection(1)
@@ -260,7 +260,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             field.set(clientCnxFuture.get(), false);
         }
         try {
-            clientWitBinaryLookup.getPartitionsForTopic(topic, false).join();
+            clientWitBinaryLookup.getPartitionedTopicMetadata(topic, false, false).join();
             Assert.fail("Expected an error that the broker version is too old.");
         } catch (Exception ex) {
             Assert.assertTrue(ex.getMessage().contains("without auto-creation is not supported by the broker"));

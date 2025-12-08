@@ -88,6 +88,7 @@ public class JwksCache {
             }
         };
         this.cache = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
@@ -168,7 +169,7 @@ public class JwksCache {
     private CompletableFuture<List<Jwk>> getJwksFromKubernetesApiServer() {
         CompletableFuture<List<Jwk>> future = new CompletableFuture<>();
         try {
-            openidApi.getServiceAccountIssuerOpenIDKeysetAsync(new ApiCallback<String>() {
+            openidApi.getServiceAccountIssuerOpenIDKeyset().executeAsync(new ApiCallback<String>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
                     authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);

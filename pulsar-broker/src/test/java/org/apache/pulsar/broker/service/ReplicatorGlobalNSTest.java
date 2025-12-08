@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -43,15 +45,12 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Method;
-import java.util.concurrent.TimeUnit;
-
 /**
  * The tests in this class should be denied in a production pulsar cluster. they are very dangerous, which leads to
  * a lot of topic deletion and makes namespace policies being incorrect.
  */
 @Slf4j
-@Test(groups = "broker-impl")
+@Test(groups = "broker-replication")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;

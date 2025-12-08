@@ -24,6 +24,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.ssl.SslCloseCompletionEvent;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
@@ -124,7 +126,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received cmd {}", ctx.channel(), cmd.getType());
             }
-            messageReceived();
+            messageReceived(cmd);
 
             switch (cmd.getType()) {
             case PARTITIONED_METADATA:
@@ -483,10 +485,15 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             }
         } finally {
             buffer.release();
+            // Clear the fields in cmd to release memory.
+            // The clear() call below also helps prevent misuse of holding references to command objects after
+            // handle* methods complete, as per the class javadoc requirement.
+            // While this doesn't completely prevent such misuse, it makes tests more likely to catch violations.
+            cmd.clear();
         }
     }
 
-    protected abstract void messageReceived();
+    protected abstract void messageReceived(BaseCommand cmd);
 
     private ServerError getServerError(int errorCode) {
         ServerError serverError = ServerError.valueOf(errorCode);
@@ -743,5 +750,27 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     private void writeAndFlush(ChannelOutboundInvoker ctx, ByteBuf cmd) {
         NettyChannelUtil.writeAndFlushWithVoidPromise(ctx, cmd);
+    }
+
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+        if (evt instanceof SslHandshakeCompletionEvent) {
+            // log handshake failures
+            SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
+            if (!sslHandshakeCompletionEvent.isSuccess()) {
+                log.warn("[{}] TLS handshake failed. {}", ctx.channel(), sslHandshakeCompletionEvent);
+            }
+        } else if (evt instanceof SslCloseCompletionEvent) {
+            // handle TLS close_notify event and immediately close the channel
+            // this is not handled by Netty by default
+            // See https://datatracker.ietf.org/doc/html/rfc8446#section-6.1 for more details
+            SslCloseCompletionEvent sslCloseCompletionEvent = (SslCloseCompletionEvent) evt;
+            if (sslCloseCompletionEvent.isSuccess() && ctx.channel().isActive()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Received a TLS close_notify, closing the channel.", ctx.channel());
+                }
+                ctx.close();
+            }
+        }
+        ctx.fireUserEventTriggered(evt);
     }
 }

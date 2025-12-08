@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -28,17 +27,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
@@ -51,6 +46,7 @@ import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSendHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSubscribeHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandTopicLookupHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandUnsubscribeHook;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
@@ -69,6 +65,7 @@ import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -84,7 +81,7 @@ import org.slf4j.LoggerFactory;
 public class MockBrokerService {
     private LookupData lookupData;
 
-    private class genericResponseHandler extends AbstractHandler {
+    private class GenericResponseHandler extends AbstractHandler {
         private final ObjectMapper objectMapper = new ObjectMapper();
         private final String lookupURI = "/lookup/v2/destination/persistent";
         private final String partitionMetadataURI = "/admin/persistent";
@@ -136,7 +133,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void messageReceived() {
+        protected void messageReceived(BaseCommand cmd) {
         }
 
         @Override
@@ -188,7 +185,8 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         }
 
         @Override
@@ -267,13 +265,13 @@ public class MockBrokerService {
         }
 
         @Override
-        final protected void handlePing(CommandPing ping) {
+        protected final void handlePing(CommandPing ping) {
             // Immediately reply success to ping requests
             ctx.writeAndFlush(Commands.newPong());
         }
 
         @Override
-        final protected void handlePong(CommandPong pong) {
+        protected final void handlePong(CommandPong pong) {
         }
     }
 
@@ -296,7 +294,7 @@ public class MockBrokerService {
 
     public MockBrokerService() {
         server = new Server(0);
-        server.setHandler(new genericResponseHandler());
+        server.setHandler(new GenericResponseHandler());
     }
 
     public void start() {
@@ -327,7 +325,7 @@ public class MockBrokerService {
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("mock-pulsar-%s").build();
         final int numThreads = 2;
 
-        final int MaxMessageSize = 5 * 1024 * 1024;
+        final int maxMessageSize = 5 * 1024 * 1024;
 
         try {
             workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, threadFactory);
@@ -338,7 +336,7 @@ public class MockBrokerService {
             bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
-                    ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4));
+                    FrameDecoderUtil.addFrameDecoder(ch.pipeline(), maxMessageSize);
                     ch.pipeline().addLast("handler", new MockServerCnx());
                 }
             });

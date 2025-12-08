@@ -78,6 +78,7 @@ class OpenIDProviderMetadataCache {
             }
         };
         this.cache = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
@@ -167,7 +168,7 @@ class OpenIDProviderMetadataCache {
     private CompletableFuture<OpenIDProviderMetadata> loadOpenIDProviderMetadataForKubernetesApiServer() {
         CompletableFuture<OpenIDProviderMetadata> future = new CompletableFuture<>();
         try {
-            wellKnownApi.getServiceAccountIssuerOpenIDConfigurationAsync(new ApiCallback<>() {
+            wellKnownApi.getServiceAccountIssuerOpenIDConfiguration().executeAsync(new ApiCallback<>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
                     authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PROVIDER_METADATA);

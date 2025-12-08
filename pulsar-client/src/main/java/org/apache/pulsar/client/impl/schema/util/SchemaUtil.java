@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.lang.reflect.Field;
+import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
@@ -32,7 +33,16 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 public class SchemaUtil {
 
-    public static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
+    private static Boolean globalJsr310ConversionEnabled = null;
+
+    public static void setGlobalJsr310ConversionEnabled(Boolean globalJsr310ConversionEnabled) {
+        SchemaUtil.globalJsr310ConversionEnabled = globalJsr310ConversionEnabled;
+    }
+
+    public static boolean getJsr310ConversionEnabled(SchemaInfo schemaInfo) {
+        if (globalJsr310ConversionEnabled != null) {
+            return globalJsr310ConversionEnabled;
+        }
         if (schemaInfo != null) {
             return Boolean.parseBoolean(schemaInfo.getProperties()
                     .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
@@ -41,7 +51,7 @@ public class SchemaUtil {
     }
 
     public static Schema parseAvroSchema(String schemaJson) {
-        final Schema.Parser parser = new Schema.Parser();
+        final Schema.Parser parser = new Schema.Parser(NameValidator.NO_VALIDATION);
         parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
     }

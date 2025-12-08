@@ -146,7 +146,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_TOPICS)
                 // Validate that namespace exists, throws 404 if it doesn't exist
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies -> internalGetListOfTopics(policies, mode))
+                .thenCompose(policies -> internalGetListOfTopics(response, policies, mode))
                 .thenApply(topics -> filterSystemTopic(topics, includeSystemTopic))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
@@ -438,7 +438,10 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/replication")
-    @ApiOperation(hidden = true, value = "Set the replication clusters for a namespace.")
+    @ApiOperation(hidden = true, value = "Set the replication clusters for a namespace. "
+            + "When removing a cluster:"
+            + " with shared configuration store, data will be deleted from the removed cluster; "
+            + "with separate configuration store, only replication stops but data is preserved.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Peer-cluster can't be part of replication-cluster"),

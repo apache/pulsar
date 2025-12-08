@@ -116,7 +116,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         final String topicName = "non-persistent://prop/ns-abc/testCreateNonExistentPartitions";
         admin.topics().createPartitionedTopic(topicName, 4);
         TopicName partition = TopicName.get(topicName).getPartition(4);
-        assertThrows(PulsarClientException.NotAllowedException.class, () -> {
+        assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored = pulsarClient.newProducer()
                     .topic(partition.toString())
@@ -149,8 +149,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                     SubscriptionOption option = inv.getArgument(0);
                     if (option.isDurable()) {
                         return CompletableFuture.failedFuture(
-                                new IllegalArgumentException("isDurable cannot be true when subscribe " +
-                                        "on non-persistent topic"));
+                                new IllegalArgumentException("isDurable cannot be true when subscribe "
+                                        + "on non-persistent topic"));
                     }
                     return inv.callRealMethod();
                 }).when(mockTopic).subscribe(Mockito.any());

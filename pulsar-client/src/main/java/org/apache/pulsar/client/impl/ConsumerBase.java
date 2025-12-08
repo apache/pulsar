@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -64,6 +65,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.NoOpLock;
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -82,12 +84,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final String consumerName;
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
+    protected final DecryptFailListener<T> decryptFailListener;
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
     protected final MessageListenerExecutor messageListenerExecutor;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
-    protected UnAckedMessageTracker unAckedMessageTracker;
+    protected final UnAckedMessageTracker unAckedMessageTracker;
     final GrowableArrayBlockingQueue<Message<T>> incomingMessages;
     protected Map<MessageIdAdv, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -137,6 +140,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 conf.getConsumerName() == null ? RandomStringUtils.randomAlphanumeric(5) : conf.getConsumerName();
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
+        this.decryptFailListener = conf.getDecryptFailListener();
         this.consumerEventListener = conf.getConsumerEventListener();
         // Always use growable queue since items can exceed the advertised size
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
@@ -412,6 +416,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    private static void validateMessageIds(List<MessageId> messageIdList) throws PulsarClientException {
+        if (messageIdList == null) {
+            throw new PulsarClientException.InvalidMessageException("Cannot handle messages with null messageIdList");
+        }
+        for (MessageId messageId : messageIdList) {
+            validateMessageId(messageId);
+        }
+    }
+
+    private static void validateMessages(Messages<?> messages) throws PulsarClientException {
+        if (messages == null) {
+            throw new PulsarClientException.InvalidMessageException("Cannot handle messages with null messages");
+        }
+        for (Message<?> message : messages) {
+            validateMessageId(message);
+        }
+    }
     @Override
     public void acknowledge(Message<?> message) throws PulsarClientException {
         validateMessageId(message);
@@ -434,6 +455,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public void acknowledge(List<MessageId> messageIdList) throws PulsarClientException {
         try {
+            validateMessageIds(messageIdList);
             acknowledgeAsync(messageIdList).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -446,6 +468,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public void acknowledge(Messages<?> messages) throws PulsarClientException {
         try {
+            validateMessages(messages);
             acknowledgeAsync(messages).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -631,6 +654,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId,
                                                     Transaction txn) {
+        try {
+            validateMessageId(messageId);
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
+        }
         TransactionImpl txnImpl = null;
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
@@ -650,6 +678,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Transaction txn) {
+        try {
+            validateMessageId(messageId);
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
+        }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive/non-failover subscription"));
@@ -671,6 +704,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
                                                            Map<String, Long> properties,
                                                            TransactionImpl txn) {
+        try {
+            validateMessageIds(messageIdList);
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
+        }
         CompletableFuture<Void> ackFuture;
         if (txn != null && this instanceof ConsumerImpl) {
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
@@ -1172,16 +1210,51 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void callMessageListener(Message<T> msg) {
         try {
+            State state = getState();
+            if (state == State.Closing || state == State.Closed) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Consumer has been closed. Skipping message {}.", topic, subscription,
+                            msg.getMessageId());
+                }
+                msg.release();
+                return;
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Calling message listener for message {}", topic, subscription,
                         msg.getMessageId());
             }
             ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl)
                     ? ((TopicMessageImpl<T>) msg).receivedByconsumer : (ConsumerImpl) this;
+
+            // check the internal consumer state
+            if (receivedConsumer != this) {
+                State receivedByConsumerState = receivedConsumer.getState();
+                if (receivedByConsumerState == State.Closing || receivedByConsumerState == State.Closed) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] Consumer that received the message has been closed. Skipping message {}.",
+                                topic, subscription, msg.getMessageId());
+                    }
+                    msg.release();
+                    return;
+                }
+            }
+
             // Increase the permits here since we will not increase permits while receive messages from consumer
             // after enabled message listener.
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
+
+            MessageImpl<T> innerMessage = (MessageImpl<T>) (msg instanceof TopicMessageImpl
+                    ? ((TopicMessageImpl<T>) msg).getMessage() : msg);
+            if (!receivedConsumer.isValidConsumerEpoch(innerMessage)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Skipping processing message since the consumer epoch is not valid. {}", topic,
+                            subscription, msg.getMessageId());
+                }
+                return;
+            }
+
             MessageId id;
             if (this instanceof ConsumerImpl) {
                 id = MessageIdAdvUtils.discardBatch(msg.getMessageId());
@@ -1190,7 +1263,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             unAckedMessageTracker.add(id, msg.getRedeliveryCount());
             beforeConsume(msg);
-            listener.received(ConsumerBase.this, msg);
+            Optional<EncryptionContext> encryptionCtx = msg.getEncryptionCtx();
+            if (decryptFailListener != null && encryptionCtx.isPresent() && encryptionCtx.get().isEncrypted()) {
+                decryptFailListener.received(ConsumerBase.this, msg);
+            } else {
+                listener.received(ConsumerBase.this, msg);
+            }
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
                     msg.getMessageId(), t);
@@ -1303,7 +1381,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             log.info("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
                     + "consumerEpoch : [{}]", topic, message.getMessageId(), message.getConsumerEpoch(), consumerEpoch);
             message.release();
-            message.recycle();
             return false;
         }
         return true;

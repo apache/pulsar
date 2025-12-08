@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.NotImplementedException;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -176,7 +176,14 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                 trackMessage(message);
                 unAckedMessageTracker.add(
                         MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
-                listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
+                if (decryptFailListener != null
+                        && message.getEncryptionCtx().isPresent()
+                        && message.getEncryptionCtx().get().isEncrypted()
+                ) {
+                    decryptFailListener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
+                } else {
+                    listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
+                }
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
                         message.getMessageId(), t);
@@ -194,10 +201,37 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     @Override
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
                                             int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
-                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch) {
+                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
+                                            boolean isEncrypted) {
+
+        rejectBatchMessageByClosingConsumer(
+                new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex())
+        );
+    }
+
+    @Override
+    protected void setCurrentReceiverQueueSize(int newSize) {
+        //receiver queue size is fixed as 0.
+        throw new NotImplementedException("Receiver queue size can't be changed in ZeroQueueConsumerImpl");
+    }
+
+    @Override
+    protected void processPayloadByProcessor(BrokerEntryMetadata brokerEntryMetadata,
+                                             MessageMetadata messageMetadata, ByteBuf byteBuf,
+                                             MessageIdImpl messageId, Schema<T> schema,
+                                             int redeliveryCount, List<Long> ackSet, long consumerEpoch) {
+        if (this.isBatch(messageMetadata)) {
+            rejectBatchMessageByClosingConsumer(messageId);
+        } else {
+            super.processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema,
+                    redeliveryCount, ackSet, consumerEpoch);
+        }
+    }
+
+    private void rejectBatchMessageByClosingConsumer(MessageIdImpl messageId) {
         log.warn(
-                "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
-                subscription, consumerName);
+            "Closing consumer [{}]-[{}] due to unsupported received batch-message: {} with zero receiver queue size",
+            subscription, consumerName, messageId);
         // close connection
         closeAsync().handle((ok, e) -> {
             // notify callback with failure result
@@ -207,11 +241,5 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                     subscription, consumerName)));
             return null;
         });
-    }
-
-    @Override
-    protected void setCurrentReceiverQueueSize(int newSize) {
-        //receiver queue size is fixed as 0.
-        throw new NotImplementedException("Receiver queue size can't be changed in ZeroQueueConsumerImpl");
     }
 }

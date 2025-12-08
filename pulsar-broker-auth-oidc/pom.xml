@@ -26,12 +26,13 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-auth-oidc</artifactId>
   <packaging>jar</packaging>
   <description>Open ID Connect authentication plugin for broker</description>
+  <name>Pulsar Broker Auth OIDC</name>
 
   <properties>
     <jsonwebtoken.version>0.11.5</jsonwebtoken.version>

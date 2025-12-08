@@ -131,7 +131,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperationAsync(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_TOPICS)
                 // Validate that namespace exists, throws 404 if it doesn't exist
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies -> internalGetListOfTopics(policies, mode))
+                .thenCompose(policies -> internalGetListOfTopics(response, policies, mode))
                 .thenApply(topics -> filterSystemTopic(topics, includeSystemTopic))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
@@ -456,7 +456,10 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{tenant}/{namespace}/replication")
-    @ApiOperation(value = "Set the replication clusters for a namespace.")
+    @ApiOperation(value = "Set the replication clusters for a namespace. "
+            + "When removing a cluster: "
+            + "with shared configuration store, data will be deleted from the removed cluster; "
+            + "with separate configuration store, only replication stops but data is preserved.")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),

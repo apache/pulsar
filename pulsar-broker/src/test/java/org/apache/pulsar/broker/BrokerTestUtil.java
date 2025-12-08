@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.awaitility.core.ThrowingRunnable;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 /**
@@ -112,7 +113,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Uses Jackson to create a JSON string for the given object
+     * Uses Jackson to create a JSON string for the given object.
      * @param object to convert to JSON
      * @return JSON string
      */
@@ -128,7 +129,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      *
      * @param logger      logger to use
      * @param pulsarAdmin PulsarAdmin client to use
@@ -146,7 +147,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      * @param logger logger to use
      * @param baseUrl Pulsar service URL
      * @param topic topic name
@@ -156,7 +157,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      * @param logger logger to use
      * @param baseUrl Pulsar service URL
      * @param tenant tenant name
@@ -173,7 +174,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Pretty print the given JSON string
+     * Pretty print the given JSON string.
      * @param jsonString JSON string to pretty print
      * @return pretty printed JSON string
      */
@@ -189,7 +190,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Get the resource as a string from the given URI
+     * Get the resource as a string from the given URI.
      */
     @SneakyThrows
     public static String getJsonResourceAsString(String uri) {
@@ -367,7 +368,8 @@ public class BrokerTestUtil {
         return createMockConsumer(consumerName, consumerName + " consumerId:" + consumerId, consumerId);
     }
 
-    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName, String toString, long consumerId) {
+    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName,
+                                                                               String toString, long consumerId) {
         // without stubOnly, the mock will record method invocations and could run into OOME
         org.apache.pulsar.broker.service.Consumer
                 consumer = mock(org.apache.pulsar.broker.service.Consumer.class, Mockito.withSettings().stubOnly());
@@ -375,5 +377,21 @@ public class BrokerTestUtil {
         when(consumer.toString()).thenReturn(consumerName + " consumerId:" + consumerId);
         when(consumer.consumerId()).thenReturn(consumerId);
         return consumer;
+    }
+
+    /**
+     * Utility method to log failed assertions happening inside an Awaitility.await().untilAsserted block.
+     * This can be used to debug failing tests.
+     * @param log Logger to use for logging the failure.
+     * @param runnable The runnable to run.
+     * @throws Throwable If the runnable throws an exception.
+     */
+    public static void logAssertionErrors(Logger log, ThrowingRunnable runnable) throws Throwable {
+        try {
+            runnable.run();
+        } catch (AssertionError e) {
+            log.error("Assertion failed", e);
+            throw e;
+        }
     }
 }

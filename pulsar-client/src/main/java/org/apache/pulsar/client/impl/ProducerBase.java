@@ -79,6 +79,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return new TypedMessageBuilderImpl<>(this, schema);
     }
 
+    @Override
     public <V> TypedMessageBuilder<V> newMessage(Schema<V> schema) {
         checkArgument(schema != null);
         return new TypedMessageBuilderImpl<>(this, schema);
@@ -89,6 +90,14 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         checkArgument(txn instanceof TransactionImpl);
 
 
+        return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
+    }
+
+    @Override
+    public <V> TypedMessageBuilder<V> newMessage(Schema<V> schema,
+                                                 Transaction txn) {
+        checkArgument(txn instanceof TransactionImpl);
+        checkArgument(schema != null);
         return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
     }
 

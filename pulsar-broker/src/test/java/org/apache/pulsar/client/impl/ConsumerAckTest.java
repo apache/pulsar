@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -26,7 +27,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -170,6 +171,50 @@ public class ConsumerAckTest extends ProducerConsumerBase {
         assertEquals(data.consumer.getStats().getNumAcksSent(), data.size());
         assertTrue(data.consumer.getUnAckedMessageTracker().isEmpty());
     }
+
+    @Test(timeOut = 10000)
+    public void testAcknowledgeWithNullMessageId() throws Exception {
+        final String topic = "testAcknowledgeWithNullMessageId";
+        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .subscribe();
+        List<MessageId> messageIdList = null;
+
+        // 1.pass null messageIdList to acknowledgeAsync(messageIdList, txn) will trigger
+        // PulsarClientException.InvalidMessageException
+        assertThatThrownBy(
+                () -> consumer.acknowledgeAsync(messageIdList, null).get()
+        )
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Cannot handle messages with null messageIdList")
+                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
+
+        // 2. pass null messageIdList to acknowledge(messageIdList) will trigger PulsarClientException
+        assertThatThrownBy(
+                () -> consumer.acknowledge(messageIdList)
+        ).isInstanceOf(PulsarClientException.class)
+                .hasMessage("Cannot handle messages with null messageIdList");
+
+        // 3. pass null messages to acknowledge(messages) will trigger PulsarClientException
+        Messages<?> messages = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledge(messages)
+        ).isInstanceOf(PulsarClientException.class)
+                .hasMessage("Cannot handle messages with null messages");
+
+        // 4. pass null messageId to acknowledgeCumulativeAsync(messageId, txn) will trigger
+        // PulsarClientException.InvalidMessageException
+        MessageId messageId = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledgeCumulativeAsync(messageId, null).get()
+        )
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Cannot handle message with null messageId")
+                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
+
+    }
+
 
     @Test
     public void testCumulativeAck() throws Exception {
