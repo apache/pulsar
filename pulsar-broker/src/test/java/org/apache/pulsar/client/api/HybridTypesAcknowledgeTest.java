@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -35,6 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -222,7 +224,14 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
             c1.acknowledge(m1);
         }
 
-        //Thread.sleep(10_000); TODO 注释掉之后，会有并发问题。
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, ? extends SubscriptionStats> statsPrecise =
+                    admin.topics().getStats(topic, true).getSubscriptions();
+            assertEquals(statsPrecise.get("s2").getMsgBacklog(), 100 + cachedMessagesInMem2.size());
+            assertEquals(statsPrecise.get("s3").getMsgBacklog(), 100 + cachedMessagesInMem3.size());
+            assertEquals(statsPrecise.get("s4").getMsgBacklog(), 100 + cachedMessagesInMem4.size());
+        });
+
         // c2: ack all messages that un-acked
         // c3: seek to skip all messages that un0acked.
         // c4: cumulative to skip all messages that un-acked.
@@ -233,9 +242,10 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
         // c3.
         MessageIdAdv messageIdAdv =
                 (MessageIdAdv) cachedMessagesInMem3.get(cachedMessagesInMem3.size() - 1).getMessageId();
-        Position pos = ml.getNextValidPosition(PositionFactory.create(messageIdAdv.getLedgerId(), messageIdAdv.getEntryId()));
+        Position pos = ml.getNextValidPosition(PositionFactory.create(messageIdAdv.getLedgerId(),
+                messageIdAdv.getEntryId()));
         c3.seek(new MessageIdImpl(pos.getLedgerId(), pos.getEntryId(), -1));
-        c3.acknowledgeCumulative(cachedMessagesInMem3.get(cachedMessagesInMem3.size() - 1)); //TODO ack 和 cumulative ack 都执行，会有问题。
+        c3.acknowledgeCumulative(cachedMessagesInMem3.get(cachedMessagesInMem3.size() - 1));
         // c4.
         c4.acknowledgeCumulative(cachedMessagesInMem3.get(cachedMessagesInMem3.size() - 1));
 
@@ -255,6 +265,7 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
     public Object[][] resetDirection() {
         return  new Object[][]{
             {"forward"},
+            {"stationary"},
             {"backward"}
         };
     }
@@ -331,6 +342,14 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
             }
         }
 
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, ? extends SubscriptionStats> statsPrecise =
+                    admin.topics().getStats(topic, true).getSubscriptions();
+            assertEquals(statsPrecise.get("s2").getMsgBacklog(), 100 + cachedMessagesInMem2.size());
+            assertEquals(statsPrecise.get("s3").getMsgBacklog(), 100 + cachedMessagesInMem3.size());
+            assertEquals(statsPrecise.get("s4").getMsgBacklog(), 100 + cachedMessagesInMem4.size());
+        });
+
         log.info("subscription cached unacked messages: " + cachedMessagesInMem3.size() + ", acked list: "
                 + randomlyAcked.size() + ", acked set: " + new HashSet<>(randomlyAcked).size());
         assertEquals(randomlyAcked.size(), new HashSet<>(randomlyAcked).size());
@@ -353,14 +372,24 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
         }
 
         // c3.
+        ManagedCursorImpl cursor3 = (ManagedCursorImpl) ml.getCursors().get("s3");
         assertTrue(cachedMessagesInMem3.size() >= 2);
         MessageId targetMessageId;
         if ("forward".equals(resetDirection)) {
             targetMessageId = cachedMessagesInMem3.get(cachedMessagesInMem3.size() >> 1).getMessageId();
+        } else if ("stationary".equals(resetDirection)) {
+            Position mdPosition = ml.getCursors().get("s3").getMarkDeletedPosition();
+            targetMessageId = new MessageIdImpl(mdPosition.getLedgerId(), mdPosition.getEntryId(), -1);
         } else {
             targetMessageId = messageId200;
         }
+        log.info("cursor3 before seek. md-pos: {}, individualAcks: {}, targetPosition: {}, backlog: {}",
+                cursor3.getMarkDeletedPosition(), cursor3.getIndividuallyDeletedMessages(), targetMessageId,
+                cursor3.getNumberOfEntriesInBacklog(false));
         c3.seek(targetMessageId);
+        log.info("cursor3 after seek. md-pos: {}, individualAcks: {}, targetPosition: {}, backlog: {}",
+                cursor3.getMarkDeletedPosition(), cursor3.getIndividuallyDeletedMessages(), targetMessageId,
+                cursor3.getNumberOfEntriesInBacklog(false));
 
         // c4.
         c4.acknowledgeCumulative(targetMessageId);
