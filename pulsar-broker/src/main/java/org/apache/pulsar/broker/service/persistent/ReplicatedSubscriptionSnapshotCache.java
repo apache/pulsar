@@ -279,11 +279,7 @@ public class ReplicatedSubscriptionSnapshotCache {
 
         // handle the case where the entry to remove is the last entry that has been sorted
         if (lastSortedEntry == minEntry) {
-            if (minEntryPrevious != head) {
-                lastSortedEntry = minEntryPrevious;
-            } else {
-                lastSortedEntry = null;
-            }
+            lastSortedEntry = minEntryPrevious;
         }
 
         // update distanceToPrevious for the next entry
@@ -381,5 +377,10 @@ public class ReplicatedSubscriptionSnapshotCache {
             current = current.next;
         }
         return snapshots;
+    }
+
+    @VisibleForTesting
+    synchronized int size() {
+        return numberOfSnapshots;
     }
 }
