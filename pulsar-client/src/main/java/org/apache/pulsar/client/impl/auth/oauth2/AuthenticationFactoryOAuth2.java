@@ -22,6 +22,7 @@ import java.net.URL;
 import java.time.Clock;
 import java.time.Duration;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
@@ -67,6 +68,17 @@ public final class AuthenticationFactoryOAuth2 {
      */
     public static ClientCredentialsBuilder clientCredentialsBuilder() {
         return new ClientCredentialsBuilder();
+    }
+
+    /**
+     * A builder to create an authentication with client credentials using standard OAuth 2.0 metadata path
+     * as defined in RFC 8414 ("/.well-known/oauth-authorization-server").
+     *
+     * @return the builder pre-configured to use standard OAuth 2.0 metadata path
+     */
+    public static ClientCredentialsBuilder clientCredentialsWithStandardAuthzServerBuilder() {
+        return new ClientCredentialsBuilder()
+                .wellKnownMetadataPath(DefaultMetadataResolver.getOAuthWellKnownMetadataPath());
     }
 
     public static class ClientCredentialsBuilder {
@@ -165,7 +177,7 @@ public final class AuthenticationFactoryOAuth2 {
         }
 
         /**
-         * Optional well-known metadata path
+         * Optional well-known metadata path.
          *
          * @param wellKnownMetadataPath the well-known metadata path (must start with "/.well-known/")
          * @return the builder

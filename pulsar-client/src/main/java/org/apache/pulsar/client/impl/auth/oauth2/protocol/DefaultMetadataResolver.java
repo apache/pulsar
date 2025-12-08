@@ -38,6 +38,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
 
     private static final String WELL_KNOWN_PREFIX = "/.well-known/";
     private static final String DEFAULT_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "openid-configuration";
+    private static final String OAUTH_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "oauth-authorization-server";
 
     private final URL metadataUrl;
     private final ObjectReader objectReader;
@@ -50,6 +51,15 @@ public class DefaultMetadataResolver implements MetadataResolver {
     }
 
     /**
+     * Gets the OAuth 2.0 Authorization Server Metadata path as defined in RFC 8414.
+     *
+     * @return the OAuth 2.0 Authorization Server Metadata path
+     */
+    public static String getOAuthWellKnownMetadataPath() {
+        return OAUTH_WELL_KNOWN_METADATA_PATH;
+    }
+
+    /**
      * Gets a well-known metadata URL for the given OAuth issuer URL.
      *
      * @param issuerUrl The authorization server's issuer identifier
@@ -57,7 +67,8 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * @param wellKnownMetadataPath The well-known metadata path (must start with "/.well-known/")
      * @return a resolver
      */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient, String wellKnownMetadataPath) {
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient,
+                                                        String wellKnownMetadataPath) {
         if (wellKnownMetadataPath != null) {
             return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl, wellKnownMetadataPath), httpClient);
         }
@@ -81,7 +92,8 @@ public class DefaultMetadataResolver implements MetadataResolver {
             if (wellKnownMetadataPath.startsWith(WELL_KNOWN_PREFIX)) {
                 return URI.create(issuerUrl.toExternalForm() + wellKnownMetadataPath).normalize().toURL();
             } else {
-                throw new IllegalArgumentException("Metadata path must start with '" + WELL_KNOWN_PREFIX + "', but was: " + wellKnownMetadataPath);
+                throw new IllegalArgumentException("Metadata path must start with '" + WELL_KNOWN_PREFIX
+                        + "', but was: " + wellKnownMetadataPath);
             }
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e);

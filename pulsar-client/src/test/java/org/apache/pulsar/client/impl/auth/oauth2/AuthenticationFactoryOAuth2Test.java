@@ -48,6 +48,19 @@ public class AuthenticationFactoryOAuth2Test {
     }
 
     @Test
+    public void testStandardAuthzServerBuilder() throws IOException {
+        URL issuerUrl = new URL("http://localhost");
+        URL credentialsUrl = new URL("http://localhost");
+        String audience = "audience";
+        String scope = "scope";
+        try (Authentication authentication =
+                     AuthenticationFactoryOAuth2.clientCredentialsWithStandardAuthzServerBuilder().issuerUrl(issuerUrl)
+                             .credentialsUrl(credentialsUrl).audience(audience).scope(scope).build()) {
+            assertTrue(authentication instanceof AuthenticationOAuth2);
+        }
+    }
+
+    @Test
     public void testClientCredentials() throws IOException {
         URL issuerUrl = new URL("http://localhost");
         URL credentialsUrl = new URL("http://localhost");
