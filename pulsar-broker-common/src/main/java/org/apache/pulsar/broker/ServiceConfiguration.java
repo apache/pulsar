@@ -1548,7 +1548,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Max number of snapshot to be cached per subscription.")
-    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 100;
+    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 30;
 
     @FieldContext(
             category = CATEGORY_SERVER,
