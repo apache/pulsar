@@ -62,7 +62,7 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Builder
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
-                                 Duration connectTimeout, Duration readTimeout, String trustCertsFilePath, 
+                                 Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                                  String wellKnownMetadataPath) {
         super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, wellKnownMetadataPath);
         this.audience = audience;

@@ -60,7 +60,7 @@ abstract class FlowBase implements Flow {
 
     protected transient Metadata metadata;
 
-    protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath, 
+    protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                        String wellKnownMetadataPath) {
         this.issuerUrl = issuerUrl;
         this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
