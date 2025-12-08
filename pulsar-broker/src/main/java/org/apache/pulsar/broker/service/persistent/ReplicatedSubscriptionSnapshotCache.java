@@ -127,14 +127,13 @@ public class ReplicatedSubscriptionSnapshotCache {
     static class SnapshotEntry implements Comparable<SnapshotEntry> {
         private final Position position;
         private final List<ClusterEntry> clusters;
-        private long distanceToPrevious;
+        private long distanceToPrevious = -1;
         private SnapshotEntry next;
         private SnapshotEntry prev;
 
-        SnapshotEntry(Position position, List<ClusterEntry> clusters, long distanceToPrevious) {
+        SnapshotEntry(Position position, List<ClusterEntry> clusters) {
             this.position = position;
             this.clusters = clusters;
-            this.distanceToPrevious = distanceToPrevious;
         }
 
         Position position() {
@@ -201,7 +200,6 @@ public class ReplicatedSubscriptionSnapshotCache {
         MarkersMessageIdData msgId = snapshot.getLocalMessageId();
         Position position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
 
-
         if (tail != null && position.compareTo(tail.position) <= 0) {
             // clear the entries in the cache if the new snapshot is older than the last one
             // this means that the subscription has been resetted
@@ -223,23 +221,26 @@ public class ReplicatedSubscriptionSnapshotCache {
                     return new ClusterEntry(StringInterner.intern(cmid.getCluster()), clusterPosition);
                 })
                 .toList();
+
         // optimize heap memory consumption of the cache
         if (clusterEntryList.size() == 2) {
             clusterEntryList = List.of(clusterEntryList.get(0), clusterEntryList.get(1));
         } else if (clusterEntryList.size() == 3) {
             clusterEntryList = List.of(clusterEntryList.get(0), clusterEntryList.get(1), clusterEntryList.get(2));
         }
-        SnapshotEntry entry = new SnapshotEntry(position, clusterEntryList,
-                tail == null ? 0L : distanceFunction.applyAsLong(Range.open(tail.position, position)));
+
+        SnapshotEntry entry = new SnapshotEntry(position, clusterEntryList);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Added new replicated-subscription snapshot at {} -- {}", subscription, position,
                     snapshot.getSnapshotId());
         }
 
+        // append to the double-linked list
         if (head == null) {
             head = entry;
             tail = entry;
+            entry.setDistanceToPrevious(0);
         } else {
             tail.setNext(entry);
             entry.setPrev(tail);
@@ -254,16 +255,14 @@ public class ReplicatedSubscriptionSnapshotCache {
     }
 
     private void removeSingleEntryWithMinimumTotalDistanceToPreviousAndNext() {
-        SnapshotEntry current = lastSortedEntry != null ? lastSortedEntry.next : head.next;
-        while (current != null && current != tail) {
-            sortedSnapshots.add(current);
-            lastSortedEntry = current;
-            current = current.next;
-        }
+        updateSortedEntriesByTotalDistance();
+
         SnapshotEntry minEntry = sortedSnapshots.first();
-        sortedSnapshots.remove(minEntry);
         SnapshotEntry minEntryNext = minEntry.next;
         SnapshotEntry minEntryPrevious = minEntry.prev;
+
+        // remove minEntry from the sorted set
+        sortedSnapshots.remove(minEntry);
 
         // remove minEntryPrevious and minEntryNext from the sorted set since the distance will be updated
         if (minEntryNext != tail) {
@@ -277,6 +276,8 @@ public class ReplicatedSubscriptionSnapshotCache {
         minEntryPrevious.setNext(minEntryNext);
         minEntryNext.setPrev(minEntryPrevious);
         numberOfSnapshots--;
+
+        // handle the case where the entry to remove is the last entry that has been sorted
         if (lastSortedEntry == minEntry) {
             if (minEntryPrevious != head) {
                 lastSortedEntry = minEntryPrevious;
@@ -288,12 +289,39 @@ public class ReplicatedSubscriptionSnapshotCache {
         // update distanceToPrevious for the next entry
         minEntryNext.setDistanceToPrevious(minEntryNext.distanceToPrevious + minEntry.distanceToPrevious);
 
-        // add entries back so that they are sorted
+        // add entries back to the sorted set so that entries up to lastSortedEntry are sorted
         if (minEntryNext != tail) {
             sortedSnapshots.add(minEntryNext);
         }
         if (minEntryPrevious != head) {
             sortedSnapshots.add(minEntryPrevious);
+        }
+    }
+
+    /**
+     * Maintains a sorted set of entries ordered by their total distance to adjacent entries.
+     * This method calculates the 'distanceToPrevious' field for both current and next entries before adding them to the
+     * sorted set. Subsequent calls to this method will continue processing from where the last entry was added.
+     */
+    private void updateSortedEntriesByTotalDistance() {
+        SnapshotEntry current = lastSortedEntry != null ? lastSortedEntry.next : head.next;
+        SnapshotEntry previousLoopEntry = null;
+        while (current != null) {
+            // calculate the distance to the previous snapshot entry
+            if (current.distanceToPrevious == -1) {
+                long distanceToPrevious =
+                        distanceFunction.applyAsLong(Range.open(current.prev.position, current.position));
+                current.setDistanceToPrevious(distanceToPrevious);
+            }
+            // Add the entry to the sorted set, which is sorted by total distance to the previous and the next entry.
+            // We cannot add the current entry here since sorting requires that the current and next entries have
+            // their distanceToPrevious field set.
+            if (previousLoopEntry != null) {
+                sortedSnapshots.add(previousLoopEntry);
+                lastSortedEntry = previousLoopEntry;
+            }
+            previousLoopEntry = current;
+            current = current.next;
         }
     }
 
