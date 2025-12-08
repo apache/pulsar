@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
@@ -58,7 +59,7 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
  * Encapsulate all the logic of replicated subscriptions tracking for a given topic.
  */
 @Slf4j
-public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.PublishContext {
+public class ReplicatedSubscriptionsController implements AutoCloseable {
     private final PersistentTopic topic;
     private final String localCluster;
 
@@ -66,8 +67,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private volatile long lastCompletedSnapshotStartTime = 0;
 
     private String lastCompletedSnapshotId;
-
-    private volatile Position positionOfLastLocalMarker;
 
     private final ScheduledFuture<?> timer;
 
@@ -92,6 +91,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     private final OpenTelemetryReplicatedSubscriptionStats stats;
 
+    private final ReplicatedSubscriptionsControllerPublishContext defaultPublishContext;
+
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
         this.localCluster = localCluster;
@@ -101,6 +102,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                         pulsar.getConfiguration().getReplicatedSubscriptionsSnapshotFrequencyMillis(),
                         TimeUnit.MILLISECONDS);
         stats = pulsar.getOpenTelemetryReplicatedSubscriptionStats();
+        defaultPublishContext = new ReplicatedSubscriptionsControllerPublishContext(topic, null);
     }
 
     public void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
@@ -317,26 +319,21 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     void writeMarker(ByteBuf marker) {
+        writeMarker(marker, defaultPublishContext);
+    }
+
+    CompletableFuture<Position> writeMarkerAsync(ByteBuf marker) {
+        CompletableFuture<Position> future = new CompletableFuture<>();
+        writeMarker(marker, new ReplicatedSubscriptionsControllerPublishContext(topic, future));
+        return future;
+    }
+
+    private void writeMarker(ByteBuf marker, Topic.PublishContext publishContext) {
         try {
-            topic.publishMessage(marker, this);
+            topic.publishMessage(marker, publishContext);
         } finally {
             marker.release();
         }
-    }
-
-    /**
-     * From Topic.PublishContext.
-     */
-    @Override
-    public void completed(Exception e, long ledgerId, long entryId) {
-        // Nothing to do in case of publish errors since the retry logic is applied upstream after a snapshot is not
-        // closed
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Published marker at {}:{}. Exception: {}",
-                    topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), ledgerId, entryId, e);
-        }
-
-        this.positionOfLastLocalMarker = PositionFactory.create(ledgerId, entryId);
     }
 
     PersistentTopic topic() {
@@ -353,13 +350,42 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     @Override
-    public boolean isMarkerMessage() {
-        // Everything published by this controller will be a marker a message
-        return true;
-    }
-
-    @Override
     public void close() {
         timer.cancel(true);
+    }
+
+    private static class ReplicatedSubscriptionsControllerPublishContext implements Topic.PublishContext {
+        private final PersistentTopic topic;
+        private final CompletableFuture<Position> future;
+
+        public ReplicatedSubscriptionsControllerPublishContext(PersistentTopic topic,
+                                                               CompletableFuture<Position> future) {
+            this.topic = topic;
+            this.future = future;
+        }
+
+        @Override
+        public void completed(Exception e, long ledgerId, long entryId) {
+            // Nothing to do in case of publish errors since the retry logic is applied upstream after a
+            // snapshot is not closed
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Published marker at {}:{}. Exception: {}",
+                        topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), ledgerId, entryId, e);
+            }
+
+            if (future != null) {
+                if (e != null) {
+                    future.completeExceptionally(e);
+                } else {
+                    future.complete(PositionFactory.create(ledgerId, entryId));
+                }
+            }
+        }
+
+        @Override
+        public boolean isMarkerMessage() {
+            // Everything published by this controller will be a marker a message
+            return true;
+        }
     }
 }
