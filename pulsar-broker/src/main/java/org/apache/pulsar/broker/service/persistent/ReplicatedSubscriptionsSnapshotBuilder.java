@@ -25,7 +25,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
@@ -58,7 +57,6 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     @Deprecated
     public static final Summary SNAPSHOT_METRIC = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
             "Time taken to create a consistent snapshot across clusters").register();
-    private CompletableFuture<Position> requestPositionFuture;
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
                                                   Set<String> remoteClusters, ServiceConfiguration conf, Clock clock) {
@@ -84,7 +82,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
                     missingClusters);
         }
         startTimeMillis = clock.millis();
-        requestPositionFuture = controller.writeMarkerAsync(
+        controller.writeMarker(
                 Markers.newReplicatedSubscriptionsSnapshotRequest(snapshotId, controller.localCluster()));
     }
 
@@ -122,16 +120,12 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
             log.debug("[{}] Snapshot is complete {}", controller.topic().getName(), snapshotId);
         }
         // Snapshot is now complete, store it in the local topic
-
-        if (!requestPositionFuture.isDone()) {
-            throw new IllegalStateException("Snapshot request was not completed. This is unexpected.");
-        }
-
-        Position requestPosition = requestPositionFuture.join();
+        Position p = position;
         controller.writeMarker(
                 Markers.newReplicatedSubscriptionsSnapshot(snapshotId, controller.localCluster(),
-                        requestPosition.getLedgerId(), requestPosition.getEntryId(), responses));
+                        p.getLedgerId(), p.getEntryId(), responses));
         controller.snapshotCompleted(snapshotId);
+
     }
 
     boolean isTimedOut() {
