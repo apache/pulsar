@@ -499,7 +499,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 dispatcher.afterAckMessages(null, ctx);
             }
             // Signal the dispatchers to give chance to take extra actions
-            notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
+            notifyTheMarkDeletePositionChanged(oldMD);
         }
 
         @Override
@@ -526,7 +526,7 @@ public class PersistentSubscription extends AbstractSubscription {
             if (dispatcher != null) {
                 dispatcher.afterAckMessages(null, context);
             }
-            notifyTheMarkDeletePositionMoveForwardIfNeeded((Position) context);
+            notifyTheMarkDeletePositionChanged((Position) context);
         }
 
         @Override
@@ -545,12 +545,11 @@ public class PersistentSubscription extends AbstractSubscription {
      * acknowledgements.
      * @param oldPosition previous mark-delete position before the update
      */
-    private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
-        Position oldMD = oldPosition;
+    private void notifyTheMarkDeletePositionChanged(Position oldPosition) {
         Position newMD = cursor.getMarkDeletedPosition();
 
-        // check if the mark delete position has advanced since the last call
-        if (newMD.compareTo(oldMD) > 0) {
+        // check if the mark delete position has changed since the last call
+        if (newMD.compareTo(oldPosition) != 0) {
             updateLastMarkDeleteAdvancedTimestamp();
             handleReplicatedSubscriptionsUpdate(newMD);
 
