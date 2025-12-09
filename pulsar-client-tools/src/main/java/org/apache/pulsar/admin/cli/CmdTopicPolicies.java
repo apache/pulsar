@@ -2019,7 +2019,7 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters);
+            sync(() -> getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters));
         }
     }
 
