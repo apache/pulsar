@@ -616,10 +616,6 @@ public class Consumer {
 
             totalAckCount += ackedCount;
         }
-        if (positionsAcked.isEmpty()) {
-            log.warn("[{}] [{}] no valid messages acked", subscription, consumerId);
-            return CompletableFuture.completedFuture(0L);
-        }
         subscription.acknowledgeMessage(positionsAcked.stream()
                 .map(Pair::getRight)
                 .collect(Collectors.toList()), AckType.Individual, properties);
@@ -696,11 +692,6 @@ public class Consumer {
             checkAckValidationError(ack, position);
 
             totalAckCount.add(ackedCount);
-        }
-        if (positionsAcked.isEmpty()) {
-            log.warn("[{}] [{}] no valid messages acked with txn {}-{}", subscription, consumerId,
-                    ack.getTxnidMostBits(), ack.getTxnidLeastBits());
-            return CompletableFuture.completedFuture(0L);
         }
 
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
