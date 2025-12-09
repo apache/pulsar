@@ -107,7 +107,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         try {
             switch (markerType) {
             case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
-                receivedSnapshotRequest(position, Markers.parseReplicatedSubscriptionsSnapshotRequest(payload));
+                receivedSnapshotRequest(Markers.parseReplicatedSubscriptionsSnapshotRequest(payload));
                 break;
 
             case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE:
@@ -146,24 +146,27 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         writeMarker(subscriptionUpdate);
     }
 
-    private void receivedSnapshotRequest(Position position, ReplicatedSubscriptionsSnapshotRequest request) {
+    private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
         // if replicator producer is already closed, restart it to send snapshot response
         Replicator replicator = topic.getReplicators().get(request.getSourceCluster());
         if (!replicator.isConnected()) {
             topic.startReplProducers();
         }
 
-        // Send response containing the current position of the request message.
+        // Send response containing the current last written message id. The response
+        // marker we're publishing locally and then replicating will have a higher
+        // message id.
+        Position lastMsgId = topic.getLastPosition();
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received snapshot request. position: {}",
-                    topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), position);
+            log.debug("[{}][{}] Received snapshot request. Last msg id: {}",
+                    topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), lastMsgId);
         }
 
         ByteBuf marker = Markers.newReplicatedSubscriptionsSnapshotResponse(
                 request.getSnapshotId(),
                 request.getSourceCluster(),
                 localCluster,
-                position.getLedgerId(), position.getEntryId());
+                lastMsgId.getLedgerId(), lastMsgId.getEntryId());
         writeMarker(marker);
     }
 
