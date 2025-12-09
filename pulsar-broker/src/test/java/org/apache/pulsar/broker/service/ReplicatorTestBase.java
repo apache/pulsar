@@ -128,7 +128,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     protected final String cluster2 = "r2";
     protected final String cluster3 = "r3";
     protected final String cluster4 = "r4";
-    protected String loadManagerClassName;
+    protected String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
 
     protected String getLoadManagerClassName() {
         return loadManagerClassName;

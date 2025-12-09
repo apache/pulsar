@@ -156,7 +156,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         // message id.
         Position lastMsgId = topic.getLastPosition();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received snapshot request. Last msg id: {}", topic.getName(), lastMsgId);
+            log.debug("[{}][{}] Received snapshot request. Last msg id: {}",
+                    topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), lastMsgId);
         }
 
         ByteBuf marker = Markers.newReplicatedSubscriptionsSnapshotResponse(
@@ -241,7 +242,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 || topic.getLastMaxReadPositionMovedForwardTimestamp() == 0) {
             // There was no message written since the last snapshot, we can skip creating a new snapshot
             if (log.isDebugEnabled()) {
-                log.debug("[{}] There is no new data in topic. Skipping snapshot creation.", topic.getName());
+                log.debug("[{}][{}] There is no new data in topic. Skipping snapshot creation.",
+                        topic.getBrokerService().pulsar().getBrokerId(), topic.getName());
             }
             return;
         }
@@ -263,7 +265,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Starting snapshot creation.", topic.getName());
+            log.debug("[{}][{}] Starting snapshot creation.", topic.getBrokerService().pulsar().getBrokerId(),
+                    topic.getName());
         }
 
         pendingSnapshotsMetric.inc();
@@ -327,7 +330,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         // Nothing to do in case of publish errors since the retry logic is applied upstream after a snapshot is not
         // closed
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
+            log.debug("[{}][{}] Published marker at {}:{}. Exception: {}",
+                    topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), ledgerId, entryId, e);
         }
 
         this.positionOfLastLocalMarker = PositionFactory.create(ledgerId, entryId);
