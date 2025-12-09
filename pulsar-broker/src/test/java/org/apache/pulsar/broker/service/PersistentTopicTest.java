@@ -135,6 +135,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.Codec;
@@ -2334,14 +2335,22 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         when(ledgerMock.getLedgersInfo()).thenReturn(new java.util.TreeMap<>(Map.of(1L,
                 mock(org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo.class))));
 
-        // Mock the last entry to return a timestamp
-        Entry entryMock = mock(Entry.class);
-        MessageMetadata metadata = new MessageMetadata();
-        metadata.setPublishTime(timestampFromStorage);
-        when(entryMock.getMessageMetadata()).thenReturn(metadata);
-
-        // Mock asyncReadEntry to invoke callback with the mocked entry
+        // Mock asyncReadEntry to invoke callback with a fresh entry each time
         doAnswer(invocation -> {
+            // Create a fresh entry with metadata each time this is called
+            Entry entryMock = mock(Entry.class);
+            MessageMetadata metadata = new MessageMetadata();
+            metadata.setProducerName("test-producer");
+            metadata.setSequenceId(0);
+            metadata.setPublishTime(timestampFromStorage);
+
+            // Serialize using the existing utility method
+            ByteBuf payload = Unpooled.wrappedBuffer(new byte[0]);
+            ByteBuf entryData = Commands.serializeMetadataAndPayload(
+                    Commands.ChecksumType.None, metadata, payload);
+
+            when(entryMock.getDataBuffer()).thenReturn(entryData);
+
             AsyncCallbacks.ReadEntryCallback callback = invocation.getArgument(1);
             callback.readEntryComplete(entryMock, null);
             return null;
