@@ -1274,10 +1274,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void getBookieAffinityGroup(@Suspended AsyncResponse asyncResponse,
-                                                          @PathParam("tenant") String tenant,
-                                                          @PathParam("cluster") String cluster,
-                                                          @PathParam("namespace") String namespace) {
+    public void getBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                       @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, cluster, namespace);
         internalGetBookieAffinityGroupAsync()
                 .thenAccept(asyncResponse::resume)
