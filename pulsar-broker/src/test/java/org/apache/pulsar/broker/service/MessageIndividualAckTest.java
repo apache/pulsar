@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.api.proto.CommandAck.AckType.Individual;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Key_Shared;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -47,6 +46,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.Codec;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -109,7 +109,8 @@ public class MessageIndividualAckTest {
 
     @Test(timeOut = 5000, dataProvider = "individualAckModes")
     public void testIndividualAckNormalWithMessageNotExist(CommandSubscribe.SubType subType) throws Exception {
-        KeySharedMeta keySharedMeta = subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
+        KeySharedMeta keySharedMeta =
+                subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
         Consumer consumer = new Consumer(sub, subType, "testIndividualAckNormal", consumerId, 0,
                 "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, keySharedMeta,
                 MessageId.latest, DEFAULT_CONSUMER_EPOCH);
@@ -126,7 +127,7 @@ public class MessageIndividualAckTest {
         commandAck.setConsumerId(consumerId);
         commandAck.addMessageId().setEntryId(notExistEntryId).setLedgerId(notExistLedgerId);
         Long l1 = consumer.individualAckNormal(commandAck, null).get();
-        assertEquals(0L, l1.longValue());
+        Assert.assertEquals(0L, l1.longValue());
 
         // ack two messages that one exists and the other not and individualAckNormal() should return 1
         consumer.getPendingAcks().addPendingAckIfAllowed(existLedgerId, existEntryId, 1, 99);
@@ -136,13 +137,14 @@ public class MessageIndividualAckTest {
         commandAck.addMessageId().setEntryId(notExistEntryId).setLedgerId(notExistLedgerId);
         commandAck.addMessageId().setEntryId(existEntryId).setLedgerId(existLedgerId);
         Long l2 = consumer.individualAckNormal(commandAck, null).get();
-        assertEquals(1L, l2.longValue());
+        Assert.assertEquals(1L, l2.longValue());
     }
 
 
     @Test(timeOut = 5000, dataProvider = "individualAckModes")
     public void testIndividualAckWithTransactionWithMessageNotExist(CommandSubscribe.SubType subType) throws Exception {
-        KeySharedMeta keySharedMeta = subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
+        KeySharedMeta keySharedMeta =
+                subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
         sub.getTopic().getBrokerService().getPulsar().getConfig().setTransactionCoordinatorEnabled(true);
         Consumer consumer = new Consumer(sub, subType, "testIndividualAck", consumerId, 0,
                 "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, keySharedMeta,
@@ -159,7 +161,7 @@ public class MessageIndividualAckTest {
         commandAck.setConsumerId(consumerId);
         commandAck.addMessageId().setEntryId(notExistEntryId).setLedgerId(notExistLedgerId);
         Long l1 = consumer.individualAckWithTransaction(commandAck).get();
-        assertEquals(0L, l1.longValue());
+        Assert.assertEquals(0L, l1.longValue());
     }
 
 }
