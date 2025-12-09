@@ -368,6 +368,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return future;
     }
 
+    public boolean checkBundleDataExistInMetadataStore(String bundle) {
+        Optional<BundleData> optBundleData =
+                    pulsarResources.getLoadBalanceResources().getBundleDataResources().getBundleData(bundle).join();
+
+        return optBundleData.isPresent();
+    }
+
     // Attempt to local the data for the given bundle in metadata store
     // If it cannot be found, return the default bundle data.
     @Override
@@ -767,6 +774,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         continue;
                     }
 
+                    if (!checkBundleDataExistInMetadataStore(bundleName)) {
+                        log.warn("Bundle {} has been removed on the metadata store, skip split this bundle ",
+                            bundleName);
+                        continue;
+                    }
+
                     // Make sure the same bundle is not selected again.
                     loadData.getBundleData().remove(bundleName);
                     localData.getLastStats().remove(bundleName);
@@ -794,7 +807,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 }
             }
 
-            writeBrokerDataOnZooKeeper(true);
             updateBundleSplitMetrics(splitCount);
         }
 

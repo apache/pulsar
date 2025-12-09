@@ -1163,7 +1163,7 @@ public class ModularLoadManagerImplTest {
         String topicToFindBundle = topicName + 0;
         NamespaceBundle realBundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
         String bundleKey = realBundle.toString();
-        log.info("bundle={}", bundleKey);
+        log.info("Before bundle={}", bundleKey);
 
         NamespaceBundleStats stats = new NamespaceBundleStats();
         stats.msgRateIn = 100000.0;
