@@ -1013,7 +1013,7 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-
+    @Deprecated
     protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
         validateSuperUserAccess();
         log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
@@ -1052,8 +1052,35 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected CompletableFuture<Void> internalSetBookieAffinityGroupAsync(BookieAffinityGroupData bookieAffinityGroup) {
+        return validateSuperUserAccessAsync().thenCompose(__ -> {
+            log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
+                    this.namespaceName);
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
+                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
+            }
+        }).thenCompose(__ -> getDefaultBundleDataAsync().thenCompose(
+                defaultBundleData -> getLocalPolicies().setLocalPoliciesWithCreateAsync(namespaceName, oldPolicies ->
+                        oldPolicies.map(policies -> new LocalPolicies(policies.bundles, bookieAffinityGroup,
+                                        policies.namespaceAntiAffinityGroup, policies.migrated))
+                                .orElseGet(() -> new LocalPolicies(defaultBundleData, bookieAffinityGroup, null)))))
+        .thenAccept(__ -> {
+            log.info("[{}] Successfully updated bookie affinity group: namespace={}, map={}", clientAppId(),
+                    namespaceName, bookieAffinityGroup);
+        });
+    }
+
+    @Deprecated
     protected void internalDeleteBookieAffinityGroup() {
         internalSetBookieAffinityGroup(null);
+    }
+
+    protected CompletableFuture<Void> internalDeleteBookieAffinityGroupAsync() {
+        return internalSetBookieAffinityGroupAsync(null);
     }
 
     protected BookieAffinityGroupData internalGetBookieAffinityGroup() {
@@ -1082,6 +1109,21 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<BookieAffinityGroupData> internalGetBookieAffinityGroupAsync() {
+        return validateSuperUserAccessAsync().thenCompose(__ -> {
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
+                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
+            }
+        }).thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.orElseThrow(
+                        () -> new RestException(Status.NOT_FOUND, "Namespace local-policies does not exist"))
+                        .bookieAffinityGroup);
     }
 
     private CompletableFuture<Void> validateLeaderBrokerAsync() {
@@ -2988,6 +3030,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     // TODO remove this sync method after async refactor
+    @Deprecated
     private BundlesData getDefaultBundleData() {
         try {
             return getDefaultBundleDataAsync().get(config().getMetadataStoreOperationTimeoutSeconds(),

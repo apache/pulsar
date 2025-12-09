@@ -1245,45 +1245,70 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @Path("/{tenant}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Set the bookie-affinity-group to namespace-local policy.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void setBookieAffinityGroup(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, BookieAffinityGroupData bookieAffinityGroup) {
-        validateNamespaceName(property, cluster, namespace);
-        internalSetBookieAffinityGroup(bookieAffinityGroup);
+    public void setBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                       @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                       BookieAffinityGroupData bookieAffinityGroup) {
+        validateNamespaceName(tenant, cluster, namespace);
+        internalSetBookieAffinityGroupAsync(bookieAffinityGroup)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set bookie affinity group for namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
-    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @Path("/{tenant}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Get the bookie-affinity-group from namespace-local policy.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public BookieAffinityGroupData getBookieAffinityGroup(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, cluster, namespace);
-        return internalGetBookieAffinityGroup();
+    public void getBookieAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                                          @PathParam("tenant") String tenant,
+                                                          @PathParam("cluster") String cluster,
+                                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, cluster, namespace);
+        internalGetBookieAffinityGroupAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get bookie affinity group for namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
-    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @Path("/{tenant}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Delete the bookie-affinity-group from namespace-local policy.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void deleteBookieAffinityGroup(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, cluster, namespace);
-        internalDeleteBookieAffinityGroup();
+    public void deleteBookieAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant, @PathParam("cluster") String cluster,
+                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, cluster, namespace);
+        internalDeleteBookieAffinityGroupAsync()
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to delete bookie affinity group for namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
