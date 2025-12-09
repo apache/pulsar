@@ -67,6 +67,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -368,11 +369,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return future;
     }
 
-    public boolean checkBundleDataExistInMetadataStore(String bundle) {
-        Optional<BundleData> optBundleData =
-                    pulsarResources.getLoadBalanceResources().getBundleDataResources().getBundleData(bundle).join();
-
-        return optBundleData.isPresent();
+    public boolean checkBundleDataExistInNamespaceBundles(NamespaceBundles namespaceBundles, String bundleRange) {
+        List<NamespaceBundle> bundles = namespaceBundles.getBundles();
+        return bundles.stream().anyMatch(b -> b.getBundleRange().equals(bundleRange));
     }
 
     // Attempt to local the data for the given bundle in metadata store
@@ -774,8 +773,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         continue;
                     }
 
-                    if (!checkBundleDataExistInMetadataStore(bundleName)) {
-                        log.warn("Bundle {} has been removed on the metadata store, skip split this bundle ",
+                    NamespaceBundles bundles = namespaceBundleFactory.getBundles(NamespaceName.get(namespaceName));
+                    if (!checkBundleDataExistInNamespaceBundles(bundles, bundleRange)) {
+                        log.warn("Bundle {} has been removed, skip split this bundle ",
                             bundleName);
                         continue;
                     }
