@@ -779,7 +779,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected void logTopicStats(String topic) {
-        BrokerTestUtil.logTopicStats(log, admin, topic);
+        logTopicStats(topic, "");
+    }
+
+    protected void logTopicStats(String topic, String description) {
+        BrokerTestUtil.logTopicStats(log, admin, topic, description);
     }
 
     @DataProvider(name = "trueFalse")
