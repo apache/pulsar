@@ -45,6 +45,6 @@ public class AuthenticationOAuth2StandardAuthzServerTest {
         Field wellKnownMetadataPathField = FlowBase.class.getDeclaredField("wellKnownMetadataPath");
         wellKnownMetadataPathField.setAccessible(true);
         String wellKnownMetadataPath = (String) wellKnownMetadataPathField.get(flow);
-        assertEquals(wellKnownMetadataPath, DefaultMetadataResolver.getOAuthWellKnownMetadataPath());
+        assertEquals(wellKnownMetadataPath, DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
     }
 }

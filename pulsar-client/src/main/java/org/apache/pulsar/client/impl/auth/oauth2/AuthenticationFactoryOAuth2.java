@@ -78,7 +78,7 @@ public final class AuthenticationFactoryOAuth2 {
      */
     public static ClientCredentialsBuilder clientCredentialsWithStandardAuthzServerBuilder() {
         return new ClientCredentialsBuilder()
-                .wellKnownMetadataPath(DefaultMetadataResolver.getOAuthWellKnownMetadataPath());
+                .wellKnownMetadataPath(DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
     }
 
     public static class ClientCredentialsBuilder {

@@ -157,7 +157,7 @@ public class AuthenticationOAuth2Test {
         // using RFC8414 OAuth2 metadata path
         URL oauthUrl = DefaultMetadataResolver.getWellKnownMetadataUrl(
                 URI.create("http://localhost/path/oauth").toURL(),
-                DefaultMetadataResolver.getOAuthWellKnownMetadataPath());
+                DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
         assertEquals("http://localhost/path/oauth/.well-known/oauth-authorization-server", oauthUrl.toString());
     }
 

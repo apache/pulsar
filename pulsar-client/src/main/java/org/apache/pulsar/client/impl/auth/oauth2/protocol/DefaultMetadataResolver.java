@@ -38,7 +38,10 @@ public class DefaultMetadataResolver implements MetadataResolver {
 
     private static final String WELL_KNOWN_PREFIX = "/.well-known/";
     private static final String DEFAULT_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "openid-configuration";
-    private static final String OAUTH_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "oauth-authorization-server";
+    /**
+     * The OAuth 2.0 Authorization Server Metadata path as defined in RFC 8414.
+     */
+    public static final String OAUTH_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "oauth-authorization-server";
 
     private final URL metadataUrl;
     private final ObjectReader objectReader;
@@ -48,15 +51,6 @@ public class DefaultMetadataResolver implements MetadataResolver {
         this.metadataUrl = metadataUrl;
         this.objectReader = ObjectMapperFactory.getMapper().reader().forType(Metadata.class);
         this.httpClient = httpClient;
-    }
-
-    /**
-     * Gets the OAuth 2.0 Authorization Server Metadata path as defined in RFC 8414.
-     *
-     * @return the OAuth 2.0 Authorization Server Metadata path
-     */
-    public static String getOAuthWellKnownMetadataPath() {
-        return OAUTH_WELL_KNOWN_METADATA_PATH;
     }
 
     /**

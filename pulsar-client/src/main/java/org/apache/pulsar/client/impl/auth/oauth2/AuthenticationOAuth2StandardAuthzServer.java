@@ -56,7 +56,7 @@ public class AuthenticationOAuth2StandardAuthzServer extends AuthenticationOAuth
 
         // Always set the OAuth 2.0 standard metadata path
         params.put(FlowBase.CONFIG_PARAM_WELL_KNOWN_METADATA_PATH,
-                DefaultMetadataResolver.getOAuthWellKnownMetadataPath());
+                DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
 
         String type = params.getOrDefault(CONFIG_PARAM_TYPE, TYPE_CLIENT_CREDENTIALS);
         switch(type) {
