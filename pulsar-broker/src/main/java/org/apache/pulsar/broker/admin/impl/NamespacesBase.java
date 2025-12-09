@@ -1068,8 +1068,9 @@ public abstract class NamespacesBase extends AdminResource {
                         oldPolicies.map(policies -> new LocalPolicies(policies.bundles, bookieAffinityGroup,
                                         policies.namespaceAntiAffinityGroup, policies.migrated))
                                 .orElseGet(() -> new LocalPolicies(defaultBundleData, bookieAffinityGroup, null)))))
-        .thenAccept(__ -> log.info("[{}] Successfully updated bookie affinity group: namespace={}, bookieAffinityGroup={}",
-                        clientAppId(), namespaceName, bookieAffinityGroup));
+        .thenAccept(__ -> log.info(
+                "[{}] Successfully updated bookie affinity group: namespace={}, bookieAffinityGroup={}", clientAppId(),
+                namespaceName, bookieAffinityGroup));
     }
 
     @Deprecated
