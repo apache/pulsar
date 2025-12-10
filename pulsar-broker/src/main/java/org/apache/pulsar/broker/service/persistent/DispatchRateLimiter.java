@@ -85,6 +85,14 @@ public abstract class DispatchRateLimiter {
     public abstract void consumeDispatchQuota(long numberOfMessages, long byteSize);
 
     /**
+     * It tries to acquire msg and bytes permits from rate-limiter and returns if acquired permits succeed.
+     *
+     * @param numberOfMessages
+     * @param byteSize
+     */
+    public abstract boolean tryConsumeDispatchQuota(long numberOfMessages, long byteSize);
+
+    /**
      * Checks if dispatch-rate limiting is enabled.
      *
      * @return

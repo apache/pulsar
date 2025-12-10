@@ -74,14 +74,26 @@ public class DispatchRateLimiterClassicImpl extends DispatchRateLimiter {
      */
     @Override
     public void consumeDispatchQuota(long numberOfMessages, long byteSize) {
+        tryConsumeDispatchQuota(numberOfMessages, byteSize);
+    }
+
+    /**
+     * It acquires msg and bytes permits from rate-limiter and returns if acquired permits succeed.
+     * @param numberOfMessages
+     * @param byteSize
+     */
+    @Override
+    public boolean tryConsumeDispatchQuota(long numberOfMessages, long byteSize) {
+        boolean res = true;
         RateLimiter localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
         if (numberOfMessages > 0 && localDispatchRateLimiterOnMessage != null) {
-            localDispatchRateLimiterOnMessage.tryAcquire(numberOfMessages);
+            res &= localDispatchRateLimiterOnMessage.tryAcquire(numberOfMessages);
         }
         RateLimiter localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
         if (byteSize > 0 && localDispatchRateLimiterOnByte != null) {
-            localDispatchRateLimiterOnByte.tryAcquire(byteSize);
+            res &= localDispatchRateLimiterOnByte.tryAcquire(byteSize);
         }
+        return res;
     }
 
     /**

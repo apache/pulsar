@@ -816,9 +816,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
 
         int start = 0;
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
-        long totalEntries = 0;
         long totalEntriesProcessed = 0;
         int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
@@ -861,7 +858,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
 
-            totalEntries += filterEntriesForConsumer(metadataArray, start,
+            filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
@@ -880,12 +877,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                                 + "PersistentDispatcherMultipleConsumers",
                         name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
             }
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         if (entriesToDispatch > 0) {
             if (log.isDebugEnabled()) {
@@ -938,9 +932,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
         final Map<Consumer, List<EntryAndMetadata>> assignResult =
                 assignor.assign(originalEntryAndMetadataList, consumerList.size());
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
-        long totalEntries = 0;
         long totalEntriesProcessed = 0;
         final AtomicInteger numConsumers = new AtomicInteger(assignResult.size());
         boolean notifyAddedToReplay = false;
@@ -971,7 +962,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             final EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
             final EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
 
-            totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
+            filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
             consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
@@ -985,12 +976,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
                     -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         // trigger a new readMoreEntries() call
         return numConsumers.get() == 0 || notifyAddedToReplay;

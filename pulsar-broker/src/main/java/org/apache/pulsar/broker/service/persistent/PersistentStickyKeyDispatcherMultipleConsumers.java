@@ -219,8 +219,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         lastNumberOfEntriesProcessed = 0;
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
         long totalEntries = 0;
         long totalEntriesProcessed = 0;
         int entriesCount = entries.size();
@@ -304,15 +302,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
                     -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
 
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-
-        // acquire message-dispatch permits for already delivered messages
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         // trigger read more messages if necessary
         if (triggerLookAhead.booleanValue()) {

@@ -73,14 +73,21 @@ public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter
      */
     @Override
     public void consumeDispatchQuota(long numberOfMessages, long byteSize) {
+        tryConsumeDispatchQuota(numberOfMessages, byteSize);
+    }
+
+    @Override
+    public boolean tryConsumeDispatchQuota(long numberOfMessages, long byteSize) {
+        boolean res = true;
         AsyncTokenBucket localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
         if (numberOfMessages > 0 && localDispatchRateLimiterOnMessage != null) {
-            localDispatchRateLimiterOnMessage.consumeTokens(numberOfMessages);
+            res &= localDispatchRateLimiterOnMessage.consumeTokensAndCheckIfContainsTokens(numberOfMessages);
         }
         AsyncTokenBucket localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
         if (byteSize > 0 && localDispatchRateLimiterOnByte != null) {
-            localDispatchRateLimiterOnByte.consumeTokens(byteSize);
+            res &= localDispatchRateLimiterOnByte.consumeTokensAndCheckIfContainsTokens(byteSize);
         }
+        return res;
     }
 
     /**

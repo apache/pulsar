@@ -705,9 +705,6 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         }
 
         int start = 0;
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
-        long totalEntries = 0;
         int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
         // If the dispatcher is closed, firstAvailableConsumerPermits will be 0, which skips dispatching the
@@ -753,7 +750,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-            totalEntries += filterEntriesForConsumer(metadataArray, start,
+            filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
 
@@ -771,11 +768,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                                 + "PersistentDispatcherMultipleConsumers",
                         name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
             }
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
         }
-
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         if (entriesToDispatch > 0) {
             if (log.isDebugEnabled()) {
@@ -801,9 +794,6 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
         final Map<Consumer, List<EntryAndMetadata>> assignResult =
                 assignor.assign(originalEntryAndMetadataList, consumerList.size());
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
-        long totalEntries = 0;
         final AtomicInteger numConsumers = new AtomicInteger(assignResult.size());
         for (Map.Entry<Consumer, List<EntryAndMetadata>> current : assignResult.entrySet()) {
             final Consumer consumer = current.getKey();
@@ -832,7 +822,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             final EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
             final EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
 
-            totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
+            filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
@@ -845,11 +835,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
                     -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
         }
-
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         return numConsumers.get() == 0; // trigger a new readMoreEntries() call
     }

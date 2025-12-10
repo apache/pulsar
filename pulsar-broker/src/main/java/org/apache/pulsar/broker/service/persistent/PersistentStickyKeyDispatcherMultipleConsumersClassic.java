@@ -399,9 +399,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
             }
         }
 
-        // acquire message-dispatch permits for already delivered messages
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
-
         if (totalMessagesSent == 0 && (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
             // This means, that all the messages we've just read cannot be dispatched right now.
             // This condition can only happen when:

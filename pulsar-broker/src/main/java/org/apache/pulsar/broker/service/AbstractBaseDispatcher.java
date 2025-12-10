@@ -131,12 +131,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
-        int filteredMessageCount = 0;
-        int filteredEntryCount = 0;
-        long filteredBytesCount = 0;
         List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
-        List<Position> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
-        for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
+        List<Position> entriesToRedeliver = new ArrayList<>(entries.size());
+        int i;
+        int entriesSize = entries.size();
+        for (i = 0; i < entriesSize; i++) {
             final Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
@@ -160,30 +159,34 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 this.filterProcessedMsgs.add(entryMsgCnt);
             }
 
+            boolean filtered = false;
             EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
             if (filterResult == EntryFilter.FilterResult.REJECT) {
                 entriesToFiltered.add(entry.getPosition());
-                entries.set(i, null);
                 // FilterResult will be always `ACCEPTED` when there is No Filter
                 // dont need to judge whether `hasFilter` is true or not.
                 this.filterRejectedMsgs.add(entryMsgCnt);
-                filteredEntryCount++;
-                filteredMessageCount += entryMsgCnt;
-                filteredBytesCount += metadataAndPayload.readableBytes();
-                entry.release();
-                continue;
+                filtered = true;
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
                 entriesToRedeliver.add(entry.getPosition());
-                entries.set(i, null);
                 // FilterResult will be always `ACCEPTED` when there is No Filter
                 // dont need to judge whether `hasFilter` is true or not.
                 this.filterRescheduledMsgs.add(entryMsgCnt);
-                filteredEntryCount++;
-                filteredMessageCount += entryMsgCnt;
-                filteredBytesCount += metadataAndPayload.readableBytes();
+                filtered = true;
+            }
+
+            if (filtered) {
+                if (serviceConfig.isDispatchThrottlingForFilteredEntriesEnabled()) {
+                    if (!tryAcquirePermitsForDeliveredMessages(subscription.getTopic(), cursor, entryMsgCnt,
+                            metadataAndPayload.readableBytes())) {
+                        break; // do not process further entries
+                    }
+                }
+                entries.set(i, null);
                 entry.release();
                 continue;
             }
+
             if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
@@ -283,6 +286,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 }
             }
 
+            if (!tryAcquirePermitsForDeliveredMessages(subscription.getTopic(), cursor, entryMsgCnt,
+                    metadataAndPayload.readableBytes())) {
+                break; // do not process further entries
+            }
+
             totalEntries++;
             totalMessages += batchSize;
             totalBytes += metadataAndPayload.readableBytes();
@@ -296,6 +304,19 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata, consumer);
             }
         }
+
+        if (i < entriesSize) {
+            // throttled, release the unprocessed entries
+            for (int j = i; j < entriesSize; j++) {
+                Entry entry = entries.get(j);
+                if (entry != null) {
+                    entriesToRedeliver.add(entry.getPosition());
+                    entry.release();
+                    entries.set(j, null);
+                }
+            }
+        }
+
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
             individualAcknowledgeMessageIfNeeded(entriesToFiltered, Collections.emptyMap());
 
@@ -315,11 +336,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
         }
 
-        if (serviceConfig.isDispatchThrottlingForFilteredEntriesEnabled()) {
-            acquirePermitsForDeliveredMessages(subscription.getTopic(), cursor, filteredEntryCount,
-                    filteredMessageCount, filteredBytesCount);
-        }
-
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
@@ -332,17 +348,18 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         }
     }
 
-    protected void acquirePermitsForDeliveredMessages(Topic topic, ManagedCursor cursor, long totalEntries,
-                                                      long totalMessagesSent, long totalBytesSent) {
+    private boolean tryAcquirePermitsForDeliveredMessages(
+            Topic topic, ManagedCursor cursor, long totalMessagesSent, long totalBytesSent) {
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled()
                 || (cursor != null && !cursor.isActive())) {
-            long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
-            topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
-                    rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
-            topic.getDispatchRateLimiter().ifPresent(rateLimter ->
-                    rateLimter.consumeDispatchQuota(permits, totalBytesSent));
-            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
+            long permits = dispatchThrottlingOnBatchMessageEnabled ? 1 : totalMessagesSent;
+            return topic.getBrokerDispatchRateLimiter().map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent))
+                    .orElse(true)
+                    && topic.getDispatchRateLimiter().map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent))
+                    .orElse(true)
+                    && getRateLimiter().map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent)).orElse(true);
         }
+        return true;
     }
 
     /**
