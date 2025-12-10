@@ -1245,17 +1245,17 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Set the bookie-affinity-group to namespace-local policy.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void setBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+    public void setBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("property") String property,
                                        @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
                                        BookieAffinityGroupData bookieAffinityGroup) {
-        validateNamespaceName(tenant, cluster, namespace);
+        validateNamespaceName(property, cluster, namespace);
         internalSetBookieAffinityGroupAsync(bookieAffinityGroup)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -1267,16 +1267,16 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Get the bookie-affinity-group from namespace-local policy.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void getBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+    public void getBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("property") String property,
                                        @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, cluster, namespace);
+        validateNamespaceName(property, cluster, namespace);
         internalGetBookieAffinityGroupAsync()
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
@@ -1288,7 +1288,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
-    @Path("/{tenant}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Delete the bookie-affinity-group from namespace-local policy.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
@@ -1296,9 +1296,9 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void deleteBookieAffinityGroup(@Suspended AsyncResponse asyncResponse,
-                                          @PathParam("tenant") String tenant, @PathParam("cluster") String cluster,
+                                          @PathParam("property") String property, @PathParam("cluster") String cluster,
                                           @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, cluster, namespace);
+        validateNamespaceName(property, cluster, namespace);
         internalDeleteBookieAffinityGroupAsync()
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
