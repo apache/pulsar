@@ -685,13 +685,11 @@ public class Consumer {
                 ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             }
 
-            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-
-            checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId);
-
-            checkAckValidationError(ack, position);
-
-            totalAckCount.add(ackedCount);
+            if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
+                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                checkAckValidationError(ack, position);
+                totalAckCount.add(ackedCount);
+            }
         }
 
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
@@ -803,7 +801,7 @@ public class Consumer {
                 }
             }
         }
-        return null;
+        return ObjectIntPair.of(this, 1);
     }
 
     private long[] getCursorAckSet(Position position) {
