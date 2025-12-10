@@ -205,8 +205,9 @@ public class MLTransactionMetadataStore
                                     if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                                         transactionLog.deletePosition(txnMetaMap
                                                 .get(transactionId).getRight()).thenAccept(v -> {
-                                                    txnMetaMap.remove(transactionId).getLeft();
-                                                    onGoingTxnCount.decrement();
+                                                    if (txnMetaMap.remove(transactionId) != null) {
+                                                        onGoingTxnCount.decrement();
+                                                    }
                                                 }
                                         );
                                     }
@@ -433,8 +434,9 @@ public class MLTransactionMetadataStore
                                     } else {
                                         abortedTransactionCount.increment();
                                     }
-                                    txnMetaMap.remove(txnID.getLeastSigBits());
-                                    onGoingTxnCount.decrement();
+                                    if (txnMetaMap.remove(txnID.getLeastSigBits()) != null) {
+                                        onGoingTxnCount.decrement();
+                                    }
                                     transactionLog.deletePosition(txnMetaListPair.getRight()).exceptionally(ex -> {
                                         log.warn("Failed to delete transaction log position "
                                                 + "at end transaction [{}]", txnID);
