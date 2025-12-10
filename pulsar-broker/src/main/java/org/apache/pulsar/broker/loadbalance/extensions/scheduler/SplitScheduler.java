@@ -116,7 +116,7 @@ public class SplitScheduler implements LoadManagerScheduler {
         synchronized (bundleSplitStrategy) {
             final Set<SplitDecision> decisions = bundleSplitStrategy.findBundlesToSplit(context, pulsar);
             if (debugMode) {
-                log.info("Split Decisions:", decisions);
+                log.info("Split Decisions: {}", decisions);
             }
             if (!decisions.isEmpty()) {
                 // currently following the unloading timeout

@@ -326,7 +326,7 @@ public class NamespaceStatsAggregator {
 
         compactorMXBean
                 .flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic.getName()))
-                .map(compactionRecord -> {
+                .ifPresent(compactionRecord -> {
                     stats.compactionRemovedEventCount = compactionRecord.getCompactionRemovedEventCount();
                     stats.compactionSucceedCount = compactionRecord.getCompactionSucceedCount();
                     stats.compactionFailedCount = compactionRecord.getCompactionFailedCount();
@@ -346,7 +346,6 @@ public class NamespaceStatsAggregator {
                         stats.compactionCompactedEntriesCount = entries;
                         stats.compactionCompactedEntriesSize = size;
                     }
-                    return compactionRecord;
                 });
     }
 
