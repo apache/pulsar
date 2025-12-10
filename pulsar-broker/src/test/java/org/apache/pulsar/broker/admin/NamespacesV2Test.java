@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
@@ -253,7 +254,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         BookieAffinityGroupData bookieAffinityGroupDataReq =
                 BookieAffinityGroupData.builder().bookkeeperAffinityGroupPrimary(primaryAffinityGroup)
                         .bookkeeperAffinityGroupSecondary(secondaryAffinityGroup).build();
-        namespaces.setBookieAffinityGroup(testTenant, setBookieAffinityGroupNs, bookieAffinityGroupDataReq);
+        asyncRequests(response -> namespaces.setBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs,
+                bookieAffinityGroupDataReq));
 
         // 3.query namespace num bundles, should be conf.getDefaultNumberOfNamespaceBundles()
         BundlesData bundlesData = (BundlesData) asyncRequests(
@@ -261,8 +263,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         assertEquals(bundlesData.getNumBundles(), conf.getDefaultNumberOfNamespaceBundles());
 
         // 4.assert namespace bookie affinity group
-        BookieAffinityGroupData bookieAffinityGroupDataResp =
-                namespaces.getBookieAffinityGroup(testTenant, setBookieAffinityGroupNs);
+        BookieAffinityGroupData bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
+                response -> namespaces.getBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs));
         assertEquals(bookieAffinityGroupDataResp, bookieAffinityGroupDataReq);
     }
 
@@ -280,7 +282,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         BookieAffinityGroupData bookieAffinityGroupDataReq =
                 BookieAffinityGroupData.builder().bookkeeperAffinityGroupPrimary(primaryAffinityGroup)
                         .bookkeeperAffinityGroupSecondary(secondaryAffinityGroup).build();
-        namespaces.setBookieAffinityGroup(testTenant, setBookieAffinityGroupNs, bookieAffinityGroupDataReq);
+        asyncRequests(response -> namespaces.setBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs,
+                bookieAffinityGroupDataReq));
 
         // 3.query namespace num bundles, should be policies.bundles, which we set before
         BundlesData bundlesData = (BundlesData) asyncRequests(
@@ -288,8 +291,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         assertEquals(bundlesData, policies.bundles);
 
         // 4.assert namespace bookie affinity group
-        BookieAffinityGroupData bookieAffinityGroupDataResp =
-                namespaces.getBookieAffinityGroup(testTenant, setBookieAffinityGroupNs);
+        BookieAffinityGroupData bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
+                response -> namespaces.getBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs));
         assertEquals(bookieAffinityGroupDataResp, bookieAffinityGroupDataReq);
     }
 
@@ -385,4 +388,34 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
                 response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
         assertEquals(policiesResp.migrated, enableMigrationReq);
     }
+
+    @Test
+    public void testSetAndDeleteBookieAffinityGroup() throws Exception {
+        // 1. create namespace with empty policies
+        String setBookieAffinityGroupNs = "test-set-bookie-affinity-group-ns";
+        asyncRequests(response -> namespaces.createNamespace(response, testTenant, setBookieAffinityGroupNs, null));
+
+        // 2.set bookie affinity group
+        String primaryAffinityGroup = "primary-affinity-group";
+        String secondaryAffinityGroup = "secondary-affinity-group";
+        BookieAffinityGroupData bookieAffinityGroupDataReq =
+                BookieAffinityGroupData.builder().bookkeeperAffinityGroupPrimary(primaryAffinityGroup)
+                        .bookkeeperAffinityGroupSecondary(secondaryAffinityGroup).build();
+        asyncRequests(response -> namespaces.setBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs,
+                bookieAffinityGroupDataReq));
+
+        // 3.assert namespace bookie affinity group
+        BookieAffinityGroupData bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
+                response -> namespaces.getBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs));
+        assertEquals(bookieAffinityGroupDataResp, bookieAffinityGroupDataReq);
+
+        // 4.delete bookie affinity group
+        asyncRequests(response -> namespaces.deleteBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs));
+
+        // 5.assert namespace bookie affinity group
+        bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
+                response -> namespaces.getBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs));
+        assertNull(bookieAffinityGroupDataResp);
+    }
+
 }

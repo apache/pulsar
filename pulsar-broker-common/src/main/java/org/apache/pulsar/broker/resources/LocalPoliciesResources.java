@@ -55,6 +55,11 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
     }
 
+    public CompletableFuture<Void> setLocalPoliciesWithCreateAsync(NamespaceName ns, Function<Optional<LocalPolicies>,
+            LocalPolicies> createFunction) {
+        return setWithCreateAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
+    }
+
     public CompletableFuture<Void> createLocalPoliciesAsync(NamespaceName ns, LocalPolicies policies) {
         return getCache().create(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), policies);
     }
