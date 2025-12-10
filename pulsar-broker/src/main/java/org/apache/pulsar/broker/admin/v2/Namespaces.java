@@ -1120,7 +1120,7 @@ public class Namespaces extends NamespacesBase {
         internalDeleteSubscriptionDispatchRateAsync()
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Failed to delete the subscription dispatchRate for cluster on namespace {}",
+                    log.error("[{}] Failed to delete the subscription dispatchRate for cluster on namespace {}",
                             clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;

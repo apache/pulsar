@@ -66,7 +66,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     if (metadata.partitions == 0) {
                         topicCheckFuture.complete(null);
                     } else {
-                        String errorMsg = String.format("{} Can not create the replicator due to the partitions in the"
+                        String errorMsg = String.format("%s Can not create the replicator due to the partitions in the"
                                         + " remote cluster is not 0, but is %s",
                                 replicatorId, metadata.partitions);
                         log.error(errorMsg);
