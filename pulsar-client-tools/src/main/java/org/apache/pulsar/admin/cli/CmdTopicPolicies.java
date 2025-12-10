@@ -1959,7 +1959,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic);
+            sync(() -> getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic));
         }
     }
 
@@ -1978,7 +1978,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            print(getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied));
+            print(sync(() ->
+                    (getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied))));
         }
     }
 
@@ -1994,7 +1995,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic);
+            sync(() -> getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic));
         }
     }
 
@@ -2016,7 +2017,7 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters);
+            sync(() -> getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters));
         }
     }
 
