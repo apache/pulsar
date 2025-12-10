@@ -56,6 +56,8 @@ import org.apache.bookkeeper.net.NetworkTopology;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.versioning.Version;
+import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -415,4 +417,99 @@ public class BookieRackAffinityMappingTest {
 
         assertTrue(count.await(3, TimeUnit.SECONDS));
     }
+
+    @Test
+    public void testExample() throws Exception {
+        @Cleanup
+        PulsarRegistrationClient pulsarRegistrationClient = new PulsarRegistrationClient(store, "/ledgers");
+        DefaultBookieAddressResolver defaultBookieAddressResolver =
+                new DefaultBookieAddressResolver(pulsarRegistrationClient);
+        // Create and configure the mapping
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        mapping.setBookieAddressResolver(defaultBookieAddressResolver);
+        mapping.setConf(bkClientConf);
+
+        // Create RackawareEnsemblePlacementPolicy and initialize it
+        @Cleanup("stop")
+        HashedWheelTimer timer = new HashedWheelTimer(
+                new ThreadFactoryBuilder().setNameFormat("TestTimer-%d").build(),
+                bkClientConf.getTimeoutTimerTickDurationMs(), TimeUnit.MILLISECONDS,
+                bkClientConf.getTimeoutTimerNumTicks());
+        RackawareEnsemblePlacementPolicy repp = new RackawareEnsemblePlacementPolicy();
+        repp.initialize(bkClientConf, Optional.of(mapping), timer,
+                DISABLE_ALL, NullStatsLogger.INSTANCE, defaultBookieAddressResolver);
+
+        // Create a BookieWatcherImpl instance via reflection
+        Class<?> watcherClazz = Class.forName("org.apache.bookkeeper.client.BookieWatcherImpl");
+        Constructor<?> constructor = watcherClazz.getDeclaredConstructor(
+                ClientConfiguration.class,
+                EnsemblePlacementPolicy.class,
+                RegistrationClient.class,
+                BookieAddressResolver.class,
+                StatsLogger.class);
+        constructor.setAccessible(true);
+        Object watcher = constructor.newInstance(
+                bkClientConf,
+                repp,
+                pulsarRegistrationClient,
+                defaultBookieAddressResolver,
+                NullStatsLogger.INSTANCE
+        );
+        Method initMethod = watcherClazz.getDeclaredMethod("initialBlockingBookieRead");
+        initMethod.setAccessible(true);
+        initMethod.invoke(watcher);
+
+        // Prepare a BookiesRackConfiguration that maps bookie1 -> /rack0
+        BookieInfo bi = BookieInfo.builder().rack("/rack0").build();
+        BookiesRackConfiguration racks = new BookiesRackConfiguration();
+        racks.updateBookie("group1", bookie1.toString(), bi);
+
+        // Inject the writable bookie into PulsarRegistrationClient
+        Field writableField = PulsarRegistrationClient.class.getDeclaredField("writableBookieInfo");
+        writableField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<BookieId, Versioned<BookieServiceInfo>> writableBookieInfo =
+                (Map<BookieId, Versioned<BookieServiceInfo>>) writableField.get(pulsarRegistrationClient);
+        writableBookieInfo.put(
+                bookie1.toBookieId(),
+                new Versioned<>(BookieServiceInfoUtils.buildLegacyBookieServiceInfo(bookie1.toString()), Version.NEW)
+        );
+
+        // watcher.processWritableBookiesChanged runs FIRST → incorrect ordering
+        Method procMethod =
+                watcherClazz.getDeclaredMethod("processWritableBookiesChanged", java.util.Set.class);
+        procMethod.setAccessible(true);
+        Set<BookieId> ids = new HashSet<>();
+        ids.add(bookie1.toBookieId());
+        procMethod.invoke(watcher, ids);
+
+        // mapping update runs SECOND → delayed rack info
+        Method updateMethod =
+                BookieRackAffinityMapping.class.getDeclaredMethod("updateRacksWithHost", BookiesRackConfiguration.class);
+        updateMethod.setAccessible(true);
+        updateMethod.invoke(mapping, racks);
+
+        // mapping.resolve now has correct rack (mapping is updated)
+        List<String> resolved = mapping.resolve(Lists.newArrayList(bookie1.getHostName()));
+        assertEquals(resolved.get(0), "/rack0",
+                "Expected mapping to have /rack0 after update before watcher ran");
+
+        // -------------------
+        // NOW CHECK REPP INTERNAL STATE
+        // -------------------
+        // BookieNode.getNetworkLocation()
+        Class<?> clazz1 = Class.forName("org.apache.bookkeeper.client.TopologyAwareEnsemblePlacementPolicy");
+        Field field1 = clazz1.getDeclaredField("knownBookies");
+        field1.setAccessible(true);
+        Map<BookieId, BookieNode> knownBookies = (Map<BookieId, BookieNode>) field1.get(repp);
+        BookieNode bn = knownBookies.get(bookie1.toBookieId());
+        Method getLoc = bn.getClass().getMethod("getNetworkLocation");
+        String loc = (String) getLoc.invoke(bn);
+
+        // Since watcher ran BEFORE mapping update → REPP used fallback default-rack
+        assertEquals(loc, "/rack0", "Should match /rack0");
+    }
+
 }
