@@ -407,30 +407,35 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @Nonnull CompletableFuture<Void> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
         requireNonNull(namespace);
         return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
-                        .thenCompose(namespacePolicies -> {
-                            if (namespacePolicies.isEmpty() || namespacePolicies.get().deleted) {
-                                log.info("[{}] skip prepare init policies cache since the namespace is deleted",
-                                        namespace);
-                                return CompletableFuture.completedFuture(null);
-                            }
+                .thenCompose(namespacePolicies -> {
+                    if (namespacePolicies.isEmpty() || namespacePolicies.get().deleted) {
+                        log.info("[{}] skip prepare init policies cache since the namespace is deleted",
+                                namespace);
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-                            return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
-                                final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                                        createSystemTopicClient(namespace);
-                                readerCaches.put(namespace, readerCompletableFuture);
-                                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
-                                final CompletableFuture<Void> initFuture = readerCompletableFuture
-                                        .thenCompose(reader -> {
-                                            final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
-                                            initPolicesCache(reader, stageFuture);
-                                            return stageFuture
-                                                    // Read policies in background
-                                                    .thenAccept(__ -> readMorePoliciesAsync(reader));
-                                        });
-                                initFuture.exceptionallyAsync(ex -> {
+                    CompletableFuture<Void> initNamespacePolicyFuture = new CompletableFuture<>();
+                    CompletableFuture<Void> existingFuture =
+                            policyCacheInitMap.putIfAbsent(namespace, initNamespacePolicyFuture);
+                    if (existingFuture == null) {
+                        final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                                newReader(namespace);
+                        ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
+                        readerCompletableFuture
+                                .thenCompose(reader -> {
+                                    final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
+                                    initPolicesCache(reader, stageFuture);
+                                    return stageFuture
+                                            // Read policies in background
+                                            .thenAccept(__ -> readMorePoliciesAsync(reader));
+                                }).thenApply(__ -> {
+                                    initNamespacePolicyFuture.complete(null);
+                                    return null;
+                                }).exceptionally(ex -> {
                                     try {
-                                        log.error("[{}] Failed to create reader on __change_events topic",
-                                                namespace, ex);
+                                        log.error("[{}] occur exception on reader of __change_events topic. "
+                                                + "try to clean the reader.", namespace, ex);
+                                        initNamespacePolicyFuture.completeExceptionally(ex);
                                         cleanCacheAndCloseReader(namespace, false);
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
@@ -438,11 +443,22 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                                 namespace, cleanupEx);
                                     }
                                     return null;
-                                }, pulsarService.getExecutor());
-                                // let caller know we've got an exception.
-                                return initFuture;
-                            });
-                        });
+                                });
+
+                        return initNamespacePolicyFuture;
+                    } else {
+                        return existingFuture;
+                    }
+                });
+    }
+
+    private CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> newReader(NamespaceName ns) {
+        return readerCaches.compute(ns, (__, existingFuture) -> {
+            if (existingFuture == null) {
+                return createSystemTopicClient(ns);
+            }
+            return existingFuture;
+        });
     }
 
     protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClient(
@@ -501,7 +517,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
         if (closed.get()) {
             future.completeExceptionally(new BrokerServiceException(getClass().getName() + " is closed."));
-            cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
             return;
         }
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
@@ -509,7 +524,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 log.error("[{}] Failed to check the move events for the system topic",
                         reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
-                cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                 return;
             }
             if (hasMore) {
@@ -524,7 +538,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     log.error("[{}] Failed to read event from the system topic.",
                             reader.getSystemTopic().getTopicName(), e);
                     future.completeExceptionally(e);
-                    cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                     return null;
                 });
             } else {
@@ -550,11 +563,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
-    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
+    void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
         cleanCacheAndCloseReader(namespace, cleanOwnedBundlesCount, false);
     }
 
-    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount,
+    @VisibleForTesting
+    void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount,
                                           boolean cleanWriterCache) {
         if (cleanWriterCache) {
             writerCaches.synchronous().invalidate(namespace);
