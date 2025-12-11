@@ -471,6 +471,11 @@ public class BookieRackAffinityMappingTest {
         when(mockCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH))
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(racks)));
 
+        // Inject the bookie address list into BookieRackAffinityMapping
+        Field addressListField = BookieRackAffinityMapping.class.getDeclaredField("bookieAddressListLastTime");
+        addressListField.setAccessible(true);
+        addressListField.set(mapping, List.of(bookie1.toBookieId()));
+
         // Inject the writable bookie into PulsarRegistrationClient
         Field writableField = PulsarRegistrationClient.class.getDeclaredField("writableBookieInfo");
         writableField.setAccessible(true);
@@ -493,9 +498,9 @@ public class BookieRackAffinityMappingTest {
 
         // BookieRackAffinityMapping rack mapping update runs SECOND → delayed rack info
         Method processRackUpdateMethod = BookieRackAffinityMapping.class.getDeclaredMethod("processRackUpdate",
-                BookiesRackConfiguration.class, List.class);
+                BookiesRackConfiguration.class);
         processRackUpdateMethod.setAccessible(true);
-        processRackUpdateMethod.invoke(mapping, racks, List.of(bookie1.toBookieId()));
+        processRackUpdateMethod.invoke(mapping, racks);
 
         // -------------------
         // NOW CHECK REPP INTERNAL STATE
