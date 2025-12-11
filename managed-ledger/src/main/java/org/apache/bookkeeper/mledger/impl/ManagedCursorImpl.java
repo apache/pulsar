@@ -261,7 +261,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 false, PositionFactory.create(newPosition.getLedgerId(),
                                         newPosition.getEntryId()), true).clear();
                     }
-                    markDeletePosition = newPosition;
                     persistentMarkDeletePosition = newPosition;
                 };
             }
