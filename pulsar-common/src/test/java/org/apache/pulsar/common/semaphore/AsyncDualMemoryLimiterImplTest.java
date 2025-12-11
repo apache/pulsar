@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.common.semaphore;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -32,6 +35,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireAlreadyClosedException;
@@ -717,5 +722,26 @@ public class AsyncDualMemoryLimiterImplTest {
             assertNotNull(permit);
             limiter.release(permit);
         }
+    }
+
+    @Test(invocationCount = 100)
+    public void testUpdateHeapPermitsIncreaseWithReleasedPermits() throws Exception {
+        limiter = new AsyncDualMemoryLimiterImpl(100000, 10, 5000, 1000, 100, 5000);
+
+        BooleanSupplier cancelled = () -> false;
+        AtomicReference<CompletableFuture<Void>> future2Ref = new AtomicReference<>();
+
+        CompletableFuture<Void> future =
+                limiter.withAcquiredPermits(100, LimitType.HEAP_MEMORY, cancelled, permit -> {
+                    future2Ref.set(limiter.withUpdatedPermits(permit, 200, cancelled, updatedPermit -> {
+                                return CompletableFuture.supplyAsync(() -> null);
+                            }, CompletableFuture::failedFuture));
+                    return CompletableFuture.completedFuture(null);
+                }, CompletableFuture::failedFuture);
+
+        assertThat(future).succeedsWithin(1, TimeUnit.SECONDS);
+        assertThat(future2Ref.get()).succeedsWithin(1, TimeUnit.SECONDS);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(100000);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
     }
 }
