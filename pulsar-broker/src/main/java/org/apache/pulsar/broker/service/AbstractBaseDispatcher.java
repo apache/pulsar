@@ -350,16 +350,21 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     private boolean tryAcquirePermitsForDeliveredMessages(
             Topic topic, ManagedCursor cursor, long totalMessagesSent, long totalBytesSent) {
+        boolean permitsAcquired = true;
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled()
                 || (cursor != null && !cursor.isActive())) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? 1 : totalMessagesSent;
-            return topic.getBrokerDispatchRateLimiter().map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent))
-                    .orElse(true)
-                    && topic.getDispatchRateLimiter().map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent))
-                    .orElse(true)
-                    && getRateLimiter().map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent)).orElse(true);
+            permitsAcquired &= topic.getBrokerDispatchRateLimiter()
+                    .map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent))
+                    .orElse(true);
+            permitsAcquired &= topic.getDispatchRateLimiter()
+                    .map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent))
+                    .orElse(true);
+            permitsAcquired &= getRateLimiter()
+                    .map(l -> l.tryConsumeDispatchQuota(permits, totalBytesSent))
+                    .orElse(true);
         }
-        return true;
+        return permitsAcquired;
     }
 
     /**
