@@ -419,7 +419,8 @@ public class BookieRackAffinityMappingTest {
     @Test
     public void testZKEventListenersOrdering() throws Exception {
         @Cleanup
-        PulsarRegistrationClient pulsarRegistrationClient = new PulsarRegistrationClient(store, "/ledgers");
+        PulsarRegistrationClient pulsarRegistrationClient =
+                new PulsarRegistrationClient(store, "/ledgers");
         DefaultBookieAddressResolver defaultBookieAddressResolver =
                 new DefaultBookieAddressResolver(pulsarRegistrationClient);
         // Create and configure the mapping
@@ -481,7 +482,8 @@ public class BookieRackAffinityMappingTest {
                 new Versioned<>(BookieServiceInfoUtils.buildLegacyBookieServiceInfo(bookie1.toString()), Version.NEW)
         );
 
-        // watcher.processWritableBookiesChanged runs FIRST triggering Rackaware ensemble policy listener → incorrect ordering
+        // watcher.processWritableBookiesChanged runs FIRST triggering Rackaware ensemble policy listener → incorrect
+        // ordering
         Method procMethod =
                 watcherClazz.getDeclaredMethod("processWritableBookiesChanged", java.util.Set.class);
         procMethod.setAccessible(true);
@@ -490,8 +492,8 @@ public class BookieRackAffinityMappingTest {
         procMethod.invoke(watcher, ids);
 
         // BookieRackAffinityMapping rack mapping update runs SECOND → delayed rack info
-        Method processRackUpdateMethod =
-                BookieRackAffinityMapping.class.getDeclaredMethod("processRackUpdate", BookiesRackConfiguration.class, List.class);
+        Method processRackUpdateMethod = BookieRackAffinityMapping.class.getDeclaredMethod("processRackUpdate",
+                BookiesRackConfiguration.class, List.class);
         processRackUpdateMethod.setAccessible(true);
         processRackUpdateMethod.invoke(mapping, racks, List.of(bookie1.toBookieId()));
 
@@ -510,7 +512,8 @@ public class BookieRackAffinityMappingTest {
         Map<BookieId, BookieNode> knownBookies = (Map<BookieId, BookieNode>) field1.get(repp);
         BookieNode bn = knownBookies.get(bookie1.toBookieId());
         // Rack info update is delayed but because of new callback the rackinfo on ensemble policy should be updated.
-        assertEquals(bn.getNetworkLocation(), "/rack0", "Network location should match /rack0 on bookie");
+        assertEquals(bn.getNetworkLocation(), "/rack0",
+                "Network location should match /rack0 on bookie");
     }
 
     private static HashedWheelTimer getTestHashedWheelTimer(ClientConfiguration bkClientConf) {
