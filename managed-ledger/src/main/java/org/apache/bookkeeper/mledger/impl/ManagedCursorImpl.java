@@ -249,18 +249,22 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         public MarkDeleteEntry(Position newPosition, Map<String, Long> properties,
                 MarkDeleteCallback callback, Object ctx) {
-            this(newPosition, properties, callback, ctx, () -> {
-                if (batchDeletedIndexes != null) {
-                    batchDeletedIndexes.subMap(PositionFactory.EARLIEST,
-                            false, PositionFactory.create(newPosition.getLedgerId(),
-                                    newPosition.getEntryId()), true).clear();
-                }
-                persistentMarkDeletePosition = newPosition;
-            });
+            this(newPosition, properties, callback, ctx, null);
         }
 
         public MarkDeleteEntry(Position newPosition, Map<String, Long> properties,
                 MarkDeleteCallback callback, Object ctx, Runnable alignAcknowledgeStatusAfterPersisted) {
+            if (alignAcknowledgeStatusAfterPersisted == null) {
+                alignAcknowledgeStatusAfterPersisted = () -> {
+                    if (batchDeletedIndexes != null) {
+                        batchDeletedIndexes.subMap(PositionFactory.EARLIEST,
+                                false, PositionFactory.create(newPosition.getLedgerId(),
+                                        newPosition.getEntryId()), true).clear();
+                    }
+                    markDeletePosition = newPosition;
+                    persistentMarkDeletePosition = newPosition;
+                };
+            }
             this.newPosition = newPosition;
             this.properties = properties;
             this.callback = callback;
