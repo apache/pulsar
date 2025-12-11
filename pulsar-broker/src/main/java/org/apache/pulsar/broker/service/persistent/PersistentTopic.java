@@ -4827,7 +4827,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private CompletableFuture<Void> transactionBufferCleanupAndClose() {
-        return transactionBuffer.clearSnapshot().thenCompose(__ -> transactionBuffer.closeAsync());
+        return transactionBuffer.clearSnapshotAndClose();
     }
 
     public Optional<TopicName> getShadowSourceTopic() {

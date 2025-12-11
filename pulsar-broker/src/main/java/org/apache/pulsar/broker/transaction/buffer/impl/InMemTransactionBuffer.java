@@ -364,6 +364,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> clearSnapshotAndClose() {
+        return clearSnapshot().thenCompose(__ -> closeAsync());
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         buffers.values().forEach(TxnBuffer::close);
         return CompletableFuture.completedFuture(null);
