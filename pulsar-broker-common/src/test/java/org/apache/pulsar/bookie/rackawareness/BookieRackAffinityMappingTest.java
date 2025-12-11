@@ -267,11 +267,7 @@ public class BookieRackAffinityMappingTest {
         assertEquals(racks.size(), 0);
 
         @Cleanup("stop")
-        HashedWheelTimer timer = new HashedWheelTimer(
-                new ThreadFactoryBuilder().setNameFormat("TestTimer-%d").build(),
-                bkClientConf.getTimeoutTimerTickDurationMs(), TimeUnit.MILLISECONDS,
-                bkClientConf.getTimeoutTimerNumTicks());
-
+        HashedWheelTimer timer = getTestHashedWheelTimer(bkClientConf);
         RackawareEnsemblePlacementPolicy repp = new RackawareEnsemblePlacementPolicy();
         mapping.registerRackChangeListener(repp);
         Class<?> clazz1 = Class.forName("org.apache.bookkeeper.client.TopologyAwareEnsemblePlacementPolicy");
@@ -374,10 +370,7 @@ public class BookieRackAffinityMappingTest {
         mapping.setConf(bkClientConf);
 
         @Cleanup("stop")
-        HashedWheelTimer timer = new HashedWheelTimer(new ThreadFactoryBuilder().setNameFormat("TestTimer-%d").build(),
-                bkClientConf.getTimeoutTimerTickDurationMs(), TimeUnit.MILLISECONDS,
-                bkClientConf.getTimeoutTimerNumTicks());
-
+        HashedWheelTimer timer = getTestHashedWheelTimer(bkClientConf);
         RackawareEnsemblePlacementPolicy repp = new RackawareEnsemblePlacementPolicy();
         repp.initialize(bkClientConf, Optional.of(mapping), timer,
                 DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
@@ -424,7 +417,7 @@ public class BookieRackAffinityMappingTest {
     }
 
     @Test
-    public void testExample() throws Exception {
+    public void testZKEventListenersOrdering() throws Exception {
         @Cleanup
         PulsarRegistrationClient pulsarRegistrationClient = new PulsarRegistrationClient(store, "/ledgers");
         DefaultBookieAddressResolver defaultBookieAddressResolver =
@@ -438,10 +431,7 @@ public class BookieRackAffinityMappingTest {
 
         // Create RackawareEnsemblePlacementPolicy and initialize it
         @Cleanup("stop")
-        HashedWheelTimer timer = new HashedWheelTimer(
-                new ThreadFactoryBuilder().setNameFormat("TestTimer-%d").build(),
-                bkClientConf.getTimeoutTimerTickDurationMs(), TimeUnit.MILLISECONDS,
-                bkClientConf.getTimeoutTimerNumTicks());
+        HashedWheelTimer timer = getTestHashedWheelTimer(bkClientConf);
         RackawareEnsemblePlacementPolicy repp = new RackawareEnsemblePlacementPolicy();
         repp.initialize(bkClientConf, Optional.of(mapping), timer,
                 DISABLE_ALL, NullStatsLogger.INSTANCE, defaultBookieAddressResolver);
@@ -471,7 +461,8 @@ public class BookieRackAffinityMappingTest {
         BookieInfo bi = BookieInfo.builder().rack("/rack0").build();
         BookiesRackConfiguration racks = new BookiesRackConfiguration();
         racks.updateBookie("group1", bookie1.toString(), bi);
-        // Create a mock cache for racks
+
+        // Create a mock cache for racks /bookies
         MetadataCache<BookiesRackConfiguration> mockCache = mock(MetadataCache.class);
         Field f = BookieRackAffinityMapping.class.getDeclaredField("bookieMappingCache");
         f.setAccessible(true);
@@ -490,7 +481,7 @@ public class BookieRackAffinityMappingTest {
                 new Versioned<>(BookieServiceInfoUtils.buildLegacyBookieServiceInfo(bookie1.toString()), Version.NEW)
         );
 
-        // watcher.processWritableBookiesChanged runs FIRST → incorrect ordering
+        // watcher.processWritableBookiesChanged runs FIRST triggering Rackaware ensemble policy listener → incorrect ordering
         Method procMethod =
                 watcherClazz.getDeclaredMethod("processWritableBookiesChanged", java.util.Set.class);
         procMethod.setAccessible(true);
@@ -498,7 +489,7 @@ public class BookieRackAffinityMappingTest {
         ids.add(bookie1.toBookieId());
         procMethod.invoke(watcher, ids);
 
-        // mapping update runs SECOND → delayed rack info
+        // BookieRackAffinityMapping rack mapping update runs SECOND → delayed rack info
         Method processRackUpdateMethod =
                 BookieRackAffinityMapping.class.getDeclaredMethod("processRackUpdate", BookiesRackConfiguration.class, List.class);
         processRackUpdateMethod.setAccessible(true);
@@ -518,8 +509,14 @@ public class BookieRackAffinityMappingTest {
         field1.setAccessible(true);
         Map<BookieId, BookieNode> knownBookies = (Map<BookieId, BookieNode>) field1.get(repp);
         BookieNode bn = knownBookies.get(bookie1.toBookieId());
-        // Since watcher ran BEFORE mapping update → REPP used fallback default-rack
-        assertEquals(bn.getNetworkLocation(), "/rack0", "Should match /rack0");
+        // Rack info update is delayed but because of new callback the rackinfo on ensemble policy should be updated.
+        assertEquals(bn.getNetworkLocation(), "/rack0", "Network location should match /rack0 on bookie");
     }
 
+    private static HashedWheelTimer getTestHashedWheelTimer(ClientConfiguration bkClientConf) {
+        return new HashedWheelTimer(
+                new ThreadFactoryBuilder().setNameFormat("TestTimer-%d").build(),
+                bkClientConf.getTimeoutTimerTickDurationMs(), TimeUnit.MILLISECONDS,
+                bkClientConf.getTimeoutTimerNumTicks());
+    }
 }

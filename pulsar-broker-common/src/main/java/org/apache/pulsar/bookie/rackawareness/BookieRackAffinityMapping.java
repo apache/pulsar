@@ -173,9 +173,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     private Void processRackUpdate(BookiesRackConfiguration racks, List<BookieId> bookieAddressListLastTime) {
-        // Step 1: update internal rack map
         updateRacksWithHost(racks);
-        // Step 2: notify REPP about rack changes
+        // Adding callback after rackInfo is updated by change in writable bookies.
         rackChangeListenerCallback(bookieAddressListLastTime);
         return null;
     }
