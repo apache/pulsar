@@ -226,9 +226,9 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
         Awaitility.await().untilAsserted(() -> {
             Map<String, ? extends SubscriptionStats> statsPrecise =
                     admin.topics().getStats(topic, true).getSubscriptions();
-            assertEquals(statsPrecise.get("s2").getMsgBacklog(), 100 + cachedMessagesInMem2.size());
-            assertEquals(statsPrecise.get("s3").getMsgBacklog(), 100 + cachedMessagesInMem3.size());
-            assertEquals(statsPrecise.get("s4").getMsgBacklog(), 100 + cachedMessagesInMem4.size());
+            assertEquals(statsPrecise.get("s2").getMsgBacklog(), 300 + cachedMessagesInMem2.size());
+            assertEquals(statsPrecise.get("s3").getMsgBacklog(), 300 + cachedMessagesInMem3.size());
+            assertEquals(statsPrecise.get("s4").getMsgBacklog(), 300 + cachedMessagesInMem4.size());
         });
 
         // c2: ack all messages that un-acked
