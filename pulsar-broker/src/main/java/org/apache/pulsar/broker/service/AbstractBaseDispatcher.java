@@ -176,14 +176,15 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
 
             if (filtered) {
+                int readableBytes = metadataAndPayload.readableBytes();
+                entries.set(i, null);
+                entry.release();
                 if (serviceConfig.isDispatchThrottlingForFilteredEntriesEnabled()) {
                     if (!tryAcquirePermitsForDeliveredMessages(subscription.getTopic(), cursor, entryMsgCnt,
-                            metadataAndPayload.readableBytes())) {
+                            readableBytes)) {
                         break; // do not process further entries
                     }
                 }
-                entries.set(i, null);
-                entry.release();
                 continue;
             }
 
@@ -311,8 +312,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 Entry entry = entries.get(j);
                 if (entry != null) {
                     entriesToRedeliver.add(entry.getPosition());
-                    entry.release();
                     entries.set(j, null);
+                    entry.release();
                 }
             }
         }
