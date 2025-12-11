@@ -482,7 +482,7 @@ public class BookieRackAffinityMappingTest {
                 new Versioned<>(BookieServiceInfoUtils.buildLegacyBookieServiceInfo(bookie1.toString()), Version.NEW)
         );
 
-        // watcher.processWritableBookiesChanged runs FIRST triggering Rackaware ensemble policy listener → incorrect
+        // watcher.processWritableBookiesChanged runs FIRST triggering RackAware ensemble policy listener → incorrect
         // ordering
         Method procMethod =
                 watcherClazz.getDeclaredMethod("processWritableBookiesChanged", java.util.Set.class);
@@ -497,11 +497,6 @@ public class BookieRackAffinityMappingTest {
         processRackUpdateMethod.setAccessible(true);
         processRackUpdateMethod.invoke(mapping, racks, List.of(bookie1.toBookieId()));
 
-        // mapping.resolve now has correct rack (mapping is updated)
-//        List<String> resolved = mapping.resolve(Lists.newArrayList(bookie1.getHostName()));
-//        assertEquals(resolved.get(0), "/rack0",
-//                "Expected mapping to have /rack0 after update before watcher ran");
-
         // -------------------
         // NOW CHECK REPP INTERNAL STATE
         // -------------------
@@ -511,7 +506,7 @@ public class BookieRackAffinityMappingTest {
         field1.setAccessible(true);
         Map<BookieId, BookieNode> knownBookies = (Map<BookieId, BookieNode>) field1.get(repp);
         BookieNode bn = knownBookies.get(bookie1.toBookieId());
-        // Rack info update is delayed but because of new callback the rackinfo on ensemble policy should be updated.
+        // Rack info update is delayed but because of new callback the rack info on ensemble policy should be updated.
         assertEquals(bn.getNetworkLocation(), "/rack0",
                 "Network location should match /rack0 on bookie");
     }

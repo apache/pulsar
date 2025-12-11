@@ -174,7 +174,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     private Void processRackUpdate(BookiesRackConfiguration racks, List<BookieId> bookieAddressListLastTime) {
         updateRacksWithHost(racks);
-        // Adding callback after rackInfo is updated by change in writable bookies.
+        // Notify ensemble placement policy after rack info is updated to ensure consistent state.
         rackChangeListenerCallback(bookieAddressListLastTime);
         return null;
     }
