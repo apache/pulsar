@@ -170,10 +170,14 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         }
     }
 
-    private synchronized Void processRackUpdate(BookiesRackConfiguration racks) {
-        updateRacksWithHost(racks);
+    private Void processRackUpdate(BookiesRackConfiguration racks) {
+        ArrayList<BookieId> bookieIdSet;
+        synchronized (this) {
+            updateRacksWithHost(racks);
+            bookieIdSet = new ArrayList<>(bookieAddressListLastTime);
+        }
         // Notify ensemble placement policy after rack info is updated to ensure consistent state.
-        rackChangeListenerCallback(new ArrayList<>(bookieAddressListLastTime));
+        rackChangeListenerCallback(bookieIdSet);
         return null;
     }
 
