@@ -338,7 +338,7 @@ public class ReplicatedSubscriptionSnapshotCache {
             if (current.position.compareTo(pos) > 0) {
                 // Snapshot is associated with a higher position, so it cannot be used now
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Snapshot {} is associated with an higher position {} so it cannot be used for mark "
+                    log.debug("[{}] Snapshot {} is associated with a higher position {} so it cannot be used for mark "
                             + "delete position {}", subscription, current, current.position, pos);
                 }
                 break;
