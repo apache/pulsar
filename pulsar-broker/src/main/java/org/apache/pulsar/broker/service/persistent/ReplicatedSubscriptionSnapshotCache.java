@@ -202,7 +202,7 @@ public class ReplicatedSubscriptionSnapshotCache {
 
         if (tail != null && position.compareTo(tail.position) <= 0) {
             // clear the entries in the cache if the new snapshot is older than the last one
-            // this means that the subscription has been resetted
+            // this means that the subscription has been reset
             head = null;
             tail = null;
             numberOfSnapshots = 0;
@@ -258,6 +258,10 @@ public class ReplicatedSubscriptionSnapshotCache {
         updateSortedEntriesByTotalDistance();
 
         SnapshotEntry minEntry = sortedSnapshots.first();
+        // Defensive check: minEntry should never be head or tail
+        if (minEntry == head || minEntry == tail) {
+            throw new IllegalStateException("minEntry should not be head or tail sentinel node");
+        }
         SnapshotEntry minEntryNext = minEntry.next;
         SnapshotEntry minEntryPrevious = minEntry.prev;
 
