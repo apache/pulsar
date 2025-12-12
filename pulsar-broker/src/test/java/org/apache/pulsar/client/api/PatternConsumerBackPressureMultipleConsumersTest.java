@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
@@ -49,6 +50,8 @@ import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -105,69 +108,86 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
             }
         };
 
-        @Cleanup("shutdownNow")
-        final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime()
-                .availableProcessors());
+        {
+            @Cleanup("shutdownNow") final ExecutorService executorService =
+                    Executors.newFixedThreadPool(Runtime.getRuntime()
+                            .availableProcessors());
 
-        @Cleanup
-        SharedClientResources sharedClientResources = new SharedClientResources();
+            @Cleanup
+            SharedClientResources sharedClientResources = new SharedClientResources();
 
-        List<PulsarClientImpl> clients = new ArrayList<>(numberOfClients);
-        @Cleanup
-        Closeable closeClients = () -> {
-            for (PulsarClient client : clients) {
-                try {
-                    client.close();
-                } catch (PulsarClientException e) {
-                    log.error("Failed to close client {}", client, e);
+            List<PulsarClientImpl> clients = new ArrayList<>(numberOfClients);
+            @Cleanup
+            Closeable closeClients = () -> {
+                for (PulsarClient client : clients) {
+                    try {
+                        client.close();
+                    } catch (PulsarClientException e) {
+                        log.error("Failed to close client {}", client, e);
+                    }
                 }
+            };
+            for (int i = 0; i < numberOfClients; i++) {
+                ClientBuilderImpl clientBuilderImpl =
+                        (ClientBuilderImpl) PulsarClient.builder().serviceUrl(getClientServiceUrl());
+                PulsarClientImpl client = sharedClientResources.useSharedResources(
+                        PulsarClientImpl.builder().conf(clientBuilderImpl.getClientConfigurationData())).build();
+                clients.add(client);
             }
-        };
-        for (int i = 0; i < numberOfClients; i++) {
-            ClientBuilderImpl clientBuilderImpl =
-                    (ClientBuilderImpl) PulsarClient.builder().serviceUrl(getClientServiceUrl());
-            PulsarClientImpl client = sharedClientResources.useSharedResources(
-                    PulsarClientImpl.builder().conf(clientBuilderImpl.getClientConfigurationData())).build();
-            clients.add(client);
+
+            final AtomicInteger success = new AtomicInteger(0);
+            final CountDownLatch latch = new CountDownLatch(requests);
+            final Semaphore semaphore = new Semaphore(maxRequestsInFlight);
+            for (int i = 0; i < requests; i++) {
+                PulsarClientImpl pulsarClientImpl = clients.get(i % numberOfClients);
+                executorService.execute(() -> {
+                    semaphore.acquireUninterruptibly();
+                    try {
+                        pulsarClientImpl.getLookup()
+                                .getTopicsUnderNamespace(NamespaceName.get("public", "default"),
+                                        CommandGetTopicsOfNamespace.Mode.PERSISTENT, ".*", "")
+                                .whenComplete((result, ex) -> {
+                                    semaphore.release();
+                                    if (ex == null) {
+                                        success.incrementAndGet();
+                                    } else {
+                                        log.error("Failed to get topic list.", ex);
+                                    }
+                                    log.info("latch-count: {}, succeed: {}, available direct mem: {} MB, "
+                                                    + "free heap mem: {} MB",
+                                            latch.getCount(), success.get(),
+                                            (DirectMemoryUtils.jvmMaxDirectMemory()
+                                                    - JvmMetrics.getJvmDirectMemoryUsed())
+                                                    / (1024 * 1024), Runtime.getRuntime().freeMemory() / (1024 * 1024));
+                                    latch.countDown();
+                                });
+                    } catch (Exception e) {
+                        semaphore.release();
+                        latch.countDown();
+                        log.error("Failed to execute getTopicsUnderNamespace request.", e);
+                    }
+                });
+            }
+            latch.await();
+            assertEquals(success.get(), requests);
+
+            validateTopiclistPrometheusMetrics();
         }
 
-        final AtomicInteger success = new AtomicInteger(0);
-        final CountDownLatch latch = new CountDownLatch(requests);
-        final Semaphore semaphore = new Semaphore(maxRequestsInFlight);
-        for (int i = 0; i < requests; i++) {
-            PulsarClientImpl pulsarClientImpl = clients.get(i % numberOfClients);
-            executorService.execute(() -> {
-                semaphore.acquireUninterruptibly();
-                try {
-                    pulsarClientImpl.getLookup()
-                            .getTopicsUnderNamespace(NamespaceName.get("public", "default"),
-                                    CommandGetTopicsOfNamespace.Mode.PERSISTENT, ".*", "")
-                            .whenComplete((result, ex) -> {
-                                semaphore.release();
-                                if (ex == null) {
-                                    success.incrementAndGet();
-                                } else {
-                                    log.error("Failed to get topic list.", ex);
-                                }
-                                log.info(
-                                        "latch-count: {}, succeed: {}, available direct mem: {} MB, free heap mem: {}"
-                                                + " MB",
-                                        latch.getCount(), success.get(),
-                                        (DirectMemoryUtils.jvmMaxDirectMemory() - JvmMetrics.getJvmDirectMemoryUsed())
-                                                / (1024 * 1024), Runtime.getRuntime().freeMemory() / (1024 * 1024));
-                                latch.countDown();
-                            });
-                } catch (Exception e) {
-                    semaphore.release();
-                    latch.countDown();
-                    log.error("Failed to execute getTopicsUnderNamespace request.", e);
-                }
-            });
-        }
-        latch.await();
-        assertEquals(success.get(), requests);
+        validateThatTokensHaventLeakedOrIncreased();
+    }
 
-        validateTopiclistPrometheusMetrics();
+    protected void validateThatTokensHaventLeakedOrIncreased() {
+        AsyncDualMemoryLimiterImpl limiter =
+                pulsar.getBrokerService().getMaxTopicListInFlightLimiter();
+        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAvailablePermits())
+                .isEqualTo(pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizeMB() * 1024 * 1024);
+        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAcquiredPermits())
+                .isEqualTo(0);
+        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAvailablePermits())
+                .isEqualTo(pulsar.getConfiguration().getMaxTopicListInFlightDirectMemSizeMB() * 1024 * 1024);
+        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAcquiredPermits())
+                .isEqualTo(0);
     }
 
     protected int getNumberOfClients() {
