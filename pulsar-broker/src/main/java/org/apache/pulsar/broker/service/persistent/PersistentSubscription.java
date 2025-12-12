@@ -206,7 +206,8 @@ public class PersistentSubscription extends AbstractSubscription {
             this.replicatedSubscriptionSnapshotCache = null;
         } else if (this.replicatedSubscriptionSnapshotCache == null) {
             this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
-                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription(),
+                    getCursor().getManagedLedger()::getNumberOfEntries);
         }
 
         if (this.cursor != null) {
@@ -557,7 +558,8 @@ public class PersistentSubscription extends AbstractSubscription {
     private void handleReplicatedSubscriptionsUpdate(Position markDeletePosition) {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
-            ReplicatedSubscriptionsSnapshot snapshot = snapshotCache.advancedMarkDeletePosition(markDeletePosition);
+            ReplicatedSubscriptionSnapshotCache.SnapshotResult snapshot = snapshotCache
+                    .advancedMarkDeletePosition(markDeletePosition);
             if (snapshot != null) {
                 topic.getReplicatedSubscriptionController()
                         .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
