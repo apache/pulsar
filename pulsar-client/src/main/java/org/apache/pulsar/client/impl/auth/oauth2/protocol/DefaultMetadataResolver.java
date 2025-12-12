@@ -21,14 +21,17 @@ package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 import com.fasterxml.jackson.databind.ObjectReader;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.resolver.NameResolver;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.Response;
 
 /**
@@ -39,11 +42,14 @@ public class DefaultMetadataResolver implements MetadataResolver {
     private final URL metadataUrl;
     private final ObjectReader objectReader;
     private final AsyncHttpClient httpClient;
+    private final NameResolver<InetAddress> nameResolver;
 
-    public DefaultMetadataResolver(URL metadataUrl, AsyncHttpClient httpClient) {
+    public DefaultMetadataResolver(URL metadataUrl, AsyncHttpClient httpClient,
+                                   NameResolver<InetAddress> nameResolver) {
         this.metadataUrl = metadataUrl;
         this.objectReader = ObjectMapperFactory.getMapper().reader().forType(Metadata.class);
         this.httpClient = httpClient;
+        this.nameResolver = nameResolver;
     }
 
     /**
@@ -52,8 +58,10 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * @param issuerUrl The authorization server's issuer identifier
      * @return a resolver
      */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient) {
-        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl), httpClient);
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl,
+                                                        AsyncHttpClient httpClient,
+                                                        NameResolver<InetAddress> nameResolver) {
+        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl), httpClient, nameResolver);
     }
 
     /**
@@ -81,11 +89,12 @@ public class DefaultMetadataResolver implements MetadataResolver {
     public Metadata resolve() throws IOException {
 
         try {
-            Response response = httpClient.prepareGet(metadataUrl.toString())
-                    .addHeader(HttpHeaderNames.ACCEPT, HttpHeaderValues.APPLICATION_JSON)
-                    .execute()
-                    .toCompletableFuture()
-                    .get();
+            BoundRequestBuilder requestBuilder = httpClient.prepareGet(metadataUrl.toString())
+                    .addHeader(HttpHeaderNames.ACCEPT, HttpHeaderValues.APPLICATION_JSON);
+            if (nameResolver != null) {
+                requestBuilder.setNameResolver(nameResolver);
+            }
+            Response response = requestBuilder.execute().toCompletableFuture().get();
 
             Metadata metadata;
             try (InputStream inputStream = response.getResponseBodyAsStream()) {

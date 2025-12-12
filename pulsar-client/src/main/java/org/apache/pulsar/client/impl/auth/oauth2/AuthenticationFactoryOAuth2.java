@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import io.netty.resolver.NameResolver;
+import java.net.InetAddress;
 import java.net.URL;
 import java.time.Clock;
 import java.time.Duration;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.http.AuthenticationHttpClientConfig;
+import org.apache.pulsar.client.impl.http.AuthenticationHttpClientFactory;
+import org.asynchttpclient.AsyncHttpClient;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
@@ -78,6 +83,8 @@ public final class AuthenticationFactoryOAuth2 {
         private Duration connectTimeout;
         private Duration readTimeout;
         private String trustCertsFilePath;
+        private AsyncHttpClient httpClient;
+        private NameResolver<InetAddress> nameResolver;
 
         private ClientCredentialsBuilder() {
         }
@@ -164,24 +171,76 @@ public final class AuthenticationFactoryOAuth2 {
         }
 
         /**
+         * Optional custom HTTP client.
+         *
+         * @param httpClient the HTTP client
+         * @return the builder
+         */
+        public ClientCredentialsBuilder httpClient(AsyncHttpClient httpClient) {
+            this.httpClient = httpClient;
+            return this;
+        }
+
+        /**
+         * Optional custom name resolver.
+         *
+         * @param nameResolver the name resolver
+         * @return the builder
+         */
+        public ClientCredentialsBuilder nameResolver(NameResolver<InetAddress> nameResolver) {
+            this.nameResolver = nameResolver;
+            return this;
+        }
+
+        /**
          * Authenticate with client credentials.
          *
          * @return an Authentication object
          */
         public Authentication build() {
+            AsyncHttpClient finalHttpClient = this.httpClient;
+            NameResolver<InetAddress> finalNameResolver = this.nameResolver;
+
+            if (finalHttpClient == null || finalNameResolver == null) {
+                // 构建配置，处理可能的空值
+                AuthenticationHttpClientConfig.builder configBuilder =
+                        AuthenticationHttpClientConfig.builder();
+
+                if (connectTimeout != null) {
+                    configBuilder.connectTimeout((int) connectTimeout.toMillis());
+                }
+
+                if (readTimeout != null) {
+                    configBuilder.readTimeout((int) readTimeout.toMillis());
+                }
+
+                if (trustCertsFilePath != null) {
+                    configBuilder.trustCertsFilePath(trustCertsFilePath);
+                }
+
+                AuthenticationHttpClientFactory clientFactory = new AuthenticationHttpClientFactory(
+                        configBuilder.build(),
+                        null
+                );
+
+                if (finalHttpClient == null) {
+                    finalHttpClient = clientFactory.createHttpClient();
+                }
+
+                if (finalNameResolver == null) {
+                    finalNameResolver = clientFactory.getNameResolver();
+                }
+            }
             ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
                     .issuerUrl(issuerUrl)
                     .privateKey(credentialsUrl == null ? null : credentialsUrl.toExternalForm())
                     .audience(audience)
                     .scope(scope)
-                    .connectTimeout(connectTimeout)
-                    .readTimeout(readTimeout)
-                    .trustCertsFilePath(trustCertsFilePath)
+                    .httpClient(finalHttpClient)
+                    .nameResolver(finalNameResolver)
                     .build();
             return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
         }
 
     }
-
-
 }
