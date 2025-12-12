@@ -67,26 +67,6 @@ abstract class FlowBase implements Flow {
         return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, httpClient, nameResolver);
     }
 
-    static String parseParameterString(Map<String, String> params, String name) {
-        String s = params.get(name);
-        if (StringUtils.isEmpty(s)) {
-            throw new IllegalArgumentException("Required configuration parameter: " + name);
-        }
-        return s;
-    }
-
-    static URL parseParameterUrl(Map<String, String> params, String name) {
-        String s = params.get(name);
-        if (StringUtils.isEmpty(s)) {
-            throw new IllegalArgumentException("Required configuration parameter: " + name);
-        }
-        try {
-            return new URL(s);
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("Malformed configuration parameter: " + name);
-        }
-    }
-
     @Override
     public void close() throws Exception {
         httpClient.close();

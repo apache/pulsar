@@ -80,9 +80,9 @@ class ClientCredentialsFlow extends FlowBase {
      */
     public static ClientCredentialsFlow fromParameters(Map<String, String> params,
                                                        NameResolver<InetAddress> nameResolver,
-                                                       AsyncHttpClient httpClient) {
-        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
-        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
+                                                       AsyncHttpClient httpClient,
+                                                       URL issuerUrl,
+                                                       String privateKeyUrl) {
         // These are optional parameters, so we only perform a get
         String scope = params.get(CONFIG_PARAM_SCOPE);
         String audience = params.get(CONFIG_PARAM_AUDIENCE);

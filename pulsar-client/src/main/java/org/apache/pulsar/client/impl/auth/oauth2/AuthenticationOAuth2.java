@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -51,6 +53,9 @@ public class AuthenticationOAuth2 implements Authentication,
     public static final String CONFIG_PARAM_CONNECT_TIMEOUT = "connectTimeout";
     public static final String CONFIG_PARAM_READ_TIMEOUT = "readTimeout";
     public static final String CONFIG_PARAM_TRUST_CERTS_FILE_PATH = "trustCertsFilePath";
+    public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
+    public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
+
     protected static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
     protected static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
     public static final double EXPIRY_ADJUSTMENT = 0.9;
@@ -60,6 +65,8 @@ public class AuthenticationOAuth2 implements Authentication,
     Flow flow;
     transient CachedToken cachedToken;
     private Map<String, String> params;
+    private URL issuerUrl;
+    private String privateKeyUrl;
 
     public AuthenticationOAuth2() {
         this.clock = Clock.systemDefaultZone();
@@ -89,6 +96,8 @@ public class AuthenticationOAuth2 implements Authentication,
         if (!type.equals(TYPE_CLIENT_CREDENTIALS)) {
             throw new IllegalArgumentException("Unsupported authentication type: " + type);
         }
+        this.issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
+        this.privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
     }
 
     private void initializeFlow(AuthenticationInitContext context) {
@@ -96,8 +105,31 @@ public class AuthenticationOAuth2 implements Authentication,
         AuthenticationHttpClientFactory httpClientFactory =
                 new AuthenticationHttpClientFactory(config, context);
         this.flow = ClientCredentialsFlow.fromParameters(
-                params, httpClientFactory.getNameResolver(), httpClientFactory.createHttpClient());
+                params, httpClientFactory.getNameResolver(),
+                httpClientFactory.createHttpClient(), issuerUrl, privateKeyUrl);
     }
+
+    static String parseParameterString(Map<String, String> params, String name) {
+        String s = params.get(name);
+        if (StringUtils.isEmpty(s)) {
+            throw new IllegalArgumentException("Required configuration parameter: " + name);
+        }
+        return s;
+    }
+
+
+    static URL parseParameterUrl(Map<String, String> params, String name) {
+        String s = params.get(name);
+        if (StringUtils.isEmpty(s)) {
+            throw new IllegalArgumentException("Required configuration parameter: " + name);
+        }
+        try {
+            return new URL(s);
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("Malformed configuration parameter: " + name);
+        }
+    }
+
 
     private static int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
         Duration duration;
@@ -148,7 +180,9 @@ public class AuthenticationOAuth2 implements Authentication,
 
     @Override
     public void start(AuthenticationInitContext context) throws PulsarClientException {
-        initializeFlow(context);
+        if (flow == null) {
+            initializeFlow(context);
+        }
         flow.initialize();
     }
 

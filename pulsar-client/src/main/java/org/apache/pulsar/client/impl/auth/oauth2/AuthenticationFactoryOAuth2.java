@@ -203,23 +203,23 @@ public final class AuthenticationFactoryOAuth2 {
 
             if (finalHttpClient == null || finalNameResolver == null) {
                 // 构建配置，处理可能的空值
-                AuthenticationHttpClientConfig.builder configBuilder =
-                        AuthenticationHttpClientConfig.builder();
+                AuthenticationHttpClientConfig httpClientConfig = new
+                        AuthenticationHttpClientConfig();
 
                 if (connectTimeout != null) {
-                    configBuilder.connectTimeout((int) connectTimeout.toMillis());
+                    httpClientConfig.setConnectTimeout((int) connectTimeout.toMillis());
                 }
 
                 if (readTimeout != null) {
-                    configBuilder.readTimeout((int) readTimeout.toMillis());
+                    httpClientConfig.setReadTimeout((int) readTimeout.toMillis());
                 }
 
                 if (trustCertsFilePath != null) {
-                    configBuilder.trustCertsFilePath(trustCertsFilePath);
+                    httpClientConfig.setTrustCertsFilePath(trustCertsFilePath);
                 }
 
                 AuthenticationHttpClientFactory clientFactory = new AuthenticationHttpClientFactory(
-                        configBuilder.build(),
+                        httpClientConfig,
                         null
                 );
 
