@@ -2644,10 +2644,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
                         return getBrokerService().pulsar().getNamespaceService()
                                 .getListOfUserTopics(namespaceName, mode)
-                                .thenAccept(topics -> {
+                                .thenCompose(topics -> {
                                     long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
                                     listSizeHolder.updateSize(actualSize);
-                                    maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                    return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                             isPermitRequestCancelled, permits -> {
                                                 boolean filterTopics = false;
                                                 // filter system topic
