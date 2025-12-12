@@ -182,7 +182,7 @@ public class ReplicatedSubscriptionSnapshotCache {
             if (retval != 0) {
                 return retval;
             }
-            return Integer.compare(clusters.hashCode(), o.clusters.hashCode());
+            return Integer.compare(System.identityHashCode(this), System.identityHashCode(o));
         }
 
         @Override
