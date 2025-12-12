@@ -182,7 +182,7 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         // check that picking a random markDeletePosition within the range of the second snapshot will result in a
         // snapshot that is within 2 * expectedAverageDistance from the markDeletePosition
         Position markDeletePosition =
-                PositionFactory.create(ledgerIdCluster1, second.position().getEntryId() + random.nextLong(distance));
+                PositionFactory.create(ledgerIdCluster1, second.position().getEntryId() + random.nextLong(Math.max(1, distance)));
 
         assertThat(cache.advancedMarkDeletePosition(markDeletePosition)).satisfies(snapshotResult -> {
             long snapshotDistance = markDeletePosition.getEntryId() - snapshotResult.position().getEntryId();
@@ -295,8 +295,8 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
 
         while (addedSnapshots < addSnapshotCount) {
             // fill up the cache with random number of entries
-            int addInThisRount = 1 + random.nextInt(2 * maxSnapshotToCache);
-            for (int i = 0; i < addInThisRount; i++) {
+            int addInThisRound = 1 + random.nextInt(2 * maxSnapshotToCache);
+            for (int i = 0; i < addInThisRound; i++) {
                 ReplicatedSubscriptionsSnapshot snapshot = new ReplicatedSubscriptionsSnapshot()
                         .setSnapshotId(UUID.randomUUID().toString());
                 snapshot.setLocalMessageId().setLedgerId(ledgerIdCluster1).setEntryId(entryIdCluster1);
@@ -312,7 +312,12 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
                 entryIdCluster1 += 100 + random.nextInt(1000);
                 entryIdCluster2 += 100 + random.nextInt(1000);
             }
-            markDeletePositionEntryId = firstSnapshotEntryId + random.nextLong(entryIdCluster1 - firstSnapshotEntryId);
+            long bound = entryIdCluster1 - firstSnapshotEntryId;
+            if (bound > 0) {
+                markDeletePositionEntryId = firstSnapshotEntryId + random.nextLong(bound);
+            } else {
+                markDeletePositionEntryId = firstSnapshotEntryId;
+            }
             ReplicatedSubscriptionSnapshotCache.SnapshotResult snapshotResult = cache.advancedMarkDeletePosition(
                     PositionFactory.create(ledgerIdCluster1, markDeletePositionEntryId));
             assertNotNull(snapshotResult);
