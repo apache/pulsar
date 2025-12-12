@@ -258,9 +258,9 @@ public class ReplicatedSubscriptionSnapshotCache {
         updateSortedEntriesByTotalDistance();
 
         SnapshotEntry minEntry = sortedSnapshots.first();
-        // Defensive check: minEntry should never be head or tail
+        // Defensive check: minEntry should never be head or tail, as these are boundary entries that must be preserved
         if (minEntry == head || minEntry == tail) {
-            throw new IllegalStateException("minEntry should not be head or tail sentinel node");
+            throw new IllegalStateException("minEntry should not be head or tail boundary entry");
         }
         SnapshotEntry minEntryNext = minEntry.next;
         SnapshotEntry minEntryPrevious = minEntry.prev;
@@ -327,7 +327,7 @@ public class ReplicatedSubscriptionSnapshotCache {
 
     /**
      * Signal that the mark-delete position on the subscription has been advanced. If there is a snapshot that
-     * correspond to this position, it will returned, other it will return null.
+     * corresponds to this position, it will be returned; otherwise it will return null.
      */
     public synchronized SnapshotResult advancedMarkDeletePosition(Position pos) {
         SnapshotEntry snapshot = null;
@@ -343,7 +343,7 @@ public class ReplicatedSubscriptionSnapshotCache {
                 }
                 break;
             }
-            // This snapshot is potentially good. Continue the search for to see if there is a higher snapshot we
+            // This snapshot is potentially good. Continue the search to see if there is a higher snapshot we
             // can use
             snapshot = current;
             if (current == lastSortedEntry) {
