@@ -368,17 +368,18 @@ public class LookupProxyHandler {
         listSizeHolder.getSizeAsync().thenAccept(initialSize -> {
             maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
-                        return clientCnx.newGetTopicsOfNamespace(command, requestId).whenComplete((r, t) -> {
+                        return clientCnx.newGetTopicsOfNamespace(command, requestId).handle((r, t) -> {
                             if (t != null) {
                                 log.warn("[{}] Failed to get TopicsOfNamespace {}: {}", clientAddress, namespaceName,
                                         t.getMessage());
                                 listSizeHolder.resetIfInitializing();
                                 writeAndFlush(Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
+                                return CompletableFuture.completedFuture(null);
                             } else {
                                 long actualSize = TopicListMemoryLimiter.estimateTopicListSize(
                                         r.getNonPartitionedOrPartitionTopics());
                                 listSizeHolder.updateSize(actualSize);
-                                maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                         isPermitRequestCancelled, permits -> {
                                             return handleWritingGetTopicsResponse(clientRequestId, r,
                                                     isPermitRequestCancelled);
@@ -392,7 +393,7 @@ public class LookupProxyHandler {
                                             return CompletableFuture.completedFuture(null);
                                         });
                             }
-                        }).thenApply(__ -> null);
+                        });
                     }, t -> {
                         log.warn("[{}] Failed to acquire initial heap memory permits for GetTopicsOfNamespace: {}",
                                 clientAddress, t.getMessage());
