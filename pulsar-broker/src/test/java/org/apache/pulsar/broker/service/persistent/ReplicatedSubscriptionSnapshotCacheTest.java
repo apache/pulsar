@@ -182,7 +182,8 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         // check that picking a random markDeletePosition within the range of the second snapshot will result in a
         // snapshot that is within 2 * expectedAverageDistance from the markDeletePosition
         Position markDeletePosition =
-                PositionFactory.create(ledgerIdCluster1, second.position().getEntryId() + random.nextLong(Math.max(1, distance)));
+                PositionFactory.create(ledgerIdCluster1,
+                        second.position().getEntryId() + random.nextLong(Math.max(1, distance)));
 
         assertThat(cache.advancedMarkDeletePosition(markDeletePosition)).satisfies(snapshotResult -> {
             long snapshotDistance = markDeletePosition.getEntryId() - snapshotResult.position().getEntryId();
