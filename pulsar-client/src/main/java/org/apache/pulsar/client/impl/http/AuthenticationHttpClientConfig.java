@@ -18,22 +18,21 @@
  */
 package org.apache.pulsar.client.impl.http;
 
-import lombok.Data;
-import org.apache.pulsar.client.api.AuthenticationInitContext;
 
-@Data
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
 public class AuthenticationHttpClientConfig {
     private int readTimeout = 30000;
     private int connectTimeout = 10000;
     private String trustCertsFilePath;
-    private AuthenticationInitContext context;
 
-    public AuthenticationHttpClientConfig(int readTimeout, int connectTimeout, String trustCertsFilePath,
-                                          AuthenticationInitContext context) {
+    @Builder(builderClassName = "ConfigBuilder")
+    public AuthenticationHttpClientConfig(int readTimeout, int connectTimeout, String trustCertsFilePath) {
         this.readTimeout = readTimeout;
         this.connectTimeout = connectTimeout;
         this.trustCertsFilePath = trustCertsFilePath;
-        this.context = context;
     }
 
     public AuthenticationHttpClientConfig() {

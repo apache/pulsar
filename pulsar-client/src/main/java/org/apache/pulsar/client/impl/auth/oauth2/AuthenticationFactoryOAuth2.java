@@ -202,24 +202,23 @@ public final class AuthenticationFactoryOAuth2 {
             NameResolver<InetAddress> finalNameResolver = this.nameResolver;
 
             if (finalHttpClient == null || finalNameResolver == null) {
-                // 构建配置，处理可能的空值
-                AuthenticationHttpClientConfig httpClientConfig = new
-                        AuthenticationHttpClientConfig();
+                AuthenticationHttpClientConfig.ConfigBuilder builder =
+                        AuthenticationHttpClientConfig.builder();
 
                 if (connectTimeout != null) {
-                    httpClientConfig.setConnectTimeout((int) connectTimeout.toMillis());
+                    builder.connectTimeout((int) connectTimeout.toMillis());
                 }
 
                 if (readTimeout != null) {
-                    httpClientConfig.setReadTimeout((int) readTimeout.toMillis());
+                    builder.readTimeout((int) readTimeout.toMillis());
                 }
 
                 if (trustCertsFilePath != null) {
-                    httpClientConfig.setTrustCertsFilePath(trustCertsFilePath);
+                    builder.trustCertsFilePath(trustCertsFilePath);
                 }
 
                 AuthenticationHttpClientFactory clientFactory = new AuthenticationHttpClientFactory(
-                        httpClientConfig,
+                        builder.build(),
                         null
                 );
 

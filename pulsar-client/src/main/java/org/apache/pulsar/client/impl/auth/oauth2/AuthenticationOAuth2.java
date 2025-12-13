@@ -164,7 +164,7 @@ public class AuthenticationOAuth2 implements Authentication,
         int connectTimeout = parseParameterDuration(params, CONFIG_PARAM_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT);
         int readTimeout = parseParameterDuration(params, CONFIG_PARAM_READ_TIMEOUT, DEFAULT_READ_TIMEOUT);
         String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
-        return new AuthenticationHttpClientConfig(readTimeout, connectTimeout, trustCertsFilePath, context);
+        return new AuthenticationHttpClientConfig(readTimeout, connectTimeout, trustCertsFilePath);
     }
 
     @Override
