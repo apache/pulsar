@@ -20,4 +20,4 @@
 /**
  * Pulsar Authentication http client.
  */
-package org.apache.pulsar.client.impl.http;
+package org.apache.pulsar.client.impl.auth.httpclient;

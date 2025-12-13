@@ -24,8 +24,8 @@ import java.net.URL;
 import java.time.Clock;
 import java.time.Duration;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.impl.http.AuthenticationHttpClientConfig;
-import org.apache.pulsar.client.impl.http.AuthenticationHttpClientFactory;
+import org.apache.pulsar.client.impl.auth.httpclient.AuthenticationHttpClientConfig;
+import org.apache.pulsar.client.impl.auth.httpclient.AuthenticationHttpClientFactory;
 import org.asynchttpclient.AsyncHttpClient;
 
 /**
@@ -202,23 +202,23 @@ public final class AuthenticationFactoryOAuth2 {
             NameResolver<InetAddress> finalNameResolver = this.nameResolver;
 
             if (finalHttpClient == null || finalNameResolver == null) {
-                AuthenticationHttpClientConfig.ConfigBuilder builder =
+                AuthenticationHttpClientConfig.ConfigBuilder configBuilder =
                         AuthenticationHttpClientConfig.builder();
 
                 if (connectTimeout != null) {
-                    builder.connectTimeout((int) connectTimeout.toMillis());
+                    configBuilder.connectTimeout((int) connectTimeout.toMillis());
                 }
 
                 if (readTimeout != null) {
-                    builder.readTimeout((int) readTimeout.toMillis());
+                    configBuilder.readTimeout((int) readTimeout.toMillis());
                 }
 
                 if (trustCertsFilePath != null) {
-                    builder.trustCertsFilePath(trustCertsFilePath);
+                    configBuilder.trustCertsFilePath(trustCertsFilePath);
                 }
 
                 AuthenticationHttpClientFactory clientFactory = new AuthenticationHttpClientFactory(
-                        builder.build(),
+                        configBuilder.build(),
                         null
                 );
 

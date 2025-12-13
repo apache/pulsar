@@ -36,9 +36,9 @@ import org.apache.pulsar.client.api.AuthenticationInitContext;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
+import org.apache.pulsar.client.impl.auth.httpclient.AuthenticationHttpClientConfig;
+import org.apache.pulsar.client.impl.auth.httpclient.AuthenticationHttpClientFactory;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
-import org.apache.pulsar.client.impl.http.AuthenticationHttpClientConfig;
-import org.apache.pulsar.client.impl.http.AuthenticationHttpClientFactory;
 
 /**
  * Pulsar client authentication provider based on OAuth 2.0.
@@ -101,7 +101,7 @@ public class AuthenticationOAuth2 implements Authentication,
     }
 
     private void initializeFlow(AuthenticationInitContext context) {
-        AuthenticationHttpClientConfig config = buildHttpConfig(params, context);
+        AuthenticationHttpClientConfig config = buildHttpConfig(params);
         AuthenticationHttpClientFactory httpClientFactory =
                 new AuthenticationHttpClientFactory(config, context);
         this.flow = ClientCredentialsFlow.fromParameters(
@@ -159,8 +159,7 @@ public class AuthenticationOAuth2 implements Authentication,
 
 
     private AuthenticationHttpClientConfig buildHttpConfig(
-            Map<String, String> params,
-            AuthenticationInitContext context) {
+            Map<String, String> params) {
         int connectTimeout = parseParameterDuration(params, CONFIG_PARAM_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT);
         int readTimeout = parseParameterDuration(params, CONFIG_PARAM_READ_TIMEOUT, DEFAULT_READ_TIMEOUT);
         String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);

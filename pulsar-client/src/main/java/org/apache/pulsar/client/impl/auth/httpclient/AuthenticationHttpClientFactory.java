@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.http;
+package org.apache.pulsar.client.impl.auth.httpclient;
 
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -34,6 +34,44 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 
+/**
+ * Factory for creating HTTP clients used by authentication providers.
+ *
+ * <p>This factory creates {@link AsyncHttpClient} instances that are optimized for
+ * authentication-related HTTP requests. It supports:
+ * <ul>
+ *   <li>Reusing shared resources from {@link AuthenticationInitContext}
+ *   <li>Configurable timeouts for connections and reads
+ *   <li>Custom SSL/TLS trust certificates
+ *   <li>DNS resolver configuration
+ * </ul>
+ *
+ * <h2>Resource Sharing</h2>
+ * <p>When a {@link AuthenticationInitContext} is provided, the factory will attempt to
+ * reuse shared resources:
+ * <ul>
+ *   <li>{@link EventLoopGroup}: For I/O operations
+ *   <li>{@link Timer}: For scheduling timeouts
+ *   <li>{@link NameResolver}: For DNS resolution
+ * </ul>
+ *
+ * <h2>Usage Example</h2>
+ * <pre>{@code
+ * AuthenticationHttpClientConfig config = AuthenticationHttpClientConfig.builder()
+ *     .readTimeout(30000)
+ *     .connectTimeout(10000)
+ *     .build();
+ *
+ * AuthenticationHttpClientFactory factory =
+ *     new AuthenticationHttpClientFactory(config, authenticationContext);
+ *
+ * AsyncHttpClient httpClient = factory.createHttpClient();
+ * NameResolver<InetAddress> nameResolver = factory.getNameResolver();
+ * }</pre>
+ *
+ * @see AuthenticationHttpClientConfig
+ * @see AuthenticationInitContext
+ */
 @Slf4j
 public class AuthenticationHttpClientFactory {
 

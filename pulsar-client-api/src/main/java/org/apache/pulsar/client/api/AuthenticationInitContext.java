@@ -30,38 +30,66 @@ import java.util.Optional;
  * creating their own instances. This improves resource utilization and performance, especially
  * when multiple client instances or authentication providers are used within the same application.
  *
- * <h2>Usage Examples</h2>
- *
- * <p><strong>Getting a shared EventLoopGroup:</strong>
- * <pre>{@code
- * public void start(AuthenticationInitContext context) throws PulsarClientException {
- *     Optional<EventLoopGroup> eventLoop = context.getService(EventLoopGroup.class);
- *     if (eventLoop.isPresent()) {
- *         this.sharedEventLoopGroup = eventLoop.get();
- *     } else {
- *         // Fallback to creating own instance
- *         this.ownEventLoopGroup = new NioEventLoopGroup();
- *     }
- * }
- * }</pre>
- *
- * <p><strong>Getting a named DNS resolver:</strong>
- * <pre>{@code
- * public void start(AuthenticationInitContext context) throws PulsarClientException {
- *     Optional<DnsResolver> dnsResolver = context.getServiceByName(DnsResolver.class, "secure-dns");
- *     if (dnsResolver.isPresent()) {
- *         this.dnsResolver = dnsResolver.get();
- *     }
- * }
- * }</pre>
- *
  * <p>Authentication providers should prefer using shared resources when available to minimize
  * system resource consumption and improve performance through better resource reuse.
  *
  * @see Authentication
- * @since 2.11.0
  */
 public interface AuthenticationInitContext {
+    /**
+     * Retrieves a shared service instance by its class type.
+     *
+     * <p>This method looks up a globally registered service which is shared among
+     * all authentication providers.
+     *
+     * <p><strong>Example:</strong>
+     * <pre>{@code
+     * Optional<EventLoopGroup> eventLoop = context.getService(EventLoopGroup.class);
+     * if (eventLoop.isPresent()) {
+     *     // Use the shared event loop group
+     *     this.eventLoopGroup = eventLoop.get();
+     * } else {
+     *     // Fallback to creating a new instance
+     *     this.eventLoopGroup = new NioEventLoopGroup();
+     * }
+     * }</pre>
+     *
+     * @param <T> The type of service to retrieve
+     * @param serviceClass The class of the service to retrieve
+     * @return An {@link Optional} containing the service instance if available,
+     *         or {@link Optional#empty()} if no such service is registered
+     */
     <T> Optional<T> getService(Class<T> serviceClass);
+
+    /**
+     * Retrieves a named shared service instance by its class type and name.
+     *
+     * <p>This method allows lookup of services that are registered under a specific
+     * name, enabling multiple instances of the same service type to be distinguished.
+     * This is useful for:
+     * <ul>
+     *   <li>Specialized DNS resolvers (e.g., "secure-dns", "internal-dns")
+     *   <li>Different thread pools for various purposes
+     *   <li>Multiple timer instances with different configurations
+     *   <li>HTTP clients with different proxy configurations
+     * </ul>
+     *
+     * <p><strong>Example:</strong>
+     * <pre>{@code
+     * // Get a DNS resolver configured for internal network resolution
+     * Optional<NameResolver> internalResolver =
+     *     context.getServiceByName(NameResolver.class, "internal-network");
+     *
+     * // Get a different DNS resolver for external resolution
+     * Optional<NameResolver> externalResolver =
+     *     context.getServiceByName(NameResolver.class, "external-network");
+     * }</pre>
+     *
+     * @param <T> The type of service to retrieve
+     * @param serviceClass The class of the service to retrieve. Cannot be null.
+     * @param name The name under which the service is registered. Cannot be null or empty.
+     * @return An {@link Optional} containing the named service instance if available,
+     *         or {@link Optional#empty()} if no such service is registered with the given name
+     */
     <T> Optional<T> getServiceByName(Class<T> serviceClass, String name);
 }

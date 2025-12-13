@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.AuthenticationInitContext;
 public class AuthenticationInitContextImpl implements AuthenticationInitContext {
     private final Map<Class<?>, Object> sharedServices = new HashMap<>();
     private final Map<String, Map<Class<?>, Object>> namedServices = new HashMap<>();
+
     public AuthenticationInitContextImpl(EventLoopGroup eventLoopGroup,
                                          Timer timer,
                                          NameResolver<InetAddress> nameResolver) {
@@ -41,17 +42,24 @@ public class AuthenticationInitContextImpl implements AuthenticationInitContext 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getService(Class<T> serviceClass) {
+        if (serviceClass == null) {
+            throw new IllegalArgumentException("Service class cannot be null");
+        }
         return Optional.ofNullable((T) sharedServices.get(serviceClass));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getServiceByName(Class<T> serviceClass, String name) {
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("Service name cannot be null or empty");
+        }
         Map<Class<?>, Object> services = namedServices.get(name);
         if (services != null) {
             return Optional.ofNullable((T) services.get(serviceClass));
         }
-        return Optional.empty();    }
+        return Optional.empty();
+    }
 
     public <T> void addService(Class<T> serviceClass, T instance) {
         sharedServices.put(serviceClass, instance);
