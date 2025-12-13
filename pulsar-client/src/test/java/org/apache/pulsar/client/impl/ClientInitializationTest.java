@@ -25,6 +25,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class ClientInitializationTest {
@@ -40,7 +41,7 @@ public class ClientInitializationTest {
                 .authentication(auth)
                 .build();
 
-        verify(auth).start();
+        verify(auth).start(Mockito.any());
         verify(auth, times(0)).getAuthData();
     }
 }
