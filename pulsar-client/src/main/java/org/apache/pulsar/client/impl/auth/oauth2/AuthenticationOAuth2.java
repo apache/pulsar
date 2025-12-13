@@ -154,7 +154,7 @@ public class AuthenticationOAuth2 implements Authentication,
                 throw new IllegalArgumentException("Malformed configuration parameter: " + name, e);
             }
         }
-        return 0;
+        return (int) defaultValue.toMillis();
     }
 
 

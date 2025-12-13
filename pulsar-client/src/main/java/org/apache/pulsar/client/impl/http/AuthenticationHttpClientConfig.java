@@ -30,8 +30,8 @@ public class AuthenticationHttpClientConfig {
 
     @Builder(builderClassName = "ConfigBuilder")
     public AuthenticationHttpClientConfig(int readTimeout, int connectTimeout, String trustCertsFilePath) {
-        this.readTimeout = readTimeout;
-        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout > 0 ? readTimeout : this.readTimeout;
+        this.connectTimeout = connectTimeout > 0 ? connectTimeout : this.connectTimeout;
         this.trustCertsFilePath = trustCertsFilePath;
     }
 
