@@ -103,7 +103,6 @@ public class AuthenticationOAuth2Test {
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
         assertNotNull(this.auth.flow);
-        this.auth.flow.initialize();
     }
 
     @Test

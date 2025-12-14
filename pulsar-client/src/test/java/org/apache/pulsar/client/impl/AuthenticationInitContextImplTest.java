@@ -42,7 +42,6 @@ public class AuthenticationInitContextImplTest {
         AuthenticationInitContextImpl context = new AuthenticationInitContextImpl(
                 eventLoopGroup, timer, nameResolver);
 
-        // Then
         Optional<EventLoopGroup> retrievedEventLoop = context.getService(EventLoopGroup.class);
         Optional<Timer> retrievedTimer = context.getService(Timer.class);
         Optional<NameResolver> retrievedNameResolver = context.getService(NameResolver.class);

@@ -25,7 +25,7 @@ import java.util.Optional;
  * Authentication initialization context that provides access to shared services and resources
  * during the authentication provider initialization phase.
  *
- * <p>This context enables authentication implementations to utilize shared resources such as
+ * <p>This context enables authentication implementations to use shared resources such as
  * thread pools, DNS resolvers, and timers that are managed by the Pulsar client, rather than
  * creating their own instances. This improves resource utilization and performance, especially
  * when multiple client instances or authentication providers are used within the same application.

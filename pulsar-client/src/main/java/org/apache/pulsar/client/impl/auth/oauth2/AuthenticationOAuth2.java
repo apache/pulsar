@@ -44,8 +44,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
  * Pulsar client authentication provider based on OAuth 2.0.
  */
 @Slf4j
-public class AuthenticationOAuth2 implements Authentication,
-        EncodedAuthenticationParameterSupport {
+public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticationParameterSupport {
 
     public static final String CONFIG_PARAM_TYPE = "type";
     public static final String TYPE_CLIENT_CREDENTIALS = "client_credentials";
