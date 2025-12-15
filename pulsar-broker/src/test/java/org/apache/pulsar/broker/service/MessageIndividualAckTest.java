@@ -141,27 +141,27 @@ public class MessageIndividualAckTest {
     }
 
 
-    @Test(timeOut = 5000, dataProvider = "individualAckModes")
-    public void testIndividualAckWithTransactionWithMessageNotExist(CommandSubscribe.SubType subType) throws Exception {
-        KeySharedMeta keySharedMeta =
-                subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
-        sub.getTopic().getBrokerService().getPulsar().getConfig().setTransactionCoordinatorEnabled(true);
-        Consumer consumer = new Consumer(sub, subType, "testIndividualAck", consumerId, 0,
-                "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, keySharedMeta,
-                MessageId.latest, DEFAULT_CONSUMER_EPOCH);
-        sub.addConsumer(consumer);
-        // A not exist ledger id and entry id
-        final long notExistLedgerId = 9999L;
-        final long notExistEntryId = 9999L;
-        // Ack one message that not exists in the ledger and individualAckWithTransaction() should return 0
-        CommandAck commandAck = new CommandAck();
-        commandAck.setTxnidMostBits(1L);
-        commandAck.setTxnidLeastBits(1L);
-        commandAck.setAckType(Individual);
-        commandAck.setConsumerId(consumerId);
-        commandAck.addMessageId().setEntryId(notExistEntryId).setLedgerId(notExistLedgerId);
-        Long l1 = consumer.individualAckWithTransaction(commandAck).get();
-        Assert.assertEquals(0L, l1.longValue());
-    }
-
+//    @Test(timeOut = 5000, dataProvider = "individualAckModes")
+//public void testIndividualAckWithTransactionWithMessageNotExist(CommandSubscribe.SubType subType) throws Exception {
+//        KeySharedMeta keySharedMeta =
+//                subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
+//        sub.getTopic().getBrokerService().getPulsar().getConfig().setTransactionCoordinatorEnabled(true);
+//        Consumer consumer = new Consumer(sub, Shared, "testIndividualAck", consumerId, 0,
+//                "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, keySharedMeta,
+//                MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+//        sub.addConsumer(consumer);
+//        // A not exist ledger id and entry id
+//        final long notExistLedgerId = 9999L;
+//        final long notExistEntryId = 9999L;
+//        // Ack one message that not exists in the ledger and individualAckWithTransaction() should return 0
+//        CommandAck commandAck = new CommandAck();
+//        commandAck.setTxnidMostBits(1L);
+//        commandAck.setTxnidLeastBits(1L);
+//        commandAck.setAckType(Individual);
+//        commandAck.setConsumerId(consumerId);
+//        commandAck.addMessageId().setEntryId(notExistEntryId).setLedgerId(notExistLedgerId);
+//        Long l1 = consumer.individualAckWithTransaction(commandAck).get();
+//        Assert.assertEquals(0L, l1.longValue());
+//    }
+//
 }

@@ -578,11 +578,6 @@ public class Consumer {
             Position position;
             ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize =
                     getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
-            if (ackOwnerConsumerAndBatchSize == null) {
-                log.warn("[{}] [{}] Acknowledging message at {}：{} not in pendingAck, maybe got deleted or not exist",
-                        subscription, consumerId, msgId.getLedgerId(), msgId.getEntryId());
-                continue;
-            }
             Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
             long ackedCount;
             int batchSize = ackOwnerConsumerAndBatchSize.rightInt();
@@ -615,10 +610,6 @@ public class Consumer {
             checkAckValidationError(ack, position);
 
             totalAckCount += ackedCount;
-        }
-        if (positionsAcked.isEmpty()) {
-            log.warn("[{}] [{}] no valid messages acked", subscription, consumerId);
-            return CompletableFuture.completedFuture(0L);
         }
         subscription.acknowledgeMessage(positionsAcked.stream()
                 .map(Pair::getRight)
@@ -659,11 +650,6 @@ public class Consumer {
             Position position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
             ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
                     msgId.getEntryId());
-            if (ackOwnerConsumerAndBatchSize == null) {
-                log.warn("[{}] [{}] Acknowledging message at {} that was already deleted", subscription,
-                        consumerId, position);
-                continue;
-            }
             Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
             // acked count at least one
             long ackedCount;
@@ -689,16 +675,13 @@ public class Consumer {
                 ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             }
 
-            if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
-                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-                checkAckValidationError(ack, position);
-                totalAckCount.add(ackedCount);
-            }
-        }
-        if (positionsAcked.isEmpty()) {
-            log.warn("[{}] [{}] no valid messages acked with txn {}-{}", subscription, consumerId,
-                    ack.getTxnidMostBits(), ack.getTxnidLeastBits());
-            return CompletableFuture.completedFuture(0L);
+            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+
+            checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId);
+
+            checkAckValidationError(ack, position);
+
+            totalAckCount.add(ackedCount);
         }
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
                 ack.getTxnidLeastBits(), positionsAcked.stream().map(Pair::getRight).collect(Collectors.toList()));
@@ -808,7 +791,7 @@ public class Consumer {
                     }
                 }
             }
-            return null;
+            return ObjectIntPair.of(this, 0);
         }
         return ObjectIntPair.of(this, 1);
     }
