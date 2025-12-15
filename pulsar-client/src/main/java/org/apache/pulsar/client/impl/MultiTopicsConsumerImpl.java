@@ -599,6 +599,23 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void negativeAcknowledge(MessageId messageId, long delay, TimeUnit unit) {
+        checkArgument(messageId instanceof TopicMessageId);
+        ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());
+        consumer.negativeAcknowledge(messageId, delay, unit);
+        unAckedMessageTracker.remove(messageId);
+    }
+
+    @Override
+    public void negativeAcknowledge(Message<?> message, long delay, TimeUnit unit) {
+        MessageId messageId = message.getMessageId();
+        checkArgument(messageId instanceof TopicMessageId);
+        ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());
+        consumer.negativeAcknowledge(message, delay, unit);
+        unAckedMessageTracker.remove(messageId);
+    }
+
+    @Override
     public CompletableFuture<Void> unsubscribeAsync(boolean force) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -756,6 +773,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 .forEach((topicName, messageIds1) ->
                         consumers.get(topicName).redeliverUnacknowledgedMessages(messageIds1));
         resumeReceivingFromPausedConsumersIfNeeded();
+    }
+
+    @Override
+    protected void redeliverUnacknowledgedMessages(Set<MessageId> messageIds, long delayAtTime) {
+        redeliverUnacknowledgedMessages(messageIds);
     }
 
     @Override
