@@ -5382,7 +5382,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerImpl spyLedger = spy(ledgerImpl);
 
-        Position readPosition = PositionFactory.create(firstLedgerId, 0);
+        PositionImpl readPosition = PositionImpl.get(firstLedgerId, 0);
         CountDownLatch readLatch = new CountDownLatch(1);
 
         ReadEntriesCallback callback = new ReadEntriesCallback() {
