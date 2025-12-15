@@ -210,7 +210,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Getter
     @VisibleForTesting
     @Nullable protected final ConcurrentSkipListMap<Position, BitSet> batchDeletedIndexes;
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    protected final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private RateLimiter markDeleteLimiter;
     // The cursor is considered "dirty" when there are mark-delete updates that are only applied in memory,

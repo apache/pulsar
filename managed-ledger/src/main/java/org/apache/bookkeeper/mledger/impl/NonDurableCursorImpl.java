@@ -106,8 +106,13 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
         MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx,
                 alignAcknowledgeStatusAfterPersisted);
-        lastMarkDeleteEntry = mdEntry;
-        mdEntry.alignAcknowledgeStatus();
+        lock.writeLock().lock();
+        try {
+            lastMarkDeleteEntry = mdEntry;
+            mdEntry.alignAcknowledgeStatus();
+        } finally {
+            lock.writeLock().unlock();
+        }
         // it is important to advance cursor so the retention can kick in as expected.
         ledger.onCursorMarkDeletePositionUpdated(NonDurableCursorImpl.this, mdEntry.newPosition);
 
