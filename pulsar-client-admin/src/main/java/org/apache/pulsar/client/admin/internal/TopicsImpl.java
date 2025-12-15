@@ -183,7 +183,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                                                         Map<QueryParam, Object> params) {
         ListTopicsOptions options = ListTopicsOptions
                 .builder()
-                .bundle((String) params.get(QueryParam.Bundle.value))
+                .bundle((String) params.get(QueryParam.Bundle))
                 .build();
         return getListAsync(namespace, topicDomain, options);
     }
