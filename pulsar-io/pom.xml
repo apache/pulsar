@@ -69,7 +69,6 @@
         <module>netty</module>
         <module>hbase</module>
         <module>mongo</module>
-        <module>flume</module>
         <module>redis</module>
         <module>solr</module>
         <module>influxdb</module>
@@ -103,7 +102,6 @@
         <module>netty</module>
         <module>hbase</module>
         <module>mongo</module>
-        <module>flume</module>
         <module>redis</module>
         <module>solr</module>
         <module>influxdb</module>
