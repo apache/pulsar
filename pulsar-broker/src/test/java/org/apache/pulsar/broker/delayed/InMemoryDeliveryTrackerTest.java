@@ -274,4 +274,69 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         tracker.close();
     }
 
+    @Test(dataProvider = "delayedTracker")
+    public void testDelayedMessagesCountWithDuplicateEntryId(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        assertFalse(tracker.hasMessageAvailable());
+
+        // case1: addMessage() with duplicate entryId,
+        // getScheduledMessages() enter "cardinality <= n" and make tracker empty
+        assertTrue(tracker.addMessage(1, 1, 10));
+        assertTrue(tracker.addMessage(1, 2, 20));
+        assertTrue(tracker.addMessage(1, 2, 20));
+        assertTrue(tracker.addMessage(1, 3, 40));
+        assertTrue(tracker.addMessage(1, 4, 50));
+
+        clockTime.set(50);
+        assertTrue(tracker.hasMessageAvailable());
+        assertEquals(tracker.getNumberOfDelayedMessages(), 4L);
+        assertEquals(tracker.delayedMessageMap.size(), 4L);
+
+        Set<Position> scheduled = tracker.getScheduledMessages(10);
+        assertEquals(scheduled.size(), 4);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0L);
+
+
+
+        // case2: addMessage() with duplicate entryId,
+        // getScheduledMessages() enter "cardinality > n" and make tracker empty
+        clockTime.set(0);
+        assertTrue(tracker.addMessage(1, 1, 10));
+        assertTrue(tracker.addMessage(1, 2, 10));
+        assertTrue(tracker.addMessage(1, 2, 10));
+        assertTrue(tracker.addMessage(1, 3, 10));
+        assertTrue(tracker.addMessage(1, 4, 10));
+
+        clockTime.set(50);
+        assertTrue(tracker.hasMessageAvailable());
+        assertEquals(tracker.getNumberOfDelayedMessages(), 4L);
+        assertEquals(tracker.delayedMessageMap.size(), 1L);
+
+        scheduled = tracker.getScheduledMessages(10);
+        assertEquals(scheduled.size(), 4);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0L);
+
+
+
+        // case3: addMessage() with duplicate entryId,
+        // getScheduledMessages() make tracker remain half cardinality
+        clockTime.set(0);
+        assertTrue(tracker.addMessage(1, 1, 10));
+        assertTrue(tracker.addMessage(1, 2, 10));
+        assertTrue(tracker.addMessage(1, 2, 10));
+        assertTrue(tracker.addMessage(1, 3, 10));
+        assertTrue(tracker.addMessage(1, 4, 10));
+
+        clockTime.set(50);
+        assertTrue(tracker.hasMessageAvailable());
+        assertEquals(tracker.getNumberOfDelayedMessages(), 4L);
+        assertEquals(tracker.delayedMessageMap.size(), 1L);
+
+        scheduled = tracker.getScheduledMessages(2);
+        assertEquals(scheduled.size(), 2);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 2L);
+
+
+        tracker.close();
+    }
+
 }
