@@ -1047,7 +1047,8 @@ public abstract class NamespacesBase extends AdminResource {
                         unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
             }
         }).thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName)).thenApply(
-                policiesOpt -> policiesOpt.map(localPolicies -> localPolicies.bookieAffinityGroup).orElse(null));
+                policies -> policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                        "Namespace local-policies does not exist")).bookieAffinityGroup);
     }
 
     private CompletableFuture<Void> validateLeaderBrokerAsync() {

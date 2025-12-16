@@ -393,12 +393,9 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetAndDeleteBookieAffinityGroup() throws Exception {
-        // 1. create namespace with empty policies, namespace bookie affinity group should be null
+        // 1. create namespace with empty policies
         String setBookieAffinityGroupNs = "test-set-bookie-affinity-group-ns";
         asyncRequests(response -> namespaces.createNamespace(response, testTenant, setBookieAffinityGroupNs, null));
-        BookieAffinityGroupData bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
-                response -> namespaces.getBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs));
-        assertNull(bookieAffinityGroupDataResp);
 
         // 2.set bookie affinity group
         String primaryAffinityGroup = "primary-affinity-group";
@@ -410,7 +407,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
                 bookieAffinityGroupDataReq));
 
         // 3.assert namespace bookie affinity group
-        bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
+        BookieAffinityGroupData bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
                 response -> namespaces.getBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs));
         assertEquals(bookieAffinityGroupDataResp, bookieAffinityGroupDataReq);
 
@@ -491,9 +488,10 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         }
 
         // get namespaces in cluster of given anti affinity group
-        List<String> namespacesResp = (List<String>) asyncRequests(
-                response -> namespaces.getAntiAffinityNamespaces(response, testLocalCluster,
-                        namespaceAntiAffinityGroupReq, testTenant));
+        Object resp = asyncRequests(response -> namespaces.getAntiAffinityNamespaces(response, testLocalCluster,
+                namespaceAntiAffinityGroupReq, testTenant));
+        assertEquals(resp.getClass(), List.class);
+        List<String> namespacesResp = (List<String>) resp;
         namespacesResp.removeAll(namespacesWithAntiAffinityGroup);
         assertEquals(namespacesResp.size(), 0);
     }
