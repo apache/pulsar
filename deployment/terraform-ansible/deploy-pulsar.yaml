@@ -161,7 +161,6 @@
 #        - rabbitmq
 #        - redis
 #        - solr
-#        - twitter
     - name: Set up broker
       template:
         src: "../templates/broker.conf"

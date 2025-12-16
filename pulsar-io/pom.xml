@@ -49,7 +49,6 @@
         <module>common</module>
         <module>docs</module>
         <module>aws</module>
-        <module>twitter</module>
         <module>cassandra</module>
         <module>aerospike</module>
         <module>http</module>
@@ -87,7 +86,6 @@
         <module>batch-data-generator</module>
         <module>common</module>
         <module>aws</module>
-        <module>twitter</module>
         <module>cassandra</module>
         <module>aerospike</module>
         <module>http</module>
@@ -139,9 +137,9 @@
         <module>batch-discovery-triggerers</module>
         <module>batch-data-generator</module>
         <module>common</module>
-        <module>twitter</module>
         <module>cassandra</module>
         <module>data-generator</module>
+        <module>netty</module>
       </modules>
     </profile>
   </profiles>
