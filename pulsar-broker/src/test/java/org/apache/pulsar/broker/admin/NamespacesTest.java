@@ -2504,12 +2504,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // get namespaces in cluster of given anti affinity group
-        Object resp = asyncRequests(response -> namespaces.getAntiAffinityNamespaces(response, testLocalCluster,
-                namespaceAntiAffinityGroupReq, testTenant));
-        assertEquals(resp.getClass(), List.class);
-        List<String> namespacesResp = (List<String>) resp;
-        namespacesResp.removeAll(namespacesWithAntiAffinityGroup);
-        assertEquals(namespacesResp.size(), 0);
+        List<String> namespacesResp = (List<String>) asyncRequests(
+                response -> namespaces.getAntiAffinityNamespaces(response, testLocalCluster,
+                        namespaceAntiAffinityGroupReq, testTenant));
+        assertEquals(namespacesResp, namespacesWithAntiAffinityGroup);
     }
 
 }
