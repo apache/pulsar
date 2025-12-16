@@ -145,7 +145,6 @@
 #        - dynamodb
 #        - elastic-search
 #        - file
-#        - flume
 #        - hbase
 #        - hdfs3
 #        - influxdb

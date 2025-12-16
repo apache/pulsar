@@ -60,12 +60,6 @@
     <!-- pulsar io es -->
     <suppress checks="LineLength" files="ElasticSearchConfig.java"/>
     <suppress checks="LineLength" files="ElasticSearchClient.java"/>
-    <!-- pulsar io flume -->
-    <suppress checks="RegexpSingleline" files="Application.java"/>
-    <suppress checks="RegexpSinglelineJava" files="AbstractConfigurationProvider.java"/>
-    <suppress checks="RegexpSinglelineJava" files="AbstractZooKeeperConfigurationProvider.java"/>
-    <suppress checks="RegexpSinglelineJava" files="PollingPropertiesFileConfigurationProvider.java"/>
-    <suppress checks="RegexpSinglelineJava" files="EnvVarResolverProperties.java"/>
     <!-- pulsar io hbase -->
     <suppress checks="RegexpSinglelineJava" files="HbaseAbstractSink.java"/>
     <suppress checks="RegexpSinglelineJava" files="HbaseAbstractConfig.java"/>
