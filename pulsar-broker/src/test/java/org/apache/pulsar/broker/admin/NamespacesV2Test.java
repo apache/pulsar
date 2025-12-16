@@ -491,7 +491,10 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         List<String> namespacesResp = (List<String>) asyncRequests(
                 response -> namespaces.getAntiAffinityNamespaces(response, testLocalCluster,
                         namespaceAntiAffinityGroupReq, testTenant));
-        assertEquals(namespacesResp, namespacesWithAntiAffinityGroup);
+        List<String> namespacesWithFullPath =
+                namespacesWithAntiAffinityGroup.stream().map(ns -> NamespaceName.get(testTenant, ns))
+                        .map(NamespaceName::toString).toList();
+        assertEquals(namespacesResp, namespacesWithFullPath);
     }
 
 }
