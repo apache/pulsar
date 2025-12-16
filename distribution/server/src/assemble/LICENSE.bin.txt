@@ -289,26 +289,26 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-lang3-3.18.0.jar
     - org.apache.commons-commons-text-1.10.0.jar
  * Netty
-    - io.netty-netty-buffer-4.1.128.Final.jar
-    - io.netty-netty-codec-4.1.128.Final.jar
-    - io.netty-netty-codec-dns-4.1.128.Final.jar
-    - io.netty-netty-codec-http-4.1.128.Final.jar
-    - io.netty-netty-codec-http2-4.1.128.Final.jar
-    - io.netty-netty-codec-socks-4.1.128.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.128.Final.jar
-    - io.netty-netty-common-4.1.128.Final.jar
-    - io.netty-netty-handler-4.1.128.Final.jar
-    - io.netty-netty-handler-proxy-4.1.128.Final.jar
-    - io.netty-netty-resolver-4.1.128.Final.jar
-    - io.netty-netty-resolver-dns-4.1.128.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.128.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.128.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.128.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.1.128.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.128.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.128.Final-linux-aarch_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.128.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.1.128.Final.jar
+    - io.netty-netty-buffer-4.1.130.Final.jar
+    - io.netty-netty-codec-4.1.130.Final.jar
+    - io.netty-netty-codec-dns-4.1.130.Final.jar
+    - io.netty-netty-codec-http-4.1.130.Final.jar
+    - io.netty-netty-codec-http2-4.1.130.Final.jar
+    - io.netty-netty-codec-socks-4.1.130.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.130.Final.jar
+    - io.netty-netty-common-4.1.130.Final.jar
+    - io.netty-netty-handler-4.1.130.Final.jar
+    - io.netty-netty-handler-proxy-4.1.130.Final.jar
+    - io.netty-netty-resolver-4.1.130.Final.jar
+    - io.netty-netty-resolver-dns-4.1.130.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.130.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.130.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.130.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.1.130.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.130.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.130.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.130.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.1.130.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.74.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-aarch_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-x86_64.jar
