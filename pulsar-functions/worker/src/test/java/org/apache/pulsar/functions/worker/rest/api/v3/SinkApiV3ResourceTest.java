@@ -226,7 +226,7 @@ public class SinkApiV3ResourceTest extends AbstractFunctionsResourceTest {
     public void testRegisterSinkInvalidJarNoSink() throws IOException {
         mockInstanceUtils();
         try {
-            try (FileInputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
+            try (FileInputStream inputStream = new FileInputStream(getPulsarIONettyNar())) {
                 testRegisterSinkMissingArguments(
                         TENANT,
                         NAMESPACE,

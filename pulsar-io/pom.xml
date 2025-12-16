@@ -141,6 +141,7 @@
         <module>common</module>
         <module>cassandra</module>
         <module>data-generator</module>
+        <module>netty</module>
       </modules>
     </profile>
   </profiles>
