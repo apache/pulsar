@@ -130,7 +130,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 .computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
                 .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
         if (!roaring64Bitmap.contains(entryId)) {
-            roaring64Bitmap.add(entryId);
+            roaring64Bitmap.addLong(entryId);
             delayedMessagesCount.incrementAndGet();
         }
 
