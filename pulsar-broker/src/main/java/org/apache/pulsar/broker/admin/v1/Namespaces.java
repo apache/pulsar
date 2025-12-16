@@ -594,10 +594,8 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceAntiAffinityGroupAsync(antiAffinityGroup)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error(
-                            "[{}] Failed to set namespace anti-affinity group, tenant: {}, namespace: {}, "
-                                    + "antiAffinityGroup: {}",
-                            clientAppId(), property, namespace, antiAffinityGroup, ex);
+                    log.error("[{}] Failed to set namespace anti-affinity group, tenant: {}, namespace: {}, "
+                            + "antiAffinityGroup: {}", clientAppId(), property, namespace, antiAffinityGroup, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -636,10 +634,9 @@ public class Namespaces extends NamespacesBase {
         internalGetAntiAffinityNamespacesAsync(cluster, antiAffinityGroup, property)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error(
-                            "[{}] Failed to get all namespaces in cluster of given anti-affinity group, cluster: {}, "
-                                    + "tenant: {}, antiAffinityGroup: {}",
-                            clientAppId(), cluster, property, antiAffinityGroup, ex);
+                    log.error("[{}] Failed to get all namespaces in cluster of given anti-affinity group, cluster: {}, "
+                            + "tenant: {}, antiAffinityGroup: {}", clientAppId(), cluster, property, antiAffinityGroup,
+                            ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
