@@ -1275,7 +1275,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c2 = ledger.openCursor("c2");
 
         assertEquals(c1.getMarkDeletedPosition(), p1);
-        assertEquals(c2.getMarkDeletedPosition(), p2);
+        // move mark-delete-position from 3:5 to 6:-1 since all the entries have been consumed
+        ManagedCursor finalC2 = c2;
+        Awaitility.await().untilAsserted(() -> assertNotEquals(finalC2.getMarkDeletedPosition(), p2));
     }
 
     @Test(timeOut = 20000)
