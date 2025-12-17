@@ -2744,8 +2744,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         @Override
                         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
-                                    cursor, cursor.getMarkDeletedPosition(), finalPosition);
-                            log.warn("Caused by", exception);
+                                    cursor, cursor.getMarkDeletedPosition(), finalPosition, exception);
                         }
                     }, null);
             }
