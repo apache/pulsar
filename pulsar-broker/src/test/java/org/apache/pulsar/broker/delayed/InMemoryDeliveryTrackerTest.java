@@ -279,7 +279,8 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         assertFalse(tracker.hasMessageAvailable());
 
         // case1: addMessage() with duplicate entryId,
-        // getScheduledMessages() enter "cardinality <= n" and make tracker empty
+        // getScheduledMessages() enter multiple timestamp and "cardinality <= n",
+        // finally make tracker empty
         assertTrue(tracker.addMessage(1, 1, 10));
         assertTrue(tracker.addMessage(1, 2, 20));
         assertTrue(tracker.addMessage(1, 2, 20));
@@ -298,7 +299,8 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
 
         // case2: addMessage() with duplicate entryId,
-        // getScheduledMessages() enter "cardinality > n" and make tracker empty
+        // getScheduledMessages() enter one timestamp and "cardinality <= n",
+        // finally make tracker empty
         clockTime.set(0);
         assertTrue(tracker.addMessage(1, 1, 10));
         assertTrue(tracker.addMessage(1, 2, 10));
@@ -318,7 +320,8 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
 
         // case3: addMessage() with duplicate entryId,
-        // getScheduledMessages() make tracker remain half cardinality
+        // getScheduledMessages() enter one timestamp and "cardinality > n",
+        // finally make tracker remain half cardinality
         clockTime.set(0);
         assertTrue(tracker.addMessage(1, 1, 10));
         assertTrue(tracker.addMessage(1, 2, 10));
