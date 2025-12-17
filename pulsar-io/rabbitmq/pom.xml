@@ -81,24 +81,9 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.qpid</groupId>
-      <artifactId>qpid-broker</artifactId>
-      <version>9.2.0</version>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>rabbitmq</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-bdbstore</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-broker-plugins-amqp-1-0-protocol-bdb-link-store</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-broker-plugins-derby-store</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.awaitility</groupId>

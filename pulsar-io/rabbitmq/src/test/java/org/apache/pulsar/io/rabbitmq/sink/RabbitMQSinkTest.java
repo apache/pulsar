@@ -40,7 +40,7 @@ public class RabbitMQSinkTest {
     @BeforeMethod
     public void setUp() throws Exception {
         rabbitMQBrokerManager = new RabbitMQBrokerManager();
-        rabbitMQBrokerManager.startBroker("5673");
+        rabbitMQBrokerManager.startBroker();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -52,10 +52,10 @@ public class RabbitMQSinkTest {
     public void testOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
-        configs.put("port", "5673");
+        configs.put("port", String.valueOf(rabbitMQBrokerManager.getPort()));
         configs.put("virtualHost", "default");
-        configs.put("username", "guest");
-        configs.put("password", "guest");
+        configs.put("username", rabbitMQBrokerManager.getUser());
+        configs.put("password", rabbitMQBrokerManager.getPassword());
         configs.put("connectionName", "test-connection");
         configs.put("requestedChannelMax", "0");
         configs.put("requestedFrameMax", "0");
