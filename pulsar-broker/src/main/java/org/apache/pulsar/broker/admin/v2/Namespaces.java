@@ -2138,13 +2138,21 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid antiAffinityGroup")})
-    public void setNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
+    public void setNamespaceAntiAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                              @PathParam("tenant") String tenant,
                                               @PathParam("namespace") String namespace,
                                               @ApiParam(value = "Anti-affinity group for the specified namespace",
                                                       required = true)
-                                                          String antiAffinityGroup) {
+                                              String antiAffinityGroup) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceAntiAffinityGroup(antiAffinityGroup);
+        internalSetNamespaceAntiAffinityGroupAsync(antiAffinityGroup)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set namespace anti-affinity group, tenant: {}, namespace: {}, "
+                            + "antiAffinityGroup: {}", clientAppId(), tenant, namespace, antiAffinityGroup, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -2152,10 +2160,18 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get anti-affinity group of a namespace.", response = String.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public String getNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void getNamespaceAntiAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetNamespaceAntiAffinityGroup();
+        internalGetNamespaceAntiAffinityGroupAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get namespace anti-affinity group, tenant: {}, namespace: {}",
+                            clientAppId(), tenant, namespace, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -2166,10 +2182,18 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void removeNamespaceAntiAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                                 @PathParam("tenant") String tenant,
+                                                 @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveNamespaceAntiAffinityGroup();
+        internalRemoveNamespaceAntiAffinityGroupAsync()
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove namespace anti-affinity group, tenant: {}, namespace: {}",
+                            clientAppId(), tenant, namespace, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -2179,9 +2203,19 @@ public class Namespaces extends NamespacesBase {
             response = String.class, responseContainer = "List")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 412, message = "Cluster not exist/Anti-affinity group can't be empty.")})
-    public List<String> getAntiAffinityNamespaces(@PathParam("cluster") String cluster,
-            @PathParam("group") String antiAffinityGroup, @QueryParam("tenant") String tenant) {
-        return internalGetAntiAffinityNamespaces(cluster, antiAffinityGroup, tenant);
+    public void getAntiAffinityNamespaces(@Suspended AsyncResponse asyncResponse,
+                                                  @PathParam("cluster") String cluster,
+                                                  @PathParam("group") String antiAffinityGroup,
+                                                  @QueryParam("tenant") String tenant) {
+        internalGetAntiAffinityNamespacesAsync(cluster, antiAffinityGroup, tenant)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get all namespaces in cluster of given anti-affinity group, cluster: {}, "
+                            + "tenant: {}, antiAffinityGroup: {}", clientAppId(), cluster, tenant, antiAffinityGroup,
+                            ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
