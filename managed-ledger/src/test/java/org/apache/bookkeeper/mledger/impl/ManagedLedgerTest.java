@@ -5120,7 +5120,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // 1. Add Entry 1 (Ledger 1)
         ledger.addEntry("entry-1".getBytes(Encoding));
-        
+
         // 2. Ack Entry 1. Verify Persistence with properties.
         List<Entry> entries = cursor.readEntries(1);
         assertEquals(entries.size(), 1);
