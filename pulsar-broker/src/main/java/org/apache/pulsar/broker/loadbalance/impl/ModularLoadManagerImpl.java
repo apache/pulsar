@@ -369,9 +369,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return future;
     }
 
-    public boolean checkBundleDataExistInNamespaceBundles(NamespaceBundles namespaceBundles, String bundleRange) {
-        List<NamespaceBundle> bundles = namespaceBundles.getBundles();
-        return bundles.stream().anyMatch(b -> b.getBundleRange().equals(bundleRange));
+    private boolean checkBundleDataExistInNamespaceBundles(NamespaceBundles namespaceBundles,
+                                                           NamespaceBundle bundleRange) {
+        try {
+            namespaceBundles.validateBundle(bundleRange);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     // Attempt to local the data for the given bundle in metadata store
@@ -768,15 +773,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
-                    if (!namespaceBundleFactory
-                            .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
+                    NamespaceBundle bundle = namespaceBundleFactory.getBundle(namespaceName, bundleRange);
+                    if (!namespaceBundleFactory.canSplitBundle(bundle)) {
                         continue;
                     }
 
                     NamespaceBundles bundles = namespaceBundleFactory.getBundles(NamespaceName.get(namespaceName));
-                    if (!checkBundleDataExistInNamespaceBundles(bundles, bundleRange)) {
-                        log.warn("Bundle {} has been removed, skip split this bundle ",
-                            bundleName);
+                    if (!checkBundleDataExistInNamespaceBundles(bundles, bundle)) {
+                        log.warn("Bundle {} has been removed, skip split this bundle ", bundleName);
                         continue;
                     }
 
@@ -1126,7 +1130,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     @Override
     public void writeBrokerDataOnZooKeeper(boolean force) {
-        lock.lock();
+//        lock.lock();
         try {
             updateLocalBrokerData();
 
@@ -1150,7 +1154,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 throw (ConcurrentModificationException) e;
             }
         } finally {
-            lock.unlock();
+//            lock.unlock();
         }
     }
 
