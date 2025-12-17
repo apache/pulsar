@@ -2986,7 +2986,7 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>jdk21</id>
       <activation>
-        <jdk>21</jdk>
+        <jdk>[21,)</jdk>
       </activation>
       <properties>
         <!-- nifi-nar-maven-plugin >= 2.0.0 require Java 21+ -->
@@ -3026,7 +3026,7 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>jdk24</id>
       <activation>
-        <jdk>24</jdk>
+        <jdk>[24,)</jdk>
       </activation>
       <properties>
         <!-- JDK 24+ specific arguments -->
