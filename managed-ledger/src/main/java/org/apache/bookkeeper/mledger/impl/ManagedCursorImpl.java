@@ -1321,7 +1321,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         // Estimate size by using average entry size from the backlog range
-        long totalEntriesInBacklog = ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
+        Range<Position> backlogRange = Range.openClosed(markDeletePosition, ledger.getLastPosition());
+        long totalEntriesInBacklog = ledger.getNumberOfEntries(backlogRange);
 
         if (totalEntriesInBacklog <= deletedCount || totalEntriesInBacklog == 0) {
             // Should not happen, but avoid division by zero
@@ -1338,7 +1339,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         long adjustedSize = totalSize - deletedSize;
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Adjusted backlog size: totalSize={}, deletedCount={}, averageSize={}, deletedSize={}, adjustedSize={}",
+            log.debug("[{}] [{}] Adjusted backlog size: totalSize={}, deletedCount={}, averageSize={}, "
+                            + "deletedSize={}, adjustedSize={}",
                     ledger.getName(), name, totalSize, deletedCount, averageSize, deletedSize, adjustedSize);
         }
 
