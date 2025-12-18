@@ -526,6 +526,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         SystemTopicClient.Reader<PulsarEvent> reader = readerCompletableFuture.get();
         reader.close();
         log.info("successfully close spy reader");
+
+
         Awaitility.await().untilAsserted(() -> {
             boolean logFound = logMessages.stream()
                     .anyMatch(msg -> msg.contains("Closing the topic policies reader for"));

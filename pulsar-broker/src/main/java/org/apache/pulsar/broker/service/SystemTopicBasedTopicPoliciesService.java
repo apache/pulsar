@@ -841,6 +841,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     if (ex == null) {
                         readMorePoliciesAsync(reader);
                     } else {
+
+
                         if (isAlreadyClosedException(ex)) {
                             log.info("Closing the topic policies reader for {}",
                                     reader.getSystemTopic().getTopicName());
