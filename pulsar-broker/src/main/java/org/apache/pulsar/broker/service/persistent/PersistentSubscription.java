@@ -635,6 +635,7 @@ public class PersistentSubscription extends AbstractSubscription {
         AtomicLong rejected = new AtomicLong();
         AtomicLong rescheduled = new AtomicLong();
         AtomicLong messages = new AtomicLong();
+        AtomicLong markerMessages = new AtomicLong();
         AtomicLong acceptedMessages = new AtomicLong();
         AtomicLong rejectedMessages = new AtomicLong();
         AtomicLong rescheduledMessages = new AtomicLong();
@@ -693,6 +694,9 @@ public class PersistentSubscription extends AbstractSubscription {
             }
             long num = entries.incrementAndGet();
             messages.addAndGet(numMessages);
+            if (messageMetadata.hasMarkerType()) {
+                markerMessages.addAndGet(numMessages);
+            }
 
             if (num % 1000 == 0) {
                 long end = System.currentTimeMillis();
