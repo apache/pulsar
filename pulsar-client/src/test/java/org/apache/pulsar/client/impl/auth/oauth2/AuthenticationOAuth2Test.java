@@ -133,14 +133,16 @@ public class AuthenticationOAuth2Test {
 
     @Test
     public void testMetadataResolver() throws MalformedURLException {
-        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(URI.create("http://localhost/path/oauth").toURL());
+        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(),
+                null);
         assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", url.toString());
 
         // custom wellKnownMetadataPath with full well-known prefix
         URL customUrl = DefaultMetadataResolver.getWellKnownMetadataUrl(
                 URI.create("http://localhost/path/oauth").toURL(),
                 "/.well-known/custom-path");
-        assertEquals("http://localhost/path/oauth/.well-known/custom-path", customUrl.toString());
+        assertEquals("http://localhost/.well-known/custom-path/path/oauth", customUrl.toString());
 
         // null wellKnownMetadataPath (should use default)
         URL customUrl2 = DefaultMetadataResolver.getWellKnownMetadataUrl(
@@ -158,7 +160,13 @@ public class AuthenticationOAuth2Test {
         URL oauthUrl = DefaultMetadataResolver.getWellKnownMetadataUrl(
                 URI.create("http://localhost/path/oauth").toURL(),
                 DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
-        assertEquals("http://localhost/path/oauth/.well-known/oauth-authorization-server", oauthUrl.toString());
+        assertEquals("http://localhost/.well-known/oauth-authorization-server/path/oauth", oauthUrl.toString());
+
+        // test with issuer URL without path
+        URL oauthUrlNoPath = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost").toURL(),
+                DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
+        assertEquals("http://localhost/.well-known/oauth-authorization-server", oauthUrlNoPath.toString());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,

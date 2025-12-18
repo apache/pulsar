@@ -63,10 +63,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
      */
     public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient,
                                                         String wellKnownMetadataPath) {
-        if (wellKnownMetadataPath != null) {
-            return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl, wellKnownMetadataPath), httpClient);
-        }
-        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl), httpClient);
+        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl, wellKnownMetadataPath), httpClient);
     }
 
     /**
@@ -84,7 +81,13 @@ public class DefaultMetadataResolver implements MetadataResolver {
                 return URI.create(issuerUrl.toExternalForm() + DEFAULT_WELL_KNOWN_METADATA_PATH).normalize().toURL();
             }
             if (wellKnownMetadataPath.startsWith(WELL_KNOWN_PREFIX)) {
-                return URI.create(issuerUrl.toExternalForm() + wellKnownMetadataPath).normalize().toURL();
+                String issuerUrlString = issuerUrl.toExternalForm();
+                // For OAuth2, insert well-known path before the issuer URL path
+                URL url = new URL(issuerUrlString);
+                String path = url.getPath();
+                String basePath = issuerUrlString.substring(0,
+                        issuerUrlString.length() - (path.isEmpty() ? 0 : path.length()));
+                return URI.create(basePath + wellKnownMetadataPath + path).normalize().toURL();
             } else {
                 throw new IllegalArgumentException("Metadata path must start with '" + WELL_KNOWN_PREFIX
                         + "', but was: " + wellKnownMetadataPath);
@@ -92,16 +95,6 @@ public class DefaultMetadataResolver implements MetadataResolver {
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e);
         }
-    }
-
-    /**
-     * Gets a well-known metadata URL for the given OAuth issuer URL using the default path.
-     *
-     * @param issuerUrl The authorization server's issuer identifier
-     * @return a URL
-     */
-    public static URL getWellKnownMetadataUrl(URL issuerUrl) {
-        return getWellKnownMetadataUrl(issuerUrl, DEFAULT_WELL_KNOWN_METADATA_PATH);
     }
 
     /**
