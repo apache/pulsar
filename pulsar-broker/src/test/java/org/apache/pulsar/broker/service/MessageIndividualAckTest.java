@@ -24,6 +24,7 @@ import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Key_Sh
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -73,9 +75,6 @@ public class MessageIndividualAckTest {
     public void setup() throws Exception {
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .build();
-//        pulsarTestContext.getBrokerService().getPulsar().getConfig().setTransactionCoordinatorEnabled(true);
-//        TopicTransactionBufferProvider topicTransactionBufferProvider = mock(TopicTransactionBufferProvider.class);
-//        pulsarTestContext.getBrokerService().getPulsar().setTransactionBufferProvider(topicTransactionBufferProvider);
         serverCnx = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
@@ -141,27 +140,29 @@ public class MessageIndividualAckTest {
     }
 
 
-//    @Test(timeOut = 5000, dataProvider = "individualAckModes")
-//public void testIndividualAckWithTransactionWithMessageNotExist(CommandSubscribe.SubType subType) throws Exception {
-//        KeySharedMeta keySharedMeta =
-//                subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
-//        sub.getTopic().getBrokerService().getPulsar().getConfig().setTransactionCoordinatorEnabled(true);
-//        Consumer consumer = new Consumer(sub, Shared, "testIndividualAck", consumerId, 0,
-//                "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, keySharedMeta,
-//                MessageId.latest, DEFAULT_CONSUMER_EPOCH);
-//        sub.addConsumer(consumer);
-//        // A not exist ledger id and entry id
-//        final long notExistLedgerId = 9999L;
-//        final long notExistEntryId = 9999L;
-//        // Ack one message that not exists in the ledger and individualAckWithTransaction() should return 0
-//        CommandAck commandAck = new CommandAck();
-//        commandAck.setTxnidMostBits(1L);
-//        commandAck.setTxnidLeastBits(1L);
-//        commandAck.setAckType(Individual);
-//        commandAck.setConsumerId(consumerId);
-//        commandAck.addMessageId().setEntryId(notExistEntryId).setLedgerId(notExistLedgerId);
-//        Long l1 = consumer.individualAckWithTransaction(commandAck).get();
-//        Assert.assertEquals(0L, l1.longValue());
-//    }
-//
+    @Test(timeOut = 5000, dataProvider = "individualAckModes")
+    public void testIndividualAckWithTransactionWithMessageNotExist(CommandSubscribe.SubType subType) throws Exception {
+        KeySharedMeta keySharedMeta =
+                subType == Key_Shared ? new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT) : null;
+        Consumer consumer = new Consumer(sub, subType, "testIndividualAck", consumerId, 0,
+                "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, keySharedMeta,
+                MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+        pulsarTestContext.getPulsarService().getConfig().setTransactionCoordinatorEnabled(true);
+        sub.addConsumer(consumer);
+        doNothing().when(sub).addUnAckedMessages(anyInt());
+        CompletableFuture<Void> completedFuture = CompletableFuture.completedFuture(null);
+        when(sub.transactionIndividualAcknowledge(any(), any())).thenReturn(completedFuture);
+        // A not exist ledger id and entry id
+        final long notExistLedgerId = 9999L;
+        final long notExistEntryId = 9999L;
+        // Ack one message that not exists in the ledger and individualAckWithTransaction() should return 0
+        CommandAck commandAck = new CommandAck();
+        commandAck.setTxnidMostBits(1L);
+        commandAck.setTxnidLeastBits(1L);
+        commandAck.setAckType(Individual);
+        commandAck.setConsumerId(consumerId);
+        commandAck.addMessageId().setEntryId(notExistEntryId).setLedgerId(notExistLedgerId);
+        Long l1 = consumer.individualAckWithTransaction(commandAck).get();
+        Assert.assertEquals(l1.longValue(), 0L);
+    }
 }

@@ -674,6 +674,10 @@ public class Consumer {
                 AckSetStateUtil.getAckSetState(position).setAckSet(ackSets);
                 ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             }
+            if (ackOwnerConsumerAndBatchSize.rightInt() <= 0) {
+                // this means this message does not exist,so we need to set ackedCount to 0
+                ackedCount = 0;
+            }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
