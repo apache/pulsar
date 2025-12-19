@@ -1058,9 +1058,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testAnalyzeSubscriptionBacklogWithTransactionMarker() throws Exception {
         initTransaction(1);
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/analyze_subscription_backlog");
-        String transactionSubName = "analyze_subscription_backlog-topic-sub";
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/analyze-subscription-backlog");
+        String transactionSubName = "analyze-subscription-backlog-topic-sub";
 
+        // Init subscription and then close the consumer. If consumer is connected and has available permits,
+        // AbstractBaseDispatcher#filterEntriesForConsumer will auto ack marker messages
         pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(transactionSubName).subscribe().close();
         @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
