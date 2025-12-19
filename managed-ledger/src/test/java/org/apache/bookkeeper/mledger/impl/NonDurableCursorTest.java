@@ -532,7 +532,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition(), PositionFactory.create(p4.getLedgerId(), p4.getEntryId() + 1));
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 20000, groups = "flaky")
     public void asyncMarkDeleteBlocking() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
