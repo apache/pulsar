@@ -720,6 +720,7 @@ public class PersistentSubscription extends AbstractSubscription {
             result.setLastPosition(lastPosition.get());
             result.setEntries(entries.get());
             result.setMessages(messages.get());
+            result.setMarkerMessages(markerMessages.get());
             result.setFilterAcceptedEntries(accepted.get());
             result.setFilterAcceptedMessages(acceptedMessages.get());
             result.setFilterRejectedEntries(rejected.get());

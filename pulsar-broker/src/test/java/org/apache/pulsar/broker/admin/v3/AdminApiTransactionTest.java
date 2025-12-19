@@ -1065,11 +1065,10 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         int numMessages = 10;
-        String committedMsgPrefix = "commited-msg";
         List<MessageId> committedMsgIds = new ArrayList<>();
         for (int i = 0; i < numMessages; i++) {
             Transaction txn = pulsarClient.newTransaction().build().get();
-            MessageId messageId = producer.newMessage(txn).value(committedMsgPrefix + i).send();
+            MessageId messageId = producer.newMessage(txn).value("commited-msg" + i).send();
             committedMsgIds.add(messageId);
             txn.commit().get();
         }
