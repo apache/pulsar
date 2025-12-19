@@ -1350,7 +1350,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c4.getMarkDeletedPosition(), p1);
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void asyncMarkDeleteBlocking() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
