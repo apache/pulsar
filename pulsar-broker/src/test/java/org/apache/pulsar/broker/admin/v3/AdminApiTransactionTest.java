@@ -1058,11 +1058,10 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testAnalyzeSubscriptionBacklogWithTransactionMarker() throws Exception {
         initTransaction(1);
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_all");
-        String transactionSubName = "transaction-topic-sub";
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/analyze_subscription_backlog");
+        String transactionSubName = "analyze_subscription_backlog-topic-sub";
 
-        @Cleanup Consumer<String> consumer =
-                pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(transactionSubName).subscribe();
+        pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(transactionSubName).subscribe().close();
         @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         int numMessages = 10;
