@@ -75,6 +75,7 @@ public interface ManagedLedgerInterceptor {
      */
     void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap);
 
+    long getIndex();
     /**
      * A handle for reading the last ledger entry.
      */
