@@ -1224,6 +1224,12 @@ public class Commands {
         return cmd;
     }
 
+    public static ByteBuf newGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
+        boolean filtered, boolean changed, long requestId) {
+        return serializeWithSize(newGetTopicsOfNamespaceResponseCommand(
+            topics, topicsHash, filtered, changed, requestId));
+    }
+
     private static final ByteBuf cmdPing;
 
     static {
