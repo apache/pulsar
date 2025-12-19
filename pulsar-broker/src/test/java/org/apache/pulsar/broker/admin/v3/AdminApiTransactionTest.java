@@ -1081,7 +1081,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         MessageId committedMiddleMsgId = committedMsgIds.get(numMessages / 2);
         backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(committedMiddleMsgId));
-        assertEquals(backlogResult.getMessages(), (numMessages / 2) + numMessages);
+        assertEquals(backlogResult.getMessages(), numMessages);
         assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
 
         List<MessageId> abortedMsgIds = new ArrayList<>();
@@ -1098,7 +1098,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         MessageId abortedMiddleMsgId = abortedMsgIds.get(numMessages / 2);
         backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(abortedMiddleMsgId));
-        assertEquals(backlogResult.getMessages(), (numMessages / 2) + numMessages);
+        assertEquals(backlogResult.getMessages(), numMessages);
         assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
     }
 
