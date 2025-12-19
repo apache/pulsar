@@ -2713,26 +2713,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         for (ManagedCursor cursor : cursors) {
             Position lastAckedPosition = cursor.getPersistentMarkDeletedPosition() != null
                     ? cursor.getPersistentMarkDeletedPosition() : cursor.getMarkDeletedPosition();
-            LedgerInfo currPointedLedger = ledgers.get(lastAckedPosition.getLedgerId());
+            LedgerInfo curPointedLedger = ledgers.get(lastAckedPosition.getLedgerId());
             LedgerInfo nextPointedLedger = Optional.ofNullable(ledgers.higherEntry(lastAckedPosition.getLedgerId()))
                     .map(Map.Entry::getValue).orElse(null);
 
-            if (currPointedLedger != null) {
+            if (curPointedLedger != null) {
                 if (nextPointedLedger != null) {
                     if (lastAckedPosition.getEntryId() != -1
-                            && lastAckedPosition.getEntryId() + 1 >= currPointedLedger.getEntries()) {
+                            && lastAckedPosition.getEntryId() + 1 >= curPointedLedger.getEntries()) {
                         lastAckedPosition = PositionFactory.create(nextPointedLedger.getLedgerId(), -1);
                     }
                 } else {
                     log.debug("No need to reset cursor: {}, current ledger is the last ledger.", cursor);
                 }
             } else {
+                // todo: no ledger exists, should we move cursor mark deleted position to nextPointedLedger:-1
                 log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
             }
 
-            if (!lastAckedPosition.equals(cursor.getMarkDeletedPosition())) {
+            if (lastAckedPosition.compareTo(cursor.getMarkDeletedPosition()) > 0) {
                 Position finalPosition = lastAckedPosition;
                 log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
+                // todo since this is an async method, should we make the caller a callback method too?
                 cursor.asyncMarkDelete(lastAckedPosition, cursor.getProperties(),
                     new MarkDeleteCallback() {
                         @Override
