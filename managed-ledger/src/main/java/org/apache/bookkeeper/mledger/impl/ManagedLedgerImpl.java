@@ -2727,14 +2727,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("No need to reset cursor: {}, current ledger is the last ledger.", cursor);
                 }
             } else {
-                // todo: no ledger exists, should we move cursor mark deleted position to nextPointedLedger:-1
+                // TODO no ledger exists, should we move cursor mark deleted position to nextPointedLedger:-1
                 log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
             }
 
             if (lastAckedPosition.compareTo(cursor.getMarkDeletedPosition()) > 0) {
                 Position finalPosition = lastAckedPosition;
                 log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
-                // todo since this is an async method, should we make the caller a callback method too?
+                // TODO since this is an async method, should we make the caller a callback method too?
                 cursor.asyncMarkDelete(lastAckedPosition, cursor.getProperties(),
                     new MarkDeleteCallback() {
                         @Override
