@@ -2717,6 +2717,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             LedgerInfo nextPointedLedger = Optional.ofNullable(ledgers.higherEntry(lastAckedPosition.getLedgerId()))
                     .map(Map.Entry::getValue).orElse(null);
 
+            // TODO If PR https://github.com/apache/pulsar/pull/25087 is needed,
+            //  may choose one of the following solutions:
+            //   1. Remove if (curPointedLedger != null)  check, moving cursor to nextPointedLedgerId:-1 is not needed.
+            //   2. Make maybeUpdateCursorBeforeTrimmingConsumedLedger a callback method too to avoid race condition.
             if (curPointedLedger != null) {
                 if (nextPointedLedger != null) {
                     if (lastAckedPosition.getEntryId() != -1
@@ -2734,7 +2738,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (lastAckedPosition.compareTo(cursor.getMarkDeletedPosition()) > 0) {
                 Position finalPosition = lastAckedPosition;
                 log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
-                // TODO since this is an async method, should we make the caller a callback method too?
                 cursor.asyncMarkDelete(lastAckedPosition, cursor.getProperties(),
                     new MarkDeleteCallback() {
                         @Override
