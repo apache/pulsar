@@ -38,23 +38,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.bookkeeper.stats</groupId>
-      <artifactId>prometheus-metrics-provider</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.bookkeeper.stats</groupId>
-      <artifactId>codahale-metrics-provider</artifactId>
-      <version>${bookkeeper.version}</version>
-      <exclusions>
-        <exclusion>
-          <artifactId>amqp-client</artifactId>
-          <groupId>com.rabbitmq</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
     </dependency>

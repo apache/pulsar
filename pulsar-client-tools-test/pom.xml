@@ -61,6 +61,11 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.ee8.websocket</groupId>
+      <artifactId>jetty-ee8-websocket-jetty-server</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- add the dependency in order to let maven build the module before this module -->
     <dependency>
       <groupId>${project.groupId}</groupId>

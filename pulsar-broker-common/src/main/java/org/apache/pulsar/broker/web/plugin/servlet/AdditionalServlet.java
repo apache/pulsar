@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 
 import com.google.common.annotations.Beta;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
 
 /**
  * The additional servlet interface for support additional servlet.

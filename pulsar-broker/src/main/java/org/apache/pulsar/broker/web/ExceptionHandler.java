@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response;
@@ -28,11 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.eclipse.jetty.http.HttpField;
-import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.http.HttpVersion;
-import org.eclipse.jetty.http.MetaData;
 
 /**
  *  Exception handler for handle exception.
@@ -41,29 +34,17 @@ import org.eclipse.jetty.http.MetaData;
 public class ExceptionHandler {
 
     public void handle(ServletResponse response, Exception ex) throws IOException {
+        HttpServletResponse httpServletResponse = (HttpServletResponse) response;
         if (ex instanceof InterceptException) {
-            if (response instanceof org.eclipse.jetty.server.Response) {
-                String errorData = ObjectMapperFactory
-                        .getMapper().writer().writeValueAsString(new ErrorData(ex.getMessage()));
-                byte[] errorBytes = errorData.getBytes(StandardCharsets.UTF_8);
-                int errorCode = ((InterceptException) ex).getErrorCode();
-                HttpFields httpFields = new HttpFields();
-                HttpField httpField = new HttpField(HttpHeader.CONTENT_TYPE, "application/json;charset=utf-8");
-                httpFields.add(httpField);
-                MetaData.Response info = new MetaData.Response(HttpVersion.HTTP_1_1, errorCode, httpFields);
-                info.setHttpVersion(HttpVersion.HTTP_1_1);
-                info.setReason(errorData);
-                info.setStatus(errorCode);
-                info.setContentLength(errorBytes.length);
-                ((org.eclipse.jetty.server.Response) response).getHttpChannel().sendResponse(info,
-                        ByteBuffer.wrap(errorBytes),
-                        true);
-            } else {
-                ((HttpServletResponse) response).sendError(((InterceptException) ex).getErrorCode(),
-                        ex.getMessage());
-            }
+            byte[] errorBytes = ObjectMapperFactory
+                    .getMapper().writer().writeValueAsBytes(new ErrorData(ex.getMessage()));
+            int errorCode = ((InterceptException) ex).getErrorCode();
+            httpServletResponse.setStatus(errorCode);
+            httpServletResponse.setContentType("application/json;charset=utf-8");
+            httpServletResponse.setContentLength(errorBytes.length);
+            httpServletResponse.getOutputStream().write(errorBytes);
         } else {
-            ((HttpServletResponse) response).sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
+            httpServletResponse.sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
                     ex.getMessage());
         }
     }

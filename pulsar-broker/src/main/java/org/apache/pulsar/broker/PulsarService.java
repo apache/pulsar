@@ -63,7 +63,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -198,8 +197,8 @@ import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.zookeeper.DefaultMetadataNodeSizeStats;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1172,8 +1171,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private void addWebServerHandlers(WebService webService,
                                       PulsarPrometheusMetricsServlet metricsServlet,
                                       ServiceConfiguration config)
-            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
         Map<String, Object> attributeMap = new HashMap<>();
         attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
 
@@ -1249,35 +1247,31 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private void addWebSocketServiceHandler(WebService webService,
                                             Map<String, Object> attributeMap,
                                             ServiceConfiguration config)
-            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
         if (config.isWebSocketServiceEnabled()) {
             // Use local broker address to avoid different IP address when using a VIP for service discovery
             this.webSocketService = new WebSocketService(null, config);
             this.webSocketService.start();
 
-            final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
-            webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                    new ServletHolder(producerWebSocketServlet), true, attributeMap);
-            webService.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(producerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketProducerServlet(webSocketService), attributeMap,
+                    WebSocketProducerServlet.SERVLET_PATH, WebSocketProducerServlet.SERVLET_PATH_V2);
 
-            final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
-            webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(consumerWebSocketServlet), true, attributeMap);
-            webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(consumerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketConsumerServlet(webSocketService), attributeMap,
+                    WebSocketConsumerServlet.SERVLET_PATH, WebSocketConsumerServlet.SERVLET_PATH_V2);
 
-            final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
-            webService.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                    new ServletHolder(readerWebSocketServlet), true, attributeMap);
-            webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                    new ServletHolder(readerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketReaderServlet(webSocketService), attributeMap,
+                    WebSocketReaderServlet.SERVLET_PATH,
+                    WebSocketReaderServlet.SERVLET_PATH_V2);
 
-            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
-                    new WebSocketMultiTopicConsumerServlet(webSocketService);
-            webService.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(multiTopicConsumerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketMultiTopicConsumerServlet(webSocketService), attributeMap,
+                    WebSocketMultiTopicConsumerServlet.SERVLET_PATH);
+        }
+    }
+
+    private void addWebSocketServlet(JettyWebSocketServlet webSocketServlet, Map<String, Object> attributeMap,
+                                     String... servletPaths) {
+        for (String servletPath : servletPaths) {
+            webService.addWebSocketServlet(servletPath, webSocketServlet, attributeMap);
         }
     }
 

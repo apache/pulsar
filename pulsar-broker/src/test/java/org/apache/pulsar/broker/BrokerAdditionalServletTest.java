@@ -37,8 +37,8 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoa
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.nested.Request;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -146,7 +146,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         @Override
         public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
                 IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+            log.info("[service] path: {}", ((Request) servletRequest).getHttpURI());
             String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
             servletResponse.setContentLength(value.getBytes().length);
@@ -177,7 +177,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         @Override
         public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
                 IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+            log.info("[service] path: {}", ((Request) servletRequest).getHttpURI());
             String value = pulsarService == null ? "null" : PulsarService.class.getName();
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
             servletResponse.setContentLength(value.getBytes().length);
