@@ -1398,9 +1398,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Reopen
         @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        // flaky test case: may throw MetadataStoreException$BadVersionException, race condition:
-        // 1. my_test_ledger ledger rollover triggers async cursor.asyncMarkDelete() operation.
-        // 2. factory2.open() triggers recovery, read versionA ManagedLedgerInfo of my_test_ledger ledger.
+        // flaky test case: factory2.open() may throw MetadataStoreException$BadVersionException, race condition:
+        // 1. my_test_ledger ledger rollover triggers cursor.asyncMarkDelete() operation.
+        // 2. factory2.open() triggers ledger recovery, read versionA ManagedLedgerInfo of my_test_ledger ledger.
         // 3. cursor.asyncMarkDelete() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionB ManagedLedgerInfo
         //    into metaStore.
         // 4. factory2.open() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionA ManagedLedgerInfo
@@ -1412,9 +1412,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Three cases:
         // 1. cursor recovered with lastPosition markDeletePosition
-        // 2. cursor recovered with (lastPositionLegderId+1:-1) markDeletePosition, cursor ledger not rolled over, we
+        // 2. cursor recovered with (lastPositionLedgerId+1:-1) markDeletePosition, cursor ledger not rolled over, we
         //    move markDeletePosition to (lastPositionLegderId+2:-1)
-        // 3. cursor recovered with (lastPositionLegderId+1:-1) markDeletePosition, cursor ledger rolled over, we
+        // 3. cursor recovered with (lastPositionLedgerId+1:-1) markDeletePosition, cursor ledger rolled over, we
         //    move markDeletePosition to (lastPositionLegderId+3:-1)
         // See PR https://github.com/apache/pulsar/pull/25087.
         log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
