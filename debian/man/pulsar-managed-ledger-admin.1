@@ -1,0 +1,57 @@
+.TH pulsar-managed-ledger-admin 1 "Apache Pulsar" "Version 4.1.2" "User Commands"
+.SH NAME
+pulsar-managed-ledger-admin \- Pulsar Managed Ledger administration tool
+.SH SYNOPSIS
+.B pulsar-managed-ledger-admin
+<command> [options]
+.SH DESCRIPTION
+pulsar-managed-ledger-admin is a command-line tool for managing Pulsar Managed
+Ledgers. Managed Ledgers are the storage abstraction used by Pulsar to store
+topic data in BookKeeper.
+
+This tool is primarily used by administrators for maintenance, debugging, and
+recovery operations on managed ledgers.
+
+.SH COMMANDS
+Commands vary depending on the operation. Common operations include:
+.TP
+.B list
+List managed ledgers
+.TP
+.B read
+Read entries from a managed ledger
+.TP
+.B read-entry
+Read a specific entry
+.TP
+.B get-cursor-position
+Get cursor position information
+
+Run:
+.RS
+pulsar-managed-ledger-admin --help
+.RE
+for detailed usage and all available commands.
+
+.SH EXAMPLES
+List managed ledgers:
+.RS
+pulsar-managed-ledger-admin list
+.RE
+
+Read entries from a ledger:
+.RS
+pulsar-managed-ledger-admin read <ledger-name>
+.RE
+
+.SH FILES
+.TP
+/etc/apache-pulsar/
+Configuration files
+.TP
+/usr/lib/apache-pulsar/
+Pulsar installation directory
+
+.SH SEE ALSO
+pulsar(1), bookkeeper(1)
+

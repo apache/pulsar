@@ -1,4 +1,6 @@
-usr/lib/pulsar
-etc/pulsar
-usr/bin
-lib/systemd/system
+usr/lib/apache-pulsar
+usr/lib/apache-pulsar/bin
+usr/lib/apache-pulsar/lib
+etc/apache-pulsar
+var/lib/apache-pulsar
+var/log/apache-pulsar

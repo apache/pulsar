@@ -1,0 +1,24 @@
+.TH pulsar-admin 1 "Apache Pulsar" "Version 4.1.2" "User Commands"
+.SH NAME
+pulsar-admin \- Pulsar administration CLI
+.SH SYNOPSIS
+.B pulsar-admin
+[\fIcommand\fR] [\fIoptions\fR]
+.SH DESCRIPTION
+pulsar-admin is the main command-line tool for managing Pulsar clusters,
+tenants, namespaces, topics, functions, and brokers.
+
+.SH EXAMPLES
+List tenants:
+.RS
+pulsar-admin tenants list
+.RE
+
+Create a namespace:
+.RS
+pulsar-admin namespaces create public/default
+.RE
+
+.SH SEE ALSO
+pulsar(1), pulsar-client(1), pulsar-shell(1)
+

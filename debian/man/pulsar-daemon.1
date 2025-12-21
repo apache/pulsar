@@ -1,0 +1,78 @@
+.TH pulsar-daemon 1 "Apache Pulsar" "Version 4.1.2" "User Commands"
+.SH NAME
+pulsar-daemon \- Pulsar daemon management utility
+.SH SYNOPSIS
+.B pulsar-daemon
+(start|stop|restart) <command> [options]
+.SH DESCRIPTION
+pulsar-daemon is a utility for starting, stopping, and restarting Pulsar
+components as background daemons. It manages process lifecycle and logging.
+
+Note: In production environments, it is recommended to use systemd service
+files instead of pulsar-daemon for better process management.
+
+.SH COMMANDS
+The following components can be managed:
+.TP
+.B broker
+Run a broker server
+.TP
+.B bookie
+Run a bookie server
+.TP
+.B proxy
+Run a Proxy Pulsar service
+.TP
+.B websocket
+Run a websocket proxy server
+.TP
+.B functions-worker
+Run a functions worker server
+.TP
+.B autorecovery
+Run an autorecovery service
+.TP
+.B standalone
+Run a standalone Pulsar service (development only)
+.TP
+.B zookeeper
+Run a zookeeper server
+.TP
+.B configuration-store
+Run a configuration-store server
+
+.SH OPTIONS
+.TP
+.B -force
+(Only with stop command) Forcefully stop the server if normal shutdown fails
+
+.SH EXAMPLES
+Start broker as daemon:
+.RS
+pulsar-daemon start broker
+.RE
+
+Stop broker daemon:
+.RS
+pulsar-daemon stop broker
+.RE
+
+Force stop bookie:
+.RS
+pulsar-daemon stop bookie -force
+.RE
+
+.SH FILES
+.TP
+/etc/apache-pulsar/
+Configuration files
+.TP
+/usr/lib/apache-pulsar/
+Pulsar installation directory
+.TP
+/var/log/apache-pulsar/
+Log files directory
+
+.SH SEE ALSO
+pulsar(1), systemctl(1)
+

@@ -3156,5 +3156,11 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </snapshots>
     </repository>
+      <repository>
+        <id>oracle-releases</id>
+        <name>Oracle Released Java Packages</name>
+        <url>https://download.oracle.com/maven</url>
+        <layout>default</layout>
+      </repository>
   </repositories>
 </project>

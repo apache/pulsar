@@ -1,0 +1,373 @@
+# Документация по структуре deb пакета Apache Pulsar
+
+Этот документ описывает структуру и назначение файлов в директории `debian/`, которые используются для сборки Debian пакета Apache Pulsar.
+
+## Обзор
+
+Директория `debian/` содержит все необходимые файлы для создания Debian пакета. Эти файлы определяют:
+- Метаданные пакета (имя, версия, зависимости)
+- Процесс сборки
+- Структуру файлов в установленном пакете
+- Скрипты установки и удаления
+- Systemd сервисы
+- Документацию (man страницы)
+
+## Структура файлов
+
+### Обязательные файлы
+
+#### `control`
+**Назначение**: Метаданные пакета и зависимости
+
+Содержит:
+- `Source`: Имя исходного пакета
+- `Section`: Категория пакета (net - сетевые приложения)
+- `Priority`: Приоритет пакета (optional)
+- `Maintainer`: Контактная информация maintainer'а
+- `Build-Depends`: Зависимости для сборки (JDK, Maven, компиляторы и т.д.)
+- `Depends`: Зависимости для работы пакета (JRE, библиотеки)
+- `Description`: Описание пакета
+
+**Пример использования**:
+```bash
+dpkg -I apache-pulsar_*.deb  # Показывает информацию из control
+```
+
+#### `changelog`
+**Назначение**: История изменений пакета
+
+Формат: Debian changelog format
+- Каждая запись содержит версию, дату, изменения и maintainer'а
+- Используется для генерации `/usr/share/doc/apache-pulsar/changelog.Debian.gz`
+- Версия пакета берется из первой записи
+
+**Формат записи**:
+```
+apache-pulsar (VERSION) DISTRIBUTION; urgency=LEVEL
+
+  * Описание изменений
+
+ -- Maintainer <email>  DATE
+```
+
+#### `rules`
+**Назначение**: Makefile для процесса сборки
+
+Основные этапы:
+1. `override_dh_auto_build`: Сборка исходного кода (Maven)
+2. `override_dh_auto_install`: Копирование файлов в `debian/tmp/`
+3. `override_dh_installsystemd`: Установка systemd сервисов
+4. `override_dh_installman`: Установка man страниц
+5. `override_dh_fixperms`: Исправление прав доступа
+
+**Ключевые команды**:
+- `dh $@`: Вызов debhelper для стандартных операций
+- `mvn`: Сборка Java модулей
+- `cp`, `mkdir`, `ln`: Подготовка файлов для установки
+
+#### `copyright`
+**Назначение**: Информация о лицензиях
+
+Содержит:
+- Лицензию Apache 2.0
+- Ссылки на исходные тексты
+- Информацию о copyright
+
+#### `dirs`
+**Назначение**: Список директорий для создания в пакете
+
+Указывает директории, которые должны существовать в установленном пакете:
+```
+usr/lib/apache-pulsar          # Основная директория установки
+usr/lib/apache-pulsar/bin      # Исполняемые скрипты
+usr/lib/apache-pulsar/lib      # JAR файлы зависимостей
+etc/apache-pulsar              # Конфигурационные файлы
+var/lib/apache-pulsar          # Данные пользователя (home directory)
+var/log/apache-pulsar          # Логи
+```
+
+#### `install`
+**Назначение**: Маппинг файлов из `debian/tmp/` в финальные пути установки
+
+Формат: `источник назначение`
+
+Примеры:
+```
+debian/tmp/pulsar/bin/* /usr/lib/apache-pulsar/bin
+debian/tmp/pulsar/conf/* /etc/apache-pulsar
+```
+
+### Maintainer скрипты
+
+#### `postinst`
+**Назначение**: Скрипт, выполняемый после установки/обновления пакета
+
+Выполняет:
+- Создание системного пользователя `apache-pulsar`
+- Настройку прав доступа на директории
+- Создание директории для логов
+- Перезагрузку systemd daemon
+
+**Триггеры**:
+- `configure`: При установке или обновлении
+- `abort-upgrade`: При откате обновления
+
+#### `prerm`
+**Назначение**: Скрипт, выполняемый перед удалением пакета
+
+Выполняет:
+- Остановку всех systemd сервисов перед удалением
+- Очистку ресурсов
+
+**Триггеры**:
+- `remove`: Перед удалением пакета
+- `upgrade`: Перед обновлением пакета
+
+### Systemd сервисы
+
+Все service файлы находятся в `debian/` и устанавливаются в `/lib/systemd/system/`:
+
+#### `apache-pulsar.service`
+Основной сервис Pulsar Broker
+
+#### `apache-pulsar-bookie.service`
+BookKeeper storage server
+
+#### `apache-pulsar-proxy.service`
+Pulsar Proxy server
+
+#### `apache-pulsar-functions-worker.service`
+Pulsar Functions worker
+
+#### `apache-pulsar-websocket.service`
+WebSocket Proxy server
+
+#### `apache-pulsar-autorecovery.service`
+BookKeeper Autorecovery service
+
+**Зависимости между сервисами**:
+- `bookie` запускается перед `broker`
+- `proxy`, `functions-worker`, `websocket` запускаются после `broker`
+- `autorecovery` запускается после `bookie`
+
+### Документация
+
+#### `manpages`
+**Назначение**: Список man страниц для установки
+
+Содержит пути к файлам man страниц:
+```
+debian/man/pulsar.1
+debian/man/pulsar-admin.1
+debian/man/pulsar-client.1
+...
+```
+
+#### `debian/man/*.1`
+**Назначение**: Man страницы для команд
+
+Формат: troff/groff
+- Устанавливаются в `/usr/share/man/man1/`
+- Доступны через команду `man`
+
+**Доступные man страницы**:
+- `pulsar.1` - основная команда
+- `pulsar-admin.1` - административная CLI
+- `pulsar-client.1` - клиент для отправки/получения сообщений
+- `pulsar-perf.1` - инструмент для бенчмарков
+- `pulsar-daemon.1` - утилита управления демонами
+- `pulsar-shell.1` - интерактивная оболочка
+- `pulsar-managed-ledger-admin.1` - утилита для Managed Ledgers
+- `bookkeeper.1` - утилита BookKeeper
+
+### Дополнительные файлы
+
+#### `lintian-overrides`
+**Назначение**: Подавление специфических предупреждений lintian
+
+Используется для:
+- Объяснения отклонений от стандартов Debian
+- Подавления ложных срабатываний
+- Документирования решений
+
+**Примеры overrides**:
+- `jar-not-in-usr-share`: JAR файлы в `/usr/lib/apache-pulsar` (приложение, не библиотека)
+- `missing-dep-on-jarwrapper`: Используются bash скрипты, не jarwrapper
+- `codeless-jar`: Пустые JAR файлы для управления зависимостями
+
+#### `source/format`
+**Назначение**: Формат исходного пакета
+
+Содержит: `3.0 (native)` или `3.0 (quilt)`
+
+#### `watch`
+**Назначение**: Конфигурация для `uscan` (проверка обновлений upstream)
+
+## Структура установленного пакета
+
+После установки пакета файлы размещаются следующим образом:
+
+```
+/usr/lib/apache-pulsar/          # Основная директория
+├── pulsar-broker*.jar          # Основной JAR файл
+├── bin/                        # Исполняемые скрипты
+│   ├── pulsar                  # Основной скрипт запуска
+│   ├── pulsar-admin            # Административная CLI
+│   ├── pulsar-client           # Клиент
+│   ├── pulsar-perf             # Бенчмарки
+│   ├── pulsar-daemon           # Утилита управления
+│   ├── pulsar-shell            # Интерактивная оболочка
+│   ├── pulsar-managed-ledger-admin
+│   ├── bookkeeper              # BookKeeper утилита
+│   └── function-localrunner
+└── lib/                        # JAR файлы зависимостей
+    └── *.jar                   # Все зависимости
+
+/etc/apache-pulsar/              # Конфигурация
+├── broker.conf                 # Конфигурация broker
+├── bookkeeper.conf             # Конфигурация BookKeeper
+├── proxy.conf                  # Конфигурация proxy
+├── websocket.conf              # Конфигурация WebSocket
+├── functions_worker.yml        # Конфигурация Functions
+└── ...                         # Другие конфиги
+
+/var/lib/apache-pulsar/          # Home directory пользователя apache-pulsar
+
+/var/log/apache-pulsar/          # Логи
+
+/usr/bin/                       # Символические ссылки
+├── pulsar -> /usr/lib/apache-pulsar/bin/pulsar
+├── pulsar-admin -> /usr/lib/apache-pulsar/bin/pulsar-admin
+├── pulsar-client -> /usr/lib/apache-pulsar/bin/pulsar-client
+├── pulsar-perf -> /usr/lib/apache-pulsar/bin/pulsar-perf
+└── bookkeeper -> /usr/lib/apache-pulsar/bin/bookkeeper
+
+/lib/systemd/system/            # Systemd сервисы
+├── apache-pulsar.service
+├── apache-pulsar-bookie.service
+├── apache-pulsar-proxy.service
+├── apache-pulsar-functions-worker.service
+├── apache-pulsar-websocket.service
+└── apache-pulsar-autorecovery.service
+
+/usr/share/man/man1/            # Man страницы
+├── pulsar.1
+├── pulsar-admin.1
+└── ...
+```
+
+## Процесс сборки
+
+### Этапы сборки (debuild)
+
+1. **Подготовка** (`dh_prep`)
+   - Очистка предыдущих сборок
+   - Создание необходимых директорий
+
+2. **Сборка** (`override_dh_auto_build`)
+   - Компиляция исходного кода через Maven
+   - Сборка всех модулей (broker, proxy, websocket, functions)
+
+3. **Установка** (`override_dh_auto_install`)
+   - Копирование файлов в `debian/tmp/`
+   - Подготовка структуры для пакета
+
+4. **Обработка файлов**
+   - `dh_installdirs`: Создание директорий из `dirs`
+   - `dh_install`: Копирование файлов согласно `install`
+   - `dh_installsystemd`: Установка systemd сервисов
+   - `dh_installman`: Установка man страниц
+   - `dh_fixperms`: Исправление прав доступа
+
+5. **Создание пакета**
+   - `dh_builddeb`: Создание `.deb` файла
+   - `dh_genchanges`: Создание `.changes` файла
+
+### Команды для сборки
+
+```bash
+# Полная сборка
+debuild -us -uc -b
+
+# Только бинарный пакет (без исходников)
+debuild -b
+
+# С подписью (требует GPG ключ)
+debuild -k<KEY_ID>
+
+# Проверка пакета
+lintian apache-pulsar_*.changes
+```
+
+## Управление версиями
+
+Версия пакета имеет формат: `UPSTREAM-VERSION-DEBIAN-REVISION`
+
+Пример: `4.1.2-6`
+- `4.1.2` - версия upstream (Apache Pulsar)
+- `6` - номер ревизии Debian пакета
+
+Версия берется из первой записи `changelog`.
+
+## Зависимости
+
+### Build-Depends (для сборки)
+- `default-jdk-headless` - Java Development Kit
+- `maven` - система сборки Java проектов
+- `python3` - для некоторых скриптов
+- `nodejs`, `yarn` - для сборки frontend компонентов
+- `debhelper` - утилиты для сборки пакетов
+- Различные библиотеки разработки (libzstd-dev, libsnappy-dev и т.д.)
+
+### Depends (для работы)
+- `openjdk-17-jre-headless` - Java Runtime Environment
+- `bash` - для выполнения скриптов
+- `adduser` - для создания системного пользователя
+- Системные библиотеки (libsnappy1v5, zlib1g, libzstd1, libssl3)
+
+## Тестирование
+
+После сборки рекомендуется:
+
+1. **Проверка lintian**:
+   ```bash
+   lintian apache-pulsar_*.changes
+   ```
+
+2. **Установка на тестовой системе**:
+   ```bash
+   sudo dpkg -i apache-pulsar_*.deb
+   ```
+
+3. **Проверка установленных файлов**:
+   ```bash
+   dpkg -L apache-pulsar
+   ```
+
+4. **Проверка сервисов**:
+   ```bash
+   systemctl status apache-pulsar.service
+   systemctl list-units | grep apache-pulsar
+   ```
+
+5. **Тестирование команд**:
+   ```bash
+   pulsar --version
+   pulsar-admin --help
+   ```
+
+## Полезные ссылки
+
+- [Debian Policy Manual](https://www.debian.org/doc/debian-policy/)
+- [Debian New Maintainers' Guide](https://www.debian.org/doc/manuals/maint-guide/)
+- [debhelper documentation](https://manpages.debian.org/debhelper)
+- [Apache Pulsar Documentation](https://pulsar.apache.org/docs/)
+
+## Поддержка
+
+При возникновении проблем:
+1. Проверьте логи сборки
+2. Запустите `lintian` для проверки соответствия стандартам
+3. Проверьте `debian/lintian-overrides` для известных исключений
+4. Обратитесь к maintainer'у пакета
+

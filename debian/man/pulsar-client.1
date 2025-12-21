@@ -1,0 +1,27 @@
+.TH pulsar-client 1 "Apache Pulsar" "Version 4.1.2" "User Commands"
+.SH NAME
+pulsar-client \- Pulsar message producer/consumer CLI
+.SH SYNOPSIS
+.B pulsar-client produce
+topic \fIoptions\fR
+.br
+.B pulsar-client consume
+topic \fIoptions\fR
+.SH DESCRIPTION
+pulsar-client allows sending and receiving messages to and from Pulsar topics
+from the command line. It is often used for testing and debugging.
+
+.SH EXAMPLES
+Send a test message:
+.RS
+pulsar-client produce test-topic --messages "hello world"
+.RE
+
+Consume messages:
+.RS
+pulsar-client consume test-topic --num-messages 10
+.RE
+
+.SH SEE ALSO
+pulsar(1), pulsar-admin(1), pulsar-shell(1)
+

@@ -1,4 +1,14 @@
-usr/lib/pulsar/
-etc/pulsar/
-usr/bin/pulsar
-lib/systemd/system/pulsar.service
+# jar файлы основных модулей (в корне для совместимости со скриптом pulsar)
+debian/tmp/pulsar/java/*.jar /usr/lib/apache-pulsar
+
+# jar файлы зависимостей (lib) - используется для classpath
+debian/tmp/pulsar/lib/*.jar /usr/lib/apache-pulsar/lib
+
+# конфиги
+debian/tmp/pulsar/conf/* /etc/apache-pulsar
+
+# bin файлы
+debian/tmp/pulsar/bin/* /usr/lib/apache-pulsar/bin
+
+# символические ссылки для основных команд
+debian/tmp/usr/bin/* /usr/bin

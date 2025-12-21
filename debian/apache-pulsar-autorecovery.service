@@ -1,0 +1,28 @@
+[Unit]
+Description=Apache Pulsar BookKeeper Autorecovery
+Documentation=https://pulsar.apache.org/
+After=network.target apache-pulsar-bookie.service
+
+[Service]
+Type=simple
+User=apache-pulsar
+Group=apache-pulsar
+WorkingDirectory=/usr/lib/apache-pulsar
+Environment="PULSAR_HOME=/usr/lib/apache-pulsar"
+Environment="PULSAR_LOG_DIR=/var/log/apache-pulsar"
+Environment="BK_HOME=/usr/lib/apache-pulsar"
+ExecStart=/usr/lib/apache-pulsar/bin/pulsar autorecovery
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=apache-pulsar-autorecovery
+TimeoutStartSec=300
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

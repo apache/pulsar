@@ -1,0 +1,8 @@
+debian/man/pulsar.1
+debian/man/pulsar-admin.1
+debian/man/pulsar-client.1
+debian/man/pulsar-perf.1
+debian/man/pulsar-daemon.1
+debian/man/pulsar-shell.1
+debian/man/pulsar-managed-ledger-admin.1
+debian/man/bookkeeper.1
