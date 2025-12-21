@@ -1412,16 +1412,20 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Three cases:
         // 1. cursor recovered with lastPosition markDeletePosition
-        // 2. cursor recovered with (lastPositionLegderId+1:-1) markDeletePosition, cursor ledger not rolled over
-        // 3. cursor recovered with (lastPositionLegderId+1:-1) markDeletePosition, cursor ledger rolled over
+        // 2. cursor recovered with (lastPositionLegderId+1:-1) markDeletePosition, cursor ledger not rolled over, we
+        //    move markDeletePosition to (lastPositionLegderId+2:-1)
+        // 3. cursor recovered with (lastPositionLegderId+1:-1) markDeletePosition, cursor ledger rolled over, we
+        //    move markDeletePosition to (lastPositionLegderId+3:-1)
         // See PR https://github.com/apache/pulsar/pull/25087.
         log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
         long lastPositionLedgerId = lastPosition.get().getLedgerId();
-        Awaitility.await().untilAsserted(() -> assertTrue(
-                c2.getMarkDeletedPosition().equals(lastPosition.get()) ||
-                c2.getMarkDeletedPosition().equals(new ImmutablePositionImpl(lastPositionLedgerId + 2, -1))
-                        || c2.getMarkDeletedPosition()
-                        .equals(new ImmutablePositionImpl(lastPositionLedgerId + 3, -1))));
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(
+                        c2.getMarkDeletedPosition().equals(lastPosition.get())
+                        || c2.getMarkDeletedPosition().equals(new ImmutablePositionImpl(lastPositionLedgerId + 2, -1))
+                        || c2.getMarkDeletedPosition().equals(new ImmutablePositionImpl(lastPositionLedgerId + 3, -1))
+                )
+        );
     }
 
     @Test(timeOut = 20000)
@@ -1438,7 +1442,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // In previous flaky test, we set num=100, PR https://github.com/apache/pulsar/pull/25087 will make the test
         // more flaky. Flaky case:
         //   1. cursor recovered with markDeletePosition 12:9, persistentMarkDeletePosition 12:9.
-        //   2. cursor recovered with mark markDeletePosition 13:-1, persistentMarkDeletePosition null.
+        //   2. cursor recovered with mark markDeletePosition 13:-1, persistentMarkDeletePosition 13:-1.
         // Here, we set num to 101, make sure the ledger 13 is created and become the active(last) ledger,
         // and cursor will always be recovered with markDeletePosition 13:0, persistentMarkDeletePosition 13:0.
         final int num = 101;
@@ -1471,8 +1475,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // The num=100 flaky test case, markDelete operation is triggered twice:
         //   1. first is triggered by c1.asyncMarkDelete(), markDeletePosition is 12:9.
         //   2. second is triggered by ManagedLedgerImpl.updateLedgersIdsComplete() due to ledger full rollover,
-        //      markDeletePosition is 13:-1, and we move persistentMarkDeletePosition and markDeletePosition to 13:-1
-        //      due to PR https://github.com/apache/pulsar/pull/25087.
+        //      The entries in ledger 12 are all consumed, and we move persistentMarkDeletePosition and
+        //      markDeletePosition to 13:-1 due to PR https://github.com/apache/pulsar/pull/25087.
         //      Before this pr, we will not move persistentMarkDeletePosition.
         // Two markDelete operations is almost triggered at the same time without order guarantee:
         //   1. main thread triggered c1.asyncMarkDelete.
