@@ -410,7 +410,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                KubernetesRuntimeFactory kubernetesRuntimeFactory) {
         try {
             V1ConfigMap v1ConfigMap =
-                    coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace, null);
+                    coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace).execute();
             Map<String, String> data = v1ConfigMap.getData();
             if (data != null) {
                 overRideKubernetesConfig(data, kubernetesRuntimeFactory);
@@ -545,12 +545,12 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     private String getOverriddenNamespace(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
-        return manifestCustomizer.map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace))
+        return manifestCustomizer.map(customizer -> customizer.customizeNamespace(funcDetails, jobNamespace))
                 .orElse(jobNamespace);
     }
 
     private String getOverriddenName(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
-        return manifestCustomizer.map((customizer) -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);
+        return manifestCustomizer.map(customizer -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);
     }
 }

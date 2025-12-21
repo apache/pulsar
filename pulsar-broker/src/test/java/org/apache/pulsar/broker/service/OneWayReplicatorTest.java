@@ -140,6 +140,37 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test(timeOut = 45 * 1000)
+    public void testDeleteTopicWhenReplicating() throws Exception {
+        final String topicName1 = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName1).create();
+        waitReplicatorStarted(topicName1);
+        try {
+            admin2.topics().delete(topicName1);
+            fail("Should fail to delete topic when replicating");
+        } catch (PulsarAdminException.PreconditionFailedException ex) {
+            assertTrue(ex.getMessage().contains("1 replicators"));
+        }
+
+        final String topicName2 = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createPartitionedTopic(topicName2, 1);
+        Producer<byte[]> producer2 = client1.newProducer().topic(topicName2).create();
+        waitReplicatorStarted(TopicName.get(topicName2).getPartition(0).toString());
+        try {
+            admin2.topics().deletePartitionedTopic(topicName2);
+            fail("Should fail to delete topic when replicating");
+        } catch (PulsarAdminException.PreconditionFailedException ex) {
+            assertTrue(ex.getMessage().contains("1 replicators"));
+        }
+
+        producer1.close();
+        producer2.close();
+        cleanupTopics(() -> {
+            admin1.topics().delete(topicName1);
+            admin2.topics().deletePartitionedTopic(topicName2);
+        });
+    }
+
+    @Test(timeOut = 45 * 1000)
     public void testReplicatorProducerStatInTopic() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
         final String subscribeName = "subscribe_1";

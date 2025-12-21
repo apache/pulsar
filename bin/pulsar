@@ -313,6 +313,7 @@ else
 fi
 
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
+PULSAR_LOG_CONSOLE_JSON_TEMPLATE=${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 if [ ! -d "$PULSAR_LOG_DIR" ]; then
   mkdir -p "$PULSAR_LOG_DIR"
@@ -321,6 +322,7 @@ PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
+OPTS="$OPTS -Dpulsar.log.console.json.template=$PULSAR_LOG_CONSOLE_JSON_TEMPLATE"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 if [ -n "$PULSAR_LOG_LEVEL" ]; then
   OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"

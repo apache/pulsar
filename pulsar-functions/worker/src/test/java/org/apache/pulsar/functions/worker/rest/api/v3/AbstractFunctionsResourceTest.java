@@ -86,7 +86,8 @@ public abstract class AbstractFunctionsResourceTest {
     protected static final String CASSANDRA_STRING_SINK = "org.apache.pulsar.io.cassandra.CassandraStringSink";
     protected static final int PARALLELISM = 1;
     private static final String SYSTEM_PROPERTY_NAME_CASSANDRA_NAR_FILE_PATH = "pulsar-io-cassandra.nar.path";
-    private static final String SYSTEM_PROPERTY_NAME_TWITTER_NAR_FILE_PATH = "pulsar-io-twitter.nar.path";
+    private static final String SYSTEM_PROPERTY_NAME_DATAGEN_NAR_FILE_PATH = "pulsar-io-data-generator.nar.path";
+    private static final String SYSTEM_PROPERTY_NAME_NETTY_NAR_FILE_PATH = "pulsar-io-netty.nar.path";
     private static final String SYSTEM_PROPERTY_NAME_INVALID_NAR_FILE_PATH = "pulsar-io-invalid.nar.path";
     private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH =
             "pulsar-functions-api-examples.nar.path";
@@ -123,10 +124,16 @@ public abstract class AbstractFunctionsResourceTest {
                         + SYSTEM_PROPERTY_NAME_CASSANDRA_NAR_FILE_PATH + " system property"));
     }
 
-    public static File getPulsarIOTwitterNar() {
-        return new File(Objects.requireNonNull(System.getProperty(SYSTEM_PROPERTY_NAME_TWITTER_NAR_FILE_PATH)
-                , "pulsar-io-twitter.nar file location must be specified with "
-                        + SYSTEM_PROPERTY_NAME_TWITTER_NAR_FILE_PATH + " system property"));
+    public static File getPulsarIODataGenNar() {
+        return new File(Objects.requireNonNull(System.getProperty(SYSTEM_PROPERTY_NAME_DATAGEN_NAR_FILE_PATH)
+                , "pulsar-io-data-generator.nar file location must be specified with "
+                        + SYSTEM_PROPERTY_NAME_DATAGEN_NAR_FILE_PATH + " system property"));
+    }
+
+    public static File getPulsarIONettyNar() {
+        return new File(Objects.requireNonNull(System.getProperty(SYSTEM_PROPERTY_NAME_NETTY_NAR_FILE_PATH)
+                , "pulsar-io-netty.nar file location must be specified with "
+                        + SYSTEM_PROPERTY_NAME_NETTY_NAR_FILE_PATH + " system property"));
     }
 
     public static File getPulsarIOInvalidNar() {
@@ -211,7 +218,7 @@ public abstract class AbstractFunctionsResourceTest {
     }
 
     protected File getDefaultNarFile() {
-        return getPulsarIOTwitterNar();
+        return getPulsarIODataGenNar();
     }
 
     protected void doSetup() throws Exception {

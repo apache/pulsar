@@ -796,8 +796,7 @@ public class PersistentTopicsBase extends AdminResource {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof PreconditionFailedException) {
                         asyncResponse.resume(
-                                new RestException(Status.PRECONDITION_FAILED,
-                                        "Topic has active producers/subscriptions"));
+                                new RestException(Status.PRECONDITION_FAILED, realCause.getMessage()));
                     } else if (realCause instanceof WebApplicationException){
                         asyncResponse.resume(realCause);
                     } else if (realCause instanceof MetadataStoreException.NotFoundException) {
@@ -2221,7 +2220,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     try {
                                         pulsar().getAdminClient().topics()
                                                 .createSubscriptionAsync(topicNamePartition.toString(),
-                                                        subscriptionName, targetMessageId, false, properties)
+                                                        subscriptionName, targetMessageId, replicated, properties)
                                                 .handle((r, ex) -> {
                                                     if (ex != null) {
                                                         // fail the operation on unknown exception or
