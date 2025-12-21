@@ -2727,7 +2727,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("No need to reset cursor: {}, current ledger is the last ledger.", cursor);
                 }
             } else {
-                // TODO no ledger exists, should we move cursor mark deleted position to nextPointedLedger:-1
+                // TODO no ledger exists, should we move cursor mark deleted position to nextPointedLedger:-1 ?
                 log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
             }
 
