@@ -1399,12 +1399,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Reopen
         @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         // flaky test case: may throw MetadataStoreException$BadVersionException, race condition:
-        // 1. my_test_ledger ledger rollover triggers async cursor.asyncMarkDelete().
-        // 2. factory2.open() triggers recovery read versionA ManagedLedgerInfo of my_test_ledger ledger.
+        // 1. my_test_ledger ledger rollover triggers async cursor.asyncMarkDelete() operation.
+        // 2. factory2.open() triggers recovery, read versionA ManagedLedgerInfo of my_test_ledger ledger.
         // 3. cursor.asyncMarkDelete() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionB ManagedLedgerInfo
         //    into metaStore.
-        // 4. factory2.open() triggers  MetaStoreImpl.asyncUpdateLedgerIds(), update versionA ManagedLedgerInfo
-        //    into metaStore, then throws BadVersionException and move my_test_ledger ledger to fenced state.
+        // 4. factory2.open() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionA ManagedLedgerInfo
+        //    into metaStore, then throws BadVersionException and moves my_test_ledger ledger to fenced state.
         // See PR https://github.com/apache/pulsar/pull/25087.
         // Recovery open async_mark_delete_blocking_test_ledger ledger, ledgerId++
         ledger = factory2.open("my_test_ledger");
@@ -1435,7 +1435,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // just for log debug purpose
         Deque<Position> positions = new ConcurrentLinkedDeque<>();
 
-        // In previous flaky test, we set num = 100, PR https://github.com/apache/pulsar/pull/25087 will make the test
+        // In previous flaky test, we set num=100, PR https://github.com/apache/pulsar/pull/25087 will make the test
         // more flaky. Flaky case:
         //   1. cursor recovered with markDeletePosition 12:9, persistentMarkDeletePosition 12:9.
         //   2. cursor recovered with mark markDeletePosition 13:-1, persistentMarkDeletePosition null.
@@ -1462,14 +1462,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         addEntryLatch.await();
         assertEquals(lastPosition.get(), new ImmutablePositionImpl(13, 0));
 
-        // If we set num = 100, to avoid flaky test, we should add Thread.sleep(1000) here.
-        // c1 will be always recovered with markDeletePosition 12:9.
+        // If we set num=100, to avoid flaky test, we should add Thread.sleep(1000) here to make sure ledger rollover
+        // is finished, but this sleep can not guarantee c1 always recovered with markDeletePosition 12:9.
         // Thread.sleep(1000);
 
         final CountDownLatch markDeleteLatch = new CountDownLatch(1);
         // Mark delete, create ledger 14 due to cursor ledger state is NoLedger.
-        // Flaky test case: markDelete operation is triggered twice:
-        //   1. first is triggered by c1.asyncMarkDelete, markDeletePosition is 12:9.
+        // The num=100 flaky test case, markDelete operation is triggered twice:
+        //   1. first is triggered by c1.asyncMarkDelete(), markDeletePosition is 12:9.
         //   2. second is triggered by ManagedLedgerImpl.updateLedgersIdsComplete() due to ledger full rollover,
         //      markDeletePosition is 13:-1, and we move persistentMarkDeletePosition and markDeletePosition to 13:-1
         //      due to PR https://github.com/apache/pulsar/pull/25087.
