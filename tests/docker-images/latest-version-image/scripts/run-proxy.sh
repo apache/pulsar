@@ -18,6 +18,11 @@
 # under the License.
 #
 
-source /pulsar/bin/func-lib.sh
+bin/apply-config-from-env.py conf/proxy.conf && \
+    bin/apply-config-from-env.py conf/pulsar_env.sh
 
-run_pulsar_component proxy proxy 150M
+if [ -z "$NO_AUTOSTART" ]; then
+    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/proxy.conf
+fi
+
+exec /usr/bin/supervisord -c /etc/supervisord.conf

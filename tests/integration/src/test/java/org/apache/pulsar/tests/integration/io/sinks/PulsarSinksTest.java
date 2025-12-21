@@ -55,16 +55,6 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(CassandraSinkTester.createTester(false), false);
     }
 
-    @Test(groups = "sink")
-    public void testScyllaDBSink() throws Exception {
-        testSink(ScyllaDBSinkTester.createTester(true), true);
-    }
-
-    @Test(groups = "sink")
-    public void testScyllaDBArchiveSink() throws Exception {
-        testSink(ScyllaDBSinkTester.createTester(false), false);
-    }
-
     @Test(enabled = false, groups = "sink")
     public void testHdfsSink() throws Exception {
         testSink(new HdfsSinkTester(), false);

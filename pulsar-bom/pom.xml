@@ -33,7 +33,7 @@
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-bom</artifactId>
-  <version>4.2.0-SNAPSHOT</version>
+  <version>4.1.2</version>
   <name>Pulsar BOM</name>
   <description>Pulsar (Bill of Materials)</description>
 
@@ -81,7 +81,7 @@
     <maven.compiler.target>17</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2025-09-01T03:46:57Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2025-11-11T21:36:57Z</project.build.outputTimestamp>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
@@ -472,6 +472,11 @@
       </dependency>
       <dependency>
         <groupId>org.apache.pulsar</groupId>
+        <artifactId>pulsar-io-flume</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-io-hbase</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -573,6 +578,11 @@
       <dependency>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-io-solr</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.pulsar</groupId>
+        <artifactId>pulsar-io-twitter</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

@@ -638,17 +638,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public CompletableFuture<Void> clearSnapshotAndClose() {
-        if (checkIfClosedAndCleared()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return snapshotAbortedTxnProcessor.clearAbortedTxnSnapshot().thenCompose(__ -> closeAsync())
-            .thenAccept(__ -> {
-                changeToClosedAndClearedState();
-            });
-    }
-
-    @Override
     public CompletableFuture<Void> closeAsync() {
         synchronized (pendingAppendingTxnBufferTasks) {
             if (!checkIfClosed()) {

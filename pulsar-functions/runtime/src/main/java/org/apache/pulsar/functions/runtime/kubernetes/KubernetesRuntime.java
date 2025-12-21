@@ -40,6 +40,7 @@ import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerPort;
+import io.kubernetes.client.openapi.models.V1DeleteOptions;
 import io.kubernetes.client.openapi.models.V1EnvVar;
 import io.kubernetes.client.openapi.models.V1EnvVarSource;
 import io.kubernetes.client.openapi.models.V1LabelSelector;
@@ -71,6 +72,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -468,8 +470,9 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
+                    final V1Service response;
                     try {
-                        coreClient.createNamespacedService(jobNamespace, service).execute();
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -492,7 +495,7 @@ public class KubernetesRuntime implements Runtime {
         AtomicBoolean success = new AtomicBoolean(false);
         Actions.newBuilder()
                 .addAction(createService.toBuilder()
-                        .onSuccess(ignored -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 
@@ -556,8 +559,10 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
+                    final V1StatefulSet response;
                     try {
-                        appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet).execute();
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet,
+                                null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -580,7 +585,7 @@ public class KubernetesRuntime implements Runtime {
         AtomicBoolean success = new AtomicBoolean(false);
         Actions.newBuilder()
                 .addAction(createStatefulSet.toBuilder()
-                        .onSuccess(ignored -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 
@@ -592,6 +597,9 @@ public class KubernetesRuntime implements Runtime {
 
     public void deleteStatefulSet() throws InterruptedException {
         String statefulSetName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
+        final V1DeleteOptions options = new V1DeleteOptions();
+        options.setGracePeriodSeconds((long) gracePeriodSeconds);
+        options.setPropagationPolicy("Foreground");
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         Actions.Action deleteStatefulSet = Actions.Action.builder()
@@ -599,12 +607,15 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
+                    Response response;
                     try {
-                        appsClient.deleteNamespacedStatefulSet(
+                        // cannot use deleteNamespacedStatefulSet because of bug in kuberenetes
+                        // https://github.com/kubernetes-client/java/issues/86
+                        response = appsClient.deleteNamespacedStatefulSetCall(
                                 statefulSetName,
-                                jobNamespace)
-                                .gracePeriodSeconds(gracePeriodSeconds)
-                                .propagationPolicy("Foreground")
+                                jobNamespace, null, null,
+                                gracePeriodSeconds, null, "Foreground",
+                                options, null)
                                 .execute();
                     } catch (ApiException e) {
                         // if already deleted
@@ -612,15 +623,29 @@ public class KubernetesRuntime implements Runtime {
                             log.warn("Statefulset for function {} does not exist", fqfn);
                             return Actions.ActionResult.builder().success(true).build();
                         }
+
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
                         return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
+                    } catch (IOException e) {
+                        return Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(e.getMessage())
+                                .build();
                     }
-                    return Actions.ActionResult.builder()
-                            .success(true)
-                            .build();
+
+                    // if already deleted
+                    if (response.code() == HTTP_NOT_FOUND) {
+                        log.warn("Statefulset for function {} does not exist", fqfn);
+                        return Actions.ActionResult.builder().success(true).build();
+                    } else {
+                        return Actions.ActionResult.builder()
+                                .success(response.isSuccessful())
+                                .errorMsg(response.message())
+                                .build();
+                    }
                 })
                 .build();
 
@@ -633,7 +658,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
-                        response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace).execute();
+                        response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace, null);
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -667,8 +692,11 @@ public class KubernetesRuntime implements Runtime {
 
                     V1PodList response;
                     try {
-                        response = coreClient.listNamespacedPod(jobNamespace).labelSelector(labels).execute();
+                        response = coreClient.listNamespacedPod(jobNamespace, null, null,
+                                null, null, labels,
+                                null, null, null, null, null);
                     } catch (ApiException e) {
+
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
                         return Actions.ActionResult.builder()
                                 .success(false)
@@ -697,13 +725,13 @@ public class KubernetesRuntime implements Runtime {
                         .build())
                 .addAction(waitForStatefulSetDeletion.toBuilder()
                         .continueOn(false)
-                        .onSuccess(ignored -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .addAction(deleteStatefulSet.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForStatefulSetDeletion.toBuilder()
-                        .onSuccess(ignored -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 
@@ -718,6 +746,10 @@ public class KubernetesRuntime implements Runtime {
     }
 
     public void deleteService() throws InterruptedException {
+
+        final V1DeleteOptions options = new V1DeleteOptions();
+        options.setGracePeriodSeconds(0L);
+        options.setPropagationPolicy("Foreground");
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         String serviceName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
 
@@ -726,11 +758,15 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
+                    final Response response;
                     try {
-                        coreClient.deleteNamespacedService(serviceName, jobNamespace)
-                                .gracePeriodSeconds(0)
-                                .propagationPolicy("Foreground")
-                                .execute();
+                        // cannot use deleteNamespacedService because of bug in kuberenetes
+                        // https://github.com/kubernetes-client/java/issues/86
+                        response = coreClient.deleteNamespacedServiceCall(
+                                serviceName,
+                                jobNamespace, null, null,
+                                0, null,
+                                "Foreground", options, null).execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -743,9 +779,23 @@ public class KubernetesRuntime implements Runtime {
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
+                    } catch (IOException e) {
+                        return Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(e.getMessage())
+                                .build();
                     }
 
-                    return Actions.ActionResult.builder().success(true).build();
+                    // if already deleted
+                    if (response.code() == HTTP_NOT_FOUND) {
+                        log.warn("Service for function {} does not exist", fqfn);
+                        return Actions.ActionResult.builder().success(true).build();
+                    } else {
+                        return Actions.ActionResult.builder()
+                                .success(response.isSuccessful())
+                                .errorMsg(response.message())
+                                .build();
+                    }
                 })
                 .build();
 
@@ -756,7 +806,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     V1Service response;
                     try {
-                        response = coreClient.readNamespacedService(serviceName, jobNamespace).execute();
+                        response = coreClient.readNamespacedService(serviceName, jobNamespace, null);
 
                     } catch (ApiException e) {
                         // service is gone
@@ -783,13 +833,13 @@ public class KubernetesRuntime implements Runtime {
                         .build())
                 .addAction(waitForServiceDeletion.toBuilder()
                         .continueOn(false)
-                        .onSuccess(ignored -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .addAction(deleteService.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForServiceDeletion.toBuilder()
-                        .onSuccess(ignored -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 
@@ -921,7 +971,7 @@ public class KubernetesRuntime implements Runtime {
 
         // let the customizer run but ensure it doesn't change the name so we can find it again
         final V1StatefulSet overridden = manifestCustomizer
-                .map(customizer -> customizer.customizeStatefulSet(instanceConfig.getFunctionDetails(), statefulSet))
+                .map((customizer) -> customizer.customizeStatefulSet(instanceConfig.getFunctionDetails(), statefulSet))
                 .orElse(statefulSet);
         overridden.getMetadata().name(jobName);
 
@@ -989,7 +1039,7 @@ public class KubernetesRuntime implements Runtime {
         return podSpec;
     }
 
-    private static List<V1Toleration> getTolerations() {
+    private List<V1Toleration> getTolerations() {
         final List<V1Toleration> tolerations = new ArrayList<>();
         TOLERATIONS.forEach(t -> {
             final V1Toleration toleration =

@@ -228,13 +228,11 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                 log.info("successfully created consumer {}", topicName);
             } else {
                 State stateTransient = state;
-                log.info("[{}] Closing the new consumer because the synchronizer state is {}", topicName,
-                        stateTransient);
+                log.info("[{}] Closing the new consumer because the synchronizer state is {}", stateTransient);
                 CompletableFuture closeConsumer = new CompletableFuture<>();
                 closeResource(() -> consumer.closeAsync(), closeConsumer);
                 closeConsumer.thenRun(() -> {
-                    log.info("[{}] Closed the new consumer because the synchronizer state is {}", topicName,
-                            stateTransient);
+                    log.info("[{}] Closed the new consumer because the synchronizer state is {}", stateTransient);
                 });
             }
         }).exceptionally(ex -> {
@@ -319,7 +317,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             }
             // Retry.
             long waitTimeMs = backOff.next();
-            log.warn("[{}] Exception: '{}' occurred while trying to close the {}. Retrying again in {} s.",
+            log.warn("[{}] Exception: '{}' occurred while trying to close the %s. Retrying again in {} s.",
                     topicName, ex.getMessage(), asyncCloseable.getClass().getSimpleName(), waitTimeMs / 1000.0, ex);
             brokerService.executor().schedule(() -> closeResource(asyncCloseable, future), waitTimeMs,
                     TimeUnit.MILLISECONDS);

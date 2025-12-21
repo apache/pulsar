@@ -130,16 +130,14 @@ public class BrokerTestUtil {
 
     /**
      * Logs the topic stats and internal stats for the given topic.
-     *
-     * @param logger      logger to use
+     * @param logger logger to use
      * @param pulsarAdmin PulsarAdmin client to use
-     * @param topic       topic name
-     * @param description
+     * @param topic topic name
      */
-    public static void logTopicStats(Logger logger, PulsarAdmin pulsarAdmin, String topic, String description) {
+    public static void logTopicStats(Logger logger, PulsarAdmin pulsarAdmin, String topic) {
         try {
-            logger.info("[{}] {} stats: {}", topic, description, toJson(pulsarAdmin.topics().getStats(topic)));
-            logger.info("[{}] {} internalStats: {}", topic, description,
+            logger.info("[{}] stats: {}", topic, toJson(pulsarAdmin.topics().getStats(topic)));
+            logger.info("[{}] internalStats: {}", topic,
                     toJson(pulsarAdmin.topics().getInternalStats(topic, true)));
         } catch (PulsarAdminException e) {
             logger.warn("Failed to get stats for topic {}", topic, e);

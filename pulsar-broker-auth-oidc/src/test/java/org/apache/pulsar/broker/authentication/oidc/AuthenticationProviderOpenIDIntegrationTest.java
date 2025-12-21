@@ -117,10 +117,12 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                         """.replace("%s", server.baseUrl()))));
 
         // Set up a correct openid-configuration that the k8s integration test can use
+        // NOTE: integration tests revealed that the k8s client adds a trailing slash to the openid-configuration
+        // endpoint.
         // NOTE: the jwks_uri is ignored, so we supply one that would fail here to ensure that we are not implicitly
         // relying on the jwks_uri.
         server.stubFor(
-                get(urlEqualTo("/k8s/.well-known/openid-configuration"))
+                get(urlEqualTo("/k8s/.well-known/openid-configuration/"))
                         .willReturn(aResponse()
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("""
@@ -168,7 +170,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         // Set up JWKS endpoint with a valid and an invalid public key
         // The url matches are for both the normal and the k8s endpoints
         server.stubFor(
-                get(urlMatching("/keys|/k8s/openid/v1/jwks"))
+                get(urlMatching("/keys|/k8s/openid/v1/jwks/"))
                         .willReturn(aResponse()
                                 .withHeader("Content-Type", "application/json")
                                 .withBody(

@@ -552,7 +552,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getMaxPendingChunkedMessage(), 10);
         assertFalse(configurationData.isAutoAckOldestChunkedMessageOnQueueFull());
         assertEquals(configurationData.getExpireTimeOfIncompleteChunkedMessageMillis(), TimeUnit.MINUTES.toMillis(1));
-        assertNull(configurationData.getCryptoFailureAction());
+        assertEquals(configurationData.getCryptoFailureAction(), ConsumerCryptoFailureAction.FAIL);
         assertThat(configurationData.getProperties()).hasSize(1)
             .hasFieldOrPropertyWithValue("prop", "prop-value");
         assertFalse(configurationData.isReadCompacted());

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +26,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PatternConsumerBackPressureMultipleConsumersTest;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
-import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -76,23 +73,6 @@ public class ProxyPatternConsumerBackPressureMultipleConsumersTest extends
             proxyClientAuthentication.close();
         }
         super.cleanup();
-    }
-
-    @Override
-    protected void validateThatTokensHaventLeakedOrIncreased() {
-        // validate broker's limiter
-        super.validateThatTokensHaventLeakedOrIncreased();
-        // validate proxy's limiter
-        AsyncDualMemoryLimiterImpl limiter =
-                proxyService.getMaxTopicListInFlightLimiter();
-        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAvailablePermits())
-                .isEqualTo(proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024 * 1024);
-        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAcquiredPermits())
-                .isEqualTo(0);
-        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAvailablePermits())
-                .isEqualTo(proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024 * 1024);
-        assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAcquiredPermits())
-                .isEqualTo(0);
     }
 
     @Override

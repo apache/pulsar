@@ -49,8 +49,10 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -1260,8 +1262,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
         LookupService httpLookupService = httpProtocolClient.getLookup();
         LookupService binaryLookupService = binaryProtocolClient.getLookup();
-        Assert.assertTrue(!httpLookupService.isBinaryProtoLookupService());
-        Assert.assertTrue(binaryLookupService.isBinaryProtoLookupService());
+        Assert.assertTrue(httpLookupService instanceof HttpLookupService);
+        Assert.assertTrue(binaryLookupService instanceof BinaryProtoLookupService);
         Assert.assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
         Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic),
                 ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());

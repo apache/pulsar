@@ -47,6 +47,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
@@ -125,19 +126,19 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
     }
 
-    public void localSubscriptionUpdated(String subscriptionName,
-                                         ReplicatedSubscriptionSnapshotCache.SnapshotResult snapshot) {
+    public void localSubscriptionUpdated(String subscriptionName, ReplicatedSubscriptionsSnapshot snapshot) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Updating subscription to snapshot {}", topic, subscriptionName,
-                    snapshot.clusters().stream()
-                            .map(entry -> String.format("%s -> %s", entry.cluster(), entry.position()))
+                    snapshot.getClustersList().stream()
+                            .map(cmid -> String.format("%s -> %d:%d", cmid.getCluster(),
+                                    cmid.getMessageId().getLedgerId(), cmid.getMessageId().getEntryId()))
                             .collect(Collectors.toList()));
         }
 
         Map<String, MarkersMessageIdData> clusterIds = new TreeMap<>();
-        for (ReplicatedSubscriptionSnapshotCache.ClusterEntry cluster : snapshot.clusters()) {
-            clusterIds.put(cluster.cluster(), new MarkersMessageIdData().setLedgerId(cluster.position().getLedgerId())
-                    .setEntryId(cluster.position().getEntryId()));
+        for (int i = 0, size = snapshot.getClustersCount(); i < size; i++) {
+            ClusterMessageId cmid = snapshot.getClusterAt(i);
+            clusterIds.put(cmid.getCluster(), cmid.getMessageId());
         }
 
         ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
@@ -156,8 +157,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         // message id.
         Position lastMsgId = topic.getLastPosition();
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received snapshot request. Last msg id: {}",
-                    topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), lastMsgId);
+            log.debug("[{}] Received snapshot request. Last msg id: {}", topic.getName(), lastMsgId);
         }
 
         ByteBuf marker = Markers.newReplicatedSubscriptionsSnapshotResponse(
@@ -242,8 +242,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 || topic.getLastMaxReadPositionMovedForwardTimestamp() == 0) {
             // There was no message written since the last snapshot, we can skip creating a new snapshot
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] There is no new data in topic. Skipping snapshot creation.",
-                        topic.getBrokerService().pulsar().getBrokerId(), topic.getName());
+                log.debug("[{}] There is no new data in topic. Skipping snapshot creation.", topic.getName());
             }
             return;
         }
@@ -265,8 +264,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Starting snapshot creation.", topic.getBrokerService().pulsar().getBrokerId(),
-                    topic.getName());
+            log.debug("[{}] Starting snapshot creation.", topic.getName());
         }
 
         pendingSnapshotsMetric.inc();
@@ -330,8 +328,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         // Nothing to do in case of publish errors since the retry logic is applied upstream after a snapshot is not
         // closed
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Published marker at {}:{}. Exception: {}",
-                    topic.getBrokerService().pulsar().getBrokerId(), topic.getName(), ledgerId, entryId, e);
+            log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
         }
 
         this.positionOfLastLocalMarker = PositionFactory.create(ledgerId, entryId);

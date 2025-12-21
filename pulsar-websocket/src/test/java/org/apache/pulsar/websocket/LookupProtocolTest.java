@@ -19,9 +19,7 @@
 package org.apache.pulsar.websocket;
 
 import io.netty.channel.epoll.Epoll;
-import java.io.IOException;
 import java.lang.reflect.Field;
-import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.Assert;
@@ -40,17 +38,12 @@ public class LookupProtocolTest {
         conf.setServiceUrl("http://localhost:8080");
         conf.setServiceUrlTls("https://localhost:8443");
         WebSocketService service  = new WebSocketService(conf);
-        assertLookupIsBinaryProtoLookup(service, false);
-        service.close();
-    }
-
-    private static void assertLookupIsBinaryProtoLookup(WebSocketService service, boolean expected)
-            throws IOException, NoSuchFieldException, IllegalAccessException {
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
         Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
         lookupField.setAccessible(true);
-        LookupService lookupService = (LookupService) lookupField.get(testClient);
-        Assert.assertEquals(expected, lookupService.isBinaryProtoLookupService());
+        Assert.assertEquals(lookupField.get(testClient).getClass().getName(),
+                "org.apache.pulsar.client.impl.HttpLookupService");
+        service.close();
     }
 
     @Test(timeOut = 10000)
@@ -62,7 +55,10 @@ public class LookupProtocolTest {
         conf.setBrokerClientTlsEnabled(true);
         WebSocketService service  = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
-        assertLookupIsBinaryProtoLookup(service, false);
+        Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
+        lookupField.setAccessible(true);
+        Assert.assertEquals(lookupField.get(testClient).getClass().getName(),
+                "org.apache.pulsar.client.impl.HttpLookupService");
         Assert.assertTrue(testClient.getConfiguration().isUseTls());
         service.close();
     }
@@ -75,7 +71,11 @@ public class LookupProtocolTest {
         conf.setBrokerServiceUrl("pulsar://localhost:6650");
         conf.setBrokerServiceUrlTls("pulsar+ssl://localhost:6651");
         WebSocketService service  = new WebSocketService(conf);
-        assertLookupIsBinaryProtoLookup(service, true);
+        PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
+        Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
+        lookupField.setAccessible(true);
+        Assert.assertEquals(lookupField.get(testClient).getClass().getName(),
+                "org.apache.pulsar.client.impl.BinaryProtoLookupService");
         service.close();
     }
 
@@ -89,7 +89,10 @@ public class LookupProtocolTest {
         conf.setBrokerClientTlsEnabled(true);
         WebSocketService service  = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
-        assertLookupIsBinaryProtoLookup(service, true);
+        Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
+        lookupField.setAccessible(true);
+        Assert.assertEquals(lookupField.get(testClient).getClass().getName(),
+                "org.apache.pulsar.client.impl.BinaryProtoLookupService");
         Assert.assertTrue(testClient.getConfiguration().isUseTls());
         service.close();
     }

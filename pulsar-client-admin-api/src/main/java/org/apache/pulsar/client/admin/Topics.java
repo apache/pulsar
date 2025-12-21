@@ -4371,15 +4371,6 @@ public interface Topics {
 
     /**
      * Set the replication clusters for the topic.
-     * <p/>
-     * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
-     * <ul>
-     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the topic data
-     *     from the removed cluster.</li>
-     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
-     *     operating cluster's behavior. Replication stops from the operating cluster to the
-     *     removed cluster, but existing topic data on the removed cluster is preserved.</li>
-     * </ul>
      *
      * @param topic
      * @param clusterIds
@@ -4390,15 +4381,6 @@ public interface Topics {
 
     /**
      * Set the replication clusters for the topic asynchronously.
-     * <p/>
-     * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
-     * <ul>
-     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the topic data
-     *     from the removed cluster.</li>
-     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
-     *     operating cluster's behavior. Replication stops from the operating cluster to the
-     *     removed cluster, but existing topic data on the removed cluster is preserved.</li>
-     * </ul>
      *
      * @param topic
      * @param clusterIds

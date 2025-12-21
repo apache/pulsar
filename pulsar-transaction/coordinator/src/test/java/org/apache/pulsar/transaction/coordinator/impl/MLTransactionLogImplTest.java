@@ -171,7 +171,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
                 new MLTransactionMetadataStore(transactionCoordinatorID,
                 mlTransactionLogForRecover, timeoutTracker, sequenceIdGenerator, Integer.MAX_VALUE);
         transactionMetadataStoreForRecover.init(recoverTracker).get(2000, TimeUnit.SECONDS);
-        Assert.assertEquals(transactionMetadataStoreForRecover.getOnGoingTxnCount().intValue(), expectedMapping.size());
+        Assert.assertEquals(transactionMetadataStoreForRecover.txnMetaMap.size(), expectedMapping.size());
         Iterator<Integer> txnIdSet = expectedMapping.keySet().iterator();
         while (txnIdSet.hasNext()){
             int txnId = txnIdSet.next();

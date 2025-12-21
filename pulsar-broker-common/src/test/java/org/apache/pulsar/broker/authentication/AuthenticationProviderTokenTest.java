@@ -31,7 +31,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -92,10 +92,10 @@ public class AuthenticationProviderTokenTest {
                 .compact();
 
         @SuppressWarnings("unchecked")
-        Jws<Claims> jwt = Jwts.parser()
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
                 .setSigningKey(AuthTokenUtils.decodeSecretKey(secretKey.getEncoded()))
                 .build()
-                .parseSignedClaims(token);
+                .parse(token);
 
         assertNotNull(jwt);
         assertNotNull(jwt.getBody());
@@ -115,10 +115,10 @@ public class AuthenticationProviderTokenTest {
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
-        Jws<Claims> jwt = Jwts.parser().setSigningKey(
-                        AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
+        Jwt<?, Claims> jwt = Jwts.parserBuilder().setSigningKey(
+                AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
                 .build()
-                .parseSignedClaims(token);
+                .parse(token);
 
         assertNotNull(jwt);
         assertNotNull(jwt.getBody());

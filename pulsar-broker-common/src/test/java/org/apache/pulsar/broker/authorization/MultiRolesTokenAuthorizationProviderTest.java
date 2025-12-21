@@ -43,7 +43,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String userA = "user-a";
         String userB = "user-b";
-        String token = Jwts.builder().claim("roles", new String[]{userA, userB}).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("sub", new String[]{userA, userB}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -84,7 +84,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     @Test
     public void testMultiRolesAuthzWithEmptyRoles() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-        String token = Jwts.builder().claim("roles", new String[]{}).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("sub", new String[]{}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -113,7 +113,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithSingleRole() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String testRole = "test-role";
-        String token = Jwts.builder().claim("roles", testRole).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("sub", testRole).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -147,7 +147,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithoutClaim() throws Exception {
         final SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         final String testRole = "test-role";
-        // broker will use "roles" as the claim by default.
+        // broker will use "sub" as the claim by default.
         final String token = Jwts.builder()
                 .claim("whatever", testRole).signWith(secretKey).compact();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -268,7 +268,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithSuperUser() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String testAdminRole = "admin";
-        String token = Jwts.builder().claim("roles", testAdminRole).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("sub", testAdminRole).signWith(secretKey).compact();
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setSuperUserRoles(Set.of(testAdminRole));

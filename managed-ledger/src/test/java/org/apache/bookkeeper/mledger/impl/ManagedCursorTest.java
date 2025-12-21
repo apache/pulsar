@@ -112,7 +112,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.commons.collections4.iterators.EmptyIterator;
+import org.apache.commons.collections.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
@@ -1277,9 +1277,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c2 = ledger.openCursor("c2");
 
         assertEquals(c1.getMarkDeletedPosition(), p1);
-        // move mark-delete-position from 3:5 to 6:-1 since all the entries have been consumed
-        ManagedCursor finalC2 = c2;
-        Awaitility.await().untilAsserted(() -> assertNotEquals(finalC2.getMarkDeletedPosition(), p2));
+        assertEquals(c2.getMarkDeletedPosition(), p2);
     }
 
     @Test(timeOut = 20000)
@@ -1350,7 +1348,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c4.getMarkDeletedPosition(), p1);
     }
 
-    @Test(groups = "flaky")
+    @Test
     public void asyncMarkDeleteBlocking() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
@@ -4509,7 +4507,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test(groups = "flaky")
+    @Test
     public void testLazyCursorLedgerCreationForSubscriptionCreation() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         ManagedLedgerImpl ledger =

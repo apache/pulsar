@@ -31,7 +31,7 @@
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>buildtools</artifactId>
-  <version>4.2.0-SNAPSHOT</version>
+  <version>4.1.2</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
@@ -43,19 +43,19 @@
   </developers>
 
   <properties>
-    <project.build.outputTimestamp>2025-09-01T03:46:57Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2025-11-11T21:36:57Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <maven.compiler.release>8</maven.compiler.release>
     <surefire.version>3.1.0</surefire.version>
-    <log4j2.version>2.25.2</log4j2.version>
-    <slf4j.version>2.0.17</slf4j.version>
+    <log4j2.version>2.23.1</log4j2.version>
+    <slf4j.version>2.0.13</slf4j.version>
     <testng.version>7.7.1</testng.version>
-    <commons-lang3.version>3.19.0</commons-lang3.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.130.Final</netty.version>
+    <netty.version>4.1.128.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>33.4.8-jre</guava.version>
     <ant.version>1.10.12</ant.version>

@@ -28,7 +28,6 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
@@ -106,14 +105,7 @@ public class HttpLookupService implements LookupService {
      */
     @Override
     @SuppressWarnings("deprecation")
-    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
-        if (lookupProperties == null) {
-            lookupProperties = httpClient.clientConf.getLookupProperties();
-        }
-        if (lookupProperties != null && !lookupProperties.isEmpty()) {
-            log.warn("Lookup properties aren't supported for http lookup service. lookupProperties: {}",
-                    lookupProperties);
-        }
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
         String path = basePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
@@ -219,8 +211,8 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
-    public boolean isBinaryProtoLookupService() {
-        return false;
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
+        return getSchema(topicName, null);
     }
 
     @Override

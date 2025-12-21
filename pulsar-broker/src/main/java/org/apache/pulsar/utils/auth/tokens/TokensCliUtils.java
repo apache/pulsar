@@ -20,7 +20,7 @@ package org.apache.pulsar.utils.auth.tokens;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -291,7 +291,7 @@ public class TokensCliUtils {
             }
 
             // Validate the token
-            Jws<Claims> jwt = Jwts.parser()
+            Jwt<?, Claims> jwt = Jwts.parserBuilder()
                     .setSigningKey(validationKey)
                     .build()
                     .parseClaimsJws(token);

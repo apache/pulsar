@@ -21,8 +21,8 @@ package org.apache.pulsar.utils.auth.tokens;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
@@ -73,12 +73,12 @@ public class TokensCliUtilsTest {
             };
 
             new TokensCliUtils().execute(command);
-            String token = baoStream.toString().trim();
+            String token = baoStream.toString();
 
-            Jws<Claims> jwt = Jwts.parser()
+            Jwt<?, ?> jwt = Jwts.parserBuilder()
                     .setSigningKey(Decoders.BASE64.decode(secretKey))
                     .build()
-                    .parseSignedClaims(token);
+                    .parseClaimsJws(token);
 
             JwsHeader header = (JwsHeader) jwt.getHeader();
             String keyId = header.getKeyId();
@@ -108,13 +108,13 @@ public class TokensCliUtilsTest {
             };
 
             new TokensCliUtils().execute(command);
-            String token = baoStream.toString().trim();
+            String token = baoStream.toString();
 
             Instant start = (new Date().toInstant().plus(expireAsSec - 5, ChronoUnit.SECONDS));
             Instant stop = (new Date().toInstant().plus(expireAsSec + 5, ChronoUnit.SECONDS));
 
             //Act
-            Claims jwt = Jwts.parser()
+            Claims jwt = Jwts.parserBuilder()
                     .setSigningKey(Decoders.BASE64.decode("u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY="))
                     .build()
                     .parseClaimsJws(token)

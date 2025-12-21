@@ -199,19 +199,4 @@ public class PulsarClusterSpec {
 
     @Default
     boolean enableOxia = false;
-
-    @Default
-    boolean profileBroker = false;
-
-    @Default
-    boolean profileProxy = false;
-
-    @Default
-    boolean profileFunctionWorker = false;
-
-    @Default
-    boolean profileBookie = false;
-
-    @Default
-    boolean profileZookeeper = false;
 }

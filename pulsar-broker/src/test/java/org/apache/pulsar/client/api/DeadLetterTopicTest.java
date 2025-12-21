@@ -1580,7 +1580,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                         .maxRedeliverCount(maxRedeliverCount)
                         .build())
                 .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
-                .messageListener(Consumer::negativeAcknowledge)
+                .messageListener((Consumer::negativeAcknowledge))
                 .subscribe();
 
         Consumer<GenericRecord> deadLetterConsumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())

@@ -1,5 +1,3 @@
-#!/bin/bash
-set -e
 #!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -216,7 +214,6 @@ OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
 # log directory & file
 BOOKIE_LOG_APPENDER=${BOOKIE_LOG_APPENDER:-"Console"}
-BOOKIE_LOG_CONSOLE_JSON_TEMPLATE=${BOOKIE_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
 
 # send bookie shell output to console unconditionally
 if [ $COMMAND == "shell" ]; then
@@ -230,7 +227,6 @@ fi
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$BOOKIE_LOG_APPENDER"
-OPTS="$OPTS -Dpulsar.log.console.json.template=$BOOKIE_LOG_CONSOLE_JSON_TEMPLATE"
 OPTS="$OPTS -Dbk.log.appender=$BOOKIE_LOG_APPENDER"
 OPTS="$OPTS -Dbk.log.level=error"
 OPTS="$OPTS -Dpulsar.log.dir=$BOOKIE_LOG_DIR"

@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.RandomUtils;
@@ -51,8 +50,6 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
-import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.broker.transaction.buffer.utils.TransactionBufferTestImpl;
@@ -576,28 +573,5 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         byteBuf1.release();
         byteBuf2.release();
         byteBuf3.release();
-    }
-
-    @Test(timeOut = 10000)
-    public void testAppendBufferToTxnWithInMemTransactionBuffer() throws Exception {
-        // 1. Prepare test resource
-        this.pulsarServiceList.forEach(pulsarService ->  {
-            pulsarService.setTransactionBufferProvider(new InMemTransactionBufferProvider());
-        });
-        String topic = "persistent://" + NAMESPACE1 + "/testAppendBufferToTxnWithInMemTransactionBuffer";
-        admin.topics().createNonPartitionedTopic(topic);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
-                .getTopic(topic, false)
-                .get()
-                .get();
-        InMemTransactionBuffer topicTransactionBuffer = (InMemTransactionBuffer) persistentTopic
-                .getTransactionBuffer();
-        ByteBuf byteBuf = Unpooled.buffer();
-        Position position = topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf)
-                .get(5, TimeUnit.SECONDS);
-        // 2.position should be PositionFactory.EARLIEST with InMemTransactionBuffer
-        assertEquals(PositionFactory.EARLIEST, position);
-        // 3. release resource
-        byteBuf.release();
     }
 }

@@ -134,11 +134,11 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
                     encContext.getKeys().forEach((keyName, keyInfo) -> {
                         String metadata = Arrays.toString(keyInfo.getMetadata().entrySet().toArray());
                         sb.append("name:").append(keyName).append(", ").append("key-value:")
-                                .append(Base64.getEncoder().encodeToString(keyInfo.getKeyValue())).append(", ")
+                                .append(Base64.getEncoder().encode(keyInfo.getKeyValue())).append(", ")
                                 .append("metadata:").append(metadata).append(", ");
 
                     });
-                    sb.append(", ").append("param:").append(Base64.getEncoder().encodeToString(encContext.getParam()))
+                    sb.append(", ").append("param:").append(Base64.getEncoder().encode(encContext.getParam()))
                             .append(", ").append("algorithm:").append(encContext.getAlgorithm()).append(", ")
                             .append("compression-type:").append(encContext.getCompressionType()).append(", ")
                             .append("uncompressed-size").append(encContext.getUncompressedMessageSize()).append(", ")

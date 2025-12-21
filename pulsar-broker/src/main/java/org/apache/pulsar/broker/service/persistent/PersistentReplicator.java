@@ -67,7 +67,6 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.api.proto.MarkerType;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.Rate;
@@ -81,7 +80,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
-    protected final String localSchemaTopicName;
 
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private final Object dispatchRateLimiterLock = new Object();
@@ -125,7 +123,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
         super(localCluster, localTopic, remoteCluster, remoteTopic, localTopic.getReplicatorPrefix(),
                 brokerService, replicationClient);
         this.topic = localTopic;
-        this.localSchemaTopicName = TopicName.getPartitionedTopicName(localTopicName).toString();
         this.cursor = Objects.requireNonNull(cursor);
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
                 Codec.decode(cursor.getName()), cursor, null);
@@ -381,7 +378,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
             return CompletableFuture.completedFuture(null);
         }
-        return client.getSchemaProviderLoadingCache().get(localSchemaTopicName)
+        return client.getSchemaProviderLoadingCache().get(localTopicName)
                 .getSchemaByVersion(msg.getSchemaVersion());
     }
 

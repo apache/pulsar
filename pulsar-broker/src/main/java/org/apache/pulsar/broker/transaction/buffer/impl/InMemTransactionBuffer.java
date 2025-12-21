@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -48,7 +47,7 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 /**
  * The in-memory implementation of {@link TransactionBuffer}.
  */
-public class InMemTransactionBuffer implements TransactionBuffer {
+class InMemTransactionBuffer implements TransactionBuffer {
 
     /**
      * A class represents the buffer of a transaction.
@@ -270,10 +269,10 @@ public class InMemTransactionBuffer implements TransactionBuffer {
                                                      ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
-        CompletableFuture<Position> appendFuture = new CompletableFuture<>();
+        CompletableFuture appendFuture = new CompletableFuture();
         try {
             txnBuffer.appendEntry(sequenceId, buffer);
-            appendFuture.complete(PositionFactory.EARLIEST);
+            appendFuture.complete(null);
         } catch (TransactionBufferException.TransactionSealedException e) {
             appendFuture.completeExceptionally(e);
         }
@@ -362,11 +361,6 @@ public class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Void> clearSnapshot() {
         return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
-    public CompletableFuture<Void> clearSnapshotAndClose() {
-        return clearSnapshot().thenCompose(__ -> closeAsync());
     }
 
     @Override

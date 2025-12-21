@@ -19,6 +19,7 @@
 package org.apache.pulsar.opentelemetry;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.satisfies;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
@@ -28,7 +29,7 @@ import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.opentelemetry.semconv.ServiceAttributes;
+import io.opentelemetry.semconv.ResourceAttributes;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +38,7 @@ import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.assertj.core.api.AbstractCharSequenceAssert;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -96,7 +98,7 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testServiceAttributesAreSet() throws Exception {
+    public void testResourceAttributesAreSet() throws Exception {
         @Cleanup
         var reader = InMemoryMetricReader.create();
 
@@ -114,8 +116,9 @@ public class OpenTelemetryServiceTest {
             .allSatisfy(metric -> assertThat(metric)
                 .hasResourceSatisfying(resource -> resource
                     .hasAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER, "testServiceNameAndVersion")
-                    .hasAttribute(ServiceAttributes.SERVICE_NAME, "openTelemetryServiceTestService")
-                    .hasAttribute(ServiceAttributes.SERVICE_VERSION, "1.0.0")));
+                    .hasAttribute(ResourceAttributes.SERVICE_NAME, "openTelemetryServiceTestService")
+                    .hasAttribute(ResourceAttributes.SERVICE_VERSION, "1.0.0")
+                    .hasAttribute(satisfies(ResourceAttributes.HOST_NAME, AbstractCharSequenceAssert::isNotBlank))));
     }
 
     @Test
@@ -227,7 +230,7 @@ public class OpenTelemetryServiceTest {
 
         // Buffer Pool Metrics
         // Replaces jvm_buffer_pool_used_bytes
-        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.used"));
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.usage"));
         // Replaces jvm_buffer_pool_capacity_bytes
         assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.limit"));
         // Replaces jvm_buffer_pool_used_buffers

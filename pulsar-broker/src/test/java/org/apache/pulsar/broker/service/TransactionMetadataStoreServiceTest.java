@@ -31,7 +31,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -174,7 +173,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 (MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
                         .getStores().get(TransactionCoordinatorID.get(0));
         checkTransactionMetadataStoreReady(transactionMetadataStore);
-        ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap = transactionMetadataStore.getTxnMetaMap();
+        Field field = MLTransactionMetadataStore.class.getDeclaredField("txnMetaMap");
+        field.setAccessible(true);
+        ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap =
+                (ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
         int i = -1;
         while (++i < 1000) {
             try {
@@ -187,7 +189,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         txnMap.forEach((txnID, txnMetaListPair) ->
                 Assert.assertEquals(txnMetaListPair.getLeft().status(), TxnStatus.OPEN));
         Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS)
-                .until(() -> transactionMetadataStore.getOnGoingTxnCount().intValue() == 0);
+                .until(() -> txnMap.size() == 0);
     }
 
     private TxnID newTransactionWithTimeoutOf(long timeout)
@@ -207,23 +209,25 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 (MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
                         .getStores().get(TransactionCoordinatorID.get(0));
         checkTransactionMetadataStoreReady(transactionMetadataStore);
-        ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap = transactionMetadataStore.getTxnMetaMap();
-        LongAdder onGoingTxtCount = transactionMetadataStore.getOnGoingTxnCount();
+        Field field = MLTransactionMetadataStore.class.getDeclaredField("txnMetaMap");
+        field.setAccessible(true);
+        ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap =
+                (ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
 
         newTransactionWithTimeoutOf(2000);
 
-        assertEquals(onGoingTxtCount.intValue(), 1);
+        assertEquals(txnMap.size(), 1);
 
         txnMap.forEach((txnID, txnMetaListPair) ->
                 Assert.assertEquals(txnMetaListPair.getLeft().status(), TxnStatus.OPEN));
-        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> onGoingTxtCount.intValue() == 0);
+        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> txnMap.size() == 0);
 
         newTransactionWithTimeoutOf(2000);
-        assertEquals(onGoingTxtCount.intValue(), 1);
+        assertEquals(txnMap.size(), 1);
 
         txnMap.forEach((txnID, txnMetaListPair) ->
                 Assert.assertEquals(txnMetaListPair.getLeft().status(), TxnStatus.OPEN));
-        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> onGoingTxtCount.intValue() == 0);
+        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> txnMap.size() == 0);
     }
 
     @Test
@@ -237,7 +241,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                         .getStores().get(TransactionCoordinatorID.get(0));
 
         checkTransactionMetadataStoreReady(transactionMetadataStore);
-        LongAdder onGoingTxtCount = transactionMetadataStore.getOnGoingTxnCount();
+        Field field = MLTransactionMetadataStore.class.getDeclaredField("txnMetaMap");
+        field.setAccessible(true);
+        ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap =
+                (ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
         new Thread(() -> {
             int i = -1;
             while (++i < 100) {
@@ -282,15 +289,15 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
             }
         }).start();
 
-        checkoutTimeout(onGoingTxtCount, 300);
-        checkoutTimeout(onGoingTxtCount, 200);
-        checkoutTimeout(onGoingTxtCount, 100);
-        checkoutTimeout(onGoingTxtCount, 0);
+        checkoutTimeout(txnMap, 300);
+        checkoutTimeout(txnMap, 200);
+        checkoutTimeout(txnMap, 100);
+        checkoutTimeout(txnMap, 0);
     }
 
-    private void checkoutTimeout(LongAdder onGoingTxtCount, int time) {
+    private void checkoutTimeout(ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap, int time) {
         Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS)
-                .until(() -> onGoingTxtCount.intValue() == time);
+                .until(() -> txnMap.size() == time);
     }
 
     @Test
@@ -319,8 +326,12 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                         .getStores().get(TransactionCoordinatorID.get(0));
 
         checkTransactionMetadataStoreReady(transactionMetadataStore);
-        LongAdder onGoingTxtCount = transactionMetadataStore.getOnGoingTxnCount();
-        Awaitility.await().until(() -> onGoingTxtCount.intValue() == 0);
+
+        Field field = MLTransactionMetadataStore.class.getDeclaredField("txnMetaMap");
+        field.setAccessible(true);
+        ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap =
+                (ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
+        Awaitility.await().until(() -> txnMap.size() == 0);
 
     }
 

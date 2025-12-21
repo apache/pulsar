@@ -29,10 +29,10 @@ public class CmdGenerateDocsTest {
 
     @Command
     public class Arguments {
-        @Option(names = {"-h", "--help"}, description = "Show this help message", order = 0)
+        @Option(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
 
-        @Option(names = {"-n", "--name"}, description = "Name", order = 1)
+        @Option(names = {"-n", "--name"}, description = "Name")
         private String name;
     }
 

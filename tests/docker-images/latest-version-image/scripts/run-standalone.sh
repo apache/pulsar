@@ -18,8 +18,4 @@
 # under the License.
 #
 
-source /pulsar/bin/func-lib.sh
-
-set_pulsar_mem 512M
-
 bin/pulsar standalone

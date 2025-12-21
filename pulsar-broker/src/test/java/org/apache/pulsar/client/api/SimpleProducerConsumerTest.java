@@ -81,7 +81,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -5386,51 +5385,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         log.info("-- Exiting {} test --", methodName);
-    }
-
-    @DataProvider
-    public Object[][] trimLedgerBeforeGetStats() {
-        return new Object[][] {
-                {true},
-                {false}
-        };
-    }
-
-    @Test(dataProvider = "trimLedgerBeforeGetStats")
-    public void testBacklogAfterCreatedSubscription(boolean trimLegderBeforeGetStats) throws Exception {
-        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp");
-        String mlName = TopicName.get(topic).getPersistenceNamingEncoding();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setMaxEntriesPerLedger(2);
-        config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
-        if (!trimLegderBeforeGetStats) {
-            config.setRetentionTime(3600, TimeUnit.SECONDS);
-        }
-        ManagedLedgerFactory factory = pulsar.getDefaultManagedLedgerFactory();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-        for (int i = 0; i < 4; i++) {
-            producer.send("message-" + i);
-            Thread.sleep(1000);
-        }
-        producer.close();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        assertEquals(persistentTopic.getManagedLedger(), ml);
-
-        if (trimLegderBeforeGetStats) {
-            CompletableFuture<Void> trimLedgerFuture = new CompletableFuture<>();
-            ml.trimConsumedLedgersInBackground(trimLedgerFuture);
-            trimLedgerFuture.join();
-            assertEquals(ml.getLedgersInfo().size(), 1);
-            assertEquals(ml.getCurrentLedgerEntries(), 0);
-        }
-
-        admin.topics().createSubscription(topic, "sub1", MessageId.latest);
-        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub1").getMsgBacklog(), 0);
-
-        // cleanup
-        admin.topics().delete(topic, false);
     }
 }

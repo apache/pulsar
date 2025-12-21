@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -57,21 +56,7 @@ public interface LookupService extends AutoCloseable {
      * @return a {@link LookupTopicResult} representing the logical and physical address of the broker that serves the
      *         given topic, as well as proxying information.
      */
-    default CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
-        return getBroker(topicName, null);
-    }
-
-    /**
-     * Calls broker lookup-api to get broker {@link InetSocketAddress} which serves namespace bundle that contains given
-     * topic. This lookup is made with the given lookup properties. When null is passed, the
-     * default lookup properties specified in the client configuration are used.
-     *
-     * @param topicName
-     *            topic-name
-     * @return a {@link LookupTopicResult} representing the logical and physical address of the broker that serves the
-     *         given topic, as well as proxying information.
-     */
-    CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties);
+    CompletableFuture<LookupTopicResult> getBroker(TopicName topicName);
 
     /**
      * Returns {@link PartitionedTopicMetadata} for a given topic.
@@ -119,9 +104,7 @@ public interface LookupService extends AutoCloseable {
      * @param topicName topic-name
      * @return SchemaInfo
      */
-    default CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
-        return getSchema(topicName, null);
-    }
+    CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
 
     /**
      * Returns specific version SchemaInfo {@link SchemaInfo} for a given topic.
@@ -161,9 +144,4 @@ public interface LookupService extends AutoCloseable {
      */
     CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                String topicPattern, String topicsHash);
-
-    /**
-     * Returns true if the lookup service is a binary protocol lookup service.
-     */
-    boolean isBinaryProtoLookupService();
 }

@@ -108,7 +108,7 @@ public class CmdGenerateDocs implements Callable<Integer> {
                     sb.append("```shell\n$ ");
                     sb.append(this.commander.getCommandName()).append(" ");
                     sb.append(module).append(" ").append(subK).append(" options").append("\n```\n\n");
-                    List<ArgSpec> argSpecs = getSortedArgs(subV.getCommandSpec().args());
+                    List<ArgSpec> argSpecs = subV.getCommandSpec().args();
                     if (argSpecs.size() > 0) {
                         sb.append("|Flag|Description|Default|\n");
                         sb.append("|---|---|---|\n");
@@ -128,7 +128,7 @@ public class CmdGenerateDocs implements Callable<Integer> {
             sb.append(" options").append("\n```").append("\n\n");
             sb.append("|Flag|Description|Default|\n");
             sb.append("|---|---|---|\n");
-            List<ArgSpec> argSpecs = getSortedArgs(commander.getCommandSpec().args());
+            List<ArgSpec> argSpecs = commander.getCommandSpec().args();
             argSpecs.forEach(option -> {
                 if (option.hidden() || !(option instanceof OptionSpec)) {
                     return;
@@ -142,27 +142,6 @@ public class CmdGenerateDocs implements Callable<Integer> {
             });
         }
         return sb.toString();
-    }
-
-    /**
-     * Returns a sorted copy of the argument specifications list, ordered by the
-     * OptionSpec order attribute for option specs. Non-option arguments
-     * retain their relative ordering.
-     *
-     * @param args the list of argument specifications to sort
-     * @return a new sorted list
-     */
-    private List<ArgSpec> getSortedArgs(List<ArgSpec> args) {
-        List<ArgSpec> sorted = new ArrayList<>(args);
-        sorted.sort((a, b) -> {
-            if (a instanceof OptionSpec && b instanceof OptionSpec) {
-                OptionSpec optA = (OptionSpec) a;
-                OptionSpec optB = (OptionSpec) b;
-                return Integer.compare(optA.order(), optB.order());
-            }
-            return 0;
-        });
-        return sorted;
     }
 
     @Override

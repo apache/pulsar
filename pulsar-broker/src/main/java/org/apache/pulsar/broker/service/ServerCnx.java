@@ -2593,10 +2593,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
                         return getBrokerService().pulsar().getNamespaceService()
                                 .getListOfUserTopics(namespaceName, mode)
-                                .thenCompose(topics -> {
+                                .thenAccept(topics -> {
                                     long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
                                     listSizeHolder.updateSize(actualSize);
-                                    return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                    maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
                                             isPermitRequestCancelled, permits -> {
                                                 boolean filterTopics = false;
                                                 // filter system topic
@@ -2838,7 +2838,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Send response {} for new txn request {}", txnID, requestId);
+                        log.debug("Send response {} for new txn request {}", tcId.getId(), requestId);
                     }
                     commandSender.sendNewTxnResponse(requestId, txnID, tcId.getId());
                 } else {

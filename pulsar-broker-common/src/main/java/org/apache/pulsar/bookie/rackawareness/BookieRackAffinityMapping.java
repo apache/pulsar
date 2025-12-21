@@ -22,7 +22,6 @@ import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METAD
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,7 +64,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
-    private volatile ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
+    private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
     private List<BookieId> bookieAddressListLastTime = new ArrayList<>();
 
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
@@ -158,7 +157,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 registrationClient.watchWritableBookies(versioned -> {
                     bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
                             .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
-                            .thenApply(this::processRackUpdate)
+                            .thenAccept(this::updateRacksWithHost)
                             .exceptionally(ex -> {
                                 LOG.error("Failed to update rack info. ", ex);
                                 return null;
@@ -168,17 +167,6 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 LOG.error("Failed watch available bookies.", e);
             }
         }
-    }
-
-    private Void processRackUpdate(BookiesRackConfiguration racks) {
-        ArrayList<BookieId> bookieIdSet;
-        synchronized (this) {
-            updateRacksWithHost(racks);
-            bookieIdSet = new ArrayList<>(bookieAddressListLastTime);
-        }
-        // Notify ensemble placement policy after rack info is updated to ensure consistent state.
-        rackChangeListenerCallback(bookieIdSet);
-        return null;
     }
 
     private synchronized void updateRacksWithHost(BookiesRackConfiguration racks) {
@@ -286,14 +274,10 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                         bookieIdSet.addAll(bookieAddressListLastTime);
                         bookieAddressListLastTime = bookieAddressList;
                     }
-                    rackChangeListenerCallback(bookieIdSet);
+                    if (rackawarePolicy != null) {
+                        rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
+                    }
                 });
-    }
-
-    private void rackChangeListenerCallback(Collection<BookieId> bookieIdSet) {
-        if (rackawarePolicy != null) {
-            rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
-        }
     }
 
     @Override

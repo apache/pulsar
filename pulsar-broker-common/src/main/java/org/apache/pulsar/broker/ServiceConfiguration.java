@@ -1548,7 +1548,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Max number of snapshot to be cached per subscription.")
-    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 30;
+    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2304,11 +2304,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
     @FieldContext(
-            category = CATEGORY_STORAGE_ML,
-            doc = "Max number of concurrent requests for deleting ledgers at broker level"
-    )
-    private int managedLedgerDeleteMaxConcurrentRequests = 1000;
-    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
         doc = "Allow automated creation of topics if set to true (default value)."
@@ -2994,11 +2989,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Option to override the auto-detected network interfaces max speed"
     )
     private Optional<Double> loadBalancerOverrideBrokerNicSpeedGbps = Optional.empty();
-    @FieldContext(
-            category = CATEGORY_LOAD_BALANCER,
-            doc = "Option to override the auto-detected network interfaces"
-    )
-    private List<String> loadBalancerOverrideBrokerNics = new ArrayList<>();
+
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         dynamic = true,

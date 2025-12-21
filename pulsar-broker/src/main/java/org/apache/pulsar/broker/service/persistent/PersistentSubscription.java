@@ -209,8 +209,7 @@ public class PersistentSubscription extends AbstractSubscription {
             this.replicatedSubscriptionSnapshotCache = null;
         } else if (this.replicatedSubscriptionSnapshotCache == null) {
             this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
-                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription(),
-                    getCursor().getManagedLedger()::getNumberOfEntries);
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
         }
 
         if (this.cursor != null) {
@@ -468,6 +467,21 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
 
+        if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
+            this.updateLastMarkDeleteAdvancedTimestamp();
+
+            // Mark delete position advance
+            ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
+            if (snapshotCache != null) {
+                ReplicatedSubscriptionsSnapshot snapshot = snapshotCache
+                        .advancedMarkDeletePosition(cursor.getMarkDeletedPosition());
+                if (snapshot != null) {
+                    topic.getReplicatedSubscriptionController()
+                            .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
+                }
+            }
+        }
+
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
@@ -500,7 +514,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 dispatcher.afterAckMessages(null, ctx);
             }
             // Signal the dispatchers to give chance to take extra actions
-            notifyTheMarkDeletePositionChanged(oldMD);
+            notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
         }
 
         @Override
@@ -527,7 +541,7 @@ public class PersistentSubscription extends AbstractSubscription {
             if (dispatcher != null) {
                 dispatcher.afterAckMessages(null, context);
             }
-            notifyTheMarkDeletePositionChanged((Position) context);
+            notifyTheMarkDeletePositionMoveForwardIfNeeded((Position) context);
         }
 
         @Override
@@ -540,43 +554,11 @@ public class PersistentSubscription extends AbstractSubscription {
         }
     };
 
-    /**
-     * This method is called after acknowledgements (such as individual acks) have been processed and the mark-delete
-     * position has possibly been updated and advanced after "ack holes" have been filled up by the latest individual
-     * acknowledgements.
-     * @param oldPosition previous mark-delete position before the update
-     */
-    private void notifyTheMarkDeletePositionChanged(Position oldPosition) {
+    private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
+        Position oldMD = oldPosition;
         Position newMD = cursor.getMarkDeletedPosition();
-
-        // check if the mark delete position has changed since the last call
-        if (newMD.compareTo(oldPosition) != 0) {
-            updateLastMarkDeleteAdvancedTimestamp();
-            handleReplicatedSubscriptionsUpdate(newMD);
-
-            if (dispatcher != null) {
-                dispatcher.markDeletePositionMoveForward();
-            }
-        }
-    }
-
-    /**
-     * Checks the snapshot cache for a snapshot that corresponds to the given mark-delete position.
-     * If a snapshot is found, it will notify the replicated subscription controller that the local subscription
-     * has been updated.
-     * This method is called when the mark-delete position is advanced or when a new snapshot is added to the cache.
-     * When the new snapshot is added, it might be suitable for the current mark-delete position.
-     * @param markDeletePosition the mark delete position to check for a snapshot
-     */
-    private void handleReplicatedSubscriptionsUpdate(Position markDeletePosition) {
-        ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
-        if (snapshotCache != null) {
-            ReplicatedSubscriptionSnapshotCache.SnapshotResult snapshot = snapshotCache
-                    .advancedMarkDeletePosition(markDeletePosition);
-            if (snapshot != null) {
-                topic.getReplicatedSubscriptionController()
-                        .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
-            }
+        if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
+            dispatcher.markDeletePositionMoveForward();
         }
     }
 
@@ -1587,8 +1569,6 @@ public class PersistentSubscription extends AbstractSubscription {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
-            // check if the newly added snapshot can be used with the current mark delete position
-            handleReplicatedSubscriptionsUpdate(cursor.getMarkDeletedPosition());
         }
     }
 

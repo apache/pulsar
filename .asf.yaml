@@ -89,7 +89,6 @@ github:
     branch-3.2: {}
     branch-3.3: {}
     branch-4.0: {}
-    branch-4.1: {}
 
 notifications:
   commits:      commits@pulsar.apache.org

@@ -33,7 +33,6 @@ public abstract class TopicTransactionBufferState {
         Initializing,
         Ready,
         Close,
-        ClosedAndCleared,
         NoSnapshot,
         FirstSnapshotting
     }
@@ -72,10 +71,6 @@ public abstract class TopicTransactionBufferState {
         STATE_UPDATER.set(this, State.Close);
     }
 
-    protected void changeToClosedAndClearedState() {
-        STATE_UPDATER.compareAndSet(this, State.Close, State.ClosedAndCleared);
-    }
-
     public boolean checkIfInitializing() {
         return STATE_UPDATER.get(this) == State.Initializing;
     }
@@ -93,11 +88,7 @@ public abstract class TopicTransactionBufferState {
     }
 
     public boolean checkIfClosed() {
-        return STATE_UPDATER.get(this) == State.Close || STATE_UPDATER.get(this) == State.ClosedAndCleared;
-    }
-
-    public boolean checkIfClosedAndCleared() {
-        return STATE_UPDATER.get(this) == State.ClosedAndCleared;
+        return STATE_UPDATER.get(this) == State.Close;
     }
 
     public State getState() {

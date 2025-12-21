@@ -82,6 +82,7 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -956,7 +957,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         // Assert the lookup service is a "BinaryProtoLookupService".
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService.isBinaryProtoLookupService());
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
 
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final int topicPartitions = 10;
@@ -980,7 +981,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         // Assert the lookup service is a "BinaryProtoLookupService".
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService.isBinaryProtoLookupService());
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
 
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
@@ -1233,7 +1234,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         Consumer<String> consumer = pulsarClientImpl.newConsumer(Schema.STRING).topic(tpName)
                 .subscriptionName("s1").isAckReceiptEnabled(true).subscribe();
         LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService.isBinaryProtoLookupService());
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
         ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
 
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();

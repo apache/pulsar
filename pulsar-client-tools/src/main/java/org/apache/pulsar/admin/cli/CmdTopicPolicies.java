@@ -1959,7 +1959,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            sync(() -> getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic));
+            getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic);
         }
     }
 
@@ -1978,8 +1978,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            print(sync(() ->
-                    (getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied))));
+            print(getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied));
         }
     }
 
@@ -1995,15 +1994,12 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            sync(() -> getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic));
+            getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic);
         }
     }
 
     @Command(description = "Set the replication clusters for a topic, global policy will be copied to the remote"
-            + " cluster if you enabled namespace level replication. "
-            + "When removing a cluster: "
-            + "with shared configuration store, topic data will be deleted from the removed cluster; "
-            + "with separate configuration store, only replication stops but topic data is preserved.")
+            + " cluster if you enabled namespace level replication.")
     private class SetReplicationClusters extends CliCommand {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
@@ -2020,7 +2016,7 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            sync(() -> getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters));
+            getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters);
         }
     }
 

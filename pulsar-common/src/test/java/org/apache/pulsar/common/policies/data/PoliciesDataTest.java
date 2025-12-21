@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -71,7 +71,7 @@ public class PoliciesDataTest {
         assertNotEquals(TenantInfo.builder().build(), pa1);
         assertNotEquals(TenantInfo.builder().adminRoles(Sets.newHashSet("role1", "role3"))
                 .allowedClusters(Sets.newHashSet("usc")).build(), pa1);
-        assertThat(pa1.getAdminRoles()).containsExactlyInAnyOrder("role1", "role2");
+        assertEquals(pa1.getAdminRoles(), Lists.newArrayList("role1", "role2"));
     }
 
     @Test

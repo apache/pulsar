@@ -18,6 +18,12 @@
 # under the License.
 #
 
-source /pulsar/bin/func-lib.sh
+bin/apply-config-from-env.py conf/zookeeper.conf && \
+    bin/apply-config-from-env.py conf/pulsar_env.sh && \
+    bin/generate-zookeeper-config.sh conf/global_zookeeper.conf
 
-run_pulsar_component zookeeper global-zk 128M
+if [ -z "$NO_AUTOSTART" ]; then
+    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/global-zk.conf
+fi
+
+exec /usr/bin/supervisord -c /etc/supervisord.conf

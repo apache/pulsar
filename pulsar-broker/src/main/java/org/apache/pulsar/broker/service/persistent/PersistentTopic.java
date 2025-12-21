@@ -1520,23 +1520,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 "Topic has " + producers.size() + " connected producers"));
                     }
                 } else if (currentUsageCount() > 0) {
-                    StringBuilder errorMsg = new StringBuilder("Topic has");
-                    errorMsg.append(" ").append(currentUsageCount())
-                        .append(currentUsageCount() == 1 ? " client" : " clients").append(" connected");
-                    long consumerCount = subscriptions.values().stream().map(sub -> sub.getConsumers().size())
-                            .reduce(0, Integer::sum);
-                    long replicatorCount = 0;
-                    long producerCount = 0;
-                    if (!producers.isEmpty()) {
-                        replicatorCount = producers.values().stream().filter(Producer::isRemote).count();
-                        if (producers.size() > replicatorCount) {
-                            producerCount = producers.size() - replicatorCount;
-                        }
-                    }
-                    errorMsg.append(" Including").append(" ").append(consumerCount).append(" consumers,")
-                        .append(" ").append(producerCount).append(" producers,").append(" and")
-                        .append(" ").append(replicatorCount).append(" replicators.");
-                    return FutureUtil.failedFuture(new TopicBusyException(errorMsg.toString()));
+                    return FutureUtil.failedFuture(new TopicBusyException(
+                            "Topic has " + currentUsageCount() + " connected producers/consumers"));
                 }
             }
 
@@ -2913,12 +2898,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.topicCreationTimeStamp = getTopicCreationTimeStamp();
 
         stats.compaction.reset();
-        mxBean.flatMap(bean -> bean.getCompactionRecordForTopic(topic)).ifPresent(compactionRecord -> {
+        mxBean.flatMap(bean -> bean.getCompactionRecordForTopic(topic)).map(compactionRecord -> {
             stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
             stats.compaction.lastCompactionSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
             stats.compaction.lastCompactionFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
             stats.compaction.lastCompactionDurationTimeInMills =
                     compactionRecord.getLastCompactionDurationTimeInMills();
+            return compactionRecord;
         });
 
         Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
@@ -2966,7 +2952,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
             }
             if (getStatsOptions.isGetEarliestTimeInBacklog() && stats.backlogSize != 0) {
-                CompletableFuture<TopicStatsImpl> finalRes = ledger.getEarliestMessagePublishTimeInBacklog()
+                CompletableFuture finalRes = ledger.getEarliestMessagePublishTimeInBacklog()
                     .thenApply((earliestTime) -> {
                         stats.earliestMsgPublishTimeInBacklogs = earliestTime;
                         return stats;
@@ -4091,10 +4077,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } catch (Exception e) {
                     log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
                     res.complete(false);
-                } finally {
-                    if (entry != null) {
-                        entry.release();
-                    }
                 }
 
             }
@@ -4826,7 +4808,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private CompletableFuture<Void> transactionBufferCleanupAndClose() {
-        return transactionBuffer.clearSnapshotAndClose();
+        return transactionBuffer.clearSnapshot().thenCompose(__ -> transactionBuffer.closeAsync());
     }
 
     public Optional<TopicName> getShadowSourceTopic() {

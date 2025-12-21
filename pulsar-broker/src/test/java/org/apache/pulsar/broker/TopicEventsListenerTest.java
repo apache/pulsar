@@ -201,7 +201,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
             if (forceDelete) {
                 throw e;
             }
-            assertTrue(e.getMessage().contains("Topic has"));
+            assertTrue(e.getMessage().contains("Topic has active producers/subscriptions")
+                    || e.getMessage().contains("connected producers/consumers"));
         }
 
         final String[] expectedEvents;

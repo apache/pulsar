@@ -56,27 +56,23 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private OperatingSystemMXBean systemBean;
     private SystemResourceUsage usage;
     private final Optional<Double> overrideBrokerNicSpeedGbps;
-    private final List<String> overrideBrokerNics;
     private final boolean isCGroupsEnabled;
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
         this(
             pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
             pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
-            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNics(),
             pulsar.getLoadManagerExecutor()
         );
     }
 
     public LinuxBrokerHostUsageImpl(int hostUsageCheckIntervalMin,
                                     Optional<Double> overrideBrokerNicSpeedGbps,
-                                    List<String> overrideBrokerNics,
                                     ScheduledExecutorService executorService) {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
         this.overrideBrokerNicSpeedGbps = overrideBrokerNicSpeedGbps;
-        this.overrideBrokerNics = overrideBrokerNics;
         this.isCGroupsEnabled = isCGroupEnabled();
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
@@ -92,7 +88,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     @Override
     public void calculateBrokerHostUsage() {
-        List<String> nics = !overrideBrokerNics.isEmpty() ? overrideBrokerNics : getUsablePhysicalNICs();
+        List<String> nics = getUsablePhysicalNICs();
         double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
         double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.Kilobit);
         double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.Kilobit);

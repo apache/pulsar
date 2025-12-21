@@ -83,12 +83,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         config.setTransactionCoordinatorEnabled(true);
     }
 
-    @Test(enabled = false)
-    public void testDeleteTopicWhenReplicating() throws Exception {
-        super.testDeleteTopicWhenReplicating();
-    }
 
-    @Test(enabled = false)
+        @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
     }

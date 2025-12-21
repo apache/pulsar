@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>4.2.0-SNAPSHOT</version>
+    <version>4.1.2</version>
   </parent>
 
   <artifactId>pulsar-io-docs</artifactId>
@@ -119,6 +119,11 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-flume</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-hbase</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -205,6 +210,11 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-solr</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-twitter</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

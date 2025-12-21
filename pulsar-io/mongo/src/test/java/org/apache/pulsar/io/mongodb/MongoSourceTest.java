@@ -128,13 +128,9 @@ public class MongoSourceTest {
 
         Record<byte[]> record = source.read();
 
-        String value = new String(record.getValue());
-        String expected = "{\"fullDocument\":{\"hello\":\"pulsar\"},"
+        assertEquals(new String(record.getValue()),
+                "{\"fullDocument\":{\"hello\":\"pulsar\"},"
                 + "\"ns\":{\"databaseName\":\"hello\",\"collectionName\":\"pulsar\",\"fullName\":\"hello.pulsar\"},"
-                + "\"operation\":\"INSERT\"}";
-        assertEquals(
-                Document.parse(value),
-                Document.parse(expected)
-        );
+                + "\"operation\":\"INSERT\"}");
     }
 }

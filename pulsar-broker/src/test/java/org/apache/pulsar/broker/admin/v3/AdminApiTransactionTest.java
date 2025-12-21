@@ -80,13 +80,11 @@ import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
-import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1111,33 +1109,5 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertNotNull(internalStats.ledgers.get(0).metadata);
         assertEquals(persistentTopicStats.ledgers.size(), internalStats.ledgers.size());
         assertEquals(persistentTopicStats.cursors.size(), internalStats.cursors.size());
-    }
-
-    @Test
-    public void testRetryDeleteTopicAfterFailedDeleteLedger() throws Exception {
-        // Create a topic.
-        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        admin.topics().createNonPartitionedTopic(tpName);
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(tpName).create();
-        producer.send("1");
-        producer.close();
-        // The first deleting should fail, since we injected an error.
-        pulsarTestContext.getMockZooKeeper().failConditional(KeeperException.Code.BADVERSION, (op, path) -> {
-            if ("DELETE".equals(op.toString())
-                    && path.endsWith(TopicName.get(tpName).getPersistenceNamingEncoding())) {
-                return true;
-            }
-            return false;
-        });
-        try {
-            admin.topics().delete(tpName);
-            fail("The deleting should fail because we injected an error");
-        } catch (Throwable ex) {
-            // expected
-            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-            assertTrue(actEx.getMessage().contains("BadVersionException"));
-        }
-        // The second deleting should succeed.
-        admin.topics().delete(tpName);
     }
 }

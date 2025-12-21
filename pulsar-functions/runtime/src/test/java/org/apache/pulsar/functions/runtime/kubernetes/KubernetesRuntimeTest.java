@@ -21,10 +21,12 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -51,7 +53,6 @@ import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
-import io.kubernetes.client.openapi.models.V1Status;
 import io.kubernetes.client.openapi.models.V1Toleration;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -63,6 +64,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import okhttp3.Call;
+import okhttp3.Response;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -1382,6 +1385,13 @@ public class KubernetesRuntimeTest {
         CoreV1Api coreApi = mock(CoreV1Api.class);
         AppsV1Api appsApi = mock(AppsV1Api.class);
 
+        Call successfulCall = mock(Call.class);
+        Response okResponse = mock(Response.class);
+        when(okResponse.code()).thenReturn(HttpURLConnection.HTTP_OK);
+        when(okResponse.isSuccessful()).thenReturn(true);
+        when(okResponse.message()).thenReturn("");
+        when(successfulCall.execute()).thenReturn(okResponse);
+
         final String expectedFunctionNamePrefix = String.format("pf-%s-%s-%s", "c-tenant", "c-ns", "c-fn");
 
         factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
@@ -1390,43 +1400,33 @@ public class KubernetesRuntimeTest {
 
         ArgumentMatcher<String> hasTranslatedFunctionName = (String t) -> t.startsWith(expectedFunctionNamePrefix);
 
-        AppsV1Api.APIdeleteNamespacedStatefulSetRequest request =
-                mock(AppsV1Api.APIdeleteNamespacedStatefulSetRequest.class);
-        when(appsApi.deleteNamespacedStatefulSet(
+        when(appsApi.deleteNamespacedStatefulSetCall(
                 argThat(hasTranslatedFunctionName),
-                anyString())).thenReturn(request);
-        when(request.gracePeriodSeconds(anyInt())).thenReturn(request);
-        when(request.propagationPolicy(anyString())).thenReturn(request);
-        when(request.execute()).thenReturn(new V1Status());
-
-        AppsV1Api.APIreadNamespacedStatefulSetRequest request2 =
-                mock(AppsV1Api.APIreadNamespacedStatefulSetRequest.class);
-        when(appsApi.readNamespacedStatefulSet(
-                argThat(hasTranslatedFunctionName),
-                anyString())).thenReturn(request2);
+                anyString(), isNull(), isNull(), anyInt(), isNull(),
+                anyString(), any(), isNull())).thenReturn(successfulCall);
 
         ApiException notFoundException = mock(ApiException.class);
         when(notFoundException.getCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
-
-        when(request2.execute()).thenThrow(notFoundException);
+        when(appsApi.readNamespacedStatefulSet(
+                argThat(hasTranslatedFunctionName), anyString(), isNull())).thenThrow(notFoundException);
 
         V1PodList podList = mock(V1PodList.class);
         when(podList.getItems()).thenReturn(Collections.emptyList());
 
         String expectedLabels = String.format("tenant=%s,namespace=%s,name=%s", "c-tenant", "c-ns", "c-fn");
 
-
-        CoreV1Api.APIlistNamespacedPodRequest listNamespacedPodRequest = mock();
-        when(coreApi.listNamespacedPod(anyString())).thenReturn(listNamespacedPodRequest);
-        when(listNamespacedPodRequest.labelSelector(anyString())).thenReturn(listNamespacedPodRequest);
-        when(listNamespacedPodRequest.execute()).thenReturn(podList);
-
+        when(coreApi.listNamespacedPod(anyString(), isNull(), isNull(),
+                isNull(), isNull(),
+                eq(expectedLabels), isNull(), isNull(), isNull(),
+                isNull(), isNull())).thenReturn(podList);
         KubernetesRuntime kr = factory.createContainer(config, "/test/code", "code.yml",
                 "/test/transforms", "transform.yml", Long.MIN_VALUE);
         kr.deleteStatefulSet();
 
-        verify(coreApi).listNamespacedPod(anyString());
-        verify(listNamespacedPodRequest).labelSelector(eq(expectedLabels));
+        verify(coreApi).listNamespacedPod(anyString(), isNull(), isNull(),
+                isNull(), isNull(),
+                eq(expectedLabels), isNull(), isNull(), isNull(),
+                isNull(), isNull());
     }
 
     @Test

@@ -34,7 +34,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.Getter;
@@ -148,7 +147,6 @@ public class PulsarCluster {
                     .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
             metadataStoreUrl = appendClusterName(ZKContainer.NAME);
             configurationMetadataStoreUrl = CSContainer.NAME + ":" + CS_PORT;
-            zkContainer.setEnableAsyncProfiler(spec.profileZookeeper);
         }
 
         this.csContainer = csContainer;
@@ -163,8 +161,6 @@ public class PulsarCluster {
                 .withEnv("metadataStoreUrl", metadataStoreUrl)
                 .withEnv("configurationMetadataStoreUrl", configurationMetadataStoreUrl)
                 .withEnv("clusterName", clusterName);
-        proxyContainer.setEnableAsyncProfiler(spec.profileProxy);
-
         // enable mTLS
         if (spec.enableTls) {
             proxyContainer
@@ -221,7 +217,6 @@ public class PulsarCluster {
                     if (spec.bookieAdditionalPorts != null) {
                         spec.bookieAdditionalPorts.forEach(bookieContainer::addExposedPort);
                     }
-                    bookieContainer.setEnableAsyncProfiler(spec.profileBookie);
                     return bookieContainer;
                 })
         );
@@ -270,7 +265,6 @@ public class PulsarCluster {
                             if (spec.brokerAdditionalPorts() != null) {
                                 spec.brokerAdditionalPorts().forEach(brokerContainer::addExposedPort);
                             }
-                            brokerContainer.setEnableAsyncProfiler(spec.profileBroker);
                             return brokerContainer;
                         }
                 ));
@@ -309,25 +303,6 @@ public class PulsarCluster {
 
     public String getPlainTextServiceUrl() {
         return proxyContainer.getPlainTextServiceUrl();
-    }
-
-    public void forEachContainer(Consumer<GenericContainer<?>> consumer) {
-        if (zkContainer != null) {
-            consumer.accept(zkContainer);
-        }
-        if (csContainer != null) {
-            consumer.accept(csContainer);
-        }
-        if (oxiaContainer != null) {
-            consumer.accept(oxiaContainer);
-        }
-        if (proxyContainer != null) {
-            consumer.accept(proxyContainer);
-        }
-        bookieContainers.values().forEach(consumer);
-        brokerContainers.values().forEach(consumer);
-        workerContainers.values().forEach(consumer);
-        externalServices.values().forEach(consumer);
     }
 
     public String getHttpServiceUrl() {
@@ -545,13 +520,13 @@ public class PulsarCluster {
     private WorkerContainer createWorkerContainer(String name) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
-        WorkerContainer workerContainer = new WorkerContainer(clusterName, name)
+        return new WorkerContainer(clusterName, name)
                 .withNetwork(network)
                 .withNetworkAliases(name)
                 // worker settings
                 .withEnv("PF_workerId", name)
                 .withEnv("PF_workerHostname", name)
-                .withEnv("PF_workerPort", "" + BROKER_HTTP_PORT)
+                .withEnv("PF_workerPort", "" + PulsarContainer.BROKER_HTTP_PORT)
                 .withEnv("PF_pulsarFunctionsCluster", clusterName)
                 .withEnv("PF_pulsarServiceUrl", serviceUrl)
                 .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
@@ -562,8 +537,6 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv(functionWorkerEnvs)
                 .withExposedPorts(functionWorkerAdditionalPorts.toArray(new Integer[0]));
-        workerContainer.setEnableAsyncProfiler(spec.profileFunctionWorker);
-        return workerContainer;
     }
 
     private void startFunctionWorkersWithThreadContainerFactory(String suffix, int numFunctionWorkers) {

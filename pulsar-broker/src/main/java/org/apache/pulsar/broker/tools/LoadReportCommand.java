@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.tools;
 
-import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
@@ -68,7 +67,7 @@ public class LoadReportCommand implements Callable<Integer> {
         try {
             if (isLinux) {
                 hostUsage = new LinuxBrokerHostUsageImpl(
-                    Integer.MAX_VALUE, Optional.empty(), new ArrayList<>(), scheduler
+                    Integer.MAX_VALUE, Optional.empty(), scheduler
                 );
             } else {
                 hostUsage = new GenericBrokerHostUsageImpl(

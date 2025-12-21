@@ -25,7 +25,7 @@
     <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>4.2.0-SNAPSHOT</version>
+    <version>4.1.2</version>
   </parent>
 
   <artifactId>pulsar-io</artifactId>
@@ -49,6 +49,7 @@
         <module>common</module>
         <module>docs</module>
         <module>aws</module>
+        <module>twitter</module>
         <module>cassandra</module>
         <module>aerospike</module>
         <module>http</module>
@@ -68,6 +69,7 @@
         <module>netty</module>
         <module>hbase</module>
         <module>mongo</module>
+        <module>flume</module>
         <module>redis</module>
         <module>solr</module>
         <module>influxdb</module>
@@ -86,6 +88,7 @@
         <module>batch-data-generator</module>
         <module>common</module>
         <module>aws</module>
+        <module>twitter</module>
         <module>cassandra</module>
         <module>aerospike</module>
         <module>http</module>
@@ -100,6 +103,7 @@
         <module>netty</module>
         <module>hbase</module>
         <module>mongo</module>
+        <module>flume</module>
         <module>redis</module>
         <module>solr</module>
         <module>influxdb</module>
@@ -137,9 +141,9 @@
         <module>batch-discovery-triggerers</module>
         <module>batch-data-generator</module>
         <module>common</module>
+        <module>twitter</module>
         <module>cassandra</module>
         <module>data-generator</module>
-        <module>netty</module>
       </modules>
     </profile>
   </profiles>

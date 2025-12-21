@@ -2392,10 +2392,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/replication")
-    @ApiOperation(value = "Set the replication clusters for a topic. "
-            + "When removing a cluster:"
-            + " with shared configuration store, topic data will be deleted from the removed cluster; "
-            + "with separate configuration store, only replication stops but topic data is preserved.")
+    @ApiOperation(value = "Set the replication clusters for a topic.")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),

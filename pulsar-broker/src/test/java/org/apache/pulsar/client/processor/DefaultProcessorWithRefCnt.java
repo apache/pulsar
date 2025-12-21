@@ -42,7 +42,7 @@ public class DefaultProcessorWithRefCnt implements MessagePayloadProcessor {
     @Override
     public <T> void process(MessagePayload payload, MessagePayloadContext context, Schema<T> schema,
                             Consumer<Message<T>> messageConsumer) throws Exception {
-        totalRefCnt += ((MessagePayloadImpl) payload).getByteBuf().refCnt();
         MessagePayloadProcessor.DEFAULT.process(payload, context, schema, messageConsumer);
+        totalRefCnt += ((MessagePayloadImpl) payload).getByteBuf().refCnt();
     }
 }

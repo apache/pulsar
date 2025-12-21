@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.semaphore;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -94,8 +93,7 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
                 new DualMemoryLimiterPermit(limitType, result));
     }
 
-    @VisibleForTesting
-    public AsyncSemaphore getLimiter(LimitType limitType) {
+    protected AsyncSemaphore getLimiter(LimitType limitType) {
         switch (limitType) {
         case HEAP_MEMORY:
             return heapLimiter;

@@ -23,8 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
@@ -63,8 +61,6 @@ public class ManagedLedgerConfig {
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
-    private Semaphore ledgerDeletionSemaphore;
-    private ExecutorService ledgerDeleteExecutor;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -411,30 +407,6 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setThrottleMarkDelete(double throttleMarkDelete) {
         checkArgument(throttleMarkDelete >= 0.0);
         this.throttleMarkDelete = throttleMarkDelete;
-        return this;
-    }
-
-    /**
-     * @return the semaphore used to limit concurrent ledger deletions
-     */
-    public Semaphore getLedgerDeletionSemaphore() {
-        return ledgerDeletionSemaphore;
-    }
-
-    public ManagedLedgerConfig setLedgerDeletionSemaphore(Semaphore semaphore) {
-        this.ledgerDeletionSemaphore = semaphore;
-        return this;
-    }
-
-    /**
-     * @return the executor service to be used for deleting ledgers
-     */
-    public ExecutorService getLedgerDeleteExecutor() {
-        return ledgerDeleteExecutor;
-    }
-
-    public ManagedLedgerConfig setLedgerDeleteExecutor(ExecutorService executor) {
-        this.ledgerDeleteExecutor = executor;
         return this;
     }
 

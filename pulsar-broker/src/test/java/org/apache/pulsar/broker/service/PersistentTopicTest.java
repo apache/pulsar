@@ -1373,8 +1373,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursorImpl.class);
-        doReturn(ledgerMock).when(cursorMock).getManagedLedger();
-        doReturn(0L).when(ledgerMock).getNumberOfEntries(any());
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();

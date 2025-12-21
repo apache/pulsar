@@ -23,7 +23,7 @@ import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDat
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
@@ -33,9 +33,8 @@ import io.jsonwebtoken.security.SignatureException;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
-import java.util.Collection;
 import java.util.Date;
-import java.util.Optional;
+import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
@@ -138,7 +137,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         long allowedSkew = getConfTokenAllowedClockSkewSeconds(config);
 
-        this.parser = Jwts.parser()
+        this.parser = Jwts.parserBuilder()
                 .setAllowedClockSkewSeconds(allowedSkew)
                 .setSigningKey(this.validationKey)
                 .build();
@@ -229,9 +228,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @SuppressWarnings("unchecked")
-    private Jws<Claims> authenticateToken(final String token) throws AuthenticationException {
+    private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            Jws<Claims> jwt = parser.parseClaimsJws(token);
+            Jwt<?, Claims> jwt = parser.parseClaimsJws(token);
 
             if (audienceClaim != null) {
                 Object object = jwt.getBody().get(audienceClaim);
@@ -239,8 +238,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     throw new JwtException("Found null Audience in token, for claimed field: " + audienceClaim);
                 }
 
-                if (object instanceof Collection) {
-                    Collection<String> audiences = (Collection<String>) object;
+                if (object instanceof List) {
+                    List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
                         incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
@@ -273,13 +272,15 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private String getPrincipal(Jws<Claims> jwt) {
+    private String getPrincipal(Jwt<?, Claims> jwt) {
         try {
             return jwt.getBody().get(roleClaim, String.class);
         } catch (RequiredTypeException requiredTypeException) {
-            Collection list = jwt.getBody().get(roleClaim, Collection.class);
-            Optional<String> firstEntry = list.stream().findFirst().map(Object::toString);
-            return firstEntry.orElse(null);
+            List list = jwt.getBody().get(roleClaim, List.class);
+            if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
+                return (String) list.get(0);
+            }
+            return null;
         }
     }
 
@@ -357,7 +358,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         private final SocketAddress remoteAddress;
         private final SSLSession sslSession;
         private AuthenticationDataSource authenticationDataSource;
-        private Jws<Claims> jwt;
+        private Jwt<?, Claims> jwt;
         private long expiration;
 
         TokenAuthenticationState(

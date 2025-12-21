@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +27,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -67,19 +65,13 @@ public class ExecutorProvider {
     }
 
     public ExecutorProvider(int numThreads, String poolName, boolean daemon) {
-        this(numThreads, poolName, daemon, ExtendedThreadFactory::new);
-    }
-
-    @VisibleForTesting
-    public ExecutorProvider(
-            int numThreads, String poolName, boolean daemon,
-            BiFunction<String/* poolName */, Boolean/* daemon */, ExtendedThreadFactory> threadFactoryCreator) {
         checkArgument(numThreads > 0);
         this.numThreads = numThreads;
         Objects.requireNonNull(poolName);
         executors = new ArrayList<>(numThreads);
         for (int i = 0; i < numThreads; i++) {
-            ExtendedThreadFactory threadFactory = threadFactoryCreator.apply(poolName, daemon);
+            ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
+                    poolName, daemon);
             ExecutorService executor = createExecutor(threadFactory);
             executors.add(Pair.of(executor, threadFactory));
         }

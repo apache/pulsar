@@ -176,14 +176,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                 trackMessage(message);
                 unAckedMessageTracker.add(
                         MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
-                if (decryptFailListener != null
-                        && message.getEncryptionCtx().isPresent()
-                        && message.getEncryptionCtx().get().isEncrypted()
-                ) {
-                    decryptFailListener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
-                } else {
-                    listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
-                }
+                listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
                         message.getMessageId(), t);

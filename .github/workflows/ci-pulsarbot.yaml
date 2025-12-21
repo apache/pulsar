@@ -22,10 +22,6 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  actions: write
-  contents: read
-
 jobs:
   pulsarbot:
     runs-on: ubuntu-24.04
@@ -35,5 +31,5 @@ jobs:
       - name: Execute pulsarbot command
         id: pulsarbot
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master

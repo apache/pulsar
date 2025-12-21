@@ -316,10 +316,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Command(description = "Set replication clusters for a namespace. "
-            + "When removing a cluster:"
-            + " with shared configuration store, data will be deleted from the removed cluster; "
-            + "with separate configuration store, only replication stops but data is preserved.")
+    @Command(description = "Set replication clusters for a namespace")
     private class SetReplicationClusters extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespaceName;
