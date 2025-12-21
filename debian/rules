@@ -1,0 +1,94 @@
+#!/usr/bin/make -f
+
+export JAVA_HOME=/usr/lib/jvm/default-java
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# Собираем все основные модули Pulsar (core-modules профиль)
+	# Это включает: broker, proxy, websocket, functions-worker и все зависимости
+	# Используем -Pcore-modules,-main для сборки только основных модулей без внешних коннекторов
+	mvn -T 1C -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true
+
+override_dh_auto_install:
+	# Создаем структуру директорий в tmp
+	mkdir -p debian/tmp/pulsar/java
+	mkdir -p debian/tmp/pulsar/conf
+	mkdir -p debian/tmp/pulsar/bin
+	mkdir -p debian/tmp/pulsar/bin/proto
+	mkdir -p debian/tmp/usr/bin
+
+	# Копируем jar-файлы
+	# Скрипт pulsar ищет pulsar-*.jar в корне PULSAR_HOME или pulsar-broker/target/pulsar-*.jar
+	# Копируем основной jar файл broker в корень (как ожидает скрипт)
+	cp pulsar-broker/target/pulsar-broker*.jar debian/tmp/pulsar/java/ 2>/dev/null || true
+	
+	# Также копируем все jar файлы зависимостей в lib директорию
+	# Это нужно для правильной работы classpath всех компонентов (broker, proxy, websocket, functions-worker)
+	mkdir -p debian/tmp/pulsar/lib
+	# Копируем jar файлы из всех модулей (исключая тестовые, исходники и документацию)
+	find . -path "*/target/*.jar" ! -name "*tests.jar" ! -name "*sources.jar" ! -name "*javadoc.jar" ! -path "*/distribution/*" ! -path "*/tests/*" -exec cp {} debian/tmp/pulsar/lib/ \; 2>/dev/null || true
+	# Убираем бит исполнения со всех jar файлов (они не должны быть исполняемыми)
+	find debian/tmp/pulsar/lib -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true
+	find debian/tmp/pulsar/java -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true
+
+	# Копируем конфиги
+	cp -r conf/* debian/tmp/pulsar/conf
+
+	# Удаляем бит исполнения на конфиги и XML/YML файлы
+	find debian/tmp/pulsar/conf -name "*.conf" -type f -exec chmod -x {} + || true
+	find debian/tmp/pulsar/conf -name "*.xml" -type f -exec chmod -x {} + || true
+	find debian/tmp/pulsar/conf -name "*.yml" -type f -exec chmod -x {} + || true
+	find debian/tmp/pulsar/conf -name "*.json" -type f -exec chmod -x {} + || true
+	find debian/tmp/pulsar/conf -name "*.ini" -type f -exec chmod -x {} + || true
+	find debian/tmp/pulsar/conf -name "*.yaml" -type f -exec chmod -x {} + || true
+
+	# Копируем скрипты
+	cp bin/pulsar debian/tmp/pulsar/bin
+	cp bin/bookkeeper debian/tmp/pulsar/bin
+	cp bin/function-localrunner debian/tmp/pulsar/bin
+	cp bin/pulsar-admin debian/tmp/pulsar/bin
+	cp bin/pulsar-client debian/tmp/pulsar/bin
+	cp bin/pulsar-daemon debian/tmp/pulsar/bin
+	cp bin/pulsar-managed-ledger-admin debian/tmp/pulsar/bin
+	cp bin/pulsar-perf debian/tmp/pulsar/bin
+	cp bin/pulsar-shell debian/tmp/pulsar/bin
+
+	# Копируем proto
+	cp bin/proto/MLDataFormats_pb2.py debian/tmp/pulsar/bin/proto
+
+	# Создаем символические ссылки для основных команд в /usr/bin
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar debian/tmp/usr/bin/pulsar
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar-admin debian/tmp/usr/bin/pulsar-admin
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar-client debian/tmp/usr/bin/pulsar-client
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar-perf debian/tmp/usr/bin/pulsar-perf
+	ln -sf /usr/lib/apache-pulsar/bin/bookkeeper debian/tmp/usr/bin/bookkeeper
+
+	# dh_install и остальные debhelper команды будут работать
+
+override_dh_installsystemd:
+	# Устанавливаем основной сервис
+	dh_installsystemd --name=apache-pulsar
+	# Устанавливаем остальные сервисы
+	# dh_installsystemd автоматически создаст скрипты postinst/prerm для каждого
+	dh_installsystemd --name=apache-pulsar-bookie apache-pulsar-bookie.service
+	dh_installsystemd --name=apache-pulsar-proxy apache-pulsar-proxy.service
+	dh_installsystemd --name=apache-pulsar-functions-worker apache-pulsar-functions-worker.service
+	dh_installsystemd --name=apache-pulsar-websocket apache-pulsar-websocket.service
+	dh_installsystemd --name=apache-pulsar-autorecovery apache-pulsar-autorecovery.service
+
+override_dh_installman:
+	# Устанавливаем man страницы из debian/man/
+	dh_installman debian/man/*.1
+
+override_dh_fixperms:
+	dh_fixperms
+	# Исправляем отсутствующие shebang только для скриптов без shebang
+	@for file in debian/apache-pulsar/usr/lib/apache-pulsar/bin/*; do \
+		if [ -f "$$file" ] && file "$$file" | grep -q "text" && [ ! -x "$$file" ]; then \
+			if ! head -n1 "$$file" | grep -q "^#!"; then \
+				sed -i '1i#!/bin/bash' "$$file"; \
+			fi; \
+		fi; \
+	done

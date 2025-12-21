@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+# Automatically added by dh_installsystemd/maintainer
+if [ -d /run/systemd/system ]; then
+    case "$1" in
+        remove)
+            systemctl --system stop apache-pulsar.service >/dev/null 2>&1 || true
+            systemctl --system stop apache-pulsar-bookie.service >/dev/null 2>&1 || true
+            systemctl --system stop apache-pulsar-proxy.service >/dev/null 2>&1 || true
+            systemctl --system stop apache-pulsar-functions-worker.service >/dev/null 2>&1 || true
+            systemctl --system stop apache-pulsar-websocket.service >/dev/null 2>&1 || true
+            systemctl --system stop apache-pulsar-autorecovery.service >/dev/null 2>&1 || true
+            ;;
+    esac
+fi
+# End automatically added section
+
+exit 0

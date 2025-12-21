@@ -1,0 +1,75 @@
+.TH pulsar 1 "Apache Pulsar" "Version 4.1.2" "User Commands"
+.SH NAME
+pulsar \- Apache Pulsar broker launcher
+.SH SYNOPSIS
+.B pulsar
+[\fIcommand\fR] [\fIoptions\fR]
+.SH DESCRIPTION
+Apache Pulsar is a distributed messaging and streaming platform offering
+low latency, high throughput, and scalable pub-sub messaging.
+
+The \fBpulsar\fR wrapper script (provided by the \fBapache-pulsar\fR package)
+is used to start Pulsar components such as the standalone server, the broker,
+the proxy, and other subsystems.
+
+.SH COMMANDS
+.TP
+.B standalone
+Runs the all-in-one developer Pulsar instance with
+embedded ZooKeeper and BookKeeper.
+
+.TP
+.B broker
+Starts the Pulsar broker service.
+
+.TP
+.B proxy
+Starts the Pulsar proxy service.
+
+.TP
+.B bookie
+Starts the BookKeeper storage server.
+
+.SH OPTIONS
+Options vary depending on the chosen command.
+Run:
+.RS
+pulsar <command> --help
+.RE
+for detailed usage.
+
+.SH FILES
+.TP
+/etc/apache-pulsar/
+Configuration files.
+.TP
+/usr/lib/apache-pulsar/
+Apache Pulsar JAR files, libraries and runtime data.
+.TP
+/usr/bin/pulsar
+Main launcher script.
+.TP
+/lib/systemd/system/apache-pulsar.service
+Systemd unit file.
+
+.SH ENVIRONMENT
+.TP
+PULSAR_LOG_DIR
+Override log directory.
+.TP
+PULSAR_CONF
+Override configuration directory.
+
+.SH EXAMPLES
+Start standalone Pulsar:
+.RS
+pulsar standalone
+.RE
+
+.SH AUTHOR
+Apache Pulsar Community.
+
+.SH SEE ALSO
+pulsar-admin(1), pulsar-client(1), pulsar-perf(1), pulsar-daemon(1),
+pulsar-shell(1), pulsar-managed-ledger-admin(1), bookkeeper(1)
+

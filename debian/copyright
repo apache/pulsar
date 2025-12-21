@@ -1,0 +1,13 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Apache Pulsar
+Upstream-Contact: Apache Software Foundation <dev@pulsar.apache.org>
+Source: https://github.com/apache/pulsar/pulsar
+
+Files: *
+Copyright: 2016-2025 Apache Software Foundation
+License: Apache-2.0
+
+License: Apache-2.0
+ This program is licensed under the Apache License 2.0. On Debian systems,
+ the complete text of the Apache license 2.0 can be found in
+ /usr/share/common-licenses/Apache-2.0

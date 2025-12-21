@@ -1,0 +1,86 @@
+apache-pulsar (4.1.2-7) unstable; urgency=medium
+
+  * Fixed debian/rules: corrected dh_installsystemd usage for multiple service
+    files. All 6 service files are now properly installed:
+    - apache-pulsar.service (broker)
+    - apache-pulsar-bookie.service (BookKeeper)
+    - apache-pulsar-proxy.service (Proxy)
+    - apache-pulsar-functions-worker.service (Functions Worker)
+    - apache-pulsar-websocket.service (WebSocket)
+    - apache-pulsar-autorecovery.service (Autorecovery)
+  * Updated debian/rules: fixed service file paths in dh_installsystemd commands
+    to use relative paths without debian/ prefix.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sun, 21 Dec 2025 12:30:00 +0300
+
+apache-pulsar (4.1.2-6) unstable; urgency=medium
+
+  * Added systemd service files for all Pulsar components:
+    - apache-pulsar-bookie.service for BookKeeper storage server
+    - apache-pulsar-proxy.service for Pulsar proxy server
+    - apache-pulsar-functions-worker.service for Pulsar Functions worker
+  * Updated debian/prerm: added stop commands for all Pulsar services on package
+    removal.
+  * Updated debian/rules: improved comments for multiple service files handling.
+  * Configured proper service dependencies: bookie starts before broker, proxy
+    and functions-worker start after broker.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sat, 13 Dec 2025 16:00:00 +0300
+
+apache-pulsar (4.1.2-5) unstable; urgency=medium
+
+  * Renamed all installation paths from pulsar to apache-pulsar for consistency
+    with package name.
+  * Updated debian/dirs: changed paths to usr/lib/apache-pulsar, etc/apache-pulsar,
+    var/lib/apache-pulsar, var/log/apache-pulsar.
+  * Updated debian/install: changed destination paths to match new directory
+    structure.
+  * Updated debian/rules: fixed symlinks and paths in override_dh_fixperms.
+  * Updated debian/apache-pulsar.service: changed WorkingDirectory, PULSAR_HOME,
+    PULSAR_LOG_DIR, and ExecStart paths.
+  * Renamed system user from pulsar to apache-pulsar for consistency.
+  * Updated debian/postinst: changed user creation and directory ownership to
+    apache-pulsar user and group.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sun, 7 Dec 2025 15:00:00 +0300
+
+apache-pulsar (4.1.2-4) unstable; urgency=medium
+
+  * Fixed debian/rules: replaced glob patterns with find commands for safe file
+    permissions handling.
+  * Fixed debian/install: corrected bin directory copying to prevent bin/bin/
+    path issue.
+  * Updated debian/control: added version constraints for bash dependency.
+  * Added debian/lintian-overrides: suppressed false positives for shell script
+    syntax checks and jar location warnings.
+  * Fixed file permissions: removed execute bits from .ini and .yaml config
+    files.
+  * Improved debian/postinst and debian/prerm: fixed syntax and formatting.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sun, 30 Nov 2025 13:30:00 +0300
+
+apache-pulsar (4.1.2-3) unstable; urgency=medium
+
+  * Added man pages for binaries.
+  * Updated debian/rules for correct build and install.
+  * Fixed debian/install to properly copy jars, scripts, and configuration files.
+  * Updated debian/control: dependencies, descriptions, and sections.
+  * Corrected debian/copyright to comply with Apache-2.0 license.
+  * Updated package directories (usr/lib, etc, usr/bin, systemd).
+  * Added common repository PEM for certificates.
+  * Fixed debian/postrm and debian/prerm scripts for proper service stop/removal.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sun, 16 Nov 2025 12:00:00 +0300
+
+apache-pulsar (4.1.2-2) unstable; urgency=medium
+
+  * Added build dependencies for Java, Maven, NodeJS, Yarn.
+  * Deleted file debian/compat.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sun, 09 Nov 2025 12:00:00 +0300
+
+apache-pulsar (4.1.2-1) unstable; urgency=medium
+
+  * Initial release of Apache Pulsar deb package.
+
+ -- HelgiSaga <bglegb@gmail.com>  Sat, 08 Nov 2025 16:00:00 +0300

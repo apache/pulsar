@@ -1,0 +1,46 @@
+.TH pulsar-shell 1 "Apache Pulsar" "Version 4.1.2" "User Commands"
+.SH NAME
+pulsar-shell \- Interactive Pulsar command-line shell
+.SH SYNOPSIS
+.B pulsar-shell
+[options]
+.SH DESCRIPTION
+pulsar-shell provides an interactive command-line interface for working with
+Apache Pulsar. It allows executing Pulsar operations interactively without
+needing to specify connection details for each command.
+
+.SH OPTIONS
+Options vary depending on the shell configuration. Common options include:
+.TP
+.B --url
+Pulsar service URL (e.g., pulsar://localhost:6650)
+.TP
+.B --admin-url
+Pulsar admin service URL (e.g., http://localhost:8080)
+.TP
+.B --auth-plugin
+Authentication plugin class name
+.TP
+.B --auth-params
+Authentication parameters
+
+Run:
+.RS
+pulsar-shell --help
+.RE
+for detailed usage and available commands.
+
+.SH EXAMPLES
+Start interactive shell:
+.RS
+pulsar-shell
+.RE
+
+Connect to remote cluster:
+.RS
+pulsar-shell --url pulsar://remote-host:6650
+.RE
+
+.SH SEE ALSO
+pulsar(1), pulsar-admin(1), pulsar-client(1)
+

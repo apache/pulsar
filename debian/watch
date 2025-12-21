@@ -1,0 +1,10 @@
+# debian/watch
+# Debian uscan file for apache-pulsar package
+# Manpage: uscan(1)
+
+# Compulsory line, format version of this file
+version=4
+
+# Current version from GNU site
+opts=filenamemangle=s/.+\/apache-pulsar-([\d.]+)\.tar\.gz/apache-pulsar_$1.orig.tar.gz/
+https://archive.apache.org/dist/pulsar/ *.tar.gz

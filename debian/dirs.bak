@@ -1,0 +1,6 @@
+usr/lib/pulsar
+usr/lib/pulsar/proto/
+usr/share/java/
+etc/pulsar
+usr/bin
+lib/systemd/system

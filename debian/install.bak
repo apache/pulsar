@@ -1,0 +1,21 @@
+# jar
+usr/share/java/*.jar usr/share/java/
+
+# конфиги
+etc/pulsar/* etc/pulsar/
+
+# bin
+usr/bin/pulsar usr/bin/
+usr/bin/bookkeeper usr/bin/
+usr/bin/function-localrunner usr/bin/
+usr/lib/pulsar/proto/MLDataFormats_pb2.py usr/lib/pulsar/proto/
+usr/bin/pulsar-admin usr/bin/
+usr/bin/pulsar-admin-common usr/bin/
+usr/bin/pulsar-client usr/bin/
+usr/bin/pulsar-daemon usr/bin/
+usr/bin/pulsar-managed-ledger-admin usr/bin/
+usr/bin/pulsar-perf usr/bin/
+usr/bin/pulsar-shell usr/bin/
+
+# systemd
+usr/lib/systemd/system/pulsar.service usr/lib/systemd/system/
