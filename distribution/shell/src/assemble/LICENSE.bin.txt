@@ -384,10 +384,10 @@ The Apache Software License, Version 2.0
     - simpleclient_tracer_otel-0.16.0.jar
     - simpleclient_tracer_otel_agent-0.16.0.jar
  * Log4J
-    - log4j-api-2.18.0.jar
-    - log4j-core-2.18.0.jar
-    - log4j-slf4j-impl-2.18.0.jar
-    - log4j-web-2.18.0.jar
+    - log4j-api-2.25.3.jar
+    - log4j-core-2.25.3.jar
+    - log4j-slf4j-impl-2.25.3.jar
+    - log4j-web-2.25.3.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.16.7.jar

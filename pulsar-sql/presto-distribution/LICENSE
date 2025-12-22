@@ -347,9 +347,9 @@ The Apache Software License, Version 2.0
     - leveldb-0.12.jar
     - leveldb-api-0.12.jar
   * Log4j
-    - log4j-api-2.18.0.jar
-    - log4j-core-2.18.0.jar
-    - log4j-slf4j-impl-2.18.0.jar
+    - log4j-api-2.25.3.jar
+    - log4j-core-2.25.3.jar
+    - log4j-slf4j-impl-2.25.3.jar
   * Log4j implemented over SLF4J
     - log4j-over-slf4j-1.7.32.jar
   * Lucene Common Analyzers

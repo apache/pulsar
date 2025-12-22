@@ -337,10 +337,10 @@ The Apache Software License, Version 2.0
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
-    - org.apache.logging.log4j-log4j-api-2.18.0.jar
-    - org.apache.logging.log4j-log4j-core-2.18.0.jar
-    - org.apache.logging.log4j-log4j-slf4j-impl-2.18.0.jar
-    - org.apache.logging.log4j-log4j-web-2.18.0.jar
+    - org.apache.logging.log4j-log4j-api-2.25.3.jar
+    - org.apache.logging.log4j-log4j-core-2.25.3.jar
+    - org.apache.logging.log4j-log4j-slf4j-impl-2.25.3.jar
+    - org.apache.logging.log4j-log4j-web-2.25.3.jar
  * Java Native Access JNA
     - net.java.dev.jna-jna-jpms-5.12.1.jar
     - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
