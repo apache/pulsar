@@ -119,6 +119,14 @@ public class PulsarFunctionsK8STest extends AbstractPulsarStandaloneK8STest {
         });
         log.info("Function created successfully");
 
+        log.info("Waiting for function to subscribe to input topic");
+        Awaitility.await().ignoreExceptions().atMost(Duration.ofSeconds(30))
+                .until(() -> {
+                    admin.topics().getSubscriptions(inputTopicName);
+                    return true;
+                });
+        log.info("Function subscribed to input topic");
+
         // Validate that k8s secrets were provided as environment variables to the function pod
         String podName = "pf-%s-%s-%s-0".formatted(fnTenant, fnNamespace, fnName);
         Exec exec = new Exec(getApiClient());
