@@ -1077,13 +1077,13 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         AnalyzeSubscriptionBacklogResult backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
-        assertEquals(backlogResult.getMessages(), numMessages * 2);
+        assertEquals(backlogResult.getMessages(), numMessages);
         assertEquals(backlogResult.getMarkerMessages(), numMessages);
 
         MessageId committedMiddleMsgId = committedMsgIds.get(numMessages / 2);
         backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(committedMiddleMsgId));
-        assertEquals(backlogResult.getMessages(), numMessages);
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
         assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
 
         List<MessageId> abortedMsgIds = new ArrayList<>();
@@ -1094,13 +1094,13 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             txn.abort();
         }
         backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
-        assertEquals(backlogResult.getMessages(), numMessages * 4);
+        assertEquals(backlogResult.getMessages(), numMessages * 2);
         assertEquals(backlogResult.getMarkerMessages(), numMessages * 2);
 
         MessageId abortedMiddleMsgId = abortedMsgIds.get(numMessages / 2);
         backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(abortedMiddleMsgId));
-        assertEquals(backlogResult.getMessages(), numMessages);
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
         assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
     }
 

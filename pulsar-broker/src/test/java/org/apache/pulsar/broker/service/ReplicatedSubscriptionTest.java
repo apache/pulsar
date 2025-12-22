@@ -1095,7 +1095,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         // Assert analyze backlog total messages and marker messages.
         AnalyzeSubscriptionBacklogResult backlogResult =
                 admin4.topics().analyzeSubscriptionBacklog(topicName, subscriptionName, Optional.empty());
-        assertEquals(backlogResult.getMessages(), numMessages + numSnapshotRequest);
+        assertEquals(backlogResult.getMessages(), numMessages);
         assertEquals(backlogResult.getMarkerMessages(), numSnapshotRequest);
 
         // Wait pending snapshot timeout

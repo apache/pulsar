@@ -668,6 +668,10 @@ public class PersistentSubscription extends AbstractSubscription {
             } else {
                 messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
             }
+            if (messageMetadata.hasMarkerType()) {
+                markerMessages.incrementAndGet();
+                return true;
+            }
             int numMessages = 1;
             if (messageMetadata.hasNumMessagesInBatch()) {
                 numMessages = messageMetadata.getNumMessagesInBatch();
@@ -694,9 +698,6 @@ public class PersistentSubscription extends AbstractSubscription {
             }
             long num = entries.incrementAndGet();
             messages.addAndGet(numMessages);
-            if (messageMetadata.hasMarkerType()) {
-                markerMessages.addAndGet(numMessages);
-            }
 
             if (num % 1000 == 0) {
                 long end = System.currentTimeMillis();
