@@ -29,15 +29,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -47,7 +44,6 @@ import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
@@ -408,23 +404,11 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
         EntryCache entryCache = cacheManager.getEntryCache(ml1);
 
-        final CountDownLatch counter = new CountDownLatch(1);
         when(ml1.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 1L));
         when(ml1.getOptionalLedgerInfo(lh.getId())).thenReturn(Optional.of(mock(
                 MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
-        entryCache.asyncReadEntry(lh, PositionFactory.create(1L, 1L), new AsyncCallbacks.ReadEntryCallback() {
-            public void readEntryComplete(Entry entry, Object ctx) {
-                Assert.assertNotEquals(entry, null);
-                entry.release();
-                counter.countDown();
-            }
-
-            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                Assert.fail("should not have failed");
-                counter.countDown();
-            }
-        }, null);
-        counter.await();
+        final var entry = entryCache.asyncReadEntry(lh, PositionFactory.create(1L, 1L)).get();
+        entry.release();
 
         verify(lh).readUnconfirmedAsync(anyLong(), anyLong());
     }
