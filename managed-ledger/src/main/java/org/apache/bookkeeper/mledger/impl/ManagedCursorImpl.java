@@ -524,7 +524,14 @@ public class ManagedCursorImpl implements ManagedCursor {
             LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
                 Map<String, Long> properties = last.properties;
                 if (properties != null && properties.containsKey(key)) {
-                    properties.remove(key);
+                    Map<String, Long> newProperties = new HashMap<>(properties);
+                    newProperties.remove(key);
+
+                    MarkDeleteEntry newLastMarkDeleteEntry = new MarkDeleteEntry(last.newPosition, newProperties,
+                            last.callback, last.ctx);
+                    newLastMarkDeleteEntry.callbackGroup = last.callbackGroup;
+
+                    return newLastMarkDeleteEntry;
                 }
                 return last;
             });

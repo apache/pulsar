@@ -49,12 +49,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -204,6 +206,81 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
     }
 
+    @Test
+    public void testConcurrentPropertyOperationsThreadSafety() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testConcurrentPropertyOperationsThreadSafety", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_concurrent", null);
+
+        int threadCount = 100;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+
+        //Stress test with random operations for 5 seconds
+        long testEndTime = System.currentTimeMillis() + 5000;
+        AtomicLong totalOperations = new AtomicLong(0);
+        AtomicLong exceptionCount = new AtomicLong(0);
+        AtomicBoolean inconsistencyDetected = new AtomicBoolean(false);
+
+        ConcurrentHashMap<String, Long> records = new ConcurrentHashMap<>();
+        while (System.currentTimeMillis() < testEndTime) {
+            executor.submit(() -> {
+                try {
+                    totalOperations.incrementAndGet();
+                    Random random = new Random();
+                    int operationType = random.nextInt(3);
+                    String randomKey = "key" + random.nextInt(20);
+
+                    switch (operationType) {
+                        case 0: // Put operation
+                            Long randomValue = random.nextLong();
+                            cursor.putProperty(randomKey, randomValue);
+                            records.put(randomKey, randomValue);
+                            break;
+
+                        case 1: // Remove operation
+                            cursor.removeProperty(randomKey);
+                            records.remove(randomKey);
+                            break;
+
+                        case 2: // Read and verify operation
+                            Map<String, Long> properties = cursor.getProperties();
+                            // Verify no inconsistent state (key exists but value is null)
+                            if (properties.containsKey(randomKey) && properties.get(randomKey) == null) {
+                                inconsistencyDetected.set(true);
+                                fail("INCONSISTENT STATE DETECTED: Key '" + randomKey + "' exists but has null value");
+                            }
+                            break;
+                    }
+                } catch (ConcurrentModificationException cme) {
+                    exceptionCount.incrementAndGet();
+                } catch (Exception e) {
+                    exceptionCount.incrementAndGet();
+                    fail("Unexpected exception: " + e.getMessage());
+                }
+            });
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        // Then: Verify test results
+        // 1. No ConcurrentModificationException should occur with fixed code
+        assertEquals(exceptionCount.get(), 0, "No exceptions should occur with thread-safe implementation");
+
+        // 2. No inconsistent states detected
+        assertFalse(inconsistencyDetected.get(), "No inconsistent states (key with null value) should be detected");
+
+        // 3. Verify property data
+        Map<String, Long> finalProperties = cursor.getProperties();
+        assertEquals(records.size(), finalProperties.size());
+        try {
+            for (String key : finalProperties.keySet()) {
+                assertEquals(records.get(key), finalProperties.get(key), "Values should match for key: " + key);
+            }
+        } catch (Exception e) {
+            fail("HashMap corruption detected: " + e.getMessage());
+        }
+    }
     private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
         Awaitility.await().until(managedCursor::closeCursorLedger);
     }
