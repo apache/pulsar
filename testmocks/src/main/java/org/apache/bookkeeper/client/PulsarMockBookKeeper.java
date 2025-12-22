@@ -354,7 +354,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
         failures.add(delayFuture);
     }
 
-
+    /**
+     * @param rc see also {@link org.apache.bookkeeper.client.BKException.Code}.
+     */
     public void failNow(int rc) {
         failAfter(0, rc);
     }

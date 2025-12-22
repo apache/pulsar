@@ -2731,14 +2731,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             if (!lastAckedPosition.equals(cursor.getMarkDeletedPosition())) {
-                try {
-                    log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
-                    onCursorMarkDeletePositionUpdated((ManagedCursorImpl) cursor, lastAckedPosition);
-                } catch (Exception e) {
-                    log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
-                            cursor, cursor.getMarkDeletedPosition(), lastAckedPosition);
-                    log.warn("Caused by", e);
-                }
+                Position finalPosition = lastAckedPosition;
+                log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
+                cursor.asyncMarkDelete(lastAckedPosition, cursor.getProperties(),
+                    new MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                            log.info("Successfully persisted cursor position for cursor:{} to {}",
+                                    cursor, finalPosition);
+                        }
+
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
+                                    cursor, cursor.getMarkDeletedPosition(), finalPosition, exception);
+                        }
+                    }, null);
             }
         }
     }

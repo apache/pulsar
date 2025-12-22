@@ -189,7 +189,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.128.Final</netty.version>
+    <netty.version>4.1.130.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
     <jetty.version>9.4.58.v20250814</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -232,7 +232,7 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.9.1</kafka-client.version>
-    <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
+    <rabbitmq-client.version>5.28.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.788</aws-sdk.version>
     <aws-sdk2.version>2.32.28</aws-sdk2.version>
     <avro.version>1.12.0</avro.version>
@@ -359,8 +359,8 @@ flexible messaging model and an intuitive client API.</description>
     <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.9.6.0</spotbugs-maven-plugin.version>
     <spotbugs.version>4.9.6</spotbugs.version>
-    <errorprone.version>2.38.0</errorprone.version>
-    <errorprone-slf4j.version>0.1.28</errorprone-slf4j.version>
+    <errorprone.version>2.45.0</errorprone.version>
+    <errorprone-slf4j.version>0.1.29</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
@@ -2768,14 +2768,14 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <fork>true</fork>
               <meminitial>128m</meminitial>
-              <maxmem>1024m</maxmem>
+              <maxmem>1500m</maxmem>
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:-options</arg>
                 <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
                 <!-- the following argument must be kept on one line when building with JDK8 -->
-                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</arg>
+                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF -Xep:StringConcatToTextBlock:OFF -Xep:InconsistentCapitalization:OFF</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -2986,7 +2986,7 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>jdk21</id>
       <activation>
-        <jdk>21</jdk>
+        <jdk>[21,)</jdk>
       </activation>
       <properties>
         <!-- nifi-nar-maven-plugin >= 2.0.0 require Java 21+ -->
@@ -3026,7 +3026,7 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>jdk24</id>
       <activation>
-        <jdk>24</jdk>
+        <jdk>[24,)</jdk>
       </activation>
       <properties>
         <!-- JDK 24+ specific arguments -->

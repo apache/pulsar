@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -1013,75 +1012,43 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-
-    protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
-        validateSuperUserAccess();
-        log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
-                this.namespaceName);
-
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        try {
-            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> {
-                LocalPolicies localPolicies = oldPolicies.map(
-                        policies -> new LocalPolicies(policies.bundles,
-                                bookieAffinityGroup,
-                                policies.namespaceAntiAffinityGroup,
-                                policies.migrated))
-                        .orElseGet(() -> new LocalPolicies(getDefaultBundleData(), bookieAffinityGroup, null));
-                log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
-                        namespaceName, localPolicies);
-                return localPolicies;
-            });
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetBookieAffinityGroupAsync(BookieAffinityGroupData bookieAffinityGroup) {
+        return validateSuperUserAccessAsync().thenCompose(__ -> {
+            log.info("[{}] Setting bookie affinity group {} for namespace {}", clientAppId(), bookieAffinityGroup,
+                    this.namespaceName);
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
+                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
+            }
+        }).thenCompose(__ -> getDefaultBundleDataAsync().thenCompose(
+                defaultBundleData -> getLocalPolicies().setLocalPoliciesWithCreateAsync(namespaceName, oldPolicies ->
+                        oldPolicies.map(policies -> new LocalPolicies(policies.bundles, bookieAffinityGroup,
+                                        policies.namespaceAntiAffinityGroup, policies.migrated))
+                                .orElseGet(() -> new LocalPolicies(defaultBundleData, bookieAffinityGroup, null)))))
+        .thenAccept(__ -> log.info(
+                "[{}] Successfully updated bookie affinity group: namespace={}, bookieAffinityGroup={}", clientAppId(),
+                namespaceName, bookieAffinityGroup));
     }
 
-    protected void internalDeleteBookieAffinityGroup() {
-        internalSetBookieAffinityGroup(null);
+    protected CompletableFuture<Void> internalDeleteBookieAffinityGroupAsync() {
+        return internalSetBookieAffinityGroupAsync(null);
     }
 
-    protected BookieAffinityGroupData internalGetBookieAffinityGroup() {
-        validateSuperUserAccess();
-
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-        try {
-            final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().getLocalPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                            "Namespace local-policies does not exist")).bookieAffinityGroup;
-            return bookkeeperAffinityGroup;
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to get local-policy configuration for namespace {}: does not exist",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace policies does not exist");
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get local-policy configuration for namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<BookieAffinityGroupData> internalGetBookieAffinityGroupAsync() {
+        return validateSuperUserAccessAsync().thenCompose(__ -> {
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
+                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
+            }
+        }).thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                        "Namespace local-policies does not exist")).bookieAffinityGroup);
     }
 
     private CompletableFuture<Void> validateLeaderBrokerAsync() {
@@ -1844,104 +1811,69 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("delayed_delivery_policies", delayedDeliveryPolicies);
     }
 
-    protected void internalSetNamespaceAntiAffinityGroup(String antiAffinityGroup) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
-        checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
-        validatePoliciesReadOnlyAccess();
-
-        log.info("[{}] Setting anti-affinity group {} for {}", clientAppId(), antiAffinityGroup, namespaceName);
-
-        if (isBlank(antiAffinityGroup)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "antiAffinityGroup can't be empty");
-        }
-
-        try {
-            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, (lp)->
-                lp.map(policies -> new LocalPolicies(policies.bundles,
-                        policies.bookieAffinityGroup,
-                        antiAffinityGroup,
-                        policies.migrated))
-                        .orElseGet(() -> new LocalPolicies(getDefaultBundleData(), null, antiAffinityGroup))
-            );
-            log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, antiAffinityGroup);
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetNamespaceAntiAffinityGroupAsync(String antiAffinityGroup) {
+        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
+        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync()).thenCompose(
+                        __ -> getDefaultBundleDataAsync().thenCompose(
+                                defaultBundleData -> getLocalPolicies().setLocalPoliciesWithCreateAsync(namespaceName,
+                                        oldPolicies -> oldPolicies.map(policies -> new LocalPolicies(policies.bundles,
+                                                        policies.bookieAffinityGroup, antiAffinityGroup,
+                                                        policies.migrated))
+                                                .orElseGet(() -> new LocalPolicies(defaultBundleData, null,
+                                                        antiAffinityGroup)))))
+                .thenAccept(__ -> log.info(
+                        "[{}] Successfully updated namespace anti-affinity group, namespace={}, anti-affinity"
+                                + " group={}", clientAppId(), namespaceName, antiAffinityGroup));
     }
 
-    protected String internalGetNamespaceAntiAffinityGroup() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
-
-        try {
-            return getLocalPolicies()
-                    .getLocalPolicies(namespaceName)
-                    .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles())
-                            , null, null)).namespaceAntiAffinityGroup;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get the antiAffinityGroup of namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(Status.NOT_FOUND, "Couldn't find namespace policies");
-        }
+    protected CompletableFuture<String> internalGetNamespaceAntiAffinityGroupAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ)
+                .thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName)
+                .thenApply(policiesOpt -> policiesOpt.map(localPolicies -> localPolicies.namespaceAntiAffinityGroup)
+                        .orElse(null)));
     }
 
-    protected void internalRemoveNamespaceAntiAffinityGroup() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
-        log.info("[{}] Deleting anti-affinity group for {}", clientAppId(), namespaceName);
-
-        try {
-            getLocalPolicies().setLocalPolicies(namespaceName, (policies)->
-                new LocalPolicies(policies.bundles,
-                        policies.bookieAffinityGroup,
-                        null,
-                        policies.migrated));
-            log.info("[{}] Successfully removed anti-affinity group for a namespace={}", clientAppId(), namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove anti-affinity group for namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalRemoveNamespaceAntiAffinityGroupAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    log.info("[{}] Removing anti-affinity group for namespace: {}", clientAppId(), namespaceName);
+                    return getLocalPolicies().setLocalPoliciesAsync(namespaceName,
+                            (policies) -> new LocalPolicies(policies.bundles, policies.bookieAffinityGroup, null,
+                                    policies.migrated));
+                })
+                .thenAccept(__ -> log.info("[{}] Successfully removed anti-affinity group for namespace: {}",
+                        clientAppId(), namespaceName));
     }
 
-    protected List<String> internalGetAntiAffinityNamespaces(String cluster, String antiAffinityGroup,
-                                                             String tenant) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
+    protected CompletableFuture<List<String>> internalGetAntiAffinityNamespacesAsync(String cluster,
+                                                                                     String antiAffinityGroup,
+                                                                                     String tenant) {
         checkNotNull(cluster, "Cluster should not be null");
-        checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
+        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
         checkNotNull(tenant, "Tenant should not be null");
+        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
 
-        log.info("[{}]-{} Finding namespaces for {} in {}", clientAppId(), tenant, antiAffinityGroup, cluster);
-
-        if (isBlank(antiAffinityGroup)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "anti-affinity group can't be empty.");
-        }
-        validateClusterExists(cluster);
-
-        try {
-            List<String> namespaces = tenantResources().getListOfNamespaces(tenant);
-
-            return namespaces.stream().filter(ns -> {
-                Optional<LocalPolicies> policies;
-                try {
-                    policies = getLocalPolicies().getLocalPolicies(NamespaceName.get(ns));
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-
-                String storedAntiAffinityGroup = policies.orElseGet(() ->
-                        new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
-                                null, null)).namespaceAntiAffinityGroup;
-                return antiAffinityGroup.equalsIgnoreCase(storedAntiAffinityGroup);
-            }).collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.warn("Failed to list of properties/namespace from global-zk", e);
-            throw new RestException(e);
-        }
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ)
+                .thenCompose(__ -> validateClusterExistsAsync(cluster))
+                .thenCompose(__ -> {
+                    log.info("[{}]-{} Finding namespaces for {} in {}", clientAppId(), tenant, antiAffinityGroup,
+                            cluster);
+                    return tenantResources().getListOfNamespacesAsync(tenant).thenCompose(namespaces -> {
+                        List<CompletableFuture<String>> nsFutures = namespaces.stream()
+                                .map(ns -> getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(ns))
+                                        .thenApply(policiesOpt -> policiesOpt.map(
+                                                localPolicies -> localPolicies.namespaceAntiAffinityGroup).orElse(null))
+                                        .thenApply(antiAffinityGroup::equalsIgnoreCase)
+                                        .thenApply(equals -> equals ? ns : null)).toList();
+                        CompletableFuture<Void> allFuture = FutureUtil.waitForAll(nsFutures);
+                        return allFuture.thenApply(
+                                unused -> nsFutures.stream().map(CompletableFuture::join).filter(Objects::nonNull)
+                                        .toList());
+                    });
+                });
     }
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
@@ -2988,6 +2920,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     // TODO remove this sync method after async refactor
+    @Deprecated
     private BundlesData getDefaultBundleData() {
         try {
             return getDefaultBundleDataAsync().get(config().getMetadataStoreOperationTimeoutSeconds(),
