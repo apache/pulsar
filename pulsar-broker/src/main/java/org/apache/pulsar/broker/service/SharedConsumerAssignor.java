@@ -63,8 +63,8 @@ public class SharedConsumerAssignor {
         Consumer consumer = getConsumer(numConsumers);
         if (consumer == null) {
             if (subscription != null) {
-                log.info("Not found assign consumer in topic:{},subscription:{}, redelivery {} messages.",
-                        subscription.getTopic(), subscription.getName(), entryAndMetadataList.size());
+                log.info("No consumer found to assign in topic:{}, subscription:{}, redelivering {} messages.",
+                        subscription.getTopic().getName(), subscription.getName(), entryAndMetadataList.size());
             }
             entryAndMetadataList.forEach(unassignedMessageProcessor);
             return consumerToEntries;
