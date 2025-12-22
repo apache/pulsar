@@ -383,10 +383,10 @@ The Apache Software License, Version 2.0
     - simpleclient_tracer_otel-0.16.0.jar
     - simpleclient_tracer_otel_agent-0.16.0.jar
  * Log4J
-    - log4j-api-2.25.2.jar
-    - log4j-core-2.25.2.jar
-    - log4j-slf4j2-impl-2.25.2.jar
-    - log4j-web-2.25.2.jar
+    - log4j-api-2.25.3.jar
+    - log4j-core-2.25.3.jar
+    - log4j-slf4j2-impl-2.25.3.jar
+    - log4j-web-2.25.3.jar
  * OpenTelemetry
     - opentelemetry-api-1.56.0.jar
     - opentelemetry-api-incubator-1.56.0-alpha.jar
