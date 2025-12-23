@@ -1399,13 +1399,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Reopen
         @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         // flaky test case: factory2.open() may throw MetadataStoreException$BadVersionException, race condition:
-        // 1. my_test_ledger ledger rollover triggers cursor.asyncMarkDelete() operation.
-        // 2. factory2.open() triggers ledger recovery, read versionA ManagedLedgerInfo of my_test_ledger ledger.
-        // 3. cursor.asyncMarkDelete() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionB ManagedLedgerInfo
-        //    into metaStore.
-        // 4. factory2.open() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionA ManagedLedgerInfo
+        // 1. factory2.open() triggers ledger recovery, read versionA ManagedLedgerInfo of my_test_ledger ledger.
+        // 2. my_test_ledger ledger rollover triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionB
+        //    ManagedLedgerInfo into metaStore.
+        // 3. factory2.open() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionA ManagedLedgerInfo
         //    into metaStore, then throws BadVersionException and moves my_test_ledger ledger to fenced state.
-        // See PR https://github.com/apache/pulsar/pull/25087.
         // Recovery open async_mark_delete_blocking_test_ledger ledger, ledgerId++
         ledger = factory2.open("my_test_ledger");
         ManagedCursor c2 = ledger.openCursor("c1");
