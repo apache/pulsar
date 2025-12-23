@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -50,6 +51,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -532,7 +534,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition(), PositionFactory.create(p4.getLedgerId(), p4.getEntryId() + 1));
     }
 
-    @Test(timeOut = 20000, groups = "flaky")
+    @Test(timeOut = 20000)
     public void asyncMarkDeleteBlocking() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
@@ -567,16 +569,18 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         }
 
         latch.await();
-
         assertEquals(c1.getNumberOfEntries(), 0);
 
         // Reopen
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger");
+        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger"));
         ManagedCursor c2 = ledger.openCursor("c1");
 
-        assertEquals(c2.getMarkDeletedPosition(), lastPosition.get());
+        // Since all entries are consumed, we should move mark delete position to nextLedgerId:-1.
+        // See PR https://github.com/apache/pulsar/pull/25087.
+        Awaitility.await().untilAsserted(
+                () -> assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition.get()));
     }
 
     @Test(timeOut = 20000)
