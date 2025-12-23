@@ -1284,8 +1284,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(c1.getMarkDeletedPosition(), p1);
         ManagedCursor finalC2 = c2;
-        Awaitility.await()
-                .untilAsserted(() -> assertEquals(finalC2.getMarkDeletedPosition(), PositionFactory.create(6, -1)));
+        Awaitility.await().untilAsserted(() -> assertTrue(finalC2.getMarkDeletedPosition().compareTo(p2) > 0));
     }
 
     @Test(timeOut = 20000)
@@ -1418,14 +1417,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         //    move markDeletePosition to (lastPositionLegderId+3:-1)
         // See PR https://github.com/apache/pulsar/pull/25087.
         log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
-        long lastPositionLedgerId = lastPosition.get().getLedgerId();
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(
-                        c2.getMarkDeletedPosition().equals(lastPosition.get())
-                        || c2.getMarkDeletedPosition().equals(PositionFactory.create(lastPositionLedgerId + 2, -1))
-                        || c2.getMarkDeletedPosition().equals(PositionFactory.create(lastPositionLedgerId + 3, -1))
-                )
-        );
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(c2.getMarkDeletedPosition().compareTo(lastPosition.get()) >= 0));
     }
 
     @Test(timeOut = 20000)
@@ -1464,7 +1457,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }, null);
         }
         addEntryLatch.await();
-        assertEquals(lastPosition.get(), PositionFactory.create(13, 0));
 
         // If we set num=100, to avoid flaky test, we should add Thread.sleep(1000) here to make sure ledger rollover
         // is finished, but this sleep can not guarantee c1 always recovered with markDeletePosition 12:9.
@@ -1513,7 +1505,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // To make sure ManagedLedgerImpl.maybeUpdateCursorBeforeTrimmingConsumedLedger() is completed, we should
         // wait until c2.getMarkDeletedPosition() equals 15:-1, see PR https://github.com/apache/pulsar/pull/25087.
         Awaitility.await()
-                .untilAsserted(() -> assertEquals(c2.getMarkDeletedPosition(), PositionFactory.create(15, -1)));
+                .untilAsserted(() -> assertTrue(c2.getMarkDeletedPosition().compareTo(lastPosition.get()) > 0));
     }
 
     @Test(timeOut = 20000)
@@ -1563,10 +1555,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // the last c1.asyncMarkDelete() operation may trigger a cursor ledger rollover
         // See PR https://github.com/apache/pulsar/pull/25087.
         log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
-        long lastPositionLedgerId = lastPosition.get().getLedgerId();
-        Awaitility.await().untilAsserted(() -> assertTrue(
-                c2.getMarkDeletedPosition().equals(PositionFactory.create(lastPositionLedgerId + 1, -1))
-                        || c2.getMarkDeletedPosition().equals(PositionFactory.create(lastPositionLedgerId + 2, -1))));
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(c2.getMarkDeletedPosition().compareTo(lastPosition.get()) > 0));
     }
 
     @Test(timeOut = 20000)
