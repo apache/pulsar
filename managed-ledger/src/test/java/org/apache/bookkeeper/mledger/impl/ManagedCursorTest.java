@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
@@ -1284,7 +1285,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(c1.getMarkDeletedPosition(), p1);
         ManagedCursor finalC2 = c2;
-        Awaitility.await().untilAsserted(() -> assertTrue(finalC2.getMarkDeletedPosition().compareTo(p2) > 0));
+        Awaitility.await().untilAsserted(() -> assertThat(finalC2.getMarkDeletedPosition()).isGreaterThan(p2));
     }
 
     @Test(timeOut = 20000)
@@ -1417,8 +1418,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         //    move markDeletePosition to (lastPositionLegderId+3:-1)
         // See PR https://github.com/apache/pulsar/pull/25087.
         log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
-        Awaitility.await()
-                .untilAsserted(() -> assertTrue(c2.getMarkDeletedPosition().compareTo(lastPosition.get()) >= 0));
+        Awaitility.await().untilAsserted(
+                () -> assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition.get()));
     }
 
     @Test(timeOut = 20000)
@@ -1505,7 +1506,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // To make sure ManagedLedgerImpl.maybeUpdateCursorBeforeTrimmingConsumedLedger() is completed, we should
         // wait until c2.getMarkDeletedPosition() equals 15:-1, see PR https://github.com/apache/pulsar/pull/25087.
         Awaitility.await()
-                .untilAsserted(() -> assertTrue(c2.getMarkDeletedPosition().compareTo(lastPosition.get()) > 0));
+                .untilAsserted(() -> assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get()));
     }
 
     @Test(timeOut = 20000)
@@ -1556,7 +1557,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // See PR https://github.com/apache/pulsar/pull/25087.
         log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
         Awaitility.await()
-                .untilAsserted(() -> assertTrue(c2.getMarkDeletedPosition().compareTo(lastPosition.get()) > 0));
+                .untilAsserted(() -> assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get()));
     }
 
     @Test(timeOut = 20000)
