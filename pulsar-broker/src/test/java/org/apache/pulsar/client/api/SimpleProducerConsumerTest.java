@@ -5445,6 +5445,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *   https://github.com/streamnative/pulsar-rs/issues/376.
      * - Before the fix, the resend mechanism relies on `message.metadata.numMessagesInBatch`, after the fix, the
      *   producer only care about whether there are pending messages.
+     * see also https://github.com/apache/pulsar/pull/25106.
      */
     @Test
     public void testResendMessagesWhichNumMessagesInBatchIsZero() throws Exception {
