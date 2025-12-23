@@ -24,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
 
 /**
  * An additional servlet with it's classloader.
@@ -60,11 +59,22 @@ public class AdditionalServletWithClassLoader implements AdditionalServlet {
     }
 
     @Override
-    public ServletHolder getServletHolder() {
+    public AdditionalServletType getServletType() {
         ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
         try {
             Thread.currentThread().setContextClassLoader(classLoader);
-            return servlet.getServletHolder();
+            return servlet.getServletType();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
+        }
+    }
+
+    @Override
+    public Object getServletInstance() {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
+            return servlet.getServletInstance();
         } finally {
             Thread.currentThread().setContextClassLoader(prevClassLoader);
         }

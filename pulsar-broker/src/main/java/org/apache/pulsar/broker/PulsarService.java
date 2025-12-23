@@ -62,6 +62,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -1237,9 +1238,37 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 if (additionalServlet instanceof AdditionalServletWithPulsarService) {
                     ((AdditionalServletWithPulsarService) additionalServlet).setPulsarService(this);
                 }
-                webService.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
-                        config.isAuthenticationEnabled(), attributeMap);
-                LOG.info("Broker add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                switch (servletWithClassLoader.getServletType()) {
+                    case JAVAX_SERVLET -> {
+                        Object servletInstance = servletWithClassLoader.getServletInstance();
+                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
+                            LOG.error("AdditionalServletWithClassLoader {} has invalid servlet instance type {} which "
+                                            + "doesn't match {}. Skipping.", servletWithClassLoader,
+                                    servletInstance.getClass().getName(), servletWithClassLoader.getServletType());
+                            try {
+                                servletWithClassLoader.close();
+                            } catch (Exception e) {
+                                LOG.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                            }
+                            continue;
+                        }
+                        ServletHolder servletHolder =
+                                new ServletHolder((Servlet) servletInstance);
+                        webService.addServlet(servletWithClassLoader.getBasePath(), servletHolder,
+                                config.isAuthenticationEnabled(), attributeMap);
+                        LOG.info("Broker add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                    }
+                    default -> {
+                        LOG.error("AdditionalServletWithClassLoader {} has unsupported servlet type {}. Skipping.",
+                                servletWithClassLoader, servletWithClassLoader.getServletType());
+                        try {
+                            servletWithClassLoader.close();
+                        } catch (Exception e) {
+                            LOG.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                        }
+                        continue;
+                    }
+                }
             }
         }
     }

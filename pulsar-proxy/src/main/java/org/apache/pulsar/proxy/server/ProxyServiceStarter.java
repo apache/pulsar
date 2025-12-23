@@ -38,6 +38,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import javax.servlet.Servlet;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -403,9 +404,37 @@ public class ProxyServiceStarter {
                     service.getProxyAdditionalServlets().getServlets().values();
             for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
-                server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
-                        Collections.emptyList(), config.isAuthenticationEnabled());
-                log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                switch (servletWithClassLoader.getServletType()) {
+                    case JAVAX_SERVLET -> {
+                        Object servletInstance = servletWithClassLoader.getServletInstance();
+                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
+                            log.error("AdditionalServletWithClassLoader {} has invalid servlet instance type {} which "
+                                            + "doesn't match {}. Skipping.", servletWithClassLoader,
+                                    servletInstance.getClass().getName(), servletWithClassLoader.getServletType());
+                            try {
+                                servletWithClassLoader.close();
+                            } catch (Exception e) {
+                                log.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                            }
+                            continue;
+                        }
+                        ServletHolder additionalServletHolder =
+                                new ServletHolder((Servlet) servletInstance);
+                        server.addServlet(servletWithClassLoader.getBasePath(), additionalServletHolder,
+                                Collections.emptyList(), config.isAuthenticationEnabled());
+                        log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                    }
+                    default -> {
+                        log.error("AdditionalServletWithClassLoader {} has unsupported servlet type {}. Skipping.",
+                                servletWithClassLoader, servletWithClassLoader.getServletType());
+                        try {
+                            servletWithClassLoader.close();
+                        } catch (Exception e) {
+                            log.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                        }
+                        continue;
+                    }
+                }
             }
         }
 

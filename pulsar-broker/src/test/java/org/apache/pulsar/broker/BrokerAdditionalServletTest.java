@@ -38,7 +38,6 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarSe
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.eclipse.jetty.ee8.nested.Request;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -75,7 +74,9 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
         AdditionalServlet brokerAdditionalServlet = Mockito.mock(AdditionalServlet.class);
         Mockito.when(brokerAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
-        Mockito.when(brokerAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
+        Mockito.when(brokerAdditionalServlet.getServletInstance()).thenReturn(servlet);
+        Mockito.when(brokerAdditionalServlet.getServletType())
+                .thenReturn(AdditionalServlet.AdditionalServletType.JAVAX_SERVLET);
 
         AdditionalServletWithPulsarService brokerAdditionalServletWithPulsarService =
                 new AdditionalServletWithPulsarService() {
@@ -96,8 +97,8 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
                     }
 
                     @Override
-                    public ServletHolder getServletHolder() {
-                        return new ServletHolder(new WithPulsarServiceServlet(pulsarService));
+                    public Object getServletInstance() {
+                        return new WithPulsarServiceServlet(pulsarService);
                     }
 
                     @Override
