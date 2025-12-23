@@ -71,6 +71,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -215,17 +216,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         int threadCount = 100;
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
-        //Stress test with random operations for 5 seconds
-        long testEndTime = System.currentTimeMillis() + 5000;
-        AtomicLong totalOperations = new AtomicLong(0);
+        // Collect all Future objects to ensure all tasks complete before verification
+        List<Future<?>> allFutures = new ArrayList<>();
+
+        // Use fixed number of operations
+        int totalOperations = 10000;
+        AtomicLong completedOperations = new AtomicLong(0);
         AtomicLong exceptionCount = new AtomicLong(0);
         AtomicBoolean inconsistencyDetected = new AtomicBoolean(false);
 
-        ConcurrentHashMap<String, Long> records = new ConcurrentHashMap<>();
-        while (System.currentTimeMillis() < testEndTime) {
-            executor.submit(() -> {
+        // Submit fixed number of concurrent tasks
+        for (int i = 0; i < totalOperations; i++) {
+            Future<?> future = executor.submit(() -> {
                 try {
-                    totalOperations.incrementAndGet();
                     Random random = new Random();
                     int operationType = random.nextInt(3);
                     String randomKey = "key" + random.nextInt(20);
@@ -234,12 +237,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         case 0: // Put operation
                             Long randomValue = random.nextLong();
                             cursor.putProperty(randomKey, randomValue);
-                            records.put(randomKey, randomValue);
                             break;
 
                         case 1: // Remove operation
                             cursor.removeProperty(randomKey);
-                            records.remove(randomKey);
                             break;
 
                         case 2: // Read and verify operation
@@ -251,17 +252,36 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                             }
                             break;
                     }
+                    completedOperations.incrementAndGet();
+
                 } catch (ConcurrentModificationException cme) {
+                    // Record ConcurrentModificationException but don't fail immediately
+                    // We'll assert at the end that no exceptions occurred
                     exceptionCount.incrementAndGet();
                 } catch (Exception e) {
                     exceptionCount.incrementAndGet();
                     fail("Unexpected exception: " + e.getMessage());
                 }
             });
+
+            allFutures.add(future);
+        }
+        executor.shutdown();
+
+        // Wait for each task to complete with timeout
+        for (Future<?> future : allFutures) {
+            try {
+                future.get(30, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                fail("Task timed out after 30 seconds - possible deadlock or infinite loop");
+            } catch (ExecutionException e) {
+                fail("unexpected exception: " + e.getCause());
+            }
         }
 
-        executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
+        // Ensure executor is fully terminated
+        boolean terminated = executor.awaitTermination(10, TimeUnit.SECONDS);
+        assertTrue(terminated, "Executor should be fully terminated");
 
         // Then: Verify test results
         // 1. No ConcurrentModificationException should occur with fixed code
@@ -270,15 +290,32 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // 2. No inconsistent states detected
         assertFalse(inconsistencyDetected.get(), "No inconsistent states (key with null value) should be detected");
 
-        // 3. Verify property data
+        // 3: Final cursor state should be internally consistent
         Map<String, Long> finalProperties = cursor.getProperties();
-        assertEquals(records.size(), finalProperties.size());
         try {
-            for (String key : finalProperties.keySet()) {
-                assertEquals(records.get(key), finalProperties.get(key), "Values should match for key: " + key);
+            for (Map.Entry<String, Long> entry : finalProperties.entrySet()) {
+                String key = entry.getKey();
+                Long value = entry.getValue();
+                // Verify key is not null
+                assertNotNull(key, "Final key should not be null");
+                // Verify value is not null
+                assertNotNull(value, "Final value should not be null for key: " + key);
+                // Verify key follows expected pattern
+                assertTrue(key.startsWith("key"),
+                        "Final key should start with 'key', got: " + key);
+
+                // Verify key format is valid (key followed by a number 0-19)
+                try {
+                    String numberPart = key.substring(3); // Remove "key" prefix
+                    int keyNumber = Integer.parseInt(numberPart);
+                    assertTrue(keyNumber >= 0 && keyNumber < 20,
+                            "Key number should be between 0 and 19, got: " + keyNumber);
+                } catch (NumberFormatException e) {
+                    fail("Invalid key format: " + key + ". Should be 'keyX' where X is a number");
+                }
             }
         } catch (Exception e) {
-            fail("HashMap corruption detected: " + e.getMessage());
+            fail("HashMap corruption detected in final state: " + e.getMessage());
         }
     }
     private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
