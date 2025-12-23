@@ -34,5 +34,6 @@
   <modules>
     <module>bookkeeper-prometheus-metrics-provider</module>
     <module>zookeeper-prometheus-metrics</module>
+    <module>zookeeper-with-patched-admin</module>
   </modules>
 </project>
