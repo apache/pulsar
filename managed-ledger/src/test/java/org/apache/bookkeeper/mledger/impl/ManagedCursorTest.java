@@ -113,6 +113,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
@@ -1393,9 +1394,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         latch.await();
         assertEquals(c1.getNumberOfEntries(), 0);
 
-        // Sleep 1s here to wait ledger rollover finished
-        Thread.sleep(1000);
-
         // Reopen
         @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         // flaky test case: factory2.open() may throw MetadataStoreException$BadVersionException, race condition:
@@ -1405,19 +1403,18 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // 3. factory2.open() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionA ManagedLedgerInfo
         //    into metaStore, then throws BadVersionException and moves my_test_ledger ledger to fenced state.
         // Recovery open async_mark_delete_blocking_test_ledger ledger, ledgerId++
-        ledger = factory2.open("my_test_ledger");
+        // Add retry logic here to prove open operation will finally success despite race condition.
+        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger"));
         ManagedCursor c2 = ledger.openCursor("c1");
 
         // Three cases:
         // 1. cursor recovered with lastPosition markDeletePosition
         // 2. cursor recovered with (lastPositionLedgerId+1:-1) markDeletePosition, cursor ledger not rolled over, we
-        //    move markDeletePosition to (lastPositionLegderId+2:-1)
+        //    move markDeletePosition to (lastPositionLedgerId+2:-1)
         // 3. cursor recovered with (lastPositionLedgerId+1:-1) markDeletePosition, cursor ledger rolled over, we
-        //    move markDeletePosition to (lastPositionLegderId+3:-1)
+        //    move markDeletePosition to (lastPositionLedgerId+3:-1)
         // See PR https://github.com/apache/pulsar/pull/25087.
-        log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
-        Awaitility.await().untilAsserted(
-                () -> assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition.get()));
+        assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition.get());
     }
 
     @Test(timeOut = 20000)
@@ -1565,7 +1562,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final ManagedCursor c1 = ledger.openCursor("c1");
 
         final int num = 100;
-        List<Position> positions = new ArrayList();
+        List<Position> positions = new ArrayList<>();
         for (int i = 0; i < num; i++) {
             Position p = ledger.addEntry("dummy-entry".getBytes(Encoding));
             positions.add(p);
@@ -1594,10 +1591,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Reopen
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger");
+        // Add retry logic here to prove open operation will finally success despite race condition.
+        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger"));
         ManagedCursor c2 = ledger.openCursor("c1");
 
-        assertEquals(c2.getMarkDeletedPosition(), lastPosition);
+        assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
     }
 
     @Test(timeOut = 20000)
@@ -4670,7 +4668,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test(groups = "flaky")
+    @Test(timeOut = 20000)
     public void testLazyCursorLedgerCreationForSubscriptionCreation() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         ManagedLedgerImpl ledger =
@@ -4682,7 +4680,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = (ManagedLedgerImpl) factory2.open("testLazyCursorLedgerCreation", managedLedgerConfig);
         assertNotNull(ledger.getCursors().get("test"));
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
-        assertEquals(cursor1.getMarkDeletedPosition(), p1);
+        // Reopen ledger may move cursor to next position. See PR https://github.com/apache/pulsar/pull/25087.
+        assertThat(cursor1.getMarkDeletedPosition()).isGreaterThanOrEqualTo(p1);
         factory2.shutdown();
     }
 
