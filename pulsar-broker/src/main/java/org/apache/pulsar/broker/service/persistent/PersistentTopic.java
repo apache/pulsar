@@ -295,7 +295,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
 
-    private final Rate exceedTTLDelayMessage = new Rate();
+    private final Rate exceedTTLDelayedMessage = new Rate();
 
     private volatile PersistentTopicAttributes persistentTopicAttributes = null;
     private static final AtomicReferenceFieldUpdater<PersistentTopic, PersistentTopicAttributes>
@@ -2755,7 +2755,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.addEntryLatencyStatsUsec.refresh();
         NamespaceStats.add(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
         this.addEntryLatencyStatsUsec.reset();
-        this.exceedTTLDelayMessage.calculateRate();
+        this.exceedTTLDelayedMessage.calculateRate();
     }
 
     public double getLastUpdatedAvgPublishRateInMsg() {
@@ -2829,7 +2829,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
         stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
         stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
-        stats.exceedTTLDelayMessages = getExceedTTLDelayMessages();
+        stats.exceedTTLDelayedMessages = getExceedTTLDelayedMessages();
 
         replicators.forEach((cluster, replicator) -> {
             ReplicatorStatsImpl replicatorStats = replicator.computeStats();
@@ -4792,10 +4792,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload) {
         if (isDelayedDeliveryEnabled()) {
             long maxDeliveryDelayInMs = getDelayedDeliveryMaxDelayInMillis();
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+            // count exceed ttl delayed messages
+            if (isExceedMessageTTL(msgMetadata)) {
+                this.incrementExceedTTLDelayedMessages();
+            }
             if (maxDeliveryDelayInMs > 0) {
-                headersAndPayload.markReaderIndex();
-                MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-                headersAndPayload.resetReaderIndex();
                 return msgMetadata.hasDeliverAtTime()
                         && msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
             }
@@ -4873,13 +4877,29 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
-    @Override
-    public void incrementExceedTTLDelayMessages() {
-        this.exceedTTLDelayMessage.recordEvent();
+    /**
+     * Check if the message deliver time is expired by message TTL.
+     *
+     * @param msgMetadata the message metadata
+     * @return true if the message deliver time is expired by message TTL, false otherwise
+     */
+    protected boolean isExceedMessageTTL(MessageMetadata msgMetadata) {
+        Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        if (messageTTLInSeconds == null || messageTTLInSeconds <= 0) {
+            return false;
+        }
+        if (!msgMetadata.hasDeliverAtTime()) {
+            return false;
+        }
+        return msgMetadata.getDeliverAtTime() >= (messageTTLInSeconds * 1000L) + System.currentTimeMillis();
     }
 
-    @Override
-    public long getExceedTTLDelayMessages() {
-        return this.exceedTTLDelayMessage.getCount();
+
+    public void incrementExceedTTLDelayedMessages() {
+        this.exceedTTLDelayedMessage.recordEvent();
+    }
+
+    public long getExceedTTLDelayedMessages() {
+        return this.exceedTTLDelayedMessage.getCount();
     }
 }

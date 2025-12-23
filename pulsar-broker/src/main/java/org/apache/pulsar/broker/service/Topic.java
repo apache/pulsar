@@ -392,17 +392,4 @@ public interface Topic {
      */
     TopicAttributes getTopicAttributes();
 
-    /**
-     * Increment exceed TTL delay message number.
-     */
-    default void incrementExceedTTLDelayMessages() {
-    }
-
-    /**
-     * Get exceed TTL delay messages number
-     * @return
-     */
-    default long getExceedTTLDelayMessages() {
-        return 0;
-    }
 }
