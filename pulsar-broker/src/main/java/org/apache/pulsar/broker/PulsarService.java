@@ -2252,5 +2252,4 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
         return healthChecker;
     }
-
 }

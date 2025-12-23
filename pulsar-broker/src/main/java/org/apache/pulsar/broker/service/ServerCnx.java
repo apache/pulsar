@@ -2042,7 +2042,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
                     send.getNumMessages(), send.isIsChunk(), send.isMarker(), position);
         }
-
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {

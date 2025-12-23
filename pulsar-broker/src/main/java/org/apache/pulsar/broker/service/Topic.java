@@ -391,5 +391,4 @@ public interface Topic {
      * @return
      */
     TopicAttributes getTopicAttributes();
-
 }
