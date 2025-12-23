@@ -4900,6 +4900,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public long getExceedTTLDelayedMessages() {
-        return this.exceedTTLDelayedMessage.getCount();
+        return this.exceedTTLDelayedMessage.getTotalCount();
     }
 }
