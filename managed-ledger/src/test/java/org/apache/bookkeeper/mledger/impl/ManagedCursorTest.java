@@ -1553,7 +1553,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // flaky test case: c2.getMarkDeletedPosition() may be equals lastPositionLedgerId+1 or lastPositionLedgerId+2,
         // the last c1.asyncMarkDelete() operation may trigger a cursor ledger rollover
         // See PR https://github.com/apache/pulsar/pull/25087.
-        log.info("c2 markDeletePosition: {}, lastPosition: {}", c2.getMarkDeletedPosition(), lastPosition);
         Awaitility.await()
                 .untilAsserted(() -> assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get()));
     }
