@@ -42,7 +42,8 @@ public class InflightReadsLimiter implements AutoCloseable {
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME)
     @Deprecated
-    private static final Gauge PULSAR_ML_READS_BUFFER_SIZE = Gauge
+    @VisibleForTesting
+    static final Gauge PULSAR_ML_READS_BUFFER_SIZE = Gauge
             .build()
             .name("pulsar_ml_reads_inflight_bytes")
             .help("Estimated number of bytes retained by data read from storage or cache")
@@ -55,7 +56,8 @@ public class InflightReadsLimiter implements AutoCloseable {
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME)
     @Deprecated
-    private static final Gauge PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE = Gauge
+    @VisibleForTesting
+    static final Gauge PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE = Gauge
             .build()
             .name("pulsar_ml_reads_available_inflight_bytes")
             .help("Available space for inflight data read from storage or cache")
@@ -87,6 +89,7 @@ public class InflightReadsLimiter implements AutoCloseable {
         if (maxReadsInFlightSize > 0) {
             enabled = true;
             this.queuedHandles = new ArrayDeque<>();
+            updateMetrics();
         } else {
             enabled = false;
             this.queuedHandles = null;
