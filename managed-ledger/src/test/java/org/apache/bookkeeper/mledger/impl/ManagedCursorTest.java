@@ -583,7 +583,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        // Add retry logic here to prove open operation will finally success despite race condition.
+        ledger = ManagedLedgerTestUtil.retry(
+                () -> factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)));
+
 
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
