@@ -68,6 +68,10 @@ public class JettySslContextFactory {
                 this.setWantClientAuth(true);
                 this.setTrustAll(true);
             }
+
+            // https://jetty.org/docs/jetty/12.1/operations-guide/protocols/index.html#ssl-sni
+            // Set to false for backwards compatibility with Jetty 9.x
+            setSniRequired(false);
         }
 
         @Override

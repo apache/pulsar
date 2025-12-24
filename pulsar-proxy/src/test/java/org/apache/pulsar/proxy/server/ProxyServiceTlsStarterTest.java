@@ -26,7 +26,7 @@ import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Producer;
@@ -35,9 +35,14 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
-import org.eclipse.jetty.websocket.api.WebSocketPingPongListener;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketPing;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketPong;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.testng.annotations.AfterClass;
@@ -116,7 +121,8 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
         String produceUri = "ws://localhost:" + webPort + "/ws/producer/persistent/sample/test/local/websocket-topic";
-        Future<Session> producerSession = producerWebSocketClient.connect(producerSocket, URI.create(produceUri));
+        CompletableFuture<org.eclipse.jetty.websocket.api.Session>
+                producerSession = producerWebSocketClient.connect(producerSocket, URI.create(produceUri));
 
         ProducerMessage produceRequest = new ProducerMessage();
         produceRequest.setContext("context");
@@ -130,43 +136,44 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         MyWebSocket consumerSocket = new MyWebSocket();
         String consumeUri = "ws://localhost:" + webPort
                 + "/ws/consumer/persistent/sample/test/local/websocket-topic/my-sub";
-        Future<Session> consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
-        consumerSession.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        producerSession.get().getRemote().sendString(ObjectMapperFactory.getMapper().writer()
-                .writeValueAsString(produceRequest));
+        CompletableFuture<org.eclipse.jetty.websocket.api.Session>
+                consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
+        consumerSession.get().sendPing(ByteBuffer.wrap("ping".getBytes()), Callback.NOOP);
+        producerSession.get()
+                .sendText(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest), Callback.NOOP);
         assertTrue(consumerSocket.getResponse().contains("ping"));
-        ProducerMessage message = ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(),
-                ProducerMessage.class);
+        ProducerMessage message =
+                ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
         assertEquals(new String(Base64.getDecoder().decode(message.getPayload())), "my payload");
     }
 
     @WebSocket
-    public static class MyWebSocket extends WebSocketAdapter implements WebSocketPingPongListener {
+    public static class MyWebSocket {
 
         ArrayBlockingQueue<String> incomingMessages = new ArrayBlockingQueue<>(10);
 
-        @Override
+        @OnWebSocketMessage
         public void onWebSocketText(String message) {
             incomingMessages.add(message);
         }
 
-        @Override
+        @OnWebSocketClose
         public void onWebSocketClose(int i, String s) {
         }
 
-        @Override
+        @OnWebSocketOpen
         public void onWebSocketConnect(Session session) {
         }
 
-        @Override
+        @OnWebSocketError
         public void onWebSocketError(Throwable throwable) {
         }
 
-        @Override
+        @OnWebSocketPing
         public void onWebSocketPing(ByteBuffer payload) {
         }
 
-        @Override
+        @OnWebSocketPong
         public void onWebSocketPong(ByteBuffer payload) {
             incomingMessages.add(BufferUtil.toDetailString(payload));
         }

@@ -57,6 +57,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.servlet.ServletContext;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -211,7 +212,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         namespaces = spy(Namespaces.class);
-        namespaces.setServletContext(new MockServletContext());
+        namespaces.setServletContext(mock(ServletContext.class));
         namespaces.setPulsar(pulsar);
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
@@ -1230,7 +1231,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
         TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
         PersistentTopics topics = spy(PersistentTopics.class);
-        topics.setServletContext(new MockServletContext());
+        topics.setServletContext(mock(ServletContext.class));
         topics.setPulsar(pulsar);
         doReturn(false).when(topics).isRequestHttps();
         doReturn("test").when(topics).clientAppId();

@@ -35,6 +35,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -68,7 +69,7 @@ import org.apache.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.UpgradeException;
+import org.eclipse.jetty.websocket.api.exceptions.UpgradeException;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.glassfish.jersey.client.ClientConfig;
@@ -144,15 +145,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumeClient1.start();
             consumeClient2.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
-            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeRequest2);
             log.info("Connecting to : {}", consumeUri);
 
             readClient.start();
-            ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
-            Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
+            ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readUri);
+            Future<Session> readerFuture = readClient.connect(readSocket, readRequest);
             log.info("Connecting to : {}", readUri);
 
             // let it connect
@@ -163,9 +164,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             // Also make sure subscriptions and reader are already created
             Thread.sleep(500);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
             int retry = 0;
@@ -214,16 +215,16 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             log.info("Connecting to : {}", consumeUri);
 
             // let it connect
             assertTrue(consumerFuture.get().isOpen());
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertTrue(producerFuture.get().isOpen());
             // Send 30 message in total.
             produceSocket.sendMessage(20);
@@ -284,8 +285,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         try {
             // setup a consumer
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             consumerFuture.get();
             List<String> subs = admin.topics().getSubscriptions(topic);
             assertEquals(subs.size(), 1);
@@ -314,8 +315,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumeClient1.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
             consumerFuture1.get();
             fail("should fail: empty subscription");
         } catch (Exception e) {
@@ -341,15 +342,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumeClient1.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
             consumerFuture1.get();
 
             try {
                 consumeClient2.start();
-                ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
+                ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
                 Future<Session> consumerFuture2 =
-                        consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
+                        consumeClient2.connect(consumeSocket2, consumeRequest2);
                 consumerFuture2.get();
                 fail("should fail: conflicting subscription name");
             } catch (Exception e) {
@@ -378,15 +379,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             produceClient1.start();
-            ClientUpgradeRequest produceRequest1 = new ClientUpgradeRequest();
-            Future<Session> producerFuture1 = produceClient1.connect(produceSocket1, produceUri, produceRequest1);
+            ClientUpgradeRequest produceRequest1 = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture1 = produceClient1.connect(produceSocket1, produceRequest1);
             producerFuture1.get();
 
             try {
                 produceClient2.start();
-                ClientUpgradeRequest produceRequest2 = new ClientUpgradeRequest();
+                ClientUpgradeRequest produceRequest2 = new ClientUpgradeRequest(produceUri);
                 Future<Session> producerFuture2 =
-                        produceClient2.connect(produceSocket2, produceUri, produceRequest2);
+                        produceClient2.connect(produceSocket2, produceRequest2);
                 producerFuture2.get();
                 fail("should fail: conflicting producer name");
             } catch (Exception e) {
@@ -434,8 +435,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         // Create subscription
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             consumerFuture.get();
         } finally {
             stopWebSocketClient(consumeClient);
@@ -444,8 +445,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         // Fill the backlog
         try {
             produceClient1.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient1.connect(produceSocket1, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient1.connect(produceSocket1, produceRequest);
             producerFuture.get();
             produceSocket1.sendMessage(100);
         } finally {
@@ -456,16 +457,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         // New producer fails to connect
         try {
+            produceClient2.setIdleTimeout(Duration.ofSeconds(5));
             produceClient2.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient2.connect(produceSocket2, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient2.connect(produceSocket2, produceRequest);
             producerFuture.get();
             fail("should fail: backlog quota exceeded");
         } catch (Exception e) {
             // Expected
             assertTrue(e.getCause() instanceof UpgradeException);
-            assertEquals(((UpgradeException) e.getCause()).getResponseStatusCode(),
-                    HttpServletResponse.SC_SERVICE_UNAVAILABLE);
         } finally {
             stopWebSocketClient(produceClient2);
             admin.topics().skipAllMessages("persistent://" + topic, subscription);
@@ -504,8 +504,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             producerFuture.get();
             fail("should fail: topic does not exist");
         } catch (Exception e) {
@@ -518,8 +518,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             consumerFuture.get();
             fail("should fail: topic does not exist");
         } catch (Exception e) {
@@ -548,8 +548,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             producerFuture.get();
             fail("should fail: producer fenced");
         } catch (Exception e) {
@@ -577,8 +577,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             producerFuture.get();
             fail("should fail: topic terminated");
         } catch (Exception e) {
@@ -621,13 +621,13 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumeClient1.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
             log.info("Connecting to : {}", consumeUri);
 
             readClient.start();
-            ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
-            Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
+            ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readUri);
+            Future<Session> readerFuture = readClient.connect(readSocket, readRequest);
             log.info("Connecting to : {}", readUri);
 
             assertTrue(consumerFuture1.get().isOpen());
@@ -635,9 +635,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             Thread.sleep(500);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             // let it connect
 
             assertTrue(producerFuture.get().isOpen());
@@ -691,8 +691,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             producerFuture.get();
             produceSocket.sendMessage(100);
         } finally {
@@ -703,8 +703,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             consumerFuture.get();
         } finally {
             stopWebSocketClient(consumeClient);
@@ -735,19 +735,19 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumeClient1.start();
             consumeClient2.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
-            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeRequest2);
             log.info("Connecting to : {}", consumeUri);
 
             // let it connect
             assertTrue(consumerFuture1.get().isOpen());
             assertTrue(consumerFuture2.get().isOpen());
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertTrue(producerFuture.get().isOpen());
             produceSocket.sendMessage(100);
 
@@ -808,20 +808,20 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumeClient1.start();
             consumeClient2.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(URI.create(consumerUri));
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(URI.create(dlqUri));
             Future<Session> consumerFuture1 =
-                    consumeClient1.connect(consumeSocket1, URI.create(consumerUri), consumeRequest1);
+                    consumeClient1.connect(consumeSocket1, consumeRequest1);
             Future<Session> consumerFuture2 =
-                    consumeClient2.connect(consumeSocket2, URI.create(dlqUri), consumeRequest2);
+                    consumeClient2.connect(consumeSocket2, consumeRequest2);
 
             assertTrue(consumerFuture1.get().isOpen());
             assertTrue(consumerFuture2.get().isOpen());
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(URI.create(producerUri));
             produceClient.start();
             Future<Session> producerFuture =
-                    produceClient.connect(produceSocket, URI.create(producerUri), produceRequest);
+                    produceClient.connect(produceSocket, produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
             assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
@@ -868,15 +868,13 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumeClient.start();
-            final ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            final Future<Session> consumerFuture = consumeClient.connect(consumeSocket, URI.create(consumerUri),
-                    consumeRequest);
+            final ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(URI.create(consumerUri));
+            final Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             assertTrue(consumerFuture.get().isOpen());
 
             produceClient.start();
-            final ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            final Future<Session> producerFuture = produceClient.connect(produceSocket, URI.create(producerUri),
-                    produceRequest);
+            final ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(URI.create(producerUri));
+            final Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
             assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
@@ -914,9 +912,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumerClient.start();
-            ClientUpgradeRequest consumerRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture =
-                    consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
+            ClientUpgradeRequest consumerRequest = new ClientUpgradeRequest(URI.create(consumerUri));
+            Future<Session> consumerFuture = consumerClient.connect(consumeSocket, consumerRequest);
 
             assertTrue(consumerFuture.get().isOpen());
             assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
@@ -995,9 +992,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         try {
             consumerClient.start();
-            ClientUpgradeRequest consumerRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture =
-                    consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
+            ClientUpgradeRequest consumerRequest = new ClientUpgradeRequest(URI.create(consumerUri));
+            Future<Session> consumerFuture = consumerClient.connect(consumeSocket, consumerRequest);
 
             assertTrue(consumerFuture.get().isOpen());
             assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
@@ -1136,12 +1132,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumerClient1.start();
             consumerClient2.start();
-            ClientUpgradeRequest consumerRequest1 = new ClientUpgradeRequest();
-            ClientUpgradeRequest consumerRequest2 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 =
-                    consumerClient1.connect(consumeSocket1, URI.create(consumerUri1), consumerRequest1);
-            Future<Session> consumerFuture2 =
-                    consumerClient2.connect(consumeSocket2, URI.create(consumerUri2), consumerRequest2);
+            ClientUpgradeRequest consumerRequest1 = new ClientUpgradeRequest(URI.create(consumerUri1));
+            ClientUpgradeRequest consumerRequest2 = new ClientUpgradeRequest(URI.create(consumerUri2));
+            Future<Session> consumerFuture1 = consumerClient1.connect(consumeSocket1, consumerRequest1);
+            Future<Session> consumerFuture2 = consumerClient2.connect(consumeSocket2, consumerRequest2);
 
             assertTrue(consumerFuture1.get().isOpen());
             assertTrue(consumerFuture2.get().isOpen());

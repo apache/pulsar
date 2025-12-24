@@ -32,7 +32,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
-import org.eclipse.jetty.server.HttpOutput;
+import org.eclipse.jetty.ee8.nested.HttpOutput;
 
 public class PrometheusMetricsTestUtil {
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,

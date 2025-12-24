@@ -24,21 +24,22 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.HdrHistogram.Recorder;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@WebSocket(maxTextMessageSize = 64 * 1024)
+@WebSocket
 public class SimpleTestProducerSocket {
     public static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
@@ -62,7 +63,7 @@ public class SimpleTestProducerSocket {
         this.closeLatch.countDown();
     }
 
-    @OnWebSocketConnect
+    @OnWebSocketOpen
     public void onConnect(Session session) throws InterruptedException, IOException, JsonParseException {
         log.info("Got conneceted to the proxy");
         this.session = session;
@@ -80,10 +81,6 @@ public class SimpleTestProducerSocket {
         recorder.recordValue(NANOSECONDS.toMicros(latencyNs));
     }
 
-    public RemoteEndpoint getRemote() {
-        return this.session.getRemote();
-    }
-
     public Session getSession() {
         return this.session;
     }
@@ -93,9 +90,12 @@ public class SimpleTestProducerSocket {
         String message = getEncoder().encodeToString(payloadData);
         String timeStamp = "{\"payload\": \"" + message + "\",\"context\": \"" + context + "\"}";
         String sampleMsg = new Gson().fromJson(timeStamp, JsonObject.class).toString();
-        if (this.session != null && this.session.isOpen() && this.session.getRemote() != null) {
+        if (this.session != null && this.session.isOpen()) {
             startTimeMap.put(context, System.nanoTime());
-            this.session.getRemote().sendStringByFuture(sampleMsg).get();
+            CompletableFuture<Void> sendFuture = new CompletableFuture<>();
+            Callback callback = Callback.from(() -> sendFuture.complete(null), sendFuture::completeExceptionally);
+            this.session.sendText(sampleMsg, callback);
+            sendFuture.get();
         } else {
             log.error("Session is already closed");
         }

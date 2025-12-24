@@ -118,15 +118,15 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumeClient1.start();
             consumeClient2.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
-            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeRequest2);
             log.info("Connecting to : {}", consumeUri);
 
             readClient.start();
-            ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
-            Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
+            ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readUri);
+            Future<Session> readerFuture = readClient.connect(readSocket, readRequest);
             log.info("Connecting to : {}", readUri);
 
             // let it connect
@@ -137,9 +137,9 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
             // Also make sure subscriptions and reader are already created
             Thread.sleep(500);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
             Awaitility.await().untilAsserted(() -> {

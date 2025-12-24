@@ -19,12 +19,14 @@
 package org.apache.pulsar.broker.web;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
@@ -33,6 +35,7 @@ import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
+import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.HostPort;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 
@@ -128,14 +131,18 @@ public class JettyRequestLogFactory {
             delegate.log(request, response);
             StringBuilder sb = requestLogStringBuilder.get();
             sb.append(" [R:");
-            sb.append(request.getRemoteHost());
+            String remoteAddr = Request.getRemoteAddr(request);
+            sb.append(remoteAddr);
             sb.append(':');
-            sb.append(request.getRemotePort());
-            InetSocketAddress realRemoteAddress = lookupRealAddress(request.getHttpChannel().getRemoteAddress());
+            int remotePort = Request.getRemotePort(request);
+            sb.append(remotePort);
+
+            InetSocketAddress realRemoteAddress =
+                    lookupRealAddress(unwrap(request.getConnectionMetaData()).getRemoteSocketAddress());
             if (realRemoteAddress != null) {
                 String realRemoteHost = HostPort.normalizeHost(realRemoteAddress.getHostString());
                 int realRemotePort = realRemoteAddress.getPort();
-                if (!realRemoteHost.equals(request.getRemoteHost()) || realRemotePort != request.getRemotePort()) {
+                if (!realRemoteHost.equals(remoteAddr) || realRemotePort != remotePort) {
                     sb.append(" via ");
                     sb.append(realRemoteHost);
                     sb.append(':');
@@ -143,23 +150,26 @@ public class JettyRequestLogFactory {
                 }
             }
             sb.append("]->[L:");
-            InetSocketAddress realLocalAddress = lookupRealAddress(request.getHttpChannel().getLocalAddress());
+            InetSocketAddress realLocalAddress = lookupRealAddress(unwrap(request.getConnectionMetaData())
+                    .getLocalSocketAddress());
+            String localAddr = Request.getLocalAddr(request);
+            int localPort = Request.getLocalPort(request);
             if (realLocalAddress != null) {
                 String realLocalHost = HostPort.normalizeHost(realLocalAddress.getHostString());
                 int realLocalPort = realLocalAddress.getPort();
                 sb.append(realLocalHost);
                 sb.append(':');
                 sb.append(realLocalPort);
-                if (!realLocalHost.equals(request.getLocalAddr()) || realLocalPort != request.getLocalPort()) {
+                if (!realLocalHost.equals(localAddr) || realLocalPort != localPort) {
                     sb.append(" dst ");
-                    sb.append(request.getLocalAddr());
+                    sb.append(localAddr);
                     sb.append(':');
-                    sb.append(request.getLocalPort());
+                    sb.append(localPort);
                 }
             } else {
-                sb.append(request.getLocalAddr());
+                sb.append(localAddr);
                 sb.append(':');
-                sb.append(request.getLocalPort());
+                sb.append(localPort);
             }
             sb.append(']');
             try {
@@ -169,19 +179,27 @@ public class JettyRequestLogFactory {
             }
         }
 
-        private InetSocketAddress lookupRealAddress(InetSocketAddress socketAddress) {
-            if (socketAddress == null) {
+        private ConnectionMetaData unwrap(ConnectionMetaData connectionMetaData) {
+            if (connectionMetaData instanceof Attributes) {
+                return (ConnectionMetaData) Attributes.unwrap((Attributes) connectionMetaData);
+            }
+            return connectionMetaData;
+        }
+
+        private InetSocketAddress lookupRealAddress(SocketAddress socketAddress) {
+            if (socketAddress == null || !(socketAddress instanceof InetSocketAddress)) {
                 return null;
             }
+            InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
             if (proxyProtocolRealAddressMapping.isEmpty()) {
-                return socketAddress;
+                return inetSocketAddress;
             }
-            AddressEntry entry = proxyProtocolRealAddressMapping.get(new AddressKey(socketAddress.getHostString(),
-                    socketAddress.getPort()));
+            AddressEntry entry = proxyProtocolRealAddressMapping.get(new AddressKey(inetSocketAddress.getHostString(),
+                    inetSocketAddress.getPort()));
             if (entry != null) {
                 return entry.realAddress;
             } else {
-                return socketAddress;
+                return inetSocketAddress;
             }
         }
 
@@ -221,8 +239,12 @@ public class JettyRequestLogFactory {
                     ProxyConnectionFactory.ProxyEndPoint proxyEndPoint =
                             (ProxyConnectionFactory.ProxyEndPoint) connection.getEndPoint();
                     EndPoint originalEndpoint = proxyEndPoint.unwrap();
-                    mapAddress(proxyEndPoint.getLocalAddress(), originalEndpoint.getLocalAddress(), increment);
-                    mapAddress(proxyEndPoint.getRemoteAddress(), originalEndpoint.getRemoteAddress(), increment);
+                    mapAddress((InetSocketAddress) proxyEndPoint.getLocalSocketAddress(),
+                            (InetSocketAddress) originalEndpoint.getLocalSocketAddress(),
+                            increment);
+                    mapAddress((InetSocketAddress) proxyEndPoint.getRemoteSocketAddress(),
+                            (InetSocketAddress) originalEndpoint.getRemoteSocketAddress(),
+                            increment);
                 }
             }
 

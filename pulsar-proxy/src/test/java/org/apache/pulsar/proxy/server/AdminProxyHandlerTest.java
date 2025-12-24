@@ -22,11 +22,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -34,7 +32,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.client.api.Authentication;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.io.Content;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -71,7 +70,7 @@ public class AdminProxyHandlerTest {
                             1024);
             Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBuffer");
             field.setAccessible(true);
-            Assert.assertEquals(((ByteArrayOutputStream) field.get(replayableProxyContentProvider)).size(), 0);
+            Assert.assertEquals(((ByteBuffer) field.get(replayableProxyContentProvider)).position(), 0);
         } catch (IllegalArgumentException e) {
             Assert.fail("IllegalArgumentException should not be thrown");
         }
@@ -92,13 +91,14 @@ public class AdminProxyHandlerTest {
                         maxRequestBodySize);
 
         // when
-
         // content is consumed
-        Iterator<ByteBuffer> byteBufferIterator = replayableProxyContentProvider.iterator();
         int consumedBytes = 0;
-        while (byteBufferIterator.hasNext()) {
-            ByteBuffer byteBuffer = byteBufferIterator.next();
-            consumedBytes += byteBuffer.limit();
+        while (true) {
+            Content.Chunk chunk = replayableProxyContentProvider.read();
+            consumedBytes += chunk.getByteBuffer().remaining();
+            if (chunk.isLast()) {
+                break;
+            }
         }
 
         // then
@@ -129,16 +129,18 @@ public class AdminProxyHandlerTest {
         for (int i = 0; i < 3; i++) {
             // when
             consumeBuffer.clear();
-            Iterator<ByteBuffer> byteBufferIterator = replayableProxyContentProvider.iterator();
-            while (byteBufferIterator.hasNext()) {
-                ByteBuffer byteBuffer = byteBufferIterator.next();
-                consumeBuffer.put(byteBuffer);
+            while (true) {
+                Content.Chunk chunk = replayableProxyContentProvider.read();
+                consumeBuffer.put(chunk.getByteBuffer());
+                if (chunk.isLast()) {
+                    break;
+                }
             }
             consumeBuffer.flip();
-            byte[] consumedBytes = new byte[consumeBuffer.limit()];
+            byte[] consumedBytes = new byte[consumeBuffer.remaining()];
             consumeBuffer.get(consumedBytes);
             // then
-            Assert.assertEquals(consumedBytes, inputBuffer);
+            Assert.assertEquals(consumedBytes, inputBuffer, "i=" + i);
         }
     }
 }

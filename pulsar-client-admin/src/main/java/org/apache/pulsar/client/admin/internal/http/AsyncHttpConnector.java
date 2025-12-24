@@ -58,6 +58,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
 import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
@@ -117,6 +118,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private final boolean createdEventLoopGroup;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
     private PulsarSslFactory sslFactory;
+    @Getter
+    @Setter
+    private boolean followRedirects = true;
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
@@ -453,7 +457,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             responseFuture = doExecuteRequest(request, handlerSupplier);
         }
         CompletableFuture<Response> futureWithRedirect = responseFuture.thenCompose(response -> {
-            if (isRedirectStatusCode(response.getStatusCode())) {
+            if (followRedirects && isRedirectStatusCode(response.getStatusCode())) {
                 return executeRedirect(request, response, handlerSupplier, redirectCount);
             }
             return CompletableFuture.completedFuture(response);

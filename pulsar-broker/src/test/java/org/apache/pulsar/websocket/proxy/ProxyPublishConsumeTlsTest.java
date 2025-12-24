@@ -24,10 +24,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import java.net.URI;
-import java.security.GeneralSecurityException;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.TlsProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -37,6 +37,7 @@ import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
 import org.awaitility.Awaitility;
+import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -95,7 +96,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void socketTest() throws GeneralSecurityException {
+    public void socketTest() throws Exception {
         String consumerUri =
                 "wss://localhost:" + proxyServer.getListenPortHTTPS().get()
                         + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
@@ -104,25 +105,30 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
-        SslContextFactory sslContextFactory = new SslContextFactory();
+        SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
         sslContextFactory.setSslContext(SecurityUtility
                 .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(CA_CERT_FILE_PATH), null));
+        @Cleanup("stop")
+        HttpClient httpClient = new HttpClient();
+        httpClient.setSslContextFactory(sslContextFactory);
 
-        WebSocketClient consumeClient = new WebSocketClient(sslContextFactory);
+        @Cleanup("stop")
+        WebSocketClient consumeClient = new WebSocketClient(httpClient);
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
-        WebSocketClient produceClient = new WebSocketClient(sslContextFactory);
+        @Cleanup("stop")
+        WebSocketClient produceClient = new WebSocketClient(httpClient);
 
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             log.info("Connecting to : {}", consumeUri);
             Assert.assertTrue(consumerFuture.get().isOpen());
 
             SimpleProducerSocket produceSocket = new SimpleProducerSocket();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
 
             Assert.assertTrue(producerFuture.get().isOpen());
 
@@ -132,9 +138,6 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             });
             consumeSocket.awaitClose(1, TimeUnit.SECONDS);
             produceSocket.awaitClose(1, TimeUnit.SECONDS);
-        } catch (Throwable t) {
-            log.error(t.getMessage());
-            Assert.fail(t.getMessage());
         } finally {
             try {
                 consumeClient.stop();

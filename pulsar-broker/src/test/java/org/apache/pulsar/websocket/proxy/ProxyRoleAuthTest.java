@@ -231,18 +231,18 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
         try {
             // Connect consumer with CLIENT_TOKEN in Authorization header
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
             // Add JWT token authentication for WebSocket client
             consumeRequest.setHeader("Authorization", "Bearer " + CLIENT_TOKEN);
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             log.info("Connecting consumer to: {} with CLIENT_TOKEN", consumeUri);
 
             // Connect producer with CLIENT_TOKEN in Authorization header
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             // Add JWT token authentication for WebSocket client
             produceRequest.setHeader("Authorization", "Bearer " + CLIENT_TOKEN);
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             log.info("Connecting producer to: {} with CLIENT_TOKEN", produceUri);
 
             // Verify connections are established
@@ -316,11 +316,10 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
             unauthorizedConsumeClient.start();
 
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
             // Use UNAUTHORIZED_TOKEN which doesn't have permissions
             consumeRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
-            Future<Session> consumerFuture = unauthorizedConsumeClient.connect(consumeSocket, consumeUri,
-                    consumeRequest);
+            Future<Session> consumerFuture = unauthorizedConsumeClient.connect(consumeSocket, consumeRequest);
 
             log.info("Attempting to connect consumer with unauthorized token to: {}", consumeUri);
 
@@ -340,11 +339,10 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             SimpleProducerSocket produceSocket = new SimpleProducerSocket();
             unauthorizedProduceClient.start();
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             // Use UNAUTHORIZED_TOKEN which doesn't have permissions
             produceRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
-            Future<Session> producerFuture = unauthorizedProduceClient.connect(produceSocket, produceUri,
-                    produceRequest);
+            Future<Session> producerFuture = unauthorizedProduceClient.connect(produceSocket, produceRequest);
 
             log.info("Attempting to connect producer with unauthorized token to: {}", produceUri);
 

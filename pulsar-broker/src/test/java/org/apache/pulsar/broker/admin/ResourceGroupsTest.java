@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import javax.servlet.ServletContext;
 import org.apache.pulsar.broker.admin.v2.ResourceGroups;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.web.RestException;
@@ -51,7 +53,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         super.internalSetup();
         resourcegroups = spy(ResourceGroups.class);
-        resourcegroups.setServletContext(new MockServletContext());
+        resourcegroups.setServletContext(mock(ServletContext.class));
         resourcegroups.setPulsar(pulsar);
         doReturn(false).when(resourcegroups).isRequestHttps();
         doReturn("test").when(resourcegroups).clientAppId();
