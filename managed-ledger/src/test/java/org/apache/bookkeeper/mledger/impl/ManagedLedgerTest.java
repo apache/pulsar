@@ -3826,12 +3826,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                 }
             }, null);
-            taskFireLatch.wait();
+            taskFireLatch.await();
             CompletableFuture<Void> future = managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
             updateCursorFutures.add(future);
         }
 
-        latch.countDown();
+        latch.await();
         assertEquals(cursor.getNumberOfEntries(), 0);
         // Will not throw exception
         FutureUtil.waitForAll(updateCursorFutures).get();
