@@ -2744,7 +2744,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             int compareResult = lastAckedPosition.compareTo(markDeletedPosition);
             if (compareResult > 0) {
                 Position finalPosition = lastAckedPosition;
-                log.info("Mark delete cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
+                log.info("Mark deleting cursor:{} from {} to {} since ledger consumed completely.", cursor,
+                        markDeletedPosition, lastAckedPosition);
                 cursor.asyncMarkDelete(lastAckedPosition, cursor.getProperties(),
                     new MarkDeleteCallback() {
                         @Override
@@ -2756,7 +2757,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                         @Override
                         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                            log.warn("Failed to mark delete cursor: {} from {} to {}. ", cursor,
+                            log.warn("Failed to mark delete: {} from {} to {}. ", cursor,
                                     cursor.getMarkDeletedPosition(), finalPosition, exception);
                             future.completeExceptionally(exception);
                         }
@@ -2767,9 +2768,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 future.complete(null);
             } else {
                 // Should not happen
-                log.warn("Trying to mark delete cursor to an already mark-deleted position. Current mark-delete:"
+                log.warn("Trying to mark delete an already mark-deleted position. Current mark-delete:"
                         + " {} -- attempted position: {}", markDeletedPosition, lastAckedPosition);
-                future.complete(null);
+                future.completeExceptionally(new ManagedLedgerException(
+                        "Trying to mark delete an already mark-deleted position when update cursor. Current "
+                                + "mark-delete: " + markDeletedPosition + " -- attempted mark delete: "
+                                + lastAckedPosition));
             }
         }
         return FutureUtil.waitForAll(cursorMarkDeleteFutures);

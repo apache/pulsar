@@ -3789,6 +3789,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
         int entryNum = 100;
         config.setMaxEntriesPerLedger(entryNum);
 
@@ -3798,7 +3799,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch latch = new CountDownLatch(entryNum);
         List<CompletableFuture<Void>> updateCursorFutures = new ArrayList<>(entryNum);
+        // Three asyncMarkDelete operations running concurrently:
+        //   1. ledger rollover triggered maybeUpdateCursorBeforeTrimmingConsumedLedger.
+        //   2. user triggered asyncMarkDelete.
+        //   3. user triggered maybeUpdateCursorBeforeTrimmingConsumedLedger.
         for (int i = 0; i < entryNum; i++) {
+            CountDownLatch taskFireLatch = new CountDownLatch(1);
             managedLedger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
                 @Override
                 public void addFailed(ManagedLedgerException exception, Object ctx) {
@@ -3806,6 +3812,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                 @Override
                 public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    taskFireLatch.countDown();
                     cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
                         @Override
                         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
@@ -3819,6 +3826,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                 }
             }, null);
+            taskFireLatch.wait();
             CompletableFuture<Void> future = managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
             updateCursorFutures.add(future);
         }
