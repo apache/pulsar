@@ -3785,6 +3785,51 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    public void testNeverThrowsMarkDeletingMarkedPositionInMaybeUpdateCursorBeforeTrimmingConsumedLedger()
+            throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        initManagedLedgerConfig(config);
+        int entryNum = 100;
+        config.setMaxEntriesPerLedger(entryNum);
+
+        ManagedLedgerImpl managedLedger =
+                (ManagedLedgerImpl) factory.open("maybeUpdateCursorBeforeTrimmingConsumed_ledger", config);
+        ManagedCursor cursor = managedLedger.openCursor("c1");
+
+        final CountDownLatch latch = new CountDownLatch(entryNum);
+        List<CompletableFuture<Void>> updateCursorFutures = new ArrayList<>(entryNum);
+        for (int i = 0; i < entryNum; i++) {
+            managedLedger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                }
+
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                        }
+
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                            latch.countDown();
+                        }
+                    }, null);
+
+                }
+            }, null);
+            CompletableFuture<Void> future = managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
+            updateCursorFutures.add(future);
+        }
+
+        latch.countDown();
+        assertEquals(cursor.getNumberOfEntries(), 0);
+        // Will not throw exception
+        FutureUtil.waitForAll(updateCursorFutures).get();
+    }
+
+    @Test(timeOut = 20000)
     public void testAsyncTruncateLedgerRetention() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
