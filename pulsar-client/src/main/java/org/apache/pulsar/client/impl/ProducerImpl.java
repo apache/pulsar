@@ -56,7 +56,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -1762,7 +1761,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      */
     protected static class OpSendMsgQueue implements Iterable<OpSendMsg> {
         @VisibleForTesting
-        final Queue<OpSendMsg> delegate = new ArrayDeque<>();
+        final ArrayDeque<OpSendMsg> delegate = new ArrayDeque<>();
         private int forEachDepth = 0;
         private List<OpSendMsg> postponedOpSendMgs;
         private final AtomicInteger messagesCount = new AtomicInteger(0);
@@ -1815,6 +1814,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         public int messagesCount() {
             return messagesCount.get();
+        }
+
+        public int size() {
+            return delegate.size();
         }
 
         @Override
@@ -2129,7 +2132,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 int messagesToResend = pendingMessages.messagesCount();
-                if (messagesToResend == 0) {
+                if (pendingMessages.size() == 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] No pending messages to resend {}", topic, producerName, messagesToResend);
                     }
