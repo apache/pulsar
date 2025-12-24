@@ -359,5 +359,10 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         public long releasePermits() {
             return PERMITS_UPDATER.getAndSet(this, 0);
         }
+
+        @Override
+        public String toString() {
+            return "SemaphorePermit@" + System.identityHashCode(this) + "[permits=" + permits + "]";
+        }
     }
 }
