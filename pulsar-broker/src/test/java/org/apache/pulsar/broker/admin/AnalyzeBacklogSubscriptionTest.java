@@ -161,6 +161,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         assertEquals(analyzeSubscriptionBacklogResult.getFilterRescheduledEntries(), 0);
 
         assertEquals(analyzeSubscriptionBacklogResult.getMessages(), numMessages);
+        assertEquals(analyzeSubscriptionBacklogResult.getMarkerMessages(), 0);
         assertEquals(analyzeSubscriptionBacklogResult.getFilterAcceptedMessages(), numMessages);
         assertEquals(analyzeSubscriptionBacklogResult.getFilterRejectedMessages(), 0);
 

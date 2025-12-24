@@ -1693,6 +1693,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                         result.setEntries(rawResult.getEntries());
                         result.setMessages(rawResult.getMessages());
+                        result.setMarkerMessages(rawResult.getMarkerMessages());
 
                         result.setFilterAcceptedEntries(rawResult.getFilterAcceptedEntries());
                         result.setFilterRejectedEntries(rawResult.getFilterRejectedEntries());
