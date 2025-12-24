@@ -506,6 +506,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Close protocol handler before unloading namespace bundles because protocol handlers might maintain
             // Pulsar clients that could send lookup requests that affect unloading.
             if (protocolHandlers != null) {
+                try {
+                    List<CompletableFuture<Void>> channelCloseFutures =
+                            brokerService.closeProtocolHandlerChannels();
+                    // Wait for all protocol handler channels to close before closing protocol handlers
+                    FutureUtil.waitForAll(channelCloseFutures).get();
+                    LOG.info("Protocol handler channels closed successfully");
+                } catch (Exception e) {
+                    LOG.warn("Failed to close protocol handler channels", e);
+                }
                 protocolHandlers.close();
                 protocolHandlers = null;
             }
