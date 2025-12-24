@@ -4792,17 +4792,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload) {
         if (isDelayedDeliveryEnabled()) {
             long maxDeliveryDelayInMs = getDelayedDeliveryMaxDelayInMillis();
+            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+            if (maxDeliveryDelayInMs <= 0 && (messageTTLInSeconds == null || messageTTLInSeconds <= 0)) {
+                return false;
+            }
             headersAndPayload.markReaderIndex();
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
+            if (!msgMetadata.hasDeliverAtTime()) {
+                return false;
+            }
+            long deliverAtTime = msgMetadata.getDeliverAtTime();
             // count exceed ttl delayed messages
-            if (isExceedMessageTTL(msgMetadata)) {
+            if (deliverAtTime >= (messageTTLInSeconds * 1000L) + System.currentTimeMillis()) {
                 this.incrementExceedTTLDelayedMessages();
             }
-            if (maxDeliveryDelayInMs > 0) {
-                return msgMetadata.hasDeliverAtTime()
-                        && msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
-            }
+            return deliverAtTime - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
         }
         return false;
     }
@@ -4876,24 +4881,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         return future;
     }
-
-    /**
-     * Check if the message deliver time is expired by message TTL.
-     *
-     * @param msgMetadata the message metadata
-     * @return true if the message deliver time is expired by message TTL, false otherwise
-     */
-    protected boolean isExceedMessageTTL(MessageMetadata msgMetadata) {
-        Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
-        if (messageTTLInSeconds == null || messageTTLInSeconds <= 0) {
-            return false;
-        }
-        if (!msgMetadata.hasDeliverAtTime()) {
-            return false;
-        }
-        return msgMetadata.getDeliverAtTime() >= (messageTTLInSeconds * 1000L) + System.currentTimeMillis();
-    }
-
 
     public void incrementExceedTTLDelayedMessages() {
         this.exceedTTLDelayedMessage.recordEvent();
