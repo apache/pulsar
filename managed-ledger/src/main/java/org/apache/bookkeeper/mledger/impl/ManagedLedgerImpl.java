@@ -2709,8 +2709,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.waitingEntryCallBacks.add(cb);
     }
 
-    public void maybeUpdateCursorBeforeTrimmingConsumedLedger() {
+    public CompletableFuture<Void> maybeUpdateCursorBeforeTrimmingConsumedLedger() {
+        List<CompletableFuture<Void>> cursorMarkDeleteFutures = new ArrayList<>();
         for (ManagedCursor cursor : cursors) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            cursorMarkDeleteFutures.add(future);
+
             // Snapshot cursor.getMarkDeletedPosition() into a local variable to avoid race condition.
             Position markDeletedPosition = PositionFactory.create(cursor.getMarkDeletedPosition());
             Position lastAckedPosition = cursor.getPersistentMarkDeletedPosition() != null
@@ -2748,23 +2752,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         public void markDeleteComplete(Object ctx) {
                             log.info("Successfully persisted cursor position for cursor:{} to {}",
                                     cursor, finalPosition);
+                            future.complete(null);
                         }
 
                         @Override
                         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Failed to mark delete cursor: {} from {} to {}. ", cursor,
                                     cursor.getMarkDeletedPosition(), finalPosition, exception);
+                            future.completeExceptionally(exception);
                         }
                     }, null);
             } else if (compareResult == 0) {
                 log.debug("No need to reset cursor: {}, last acked position equals to current mark-delete position {}.",
                         cursor, markDeletedPosition);
+                future.complete(null);
             } else {
                 // Should not happen
                 log.warn("Trying to mark delete cursor to an already mark-deleted position. Current mark-delete:"
                         + " {} -- attempted position: {}", markDeletedPosition, lastAckedPosition);
+                future.complete(null);
             }
         }
+        return FutureUtil.waitForAll(cursorMarkDeleteFutures);
     }
 
     private void trimConsumedLedgersInBackground() {
