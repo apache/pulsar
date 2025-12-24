@@ -712,6 +712,17 @@ public interface ManagedLedger {
     CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate);
 
     /**
+     * Optimized find position by offset with predicate.
+     * Uses first entry index metadata to skip ledgers where the target offset
+     * is smaller than the ledger's first entry index, improving performance.
+     *
+     * @param offset the target offset to find
+     * @param predicate the predicate to test entries
+     * @return CompletableFuture<Position> the position where the predicate matches
+     */
+    CompletableFuture<Position> asyncFindPosition(long offset, Predicate<Entry> predicate);
+
+    /**
      * Get the ManagedLedgerInterceptor for ManagedLedger.
      * */
     ManagedLedgerInterceptor getManagedLedgerInterceptor();
