@@ -2756,7 +2756,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     cursor.getMarkDeletedPosition(), finalPosition, exception);
                         }
                     }, null);
-            } else if (compareResult < 0) {
+            } else if (compareResult == 0) {
+                log.debug("No need to reset cursor: {}, last acked position equals to current mark-delete position {}.",
+                        cursor, markDeletedPosition);
+            } else {
                 // Should not happen
                 log.warn("Trying to mark delete cursor to an already mark-deleted position. Current mark-delete:"
                         + " {} -- attempted position: {}", markDeletedPosition, lastAckedPosition);
