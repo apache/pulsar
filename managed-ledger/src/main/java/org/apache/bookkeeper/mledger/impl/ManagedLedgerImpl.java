@@ -2734,11 +2734,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             } else {
                 // TODO curPointedLedger==null, should we move cursor mark deleted position to nextPointedLedger:-1?
-                // Sample case: Opening an empty ledger with ledgers:(ledgerId:-1) will cause curPointedLedger==null,
-                // then recovery read will create a new ledger: (ledgerId+1:-1).
-                // If old markDeletePosition==(ledgerId:-1), I think we should move it to (ledgerId+1:-1),
-                // or it will casue cursor position and ledger inconsistency.
-                // See PR https://github.com/apache/pulsar/pull/25087
+                // Sample case: Opening an empty ledger with ledgers:(ledgerId:-1), if cursor position is
+                // (ledgerId-1:entryNum-1) and old ledger is trimmed, then curPointedLedger wil be null.
+                // I think we should move cursor position to (ledgerId:-1), or it will cause cursor position and ledger
+                // inconsistency. See PR https://github.com/apache/pulsar/pull/25087
                 log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
             }
 
