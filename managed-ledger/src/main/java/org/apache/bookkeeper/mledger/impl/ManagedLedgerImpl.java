@@ -2716,7 +2716,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             cursorMarkDeleteFutures.add(future);
 
             // Snapshot cursor.getMarkDeletedPosition() into a local variable to avoid race condition.
-            Position markDeletedPosition = PositionFactory.create(cursor.getMarkDeletedPosition());
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
             Position lastAckedPosition = cursor.getPersistentMarkDeletedPosition() != null
                     ? cursor.getPersistentMarkDeletedPosition() : markDeletedPosition;
             LedgerInfo curPointedLedger   = ledgers.get(lastAckedPosition.getLedgerId());
@@ -2770,10 +2770,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // Should not happen
                 log.warn("Trying to mark delete an already mark-deleted position. Current mark-delete:"
                         + " {} -- attempted position: {}", markDeletedPosition, lastAckedPosition);
-                future.completeExceptionally(new ManagedLedgerException(
-                        "Trying to mark delete an already mark-deleted position when update cursor. Current "
-                                + "mark-delete: " + markDeletedPosition + " -- attempted mark delete: "
-                                + lastAckedPosition));
+                future.completeExceptionally(null);
+//                future.completeExceptionally(new ManagedLedgerException(
+//                        "Trying to mark delete an already mark-deleted position when update cursor. Current "
+//                                + "mark-delete: " + markDeletedPosition + " -- attempted mark delete: "
+//                                + lastAckedPosition));
             }
         }
         return FutureUtil.waitForAll(cursorMarkDeleteFutures);
