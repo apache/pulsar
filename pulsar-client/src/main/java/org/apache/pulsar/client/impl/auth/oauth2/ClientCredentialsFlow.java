@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import io.netty.resolver.NameResolver;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExcha
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
+import org.asynchttpclient.AsyncHttpClient;
 
 /**
  * Implementation of OAuth 2.0 Client Credentials flow.
@@ -62,8 +64,9 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Builder
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
-                                 Duration connectTimeout, Duration readTimeout, String trustCertsFilePath) {
-        super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath);
+                                 AsyncHttpClient httpClient, NameResolver<InetAddress> nameResolver
+                                 ) {
+        super(issuerUrl, httpClient, nameResolver);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
@@ -75,24 +78,21 @@ class ClientCredentialsFlow extends FlowBase {
      * @param params
      * @return
      */
-    public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
-        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
-        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
+    public static ClientCredentialsFlow fromParameters(Map<String, String> params,
+                                                       NameResolver<InetAddress> nameResolver,
+                                                       AsyncHttpClient httpClient,
+                                                       URL issuerUrl,
+                                                       String privateKeyUrl) {
         // These are optional parameters, so we only perform a get
         String scope = params.get(CONFIG_PARAM_SCOPE);
         String audience = params.get(CONFIG_PARAM_AUDIENCE);
-        Duration connectTimeout = parseParameterDuration(params, CONFIG_PARAM_CONNECT_TIMEOUT);
-        Duration readTimeout = parseParameterDuration(params, CONFIG_PARAM_READ_TIMEOUT);
-        String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
-
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .audience(audience)
                 .privateKey(privateKeyUrl)
+                .httpClient(httpClient)
+                .nameResolver(nameResolver)
                 .scope(scope)
-                .connectTimeout(connectTimeout)
-                .readTimeout(readTimeout)
-                .trustCertsFilePath(trustCertsFilePath)
                 .build();
     }
 
@@ -133,7 +133,7 @@ class ClientCredentialsFlow extends FlowBase {
         assert this.metadata != null;
 
         URL tokenUrl = this.metadata.getTokenEndpoint();
-        this.exchanger = new TokenClient(tokenUrl, httpClient);
+        this.exchanger = new TokenClient(tokenUrl, httpClient, this.nameResolver);
         initialized = true;
     }
 
