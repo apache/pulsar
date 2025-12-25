@@ -597,7 +597,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         // cleanup.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         waitReplicatorStopped(topicName);
-        Awaitility.await().until(() -> {
+        // Added: Wait for replicator to completely stop
+        Awaitility.await().pollDelay(Duration.ofMillis(500)).untilAsserted(() -> {
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     return false;
@@ -843,8 +844,9 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         p2.close();
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         waitReplicatorStopped(topicName);
-        Awaitility.await().until(() -> {
-            for (ManagedCursor cursor : tp12.getManagedLedger().getCursors()) {
+        // Added: Wait for replicator to completely stop
+        Awaitility.await().pollDelay(Duration.ofMillis(500)).untilAsserted(() -> {
+            for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     return false;
                 }
@@ -1025,7 +1027,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         p3.close();
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         waitReplicatorStopped(topicName);
-        Awaitility.await().until(() -> {
+        // Added: Wait for replicator to completely stop
+        Awaitility.await().pollDelay(Duration.ofMillis(500)).untilAsserted(() -> {
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     return false;
