@@ -148,6 +148,7 @@ import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -2345,11 +2346,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             String localCluster) {
         return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
                 .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
-                        .getClusterAsync(remoteCluster)
-                        .thenApply(clusterData ->
-                                brokerService.getReplicationClient(remoteCluster, clusterData)))
-                .thenAccept(replicationClient -> {
-                    if (replicationClient == null) {
+                        .getClusterAsync(remoteCluster))
+                .thenAccept((clusterData) -> {
+                    PulsarClient replicationClient = brokerService.getReplicationClient(remoteCluster, clusterData);
+                    PulsarAdmin replicationAdmin = brokerService.getClusterPulsarAdmin(remoteCluster, clusterData);
+                    if (replicationClient == null || replicationAdmin == null) {
                         log.error("[{}] Can not create replicator because the remote client can not be created."
                                         + " remote cluster: {}. State of transferring : {}",
                                 topic, remoteCluster, transferring);
@@ -2367,7 +2368,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
                             try {
                                 return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
-                                        remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
+                                        remoteCluster, brokerService, (PulsarClientImpl) replicationClient,
+                                        replicationAdmin);
                             } catch (PulsarServerException e) {
                                 log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
                             }
@@ -2433,9 +2435,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
                 .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
-                        .getClusterAsync(localCluster)
-                        .thenApply(clusterData -> brokerService.getReplicationClient(localCluster, clusterData)))
-                .thenAccept(replicationClient -> {
+                        .getClusterAsync(localCluster))
+                .thenAccept((clusterData) -> {
+                    PulsarClient replicationClient = brokerService.getReplicationClient(localCluster, clusterData);
+                    PulsarAdmin replicationAdmin = brokerService.getClusterPulsarAdmin(localCluster, clusterData);
                     Replicator replicator = shadowReplicators.computeIfAbsent(shadowTopic, r -> {
                         try {
                             TopicName sourceTopicName = TopicName.get(getName());
@@ -2444,7 +2447,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 shadowPartitionTopic += "-partition-" + sourceTopicName.getPartitionIndex();
                             }
                             return new ShadowReplicator(shadowPartitionTopic, PersistentTopic.this, cursor,
-                                    brokerService, (PulsarClientImpl) replicationClient);
+                                    brokerService, (PulsarClientImpl) replicationClient, replicationAdmin);
                         } catch (PulsarServerException e) {
                             log.error("[{}] ShadowReplicator startup failed {}", topic, shadowTopic, e);
                         }
