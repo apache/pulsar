@@ -62,8 +62,9 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Builder
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
-                                 Duration connectTimeout, Duration readTimeout, String trustCertsFilePath) {
-        super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath);
+                                 Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
+                                 String wellKnownMetadataPath) {
+        super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, wellKnownMetadataPath);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
@@ -84,6 +85,7 @@ class ClientCredentialsFlow extends FlowBase {
         Duration connectTimeout = parseParameterDuration(params, CONFIG_PARAM_CONNECT_TIMEOUT);
         Duration readTimeout = parseParameterDuration(params, CONFIG_PARAM_READ_TIMEOUT);
         String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
+        String wellKnownMetadataPath = params.get(CONFIG_PARAM_WELL_KNOWN_METADATA_PATH);
 
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
@@ -93,6 +95,7 @@ class ClientCredentialsFlow extends FlowBase {
                 .connectTimeout(connectTimeout)
                 .readTimeout(readTimeout)
                 .trustCertsFilePath(trustCertsFilePath)
+                .wellKnownMetadataPath(wellKnownMetadataPath)
                 .build();
     }
 
