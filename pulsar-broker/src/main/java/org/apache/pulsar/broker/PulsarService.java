@@ -1833,6 +1833,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     + ", webServiceAddress: " + webServiceAddress);
         }
         PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl);
+        // most of the admin request requires to make zk-call so, keep the max read-timeout based on
+        // zk-operation timeout. Put it before loading brokerClient_ prefix config, so user can override it
+        builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
@@ -1864,9 +1867,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .enableTlsHostnameVerification(conf.isTlsHostnameVerificationEnabled());
         }
 
-        // most of the admin request requires to make zk-call so, keep the max read-timeout based on
-        // zk-operation timeout
-        builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         return builder;
     }
 
