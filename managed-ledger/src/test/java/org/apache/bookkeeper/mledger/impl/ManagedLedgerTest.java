@@ -5159,7 +5159,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // We expect at least 2 ledgers (Rollover happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
         // First ledger is all consumed and trimmed, left current ledger and next empty ledger.
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), new ImmutablePositionImpl(p.getLedgerId(), -1));
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), -1));
 
         // The same reason as above, can't assert properties equals here.
         // assertEquals(cursor.getProperties(), properties);
