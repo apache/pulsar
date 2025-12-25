@@ -30,6 +30,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -89,8 +90,8 @@ public class HttpClient implements Closeable {
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(conf.getMaxLookupRedirects());
-        confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        confBuilder.setConnectTimeout(Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS));
+        confBuilder.setReadTimeout(Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
                 PulsarVersion.getVersion(),
                 (conf.getDescription() == null ? "" : ("-" + conf.getDescription()))
@@ -124,7 +125,9 @@ public class HttpClient implements Closeable {
                 }
                 String hostname = conf.isTlsHostnameVerificationEnable() ? null : serviceNameResolver
                         .resolveHostUri().getHost();
-                SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(this.sslFactory, hostname);
+                SslEngineFactory sslEngineFactory =
+                        new PulsarHttpAsyncSslEngineFactory(this.sslFactory, hostname,
+                                conf.isTlsHostnameVerificationEnable());
                 confBuilder.setSslEngineFactory(sslEngineFactory);
 
 

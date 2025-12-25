@@ -47,6 +47,7 @@ import java.net.SocketAddress;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -169,9 +170,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         this.issuers = validateIssuers(getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS), requireHttps,
                 fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED);
 
-        int connectionTimeout = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
+        int connectionTimeoutMs = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
                 HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT);
-        int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
+        int readTimeoutMs = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
         String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
         SslContext sslContext = null;
         // When config is in the conf file but is empty, it defaults to the empty string, which is not meaningful and
@@ -184,8 +185,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         }
         AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
                 .setCookieStore(null)
-                .setConnectTimeout(connectionTimeout)
-                .setReadTimeout(readTimeout)
+                .setConnectTimeout(Duration.ofMillis(connectionTimeoutMs))
+                .setReadTimeout(Duration.ofMillis(readTimeoutMs))
                 .setSslContext(sslContext)
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
