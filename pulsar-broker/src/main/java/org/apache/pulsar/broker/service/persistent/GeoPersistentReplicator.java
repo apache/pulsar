@@ -61,112 +61,82 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         return createRemoteTopicIfDoesNotExist(TopicName.get(localTopicName).getPartitionedTopicName());
     }
 
-    private CompletableFuture<Void> createRemoteTopicIfDoesNotExist(String partitionedTopic) {
-        CompletableFuture<Void> res = new CompletableFuture<>();
-        admin.topics().getPartitionedTopicMetadataAsync(partitionedTopic).whenComplete((local, t1) -> {
-            if (t1 != null) {
-                Throwable actEx = FutureUtil.unwrapCompletionException(t1);
-                // Local topic is a non-partitioned topic, but end with "-partition-{num}".
-                if (actEx instanceof PulsarAdminException.NotFoundException) {
-                    replicationAdmin.topics().getPartitionedTopicMetadataAsync(partitionedTopic)
-                        .whenComplete((remote, t2) -> {
-                            if (t2 != null) {
-                                Throwable actEx2 = FutureUtil.unwrapCompletionException(t2);
-                                if (actEx2 instanceof PulsarAdminException.NotFoundException) {
-                                    // Both clusters have a non-partitioned topic, but the topic name is end with
-                                    // "-partition-{num}".
-                                    // Check partition metadata with the special name.
-                                    FutureUtil.completeAfter(res, createRemoteTopicIfDoesNotExist(localTopicName));
-                                } else {
-                                    // Failed to get remote partitions.
-                                    String errorMsg = String.format("[%s] Can not start replicator because of failed to"
-                                        + " get topic partitions of remote cluster. The topic on the local cluster is"
-                                        + " a non-partitioned topic, but end with -partition-x",
-                                        replicatorId);
-                                    log.error(errorMsg, actEx);
-                                    res.completeExceptionally(new PulsarServerException(errorMsg));
-                                    return;
-                                }
-                                return;
-                            }
-                            // Local topic is a non-partitioned topic, but end with "-partition-{num}".
-                            // Remote side: it has a partitioned topic.
-                            String errorMsg = String.format("[%s] Can not start replicator because the"
-                                + " partitions between local and remote cluster are different."
-                                + " The topic on the local cluster is a non-partitioned topic, but end with"
-                                + " -partition-x, and remote side it has %s partitions",
-                                replicatorId, remote.partitions);
-                            log.error(errorMsg);
-                            res.completeExceptionally(new PulsarServerException(errorMsg));
-                    });
-                    return;
-                }
-                // Failed to get local partitions.
-                log.error("[{}] Failed to start replicator because of failed to get partitions of local cluster. The"
-                    + " topic on the local cluster has {} partitions",
-                    replicatorId, local.partitions, actEx);
-                res.completeExceptionally(actEx);
-                return;
-            }
-            replicationAdmin.topics().getPartitionedTopicMetadataAsync(partitionedTopic).whenComplete((remote, t2) -> {
-                if (t2 != null) {
-                    Throwable actEx = FutureUtil.unwrapCompletionException(t2);
-                    // Create the topic on the remote side.
+    private CompletableFuture<Integer> getLocalPartitionMetadata(String topic) {
+        return admin.topics().getPartitionedTopicMetadataAsync(topic)
+                .thenApply(metadata -> metadata.partitions)
+                .exceptionallyCompose(t -> {
+                    Throwable actEx = FutureUtil.unwrapCompletionException(t);
                     if (actEx instanceof PulsarAdminException.NotFoundException) {
-                        // Not allowed replicator to create topics on the remote side.
-                        if (!brokerService.getPulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
-                            String errorMsg = String.format("[%s] Can not start replicator because there is no topic on"
-                                + " the remote cluster. Please create a %s on the remote cluster",
-                                replicatorId, local.partitions == 0 ? "non-partitioned topic"
-                                    : "partitioned topic with " + local.partitions + " partitions");
-                            log.error(errorMsg);
-                            res.completeExceptionally(new PulsarServerException(errorMsg));
-                            return;
-                        }
-                        // Create non-partitioned topics.
-                        // Print errors if failed to create topocs.
-                        res.whenComplete((__, t) -> {
-                            if (t == null) {
-                                return;
-                            }
-                            // Failed to get remote partitions.
-                            log.error("[{}] Failed to start replicator because of failed to"
-                                + " create topic on the remote cluster. The topic on the local cluster has"
-                                + " {} partitions", replicatorId, local.partitions, t);
-                        });
-                        if (local.partitions == 0) {
-                            FutureUtil.completeAfter(res, replicationAdmin.topics()
-                                    .createNonPartitionedTopicAsync(partitionedTopic));
-                            return;
-                        }
-                        // Create partitioned topics.
-                        FutureUtil.completeAfter(res, replicationAdmin.topics()
-                                .createPartitionedTopicAsync(partitionedTopic, local.partitions));
-                        return;
+                        // Legacy edge case: Local topic is non-partitioned but name ends with "-partition-{num}".
+                        // This should never happen in practice because PIP-414 disables this naming pattern.
+                        return createRemoteTopicIfDoesNotExist(localTopicName)
+                                .thenApply(__ -> -1); // Special marker
                     }
-                    // Failed to get remote partitions.
-                    String errorMsg = String.format("[%s] Can not start replicator because of failed to get"
-                        + " topic partitions of remote cluster. The topic on the local cluster has"
-                        + " %s partitions",
-                        replicatorId, local.partitions);
-                    log.error(errorMsg, actEx);
-                    res.completeExceptionally(new PulsarServerException(errorMsg));
-                    return;
-                }
-                // Compacted partitions.
-                if (local.partitions == remote.partitions) {
-                    res.complete(null);
-                    return;
-                }
-                // Incompatible partitions between clusters.
-                String errorMsg = String.format("[%s] Can not start replicator because the partitions between"
-                    + " local and remote cluster are different. local: %s, remote: %s", replicatorId,
-                        local.partitions, remote.partitions);
+                    return CompletableFuture.failedFuture(actEx);
+                });
+    }
+
+    private CompletableFuture<Integer> getRemotePartitionMetadata(String topic) {
+        return replicationAdmin.topics().getPartitionedTopicMetadataAsync(topic)
+                .thenApply(metadata -> metadata.partitions)
+                .exceptionallyCompose(t -> {
+                    Throwable actEx = FutureUtil.unwrapCompletionException(t);
+                    if (actEx instanceof PulsarAdminException.NotFoundException) {
+                        return CompletableFuture.completedFuture(-1); // Topic doesn't exist
+                    }
+                    return CompletableFuture.failedFuture(actEx);
+                });
+    }
+
+    private CompletableFuture<Void> handlePartitionComparison(String topic, int localPartitions, int remotePartitions) {
+        // Skip if already handled by recursion
+        if (localPartitions == -1) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Remote topic doesn't exist - create it
+        if (remotePartitions == -1) {
+            if (!brokerService.getPulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
+                String errorMsg = String.format("[%s] Can not start replicator because there is no topic on"
+                                + " the remote cluster. Please create a %s on the remote cluster",
+                        replicatorId, localPartitions == 0 ? "non-partitioned topic"
+                                : "partitioned topic with " + localPartitions + " partitions");
                 log.error(errorMsg);
-                res.completeExceptionally(new PulsarServerException(errorMsg));
+                return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
+            }
+
+            CompletableFuture<Void> createFuture = localPartitions == 0
+                    ? replicationAdmin.topics().createNonPartitionedTopicAsync(topic)
+                    : replicationAdmin.topics().createPartitionedTopicAsync(topic, localPartitions);
+
+            return createFuture.whenComplete((__, t) -> {
+                if (t != null) {
+                    log.error("[{}] Failed to create topic on remote cluster. Local has {} partitions",
+                            replicatorId, localPartitions, t);
+                }
             });
-        });
-        return res;
+        }
+
+        // Both exist - verify compatibility
+        if (localPartitions == remotePartitions) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Incompatible partitions
+        String errorMsg = String.format("[%s] Can not start replicator because the partitions between"
+                        + " local and remote cluster are different. local: %s, remote: %s",
+                replicatorId, localPartitions, remotePartitions);
+        log.error(errorMsg);
+        return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
+    }
+
+    private CompletableFuture<Void> createRemoteTopicIfDoesNotExist(String partitionedTopic) {
+        return getLocalPartitionMetadata(partitionedTopic)
+                .thenCompose(localPartitions ->
+                        getRemotePartitionMetadata(partitionedTopic).thenCompose(remotePartitions ->
+                                handlePartitionComparison(partitionedTopic, localPartitions, remotePartitions)
+                        )
+                );
     }
 
     @Override
