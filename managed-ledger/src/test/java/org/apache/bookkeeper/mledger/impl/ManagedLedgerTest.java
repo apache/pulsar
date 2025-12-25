@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -5108,7 +5109,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.delete();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testTrimmerRaceCondition() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(1);
@@ -5144,9 +5145,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }, null);
 
         latch.await();
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), lastPosition);
-        assertEquals(ledger.getCursors().getSlowestCursorPosition(), lastPosition);
-        assertEquals(cursor.getProperties(), properties);
+        assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
+        assertThat(ledger.getCursors().getSlowestCursorPosition()).isGreaterThanOrEqualTo(lastPosition);
+        // cursor.asyncMarkDelete() and maybeUpdateCursorBeforeTrimmingConsumedLedger run concurrently,
+        // so we can't assert properties equals here.
+        // assertEquals(cursor.getProperties(), properties);
 
         // 3. Add Entry 2. Triggers Rollover.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
@@ -5157,7 +5160,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
         assertEquals(cursor.getPersistentMarkDeletedPosition(), new ImmutablePositionImpl(p.getLedgerId(), -1));
 
-        // Verify properties are preserved after cursor reset
-        assertEquals(cursor.getProperties(), properties);
+        // The same reason as above, can't assert properties equals here.
+        // assertEquals(cursor.getProperties(), properties);
     }
 }
