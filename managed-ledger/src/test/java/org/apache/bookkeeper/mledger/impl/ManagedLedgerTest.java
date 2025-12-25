@@ -5147,17 +5147,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         latch.await();
         assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
         assertThat(ledger.getCursors().getSlowestCursorPosition()).isGreaterThanOrEqualTo(lastPosition);
-        // cursor.asyncMarkDelete() and maybeUpdateCursorBeforeTrimmingConsumedLedger run concurrently,
+        // cursor.asyncMarkDelete() and maybeUpdateCursorBeforeTrimmingConsumedLedger may run concurrently,
         // so we can't assert properties equals here.
         // assertEquals(cursor.getProperties(), properties);
 
-        // 3. Add Entry 2. Triggers Rollover.
+        // 3. Add Entry 2. Triggers second rollover process.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
         Position p = ledger.addEntry("entry-2".getBytes(Encoding));
 
         // Wait for background tasks (metadata callback) to complete.
         // We expect at least 2 ledgers (Rollover happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
+        // First ledger is all consumed and trimmed, left current ledger and next empty ledger.
         assertEquals(cursor.getPersistentMarkDeletedPosition(), new ImmutablePositionImpl(p.getLedgerId(), -1));
 
         // The same reason as above, can't assert properties equals here.
