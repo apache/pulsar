@@ -57,8 +57,10 @@ apache-pulsar (VERSION) DISTRIBUTION; urgency=LEVEL
 1. `override_dh_auto_build`: Сборка исходного кода (Maven)
 2. `override_dh_auto_install`: Копирование файлов в `debian/tmp/`
 3. `override_dh_installsystemd`: Установка systemd сервисов
-4. `override_dh_installman`: Установка man страниц
-5. `override_dh_fixperms`: Исправление прав доступа
+4. `override_dh_installdeb`: Обработка maintainer scripts (postinst, prerm)
+5. `override_dh_builddeb`: Финальная проверка перед упаковкой
+6. `override_dh_installman`: Установка man страниц
+7. `override_dh_fixperms`: Исправление прав доступа
 
 **Ключевые команды**:
 - `dh $@`: Вызов debhelper для стандартных операций
@@ -103,14 +105,19 @@ debian/tmp/pulsar/conf/* /etc/apache-pulsar
 **Назначение**: Скрипт, выполняемый после установки/обновления пакета
 
 Выполняет:
+- Перезагрузку systemd daemon (автоматически добавляется `dh_installsystemd`)
 - Создание системного пользователя `apache-pulsar`
-- Настройку прав доступа на директории
-- Создание директории для логов
-- Перезагрузку systemd daemon
+- Настройку прав доступа на директории (`/usr/lib/apache-pulsar`, `/etc/apache-pulsar`)
+- Создание директории для логов (`/var/log/apache-pulsar`)
 
 **Триггеры**:
 - `configure`: При установке или обновлении
 - `abort-upgrade`: При откате обновления
+
+**Обработка в `debian/rules`**:
+- Скрипт автоматически обрабатывается через `dh_installdeb`
+- В `override_dh_installdeb` файл копируется в `debian/apache-pulsar/DEBIAN/postinst`
+- В `override_dh_builddeb` выполняется финальная проверка перед упаковкой
 
 #### `prerm`
 **Назначение**: Скрипт, выполняемый перед удалением пакета
@@ -243,12 +250,23 @@ debian/man/pulsar-client.1
 └── bookkeeper -> /usr/lib/apache-pulsar/bin/bookkeeper
 
 /lib/systemd/system/            # Systemd сервисы
-├── apache-pulsar.service
+└── apache-pulsar.service       # Основной сервис (автоматически активируется)
+
+/usr/share/apache-pulsar/examples/systemd/  # Дополнительные сервисы (примеры)
 ├── apache-pulsar-bookie.service
 ├── apache-pulsar-proxy.service
 ├── apache-pulsar-functions-worker.service
 ├── apache-pulsar-websocket.service
 └── apache-pulsar-autorecovery.service
+
+**Примечание**: Дополнительные сервисы устанавливаются как примеры и не активируются автоматически.
+Для их использования скопируйте нужный файл в `/etc/systemd/system/` и активируйте:
+```bash
+sudo cp /usr/share/apache-pulsar/examples/systemd/apache-pulsar-bookie.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable apache-pulsar-bookie.service
+sudo systemctl start apache-pulsar-bookie.service
+```
 
 /usr/share/man/man1/            # Man страницы
 ├── pulsar.1
@@ -275,9 +293,11 @@ debian/man/pulsar-client.1
 4. **Обработка файлов**
    - `dh_installdirs`: Создание директорий из `dirs`
    - `dh_install`: Копирование файлов согласно `install`
-   - `dh_installsystemd`: Установка systemd сервисов
+   - `dh_installsystemd`: Установка systemd сервисов (только основной `apache-pulsar.service`)
+   - `dh_installdeb`: Обработка maintainer scripts (postinst, prerm)
    - `dh_installman`: Установка man страниц
    - `dh_fixperms`: Исправление прав доступа
+   - `dh_builddeb`: Финальная проверка и упаковка пакета
 
 5. **Создание пакета**
    - `dh_builddeb`: Создание `.deb` файла
@@ -320,7 +340,7 @@ lintian apache-pulsar_*.changes
 - Различные библиотеки разработки (libzstd-dev, libsnappy-dev и т.д.)
 
 ### Depends (для работы)
-- `openjdk-17-jre-headless` - Java Runtime Environment
+- `openjdk-21-jre-headless | openjdk-17-jre-headless` - Java Runtime Environment (поддержка Java 21 и 17)
 - `bash` - для выполнения скриптов
 - `adduser` - для создания системного пользователя
 - Системные библиотеки (libsnappy1v5, zlib1g, libzstd1, libssl3)

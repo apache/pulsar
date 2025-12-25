@@ -31,47 +31,22 @@ public class SchemaUtilTest {
 
     @Test
     public void schemaWithoutJsr310EnabledPropertyReturnsFalse() {
-        SchemaUtil.setGlobalJsr310ConversionEnabled(null);
         SchemaInfo schemaInfo = emptyPropertiesSchema();
-        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(schemaInfo);
+        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
         assertFalse(isJsr310Enabled);
     }
 
     @Test
     public void schemaWithJsr310DisabledPropertyReturnsFalse() {
-        SchemaUtil.setGlobalJsr310ConversionEnabled(null);
         SchemaInfo schemaInfo = disabledJsr310PropertiesSchema();
-        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(schemaInfo);
+        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
         assertFalse(isJsr310Enabled);
     }
 
     @Test
     public void schemaWithJsr310EnabledPropertyReturnsTrue() {
-        SchemaUtil.setGlobalJsr310ConversionEnabled(null);
         SchemaInfo schemaInfo = enabledJsr310PropertiesSchema();
-        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(schemaInfo);
-        assertTrue(isJsr310Enabled);
-    }
-
-    @Test
-    public void globalJsr310DisabledAlwaysReturnsFalse() {
-        SchemaUtil.setGlobalJsr310ConversionEnabled(false);
-        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(emptyPropertiesSchema());
-        assertFalse(isJsr310Enabled);
-        isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(disabledJsr310PropertiesSchema());
-        assertFalse(isJsr310Enabled);
-        isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(enabledJsr310PropertiesSchema());
-        assertFalse(isJsr310Enabled);
-    }
-
-    @Test
-    public void globalJsr310EnabledAlwaysReturnsTrue() {
-        SchemaUtil.setGlobalJsr310ConversionEnabled(true);
-        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(emptyPropertiesSchema());
-        assertTrue(isJsr310Enabled);
-        isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(disabledJsr310PropertiesSchema());
-        assertTrue(isJsr310Enabled);
-        isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabled(enabledJsr310PropertiesSchema());
+        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
         assertTrue(isJsr310Enabled);
     }
 

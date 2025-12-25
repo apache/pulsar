@@ -75,12 +75,11 @@ public class InProgressDeduplicationDecoratorLookupService implements LookupServ
     }
 
     @Override
-    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
-        Map<String, String> lookupPropertiesToUse =
-                lookupProperties != null ? lookupProperties : lookupPropertiesSupplier.get();
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
+        Map<String, String> lookupPropertiesToUse = lookupPropertiesSupplier.get();
         return topicLookupsInProgress.getOrComputeIfAbsent(
                 new LookupBrokerKey(topicName.toString(), lookupPropertiesToUse),
-                () -> delegate.getBroker(topicName, lookupPropertiesToUse));
+                () -> delegate.getBroker(topicName));
     }
 
     @Override
@@ -92,6 +91,15 @@ public class InProgressDeduplicationDecoratorLookupService implements LookupServ
                 new PartitionedTopicMetadataKey(topicName, metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers),
                 () -> delegate.getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled,
                         useFallbackForNonPIP344Brokers));
+    }
+
+    @Override
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
+        // all partitions of a partitioned topic share the same schema
+        // therefore, perform the lookup with the partitioned topic name
+        String topicForSchemaLookup = topicName.getPartitionedTopicName();
+        return schemasInProgress.getOrComputeIfAbsent(new LookupSchemaKey(topicForSchemaLookup, null),
+                () -> delegate.getSchema(TopicName.get(topicForSchemaLookup)));
     }
 
     @Override
@@ -114,11 +122,6 @@ public class InProgressDeduplicationDecoratorLookupService implements LookupServ
     @Override
     public void close() throws Exception {
         delegate.close();
-    }
-
-    @Override
-    public boolean isBinaryProtoLookupService() {
-        return delegate.isBinaryProtoLookupService();
     }
 
     private static class InProgressHolder<K, V extends CompletableFuture<?>> {

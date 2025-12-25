@@ -23,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
@@ -64,8 +63,7 @@ public class MockMessageTest extends ProducerConsumerBase {
         final var conf = new ClientConfigurationData();
         conf.setServiceUrl(pulsar.getBrokerServiceUrl());
         @Cleanup final var client = PulsarClientImpl.builder().conf(conf)
-                .internalExecutorProvider(new ExecutorProvider(1, "internal", false,
-                        this::newThreadFactory))
+                .internalExecutorProvider(new ExecutorProvider(1, "internal", false))
                 .externalExecutorProvider(new ExecutorProvider(1, "external", false))
                 .build();
 
@@ -96,18 +94,6 @@ public class MockMessageTest extends ProducerConsumerBase {
         Assert.assertTrue(threadFailures.isEmpty());
     }
 
-    private ExecutorProvider.ExtendedThreadFactory newThreadFactory(String poolName, boolean daemon) {
-        return new ExecutorProvider.ExtendedThreadFactory(poolName, daemon) {
-
-            @Override
-            public Thread newThread(Runnable r) {
-                final var thread = super.newThread(r);
-                thread.setUncaughtExceptionHandler((t, e) -> {
-                    log.error("Unexpected exception in {}", t.getName(), e);
-                    threadFailures.computeIfAbsent(t, __ -> new CopyOnWriteArrayList<>()).add(e);
-                });
-                return thread;
-            }
-        };
-    }
+    // Note: Custom thread factory creation removed as ExecutorProvider no longer supports
+    // custom thread factory supplier. Thread exception handling is now done by ExecutorProvider itself.
 }

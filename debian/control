@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Bloshkin Oleg Aleksandrovich <bglegb@gmail.com>
 Build-Depends:
  debhelper-compat (= 13),
- default-jdk-headless | openjdk-17-jdk-headless,
+ default-jdk-headless | openjdk-21-jdk-headless,
  maven,
  python3,
  zip,
@@ -25,7 +25,7 @@ Depends:
  ${shlibs:Depends},
  ${misc:Depends},
  python3:any,
- openjdk-17-jre-headless,
+ openjdk-21-jre-headless | openjdk-17-jre-headless,
  bash (>= 4.4),
  adduser,
  libsnappy1v5,

@@ -1,3 +1,22 @@
+apache-pulsar (4.1.2-8) unstable; urgency=medium
+
+  * Fixed debian/rules: only main apache-pulsar.service is installed automatically
+    via dh_installsystemd. Additional services (bookie, proxy, functions-worker,
+    websocket, autorecovery) are installed as examples in
+    /usr/share/apache-pulsar/examples/systemd/ for manual activation
+  * Updated debian/control: changed Java dependency to support both Java 21 and 17
+    (openjdk-21-jre-headless | openjdk-17-jre-headless) for compatibility with
+    Debian Trixie and older versions
+  * Fixed debian/rules: added override_dh_installdeb and override_dh_builddeb
+    to ensure postinst script is properly packaged. The script creates system
+    user apache-pulsar, sets directory permissions, and creates log directory
+  * Updated debian/install: added installation of additional systemd service files
+    as examples in /usr/share/apache-pulsar/examples/systemd/
+  * Updated debian/README: documented current package structure, maintainer scripts
+    handling, and systemd services installation approach
+
+ -- HelgiSaga <bglegb@gmail.com>  Sun, 21 Dec 2025 15:00:00 +0300
+
 apache-pulsar (4.1.2-7) unstable; urgency=medium
 
   * Fixed debian/rules: corrected dh_installsystemd usage for multiple service

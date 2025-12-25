@@ -6,37 +6,37 @@ export JAVA_HOME=/usr/lib/jvm/default-java
 	dh $@
 
 override_dh_auto_build:
-	# Собираем все основные модули Pulsar (core-modules профиль)
-	# Это включает: broker, proxy, websocket, functions-worker и все зависимости
-	# Используем -Pcore-modules,-main для сборки только основных модулей без внешних коннекторов
+	# Build all core Pulsar modules (core-modules profile)
+	# This includes: broker, proxy, websocket, functions-worker and all dependencies
+	# Using -Pcore-modules,-main to build only core modules without external connectors
 	mvn -T 1C -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true
 
 override_dh_auto_install:
-	# Создаем структуру директорий в tmp
+	# Create directory structure in tmp
 	mkdir -p debian/tmp/pulsar/java
 	mkdir -p debian/tmp/pulsar/conf
 	mkdir -p debian/tmp/pulsar/bin
 	mkdir -p debian/tmp/pulsar/bin/proto
 	mkdir -p debian/tmp/usr/bin
 
-	# Копируем jar-файлы
-	# Скрипт pulsar ищет pulsar-*.jar в корне PULSAR_HOME или pulsar-broker/target/pulsar-*.jar
-	# Копируем основной jar файл broker в корень (как ожидает скрипт)
+	# Copy jar files
+	# The pulsar script looks for pulsar-*.jar in PULSAR_HOME root or pulsar-broker/target/pulsar-*.jar
+	# Copy main broker jar file to root (as script expects)
 	cp pulsar-broker/target/pulsar-broker*.jar debian/tmp/pulsar/java/ 2>/dev/null || true
 	
-	# Также копируем все jar файлы зависимостей в lib директорию
-	# Это нужно для правильной работы classpath всех компонентов (broker, proxy, websocket, functions-worker)
+	# Also copy all dependency jar files to lib directory
+	# This is needed for proper classpath work of all components (broker, proxy, websocket, functions-worker)
 	mkdir -p debian/tmp/pulsar/lib
-	# Копируем jar файлы из всех модулей (исключая тестовые, исходники и документацию)
+	# Copy jar files from all modules (excluding test, source and documentation jars)
 	find . -path "*/target/*.jar" ! -name "*tests.jar" ! -name "*sources.jar" ! -name "*javadoc.jar" ! -path "*/distribution/*" ! -path "*/tests/*" -exec cp {} debian/tmp/pulsar/lib/ \; 2>/dev/null || true
-	# Убираем бит исполнения со всех jar файлов (они не должны быть исполняемыми)
+	# Remove execute bits from all jar files (they should not be executable)
 	find debian/tmp/pulsar/lib -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true
 	find debian/tmp/pulsar/java -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true
 
-	# Копируем конфиги
+	# Copy configuration files
 	cp -r conf/* debian/tmp/pulsar/conf
 
-	# Удаляем бит исполнения на конфиги и XML/YML файлы
+	# Remove execute bits from config and XML/YML files
 	find debian/tmp/pulsar/conf -name "*.conf" -type f -exec chmod -x {} + || true
 	find debian/tmp/pulsar/conf -name "*.xml" -type f -exec chmod -x {} + || true
 	find debian/tmp/pulsar/conf -name "*.yml" -type f -exec chmod -x {} + || true
@@ -44,7 +44,7 @@ override_dh_auto_install:
 	find debian/tmp/pulsar/conf -name "*.ini" -type f -exec chmod -x {} + || true
 	find debian/tmp/pulsar/conf -name "*.yaml" -type f -exec chmod -x {} + || true
 
-	# Копируем скрипты
+	# Copy scripts
 	cp bin/pulsar debian/tmp/pulsar/bin
 	cp bin/bookkeeper debian/tmp/pulsar/bin
 	cp bin/function-localrunner debian/tmp/pulsar/bin
@@ -55,36 +55,79 @@ override_dh_auto_install:
 	cp bin/pulsar-perf debian/tmp/pulsar/bin
 	cp bin/pulsar-shell debian/tmp/pulsar/bin
 
-	# Копируем proto
+	# Copy proto files
 	cp bin/proto/MLDataFormats_pb2.py debian/tmp/pulsar/bin/proto
 
-	# Создаем символические ссылки для основных команд в /usr/bin
+	# Create symbolic links for main commands in /usr/bin
 	ln -sf /usr/lib/apache-pulsar/bin/pulsar debian/tmp/usr/bin/pulsar
 	ln -sf /usr/lib/apache-pulsar/bin/pulsar-admin debian/tmp/usr/bin/pulsar-admin
 	ln -sf /usr/lib/apache-pulsar/bin/pulsar-client debian/tmp/usr/bin/pulsar-client
 	ln -sf /usr/lib/apache-pulsar/bin/pulsar-perf debian/tmp/usr/bin/pulsar-perf
 	ln -sf /usr/lib/apache-pulsar/bin/bookkeeper debian/tmp/usr/bin/bookkeeper
 
-	# dh_install и остальные debhelper команды будут работать
+	# Copy additional systemd service files as examples to /usr/share/apache-pulsar/examples/systemd/
+	# Users can copy them to /etc/systemd/system/ and enable if needed
+	mkdir -p debian/tmp/usr/share/apache-pulsar/examples/systemd
+	cp debian/apache-pulsar-bookie.service debian/tmp/usr/share/apache-pulsar/examples/systemd/
+	cp debian/apache-pulsar-proxy.service debian/tmp/usr/share/apache-pulsar/examples/systemd/
+	cp debian/apache-pulsar-functions-worker.service debian/tmp/usr/share/apache-pulsar/examples/systemd/
+	cp debian/apache-pulsar-websocket.service debian/tmp/usr/share/apache-pulsar/examples/systemd/
+	cp debian/apache-pulsar-autorecovery.service debian/tmp/usr/share/apache-pulsar/examples/systemd/
+
+	# dh_install and other debhelper commands will work
 
 override_dh_installsystemd:
-	# Устанавливаем основной сервис
+	# Install only the main apache-pulsar service (broker)
+	# Additional services (bookie, proxy, functions-worker, websocket, autorecovery)
+	# can be enabled manually if needed by copying service files to /etc/systemd/system/
+	# or by creating separate packages for them
 	dh_installsystemd --name=apache-pulsar
-	# Устанавливаем остальные сервисы
-	# dh_installsystemd автоматически создаст скрипты postinst/prerm для каждого
-	dh_installsystemd --name=apache-pulsar-bookie apache-pulsar-bookie.service
-	dh_installsystemd --name=apache-pulsar-proxy apache-pulsar-proxy.service
-	dh_installsystemd --name=apache-pulsar-functions-worker apache-pulsar-functions-worker.service
-	dh_installsystemd --name=apache-pulsar-websocket apache-pulsar-websocket.service
-	dh_installsystemd --name=apache-pulsar-autorecovery apache-pulsar-autorecovery.service
+
+override_dh_installdeb:
+	# Run dh_installdeb first - this processes maintainer scripts
+	dh_installdeb
+	# Our postinst already contains the systemd section, so we can safely overwrite
+	# the one created by dh_installsystemd with our complete version
+	# IMPORTANT: debian/apache-pulsar/DEBIAN/ is the correct location for maintainer scripts
+	@if [ -f debian/postinst ]; then \
+		mkdir -p debian/apache-pulsar/DEBIAN; \
+		chmod +x debian/postinst; \
+		cp -f debian/postinst debian/apache-pulsar/DEBIAN/postinst; \
+		chmod +x debian/apache-pulsar/DEBIAN/postinst; \
+		echo "✓ postinst copied to debian/apache-pulsar/DEBIAN/"; \
+		ls -lh debian/apache-pulsar/DEBIAN/postinst; \
+	else \
+		echo "ERROR: debian/postinst not found!"; \
+		exit 1; \
+	fi
+	# Final verification
+	@test -f debian/apache-pulsar/DEBIAN/postinst && test -x debian/apache-pulsar/DEBIAN/postinst || (echo "ERROR: postinst not found or not executable after override_dh_installdeb" && ls -la debian/apache-pulsar/DEBIAN/ 2>/dev/null || echo "DEBIAN directory does not exist" && exit 1)
+
+override_dh_builddeb:
+	# ALWAYS copy postinst before building - ensure it's in the package
+	@if [ -f debian/postinst ]; then \
+		mkdir -p debian/apache-pulsar/DEBIAN; \
+		chmod +x debian/postinst; \
+		cp -f debian/postinst debian/apache-pulsar/DEBIAN/postinst; \
+		chmod +x debian/apache-pulsar/DEBIAN/postinst; \
+		echo "✓ Final copy: postinst in debian/apache-pulsar/DEBIAN/"; \
+		ls -lh debian/apache-pulsar/DEBIAN/postinst; \
+		echo "All files in DEBIAN:"; \
+		ls -la debian/apache-pulsar/DEBIAN/ || echo "DEBIAN directory does not exist!"; \
+	else \
+		echo "FATAL ERROR: debian/postinst source file not found!"; \
+		exit 1; \
+	fi
+	@test -f debian/apache-pulsar/DEBIAN/postinst && test -x debian/apache-pulsar/DEBIAN/postinst || (echo "FATAL ERROR: postinst not found or not executable before building package" && exit 1)
+	dh_builddeb
 
 override_dh_installman:
-	# Устанавливаем man страницы из debian/man/
+	# Install man pages from debian/man/
 	dh_installman debian/man/*.1
 
 override_dh_fixperms:
 	dh_fixperms
-	# Исправляем отсутствующие shebang только для скриптов без shebang
+	# Fix missing shebang only for scripts without shebang
 	@for file in debian/apache-pulsar/usr/lib/apache-pulsar/bin/*; do \
 		if [ -f "$$file" ] && file "$$file" | grep -q "text" && [ ! -x "$$file" ]; then \
 			if ! head -n1 "$$file" | grep -q "^#!"; then \
@@ -92,3 +135,4 @@ override_dh_fixperms:
 			fi; \
 		fi; \
 	done
+

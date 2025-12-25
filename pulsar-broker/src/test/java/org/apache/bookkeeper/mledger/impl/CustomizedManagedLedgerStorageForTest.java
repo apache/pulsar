@@ -22,6 +22,7 @@ import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -32,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -50,9 +52,11 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicName;
@@ -62,7 +66,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.jspecify.annotations.Nullable;
 
 public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFactory
-        implements ManagedLedgerStorage  {
+        implements ManagedLedgerStorage {
 
     @Override
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
@@ -70,7 +74,37 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
                            EventLoopGroup eventLoopGroup,
                            OpenTelemetry openTelemetry) throws Exception {
         super.initialize(conf, metadataStore, bookkeeperProvider, eventLoopGroup, openTelemetry);
-        managedLedgerFactory = new CustomizedManagedLedgerFactory(managedLedgerFactory);
+        ManagedLedgerFactory originalFactory = getDefaultStorageClass().getManagedLedgerFactory();
+        ManagedLedgerFactory customizedFactory = new CustomizedManagedLedgerFactory(originalFactory);
+        // Replace the factory in the default storage class using reflection
+        BookkeeperManagedLedgerStorageClass originalStorageClass =
+                (BookkeeperManagedLedgerStorageClass) getDefaultStorageClass();
+        BookkeeperManagedLedgerStorageClass newStorageClass = new BookkeeperManagedLedgerStorageClass() {
+            @Override
+            public String getName() {
+                return originalStorageClass.getName();
+            }
+
+            @Override
+            public ManagedLedgerFactory getManagedLedgerFactory() {
+                return customizedFactory;
+            }
+
+            @Override
+            public StatsProvider getStatsProvider() {
+                return originalStorageClass.getStatsProvider();
+            }
+
+            @Override
+            public BookKeeper getBookKeeperClient() {
+                return originalStorageClass.getBookKeeperClient();
+            }
+        };
+        // Use reflection to set the private field
+        Field defaultStorageClassField =
+                ManagedLedgerClientFactory.class.getDeclaredField("defaultStorageClass");
+        defaultStorageClassField.setAccessible(true);
+        defaultStorageClassField.set(this, newStorageClass);
     }
 
     @AllArgsConstructor

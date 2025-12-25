@@ -35,12 +35,14 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     @Setter
     private boolean requireSchemaValidation = true;
     private Schema<T> schema;
+    private boolean userProvidedSchema = false;
 
     public AutoProduceBytesSchema() {
     }
 
     public AutoProduceBytesSchema(Schema<T> schema) {
         this.schema = schema;
+        this.userProvidedSchema = true;
         SchemaInfo schemaInfo = schema.getSchemaInfo();
         this.requireSchemaValidation = schemaInfo != null
                                        && schemaInfo.getType() != SchemaType.BYTES
@@ -49,9 +51,14 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
     public void setSchema(Schema<T> schema) {
         this.schema = schema;
+        this.userProvidedSchema = false;
         this.requireSchemaValidation = schema.getSchemaInfo() != null
             && SchemaType.BYTES != schema.getSchemaInfo().getType()
             && SchemaType.NONE != schema.getSchemaInfo().getType();
+    }
+
+    public boolean hasUserProvidedSchema() {
+        return userProvidedSchema;
     }
 
     private void ensureSchemaInitialized() {
@@ -115,6 +122,12 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Schema<byte[]> clone() {
-        return new AutoProduceBytesSchema<>(schema.clone());
+        AutoProduceBytesSchema<T> cloned = new AutoProduceBytesSchema<>();
+        if (schema != null) {
+            cloned.schema = schema.clone();
+            cloned.userProvidedSchema = this.userProvidedSchema;
+            cloned.requireSchemaValidation = this.requireSchemaValidation;
+        }
+        return cloned;
     }
 }

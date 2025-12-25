@@ -6,7 +6,7 @@ FROM debian:trixie
 RUN apt-get update && apt-get install -y \
     systemd \
     systemd-sysv \
-    openjdk-17-jre-headless \
+    openjdk-21-jre-headless \
     python3 \
     bash \
     adduser \
@@ -23,27 +23,23 @@ RUN apt-get update && apt-get install -y \
 # systemd требует, чтобы контейнер запускался с --privileged или --cap-add SYS_ADMIN
 RUN systemctl set-default multi-user.target || true
 
-# Создаем рабочую директорию
+# Создаем рабочую директорию для deb файлов
 WORKDIR /test
 
-# Копируем deb пакет (будет передан при сборке через -v или COPY)
-# Предполагаем, что deb файл будет скопирован в /test/
-COPY *.deb /test/
-
-# Скрипт для проверки установки
-RUN cat > /test/test-package.sh << 'EOF'
+# Скрипт для проверки установки (создаем в /usr/local/bin, чтобы не перезаписывался при монтировании)
+RUN cat > /usr/local/bin/test-package.sh << 'EOFSCRIPT'
 #!/bin/bash
 set -e
 
 echo "=== Тестирование deb пакета Apache Pulsar ==="
 
 # Проверка наличия deb файла
-if [ ! -f /test/*.deb ]; then
+DEB_FILE=$(ls /test/*.deb 2>/dev/null | head -n1)
+if [ -z "$DEB_FILE" ] || [ ! -f "$DEB_FILE" ]; then
     echo "ERROR: deb файл не найден в /test/"
     exit 1
 fi
 
-DEB_FILE=$(ls /test/*.deb | head -n1)
 echo "Найден пакет: $DEB_FILE"
 
 # Проверка структуры пакета
@@ -54,7 +50,17 @@ dpkg -c "$DEB_FILE" | head -20
 # Установка пакета
 echo ""
 echo "=== Установка пакета ==="
-dpkg -i "$DEB_FILE" || apt-get install -f -y
+if ! dpkg -i "$DEB_FILE"; then
+    echo "Исправление зависимостей..."
+    apt-get install -f -y
+fi
+
+# Проверка успешности установки
+if ! dpkg -l | grep -q "^ii.*apache-pulsar"; then
+    echo "ERROR: Пакет не установлен успешно!"
+    exit 1
+fi
+echo "✓ Пакет установлен успешно"
 
 # Проверка установленных файлов
 echo ""
@@ -95,11 +101,16 @@ echo "✓ Найдено конфигурационных файлов: $CONF_CO
 # Проверка systemd сервисов
 echo ""
 echo "=== Проверка systemd сервисов ==="
-test -f /lib/systemd/system/apache-pulsar.service && echo "✓ apache-pulsar.service существует" || echo "✗ apache-pulsar.service отсутствует"
-test -f /lib/systemd/system/apache-pulsar-bookie.service && echo "✓ apache-pulsar-bookie.service существует" || echo "✗ apache-pulsar-bookie.service отсутствует"
-test -f /lib/systemd/system/apache-pulsar-proxy.service && echo "✓ apache-pulsar-proxy.service существует" || echo "✗ apache-pulsar-proxy.service отсутствует"
-test -f /lib/systemd/system/apache-pulsar-functions-worker.service && echo "✓ apache-pulsar-functions-worker.service существует" || echo "✗ apache-pulsar-functions-worker.service отсутствует"
-test -f /lib/systemd/system/apache-pulsar-websocket.service && echo "✓ apache-pulsar-websocket.service существует" || echo "✗ apache-pulsar-websocket.service отсутствует"
+# Проверяем в стандартных местах для systemd unit файлов
+for service in apache-pulsar apache-pulsar-bookie apache-pulsar-proxy apache-pulsar-functions-worker apache-pulsar-websocket; do
+    if [ -f "/lib/systemd/system/${service}.service" ] || \
+       [ -f "/usr/lib/systemd/system/${service}.service" ] || \
+       [ -f "/etc/systemd/system/${service}.service" ]; then
+        echo "✓ ${service}.service существует"
+    else
+        echo "✗ ${service}.service отсутствует"
+    fi
+done
 
 # Проверка пользователя
 echo ""
@@ -158,17 +169,28 @@ fi
 # Проверка зависимостей пакета
 echo ""
 echo "=== Проверка установленных зависимостей ==="
-dpkg -l | grep -E "(openjdk-17|python3|bash|adduser|libsnappy|zlib|libzstd|libssl|ca-certificates)" | head -10
+dpkg -l | grep -E "(openjdk-|python3|bash|adduser|libsnappy|zlib|libzstd|libssl|ca-certificates)" | head -10
 
 # Итоговый отчет
 echo ""
 echo "=== Итоговый отчет ==="
-echo "Пакет установлен: $(dpkg -l | grep apache-pulsar | awk '{print $2 " " $3}')"
+PACKAGE_INFO=$(dpkg -l | grep "^ii.*apache-pulsar" | awk '{print $2 " " $3}')
+if [ -n "$PACKAGE_INFO" ]; then
+    echo "Пакет установлен: $PACKAGE_INFO"
+else
+    echo "⚠ Пакет не найден в списке установленных"
+fi
 echo ""
 echo "=== Тестирование завершено ==="
-EOF
+EOFSCRIPT
 
-RUN chmod +x /test/test-package.sh
+RUN chmod +x /usr/local/bin/test-package.sh && \
+    sed -i 's/\r$//' /usr/local/bin/test-package.sh && \
+    test -f /usr/local/bin/test-package.sh && \
+    test -x /usr/local/bin/test-package.sh && \
+    head -1 /usr/local/bin/test-package.sh | grep -q '^#!/bin/bash' && \
+    echo "Script created successfully"
 
 # Запускаем тесты при старте контейнера
-CMD ["/test/test-package.sh"]
+# Используем явный вызов bash для гарантии работы
+CMD ["/bin/bash", "-x", "/usr/local/bin/test-package.sh"]

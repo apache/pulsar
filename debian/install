@@ -12,3 +12,6 @@ debian/tmp/pulsar/bin/* /usr/lib/apache-pulsar/bin
 
 # символические ссылки для основных команд
 debian/tmp/usr/bin/* /usr/bin
+
+# дополнительные systemd сервисы как примеры (не активируются автоматически)
+debian/tmp/usr/share/apache-pulsar/examples/systemd/*.service /usr/share/apache-pulsar/examples/systemd

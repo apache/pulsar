@@ -1,2 +1,4 @@
 # perform line endings normalization for markdown files
 *.md text eol=lf
+# force LF line endings for all Debian packaging files
+debian/** text eol=lf
