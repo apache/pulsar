@@ -96,10 +96,25 @@ public class NamespaceStatsAggregator {
 
                 brokerStats.updateStats(topicStats);
 
+                // Get and convert custom metric labels if feature is enabled
+                String[] customMetricLabelAndValues = null;
+                if (pulsar.getConfiguration().isExposeCustomTopicMetricLabelsEnabled()) {
+                    Map<String, String> customMetricLabels =
+                        topic.getHierarchyTopicPolicies().getCustomMetricLabels().get();
+                    if (customMetricLabels != null && !customMetricLabels.isEmpty()) {
+                        customMetricLabelAndValues = new String[customMetricLabels.size() * 2];
+                        int index = 0;
+                        for (Map.Entry<String, String> entry : customMetricLabels.entrySet()) {
+                            customMetricLabelAndValues[index++] = entry.getKey();
+                            customMetricLabelAndValues[index++] = entry.getValue();
+                        }
+                    }
+                }
+
                 if (includeTopicMetrics) {
                     topicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
-                            splitTopicAndPartitionIndexLabel);
+                            splitTopicAndPartitionIndexLabel, customMetricLabelAndValues);
                 } else {
                     namespaceStats.updateStats(topicStats);
                 }
