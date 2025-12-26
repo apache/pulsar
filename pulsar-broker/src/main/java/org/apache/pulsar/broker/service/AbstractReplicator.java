@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyExceptio
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
@@ -197,6 +198,7 @@ public abstract class AbstractReplicator implements Replicator {
             ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
             builderImpl.getConf().setNonPartitionedTopicExpected(true);
             builderImpl.getConf().setReplProducer(true);
+            builderImpl.getConf().setAccessMode(ProducerAccessMode.Shared);
             return producerBuilder.createAsync().thenAccept(producer -> {
                 setProducerAndTriggerReadEntries(producer);
             });
