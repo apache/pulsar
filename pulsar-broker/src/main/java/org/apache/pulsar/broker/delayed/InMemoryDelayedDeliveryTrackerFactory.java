@@ -54,7 +54,7 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String topicName = dispatcher.getTopic().getName();
         String subscriptionName = dispatcher.getSubscription().getName();
-        DelayedDeliveryTracker tracker =  DelayedDeliveryTracker.DISABLE;
+        DelayedDeliveryTracker tracker = DelayedDeliveryTracker.DISABLE;
         try {
             tracker = newTracker0(dispatcher);
         } catch (Exception e) {
