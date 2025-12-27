@@ -2763,8 +2763,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         cursor, markDeletedPosition);
                 future.complete(null);
             } else {
-                // May happen, persistentMarkDeletedPosition is updated after markDeletedPosition
-                log.info("Ledger rollover tries to mark delete an already mark-deleted position. Current mark-delete:"
+                // Should not happen
+                log.warn("Ledger rollover tries to mark delete an already mark-deleted position. Current mark-delete:"
                         + " {} -- attempted position: {}", markDeletedPosition, lastAckedPosition);
                 future.complete(null);
             }
