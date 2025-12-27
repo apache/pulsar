@@ -56,6 +56,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -69,6 +70,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -3782,6 +3784,61 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             Assert.assertEquals(finalManagedLedger.getLedgersInfoAsList().size(), 1);
             Assert.assertEquals(finalManagedLedger.getTotalSize(), 0);
         });
+    }
+
+    @Test(timeOut = 20000, invocationCount = 1000)
+    public void testNeverThrowsMarkDeletingMarkedPositionInMaybeUpdateCursorBeforeTrimmingConsumedLedger()
+            throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
+        int entryNum = 100;
+
+        ManagedLedgerImpl realManagedLedger =
+                (ManagedLedgerImpl) factory.open("maybeUpdateCursorBeforeTrimmingConsumed_ledger", config);
+        ManagedLedgerImpl managedLedger = spy(realManagedLedger);
+        ManagedCursor cursor = managedLedger.openCursor("c1");
+
+        Deque<CompletableFuture<Void>> futures = new ConcurrentLinkedDeque<>();
+        doAnswer(invocation -> {
+            CompletableFuture<Void> result = (CompletableFuture<Void>) invocation.callRealMethod();
+            futures.offer(result);
+            return result;
+        }).when(managedLedger).maybeUpdateCursorBeforeTrimmingConsumedLedger();
+
+        final CountDownLatch latch = new CountDownLatch(entryNum);
+        // Two asyncMarkDelete operations running concurrently:
+        //   1. ledger rollover triggered maybeUpdateCursorBeforeTrimmingConsumedLedger.
+        //   2. user triggered asyncMarkDelete.
+        for (int i = 0; i < entryNum; i++) {
+            managedLedger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                }
+
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                            fail("Should never fail",  exception);
+                        }
+
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                            latch.countDown();
+                        }
+                    }, null);
+
+                }
+            }, null);
+        }
+
+        latch.await();
+        assertEquals(cursor.getNumberOfEntries(), 0);
+
+        // Will not throw exception
+        FutureUtil.waitForAll(futures).get();
     }
 
     @Test(timeOut = 20000)
