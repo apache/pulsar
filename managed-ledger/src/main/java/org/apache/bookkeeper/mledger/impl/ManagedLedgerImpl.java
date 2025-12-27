@@ -1761,11 +1761,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         updateLedgersIdsComplete(originalCurrentLedger);
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
                                 - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
+                        // May need to update the cursor position
+                        maybeUpdateCursorBeforeTrimmingConsumedLedger();
                     }
                     metadataMutex.unlock();
-
-                    // May need to update the cursor position
-                    maybeUpdateCursorBeforeTrimmingConsumedLedger();
                 }
 
                 @Override
@@ -2715,10 +2714,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             CompletableFuture<Void> future = new CompletableFuture<>();
             cursorMarkDeleteFutures.add(future);
 
-            // Snapshot cursor.getMarkDeletedPosition() into a local variable to avoid race condition.
+            // Snapshot positions into a local variables to avoid race condition.
+            Position persistentMarkDeletedPosition = cursor.getPersistentMarkDeletedPosition();
             Position markDeletedPosition = cursor.getMarkDeletedPosition();
-            Position lastAckedPosition = cursor.getPersistentMarkDeletedPosition() != null
-                    ? cursor.getPersistentMarkDeletedPosition() : markDeletedPosition;
+            Position lastAckedPosition =
+                    persistentMarkDeletedPosition != null ? persistentMarkDeletedPosition : markDeletedPosition;
+//            Position lastAckedPosition = markDeletedPosition;
             LedgerInfo curPointedLedger   = ledgers.get(lastAckedPosition.getLedgerId());
             LedgerInfo nextPointedLedger = Optional.ofNullable(ledgers.higherEntry(lastAckedPosition.getLedgerId()))
                     .map(Map.Entry::getValue).orElse(null);
@@ -2733,11 +2734,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("No need to reset cursor: {}, current ledger is the last ledger.", cursor);
                 }
             } else {
-                // TODO curPointedLedger==null, should we move cursor mark deleted position to nextPointedLedger:-1?
-                // Sample case: Opening an empty ledger with ledgers:(ledgerId:-1), if cursor position is
-                // (ledgerId-1:entryNum-1) and old ledger is trimmed, then curPointedLedger wil be null.
-                // I think we should move cursor position to (ledgerId:-1), or it will cause cursor position and ledger
-                // inconsistency. See PR https://github.com/apache/pulsar/pull/25087
                 log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
             }
 
@@ -2767,14 +2763,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         cursor, markDeletedPosition);
                 future.complete(null);
             } else {
-                // Should not happen
-                log.warn("Trying to mark delete an already mark-deleted position. Current mark-delete:"
+                // May happen, persistentMarkDeletedPosition is updated after markDeletedPosition
+                log.info("Ledger rollover tries to mark delete an already mark-deleted position. Current mark-delete:"
                         + " {} -- attempted position: {}", markDeletedPosition, lastAckedPosition);
-                future.completeExceptionally(null);
-//                future.completeExceptionally(new ManagedLedgerException(
-//                        "Trying to mark delete an already mark-deleted position when update cursor. Current "
-//                                + "mark-delete: " + markDeletedPosition + " -- attempted mark delete: "
-//                                + lastAckedPosition));
+                future.complete(null);
             }
         }
         return FutureUtil.waitForAll(cursorMarkDeleteFutures);

@@ -2255,13 +2255,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         Position newPosition = ackBatchPosition(position);
-        if (ledger.getLastConfirmedEntry().compareTo(newPosition) < 0) {
+        Position markDeletePos = markDeletePosition;
+        Position lastConfirmedEntry = ledger.getLastConfirmedEntry();
+        if (lastConfirmedEntry.compareTo(newPosition) < 0) {
             boolean shouldCursorMoveForward = false;
             try {
-                long ledgerEntries = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get().getEntries();
-                Long nextValidLedger = ledger.getNextValidLedger(ledger.getLastConfirmedEntry().getLedgerId());
+                long ledgerEntries = ledger.getLedgerInfo(markDeletePos.getLedgerId()).get().getEntries();
+                Long nextValidLedger = ledger.getNextValidLedger(lastConfirmedEntry.getLedgerId());
                 shouldCursorMoveForward = nextValidLedger != null
-                        && (markDeletePosition.getEntryId() + 1 >= ledgerEntries)
+                        && (markDeletePos.getEntryId() + 1 >= ledgerEntries)
                         && (newPosition.getLedgerId() == nextValidLedger);
             } catch (Exception e) {
                 log.warn("Failed to get ledger entries while setting mark-delete-position", e);
@@ -2269,11 +2271,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (shouldCursorMoveForward) {
                 log.info("[{}] move mark-delete-position from {} to {} since all the entries have been consumed",
-                        ledger.getName(), markDeletePosition, newPosition);
+                        ledger.getName(), markDeletePos, newPosition);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {}"
-                             + " for cursor [{}]", ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+                             + " for cursor [{}]", ledger.getName(), position, lastConfirmedEntry, name);
                 }
                 callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
                 return;
