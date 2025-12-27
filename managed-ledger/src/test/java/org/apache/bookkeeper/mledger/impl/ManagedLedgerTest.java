@@ -3786,8 +3786,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
     }
 
-    // Huh, maybeUpdateCursorBeforeTrimmingConsumedLedger seems not working well.
-    @Test(timeOut = 20000)
+    @Test(timeOut = 20000, invocationCount = 1000)
     public void testNeverThrowsMarkDeletingMarkedPositionInMaybeUpdateCursorBeforeTrimmingConsumedLedger()
             throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -3822,6 +3821,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                     cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
                         @Override
                         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                            fail("Should never fail",  exception);
                         }
 
                         @Override
