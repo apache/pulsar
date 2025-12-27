@@ -995,10 +995,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // compact the topic again
         compact(topic);
 
-        // shouldn't have opened first ledger (already compacted), penultimate would have some uncompacted data.
-        // last ledger already open for writing
+        // shouldn't have opened first and penultimate ledger (already compacted), last ledger already open for writing
         assertFalse(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
-        assertTrue(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
+        assertFalse(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
         assertFalse(ledgersOpened.contains(info.ledgers.get(2).ledgerId));
 
         // all three messages should be there when we read compacted
