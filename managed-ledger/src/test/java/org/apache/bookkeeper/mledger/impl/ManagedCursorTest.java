@@ -468,6 +468,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     void testNumberOfEntries() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
 
+        ManagedCursor c0 = ledger.openCursor("c0");
+        assertEquals(c0.getNumberOfEntries(), 0);
+        assertFalse(c0.hasMoreEntries());
+
         ManagedCursor c1 = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ManagedCursor c2 = ledger.openCursor("c2");

@@ -1243,7 +1243,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getNumberOfEntries() {
-        if (readPosition.compareTo(ledger.getLastPosition().getNext()) > 0) {
+        if (readPosition.compareTo(ledger.getLastPosition()) > 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Read position {} is ahead of last position {}. There are no entries to read",
                         ledger.getName(), name, readPosition, ledger.getLastPosition());
