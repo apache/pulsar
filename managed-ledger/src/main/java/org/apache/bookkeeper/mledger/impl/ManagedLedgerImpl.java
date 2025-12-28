@@ -2715,11 +2715,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             cursorMarkDeleteFutures.add(future);
 
             // Snapshot positions into a local variables to avoid race condition.
-            Position persistentMarkDeletedPosition = cursor.getPersistentMarkDeletedPosition();
             Position markDeletedPosition = cursor.getMarkDeletedPosition();
-            Position lastAckedPosition =
-                    persistentMarkDeletedPosition != null ? persistentMarkDeletedPosition : markDeletedPosition;
-//            Position lastAckedPosition = markDeletedPosition;
+            Position lastAckedPosition = markDeletedPosition;
             LedgerInfo curPointedLedger   = ledgers.get(lastAckedPosition.getLedgerId());
             LedgerInfo nextPointedLedger = Optional.ofNullable(ledgers.higherEntry(lastAckedPosition.getLedgerId()))
                     .map(Map.Entry::getValue).orElse(null);
