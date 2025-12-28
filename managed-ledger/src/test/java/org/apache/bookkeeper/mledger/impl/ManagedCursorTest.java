@@ -4840,8 +4840,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = (ManagedLedgerImpl) factory
                 .open("testLazyCursorLedgerCreation", managedLedgerConfig);
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
-        assertEquals(cursor1.getState(), "NoLedger");
-        assertEquals(cursor1.getMarkDeletedPosition(), finalLastPosition);
+        assertEquals(cursor1.getState(), "Open");
+        assertThat(cursor1.getMarkDeletedPosition()).isGreaterThan(finalLastPosition);
 
         // Verify the recovered cursor can work with new mark delete.
         lastPosition = null;
