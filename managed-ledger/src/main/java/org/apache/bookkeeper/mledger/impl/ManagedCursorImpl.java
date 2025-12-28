@@ -1250,16 +1250,17 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getNumberOfEntries() {
+        Position readPos = readPosition;
         Position lastPosition = ledger.getLastPosition();
         Position nextPosition = lastPosition.getNext();
-        if (readPosition.compareTo(nextPosition) > 0) {
+        if (readPos.compareTo(nextPosition) > 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Read position {} is ahead of last position {}. There are no entries to read",
-                        ledger.getName(), name, readPosition, lastPosition);
+                        ledger.getName(), name, readPos, lastPosition);
             }
             return 0;
         } else {
-            return getNumberOfEntries(Range.closedOpen(readPosition, nextPosition));
+            return getNumberOfEntries(Range.closedOpen(readPos, nextPosition));
         }
     }
 
