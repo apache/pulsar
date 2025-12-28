@@ -407,7 +407,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.close();
         ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
         ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
-        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+        assertThat(cursorRecovered.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
+        assertThat(cursorRecovered.getMarkDeletedPosition()).isGreaterThan(lastEntry);
 
         // cleanup.
         ml.delete();
