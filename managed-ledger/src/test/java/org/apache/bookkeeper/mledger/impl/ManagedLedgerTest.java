@@ -3787,7 +3787,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
-    public void testNeverThrowsMarkDeletingMarkedPositionInMaybeUpdateCursorBeforeTrimmingConsumedLedger()
+    public void testNeverThrowExceptionInMaybeUpdateCursorBeforeTrimmingConsumedLedger()
             throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
