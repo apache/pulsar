@@ -73,7 +73,8 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
     @Override
     public void close() {
-        // Producer will fail pending messages when it being closed, which will trigger the `onSendAcknowledgement` events
+        // Producer will fail pending messages when it being closed,
+        // which will trigger the `onSendAcknowledgement` events
     }
 
     @Override
