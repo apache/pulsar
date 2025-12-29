@@ -73,7 +73,7 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
     @Override
     public void close() {
-        // No cleanup needed - spans are attached to messages
+        // Producer will fail pending messages when it being closed, which will trigger the `onSendAcknowledgement` events
     }
 
     @Override
