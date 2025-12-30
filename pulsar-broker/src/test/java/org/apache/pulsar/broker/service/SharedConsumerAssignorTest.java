@@ -58,7 +58,7 @@ public class SharedConsumerAssignorTest {
         roundRobinConsumerSelector.clear();
         entryAndMetadataList.clear();
         replayQueue.clear();
-        assignor = new SharedConsumerAssignor(roundRobinConsumerSelector, replayQueue::add);
+        assignor = new SharedConsumerAssignor(roundRobinConsumerSelector, replayQueue::add, null);
         final AtomicLong entryId = new AtomicLong(0L);
         final MockProducer producerA = new MockProducer("A", entryId, entryAndMetadataList);
         final MockProducer producerB = new MockProducer("B", entryId, entryAndMetadataList);
