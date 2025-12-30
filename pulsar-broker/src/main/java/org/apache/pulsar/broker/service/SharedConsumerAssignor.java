@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,11 +28,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.persistent.PulsarCompactorSubscription;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
  */
+
+@Slf4j
 @RequiredArgsConstructor
 public class SharedConsumerAssignor {
 
@@ -49,6 +55,8 @@ public class SharedConsumerAssignor {
 
     // Process the unassigned messages, e.g. adding them to the replay queue
     private final java.util.function.Consumer<EntryAndMetadata> unassignedMessageProcessor;
+
+    private final Subscription subscription;
 
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
                                                         final int numConsumers) {
@@ -80,15 +88,41 @@ public class SharedConsumerAssignor {
 
             if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
                 consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
+                availablePermits--;
             } else {
-                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer, availablePermits);
+                final String uuid = metadata.getUuid();
+                Consumer consumerForUuid = uuidToConsumer.get(uuid);
                 if (consumerForUuid == null) {
-                    unassignedMessageProcessor.accept(entryAndMetadata);
-                    continue;
+                    if (metadata.getChunkId() != 0) {
+                        if (subscription != null) {
+                            log.warn("[{}][{}] Skip the message because of it not the first chunk."
+                                            + " Position: {}, UUID: {}, ChunkId: {}, NumChunksFromMsg: {}",
+                                    subscription.getTopicName(), subscription.getName(), entryAndMetadata.getPosition(),
+                                    metadata.getUuid(), metadata.getChunkId(), metadata.getNumChunksFromMsg());
+                            // Directly ack the message
+                            if (!(subscription instanceof PulsarCompactorSubscription)) {
+                                subscription.acknowledgeMessage(Collections.singletonList(
+                                        entryAndMetadata.getPosition()), AckType.Individual, Collections.emptyMap());
+                                entryAndMetadata.release();
+                            }
+                        }
+                    }
+                    consumerForUuid = consumer;
+                    uuidToConsumer.put(uuid, consumerForUuid);
                 }
+
+                final int permits = consumerToPermits.computeIfAbsent(consumerForUuid, Consumer::getAvailablePermits);
+                if (metadata.getChunkId() == metadata.getNumChunksFromMsg() - 1) {
+                    // The last chunk is received, we should remove the uuid
+                    uuidToConsumer.remove(uuid);
+                }
+
                 consumerToEntries.computeIfAbsent(consumerForUuid, __ -> new ArrayList<>()).add(entryAndMetadata);
+                consumerToPermits.put(consumerForUuid, permits - 1);
+                if (consumerForUuid == consumer) {
+                    availablePermits--;
+                }
             }
-            availablePermits--;
         }
 
         for (; index < entryAndMetadataList.size(); index++) {
@@ -110,30 +144,5 @@ public class SharedConsumerAssignor {
             }
         }
         return null;
-    }
-
-    private Consumer getConsumerForUuid(final MessageMetadata metadata,
-                                        final Consumer defaultConsumer,
-                                        final int currentAvailablePermits) {
-        final String uuid = metadata.getUuid();
-        Consumer consumer = uuidToConsumer.get(uuid);
-        if (consumer == null) {
-            if (metadata.getChunkId() != 0) {
-                // Not the first chunk, skip it
-                return null;
-            }
-            consumer = defaultConsumer;
-            uuidToConsumer.put(uuid, consumer);
-        }
-        final int permits = consumerToPermits.computeIfAbsent(consumer, Consumer::getAvailablePermits);
-        if (permits <= 0) {
-            return null;
-        }
-        if (metadata.getChunkId() == metadata.getNumChunksFromMsg() - 1) {
-            // The last chunk is received, we should remove the cache
-            uuidToConsumer.remove(uuid);
-        }
-        consumerToPermits.put(consumer, currentAvailablePermits - 1);
-        return consumer;
     }
 }
