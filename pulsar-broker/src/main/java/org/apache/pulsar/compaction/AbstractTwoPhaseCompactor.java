@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
@@ -59,7 +60,8 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
-  public static volatile Runnable injectionAfterSeekInPhaseTwo = () -> {};
+  @VisibleForTesting
+  static Runnable injectionAfterSeekInPhaseTwo = () -> {};
   private static final Logger log = LoggerFactory.getLogger(AbstractTwoPhaseCompactor.class);
   protected static final int MAX_OUTSTANDING = 500;
   protected final Duration phaseOneLoopReadTimeout;

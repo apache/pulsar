@@ -160,6 +160,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() throws Exception {
         admin.namespaces().removeRetention("my-tenant/my-ns");
+        AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
     }
 
     protected long compact(String topic) throws ExecutionException, InterruptedException {
@@ -2482,7 +2483,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPhaseTwoInterruption() throws Exception {
-        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(60/* 1 hour */, 1024/* 1MB */));
+        // Set infinite retention to retain all original ledgers
+        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
         final var topic = "persistent://my-tenant/my-ns/phase-two-interruption";
         @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         final BiConsumer<String, String> send = (key, value) -> {
@@ -2490,8 +2492,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             log.info("Sent {} => {} to {}", key, value, msgId);
         };
 
-        // Create a consumer that never acknowledges to prevent compacted messages from being deleted
-        final var consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub").subscribe();
         send.accept("key-0", "value");
         for (int i = 0; i < 3; i++) {
             send.accept("key-1", "value-" + i);
@@ -2515,7 +2515,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .containsKey(TopicName.get(topic).toString())));
 
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
-        consumer.close();
 
         // Messages of "key-2" are not compacted due to the injected failure, but the previous messages are read from
         // the compacted ledger rather than the original ledger.
