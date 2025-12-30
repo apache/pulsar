@@ -240,7 +240,7 @@ public class SharedConsumerAssignorTest {
     }
 
     /**
-     * When there are no consumers online, chunk messages will not be directly lost
+     * When there are no consumers online, chunk messages will not be directly lost.
      */
     @Test
     public void testChunkMessagesNotBeLostNoConsumer() {
