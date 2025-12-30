@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     libssl3 \
     ca-certificates \
     dpkg \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Настройка systemd для работы в контейнере
@@ -85,6 +86,59 @@ if [ "$JAR_COUNT" -eq 0 ]; then
     echo "✗ WARNING: JAR файлы не найдены!"
 fi
 
+# Проверка основного broker JAR файла
+BROKER_JAR=$(ls /usr/lib/apache-pulsar/pulsar-broker*.jar 2>/dev/null | grep -v tests | head -1)
+if [ -n "$BROKER_JAR" ]; then
+    echo "✓ Основной broker JAR найден: $(basename "$BROKER_JAR")"
+    # Проверяем, что JAR содержит нужные классы
+    if unzip -l "$BROKER_JAR" 2>/dev/null | grep -q "org/apache/pulsar/PulsarStandaloneStarter"; then
+        echo "✓ JAR содержит класс PulsarStandaloneStarter"
+    else
+        echo "⚠ WARNING: JAR не содержит класс PulsarStandaloneStarter"
+        echo "  Проверяем содержимое JAR:"
+        unzip -l "$BROKER_JAR" 2>/dev/null | grep -i "pulsar.*starter" | head -5 || true
+    fi
+    if unzip -l "$BROKER_JAR" 2>/dev/null | grep -q "org/apache/pulsar/PulsarVersionStarter"; then
+        echo "✓ JAR содержит класс PulsarVersionStarter"
+    else
+        echo "⚠ WARNING: JAR не содержит класс PulsarVersionStarter"
+    fi
+else
+    echo "✗ WARNING: Основной broker JAR не найден в /usr/lib/apache-pulsar/"
+    echo "  Найденные JAR файлы в корне:"
+    ls -la /usr/lib/apache-pulsar/*.jar 2>/dev/null | head -5 || echo "  Нет JAR файлов"
+fi
+
+# Проверка pulsar-admin-common.sh
+if [ -f /usr/lib/apache-pulsar/bin/pulsar-admin-common.sh ]; then
+    echo "✓ pulsar-admin-common.sh найден в /usr/lib/apache-pulsar/bin/"
+else
+    echo "✗ WARNING: pulsar-admin-common.sh не найден в /usr/lib/apache-pulsar/bin/"
+fi
+
+# Проверка определения PULSAR_HOME в скриптах
+echo "--- Проверка скриптов ---"
+if [ -f /usr/lib/apache-pulsar/bin/pulsar-admin ]; then
+    # Проверяем, что скрипт правильно определяет PULSAR_HOME
+    TEST_PULSAR_HOME=$(cd /usr/lib/apache-pulsar/bin && bash -c 'BINDIR=$(dirname "$(readlink -f pulsar-admin 2>/dev/null || echo pulsar-admin)"); export PULSAR_HOME=$(cd -P $BINDIR/..;pwd); echo $PULSAR_HOME')
+    if [ "$TEST_PULSAR_HOME" = "/usr/lib/apache-pulsar" ]; then
+        echo "✓ Скрипт pulsar-admin правильно определяет PULSAR_HOME: $TEST_PULSAR_HOME"
+    else
+        echo "⚠ WARNING: Скрипт pulsar-admin определяет PULSAR_HOME как: $TEST_PULSAR_HOME (ожидается: /usr/lib/apache-pulsar)"
+    fi
+fi
+
+# Проверка lib директории
+if [ -d /usr/lib/apache-pulsar/lib ]; then
+    LIB_JAR_COUNT=$(find /usr/lib/apache-pulsar/lib -name "*.jar" 2>/dev/null | wc -l)
+    echo "✓ Найдено JAR файлов в lib/: $LIB_JAR_COUNT"
+    if [ "$LIB_JAR_COUNT" -eq 0 ]; then
+        echo "⚠ WARNING: JAR файлы в lib/ не найдены!"
+    fi
+else
+    echo "✗ WARNING: Директория lib/ не найдена!"
+fi
+
 # Проверка символических ссылок
 echo ""
 echo "=== Проверка символических ссылок ==="
@@ -101,16 +155,33 @@ echo "✓ Найдено конфигурационных файлов: $CONF_CO
 # Проверка systemd сервисов
 echo ""
 echo "=== Проверка systemd сервисов ==="
-# Проверяем в стандартных местах для systemd unit файлов
-for service in apache-pulsar apache-pulsar-bookie apache-pulsar-proxy apache-pulsar-functions-worker apache-pulsar-websocket; do
-    if [ -f "/lib/systemd/system/${service}.service" ] || \
-       [ -f "/usr/lib/systemd/system/${service}.service" ] || \
-       [ -f "/etc/systemd/system/${service}.service" ]; then
-        echo "✓ ${service}.service существует"
-    else
-        echo "✗ ${service}.service отсутствует"
-    fi
-done
+# Проверяем основной сервис в стандартных местах
+if [ -f "/lib/systemd/system/apache-pulsar.service" ] || \
+   [ -f "/usr/lib/systemd/system/apache-pulsar.service" ] || \
+   [ -f "/etc/systemd/system/apache-pulsar.service" ]; then
+    echo "✓ apache-pulsar.service существует"
+else
+    echo "✗ apache-pulsar.service отсутствует"
+fi
+
+# Проверяем дополнительные сервисы в examples директории
+echo ""
+echo "=== Проверка примеров systemd сервисов ==="
+EXAMPLES_DIR="/usr/share/apache-pulsar/examples/systemd"
+if [ -d "$EXAMPLES_DIR" ]; then
+    echo "✓ Директория примеров существует: $EXAMPLES_DIR"
+    for service in apache-pulsar-bookie apache-pulsar-proxy apache-pulsar-functions-worker apache-pulsar-websocket apache-pulsar-autorecovery; do
+        if [ -f "$EXAMPLES_DIR/${service}.service" ]; then
+            echo "✓ ${service}.service найден в примерах"
+        else
+            echo "✗ ${service}.service отсутствует в примерах"
+        fi
+    done
+    EXAMPLE_COUNT=$(find "$EXAMPLES_DIR" -name "*.service" 2>/dev/null | wc -l)
+    echo "✓ Найдено примеров сервисов: $EXAMPLE_COUNT"
+else
+    echo "✗ Директория примеров отсутствует: $EXAMPLES_DIR"
+fi
 
 # Проверка пользователя
 echo ""
@@ -140,19 +211,237 @@ echo "=== Проверка исполняемости скриптов ==="
 test -x /usr/lib/apache-pulsar/bin/pulsar && echo "✓ pulsar исполняемый" || echo "✗ pulsar не исполняемый"
 test -x /usr/lib/apache-pulsar/bin/pulsar-admin && echo "✓ pulsar-admin исполняемый" || echo "✗ pulsar-admin не исполняемый"
 
-# Проверка версии команд (без запуска сервисов)
+# Проверка функционала команд (без запуска сервисов)
 echo ""
 echo "=== Проверка команд ==="
-if /usr/bin/pulsar --version >/dev/null 2>&1 || /usr/bin/pulsar version >/dev/null 2>&1; then
-    echo "✓ Команда pulsar работает"
+
+# Проверка наличия Java
+if command -v java >/dev/null 2>&1; then
+    JAVA_VERSION=$(java -version 2>&1 | head -n1)
+    echo "✓ Java доступна: $JAVA_VERSION"
 else
-    echo "⚠ Команда pulsar не отвечает (может требовать конфигурацию)"
+    echo "✗ Java не найдена"
 fi
 
-if /usr/bin/pulsar-admin --version >/dev/null 2>&1 || /usr/bin/pulsar-admin version >/dev/null 2>&1; then
-    echo "✓ Команда pulsar-admin работает"
+# Установка переменных окружения для команд
+export PULSAR_HOME=/usr/lib/apache-pulsar
+export PULSAR_CONF=/etc/apache-pulsar
+export PULSAR_LOG_DIR=/var/log/apache-pulsar
+
+# Проверка pulsar - команда требует аргументы
+echo ""
+echo "--- Проверка pulsar ---"
+PULSAR_OUTPUT=$(/usr/bin/pulsar 2>&1) || true
+PULSAR_EXIT=$?
+if [ $PULSAR_EXIT -eq 1 ] && echo "$PULSAR_OUTPUT" | grep -qiE "Usage|pulsar|command|broker|bookie"; then
+    echo "✓ Команда pulsar работает (показывает usage при отсутствии аргументов)"
+    # Показываем количество доступных команд
+    COMMAND_COUNT=$(echo "$PULSAR_OUTPUT" | grep -cE "^\s+(broker|bookie|zookeeper|proxy|websocket|standalone)" 2>/dev/null || echo "0")
+    if [ -n "$COMMAND_COUNT" ] && [ "$COMMAND_COUNT" -gt 0 ] 2>/dev/null; then
+        echo "  Доступно команд: $COMMAND_COUNT"
+    fi
+elif /usr/bin/pulsar --help >/dev/null 2>&1; then
+    echo "✓ Команда pulsar работает (--help)"
 else
-    echo "⚠ Команда pulsar-admin не отвечает (может требовать конфигурацию)"
+    echo "⚠ Команда pulsar: exit code=$PULSAR_EXIT"
+    echo "  Вывод: $(echo "$PULSAR_OUTPUT" | head -n3 | tr '\n' ' ' 2>/dev/null || echo 'нет вывода')"
+fi
+
+# Проверка подкоманд pulsar (могут требовать конфигурацию, но должны показывать help)
+if /usr/bin/pulsar broker --help >/dev/null 2>&1 || /usr/bin/pulsar broker --help 2>&1 | grep -qiE "Usage|help|broker"; then
+    echo "✓ Команда 'pulsar broker' доступна"
+fi
+
+if /usr/bin/pulsar standalone --help >/dev/null 2>&1 || /usr/bin/pulsar standalone --help 2>&1 | grep -qiE "Usage|help|standalone"; then
+    echo "✓ Команда 'pulsar standalone' доступна"
+fi
+
+# Проверка pulsar-admin
+echo ""
+echo "--- Проверка pulsar-admin ---"
+PULSAR_ADMIN_OUTPUT=$(/usr/bin/pulsar-admin 2>&1) || true
+PULSAR_ADMIN_EXIT=$?
+if [ $PULSAR_ADMIN_EXIT -ne 0 ] && echo "$PULSAR_ADMIN_OUTPUT" | grep -qiE "Usage|pulsar-admin|command|help|clusters|tenants"; then
+    echo "✓ Команда pulsar-admin работает (показывает usage при отсутствии аргументов)"
+    # Показываем количество доступных подкоманд
+    ADMIN_COMMAND_COUNT=$(echo "$PULSAR_ADMIN_OUTPUT" | grep -cE "^\s+(clusters|tenants|namespaces|topics|functions)" 2>/dev/null || echo "0")
+    if [ -n "$ADMIN_COMMAND_COUNT" ] && [ "$ADMIN_COMMAND_COUNT" -gt 0 ] 2>/dev/null; then
+        echo "  Доступно подкоманд: $ADMIN_COMMAND_COUNT"
+    fi
+elif /usr/bin/pulsar-admin --help >/dev/null 2>&1; then
+    echo "✓ Команда pulsar-admin работает (--help)"
+else
+    echo "⚠ Команда pulsar-admin: exit code=$PULSAR_ADMIN_EXIT"
+    echo "  Вывод: $(echo "$PULSAR_ADMIN_OUTPUT" | head -n3 | tr '\n' ' ' 2>/dev/null || echo 'нет вывода')"
+fi
+
+# Проверка подкоманд pulsar-admin (могут требовать подключения к брокеру)
+if /usr/bin/pulsar-admin clusters --help >/dev/null 2>&1 || /usr/bin/pulsar-admin clusters list 2>&1 | grep -qiE "Usage|help|clusters|connection"; then
+    echo "✓ Команда 'pulsar-admin clusters' доступна"
+fi
+
+if /usr/bin/pulsar-admin tenants --help >/dev/null 2>&1 || /usr/bin/pulsar-admin tenants list 2>&1 | grep -qiE "Usage|help|tenants|connection"; then
+    echo "✓ Команда 'pulsar-admin tenants' доступна"
+fi
+
+# Проверка других команд
+echo ""
+echo "--- Проверка других команд ---"
+if /usr/bin/bookkeeper --help >/dev/null 2>&1; then
+    echo "✓ Команда bookkeeper работает (--help)"
+elif BOOKIE_OUTPUT=$(/usr/bin/bookkeeper 2>&1 || true); echo "$BOOKIE_OUTPUT" | grep -qiE "Usage|bookkeeper|command"; then
+    echo "✓ Команда bookkeeper работает (показывает usage)"
+else
+    echo "⚠ Команда bookkeeper не отвечает"
+fi
+
+if /usr/bin/pulsar-client --help >/dev/null 2>&1; then
+    echo "✓ Команда pulsar-client работает (--help)"
+elif CLIENT_OUTPUT=$(/usr/bin/pulsar-client 2>&1 || true); echo "$CLIENT_OUTPUT" | grep -qiE "Usage|pulsar-client|command"; then
+    echo "✓ Команда pulsar-client работает (показывает usage)"
+else
+    echo "⚠ Команда pulsar-client не отвечает"
+fi
+
+echo ""
+echo "Примечание: Команды могут требовать конфигурацию (ZooKeeper, BookKeeper) для полной функциональности."
+echo "Проверка показывает, что команды установлены и могут быть запущены."
+
+# Проверка запуска standalone Pulsar
+echo ""
+echo "=== Проверка запуска standalone Pulsar ==="
+
+# Диагностика: проверяем переменные окружения и JAR файлы
+echo "--- Диагностика перед запуском ---"
+echo "PULSAR_HOME: ${PULSAR_HOME:-не установлен}"
+if [ -n "$PULSAR_HOME" ]; then
+    echo "JAR файлы в корне PULSAR_HOME:"
+    ls -la "$PULSAR_HOME"/*.jar 2>/dev/null | head -5 || echo "  JAR файлы не найдены в корне"
+    echo "JAR файлы в lib/:"
+    ls -la "$PULSAR_HOME/lib"/*.jar 2>/dev/null | wc -l | xargs echo "  Найдено JAR файлов:"
+    echo "Основной broker JAR:"
+    ls -la "$PULSAR_HOME"/pulsar-broker*.jar 2>/dev/null || echo "  Не найден"
+fi
+
+echo "Запуск standalone Pulsar (может занять некоторое время)..."
+
+# Создаем временную директорию для данных standalone
+STANDALONE_DATA_DIR=/tmp/pulsar-standalone-test
+mkdir -p "$STANDALONE_DATA_DIR/data"
+mkdir -p "$STANDALONE_DATA_DIR/logs"
+
+# Проверяем наличие конфигурационного файла standalone
+if [ -f /etc/apache-pulsar/standalone.conf ]; then
+    STANDALONE_CONF="/etc/apache-pulsar/standalone.conf"
+    echo "Используется конфигурация: $STANDALONE_CONF"
+else
+    # Если конфигурации нет, standalone будет использовать значения по умолчанию
+    STANDALONE_CONF=""
+    echo "Конфигурация не найдена, используются значения по умолчанию"
+fi
+
+# Диагностика: проверяем, что скрипт может найти JAR
+echo "--- Проверка скрипта pulsar ---"
+# Запускаем скрипт с --version для проверки, что он находит JAR
+if /usr/bin/pulsar version >/dev/null 2>&1; then
+    echo "✓ Команда 'pulsar version' работает"
+else
+    VERSION_OUTPUT=$(/usr/bin/pulsar version 2>&1 || true)
+    echo "⚠ Команда 'pulsar version' не работает:"
+    echo "$VERSION_OUTPUT" | head -5
+fi
+
+# Запускаем standalone в фоне с указанием конфигурации если она есть
+if [ -n "$STANDALONE_CONF" ]; then
+    /usr/bin/pulsar standalone -c "$STANDALONE_CONF" > "$STANDALONE_DATA_DIR/logs/standalone.log" 2>&1 &
+else
+    /usr/bin/pulsar standalone > "$STANDALONE_DATA_DIR/logs/standalone.log" 2>&1 &
+fi
+PULSAR_PID=$!
+
+echo "Standalone Pulsar запущен (PID: $PULSAR_PID)"
+echo "Ожидание запуска (максимум 60 секунд)..."
+
+# Ждем запуска - проверяем порт 8080 (HTTP admin API)
+TIMEOUT=60
+ELAPSED=0
+STARTED=0
+
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    sleep 2
+    ELAPSED=$((ELAPSED + 2))
+    
+    # Проверяем, что процесс еще работает
+    if ! kill -0 $PULSAR_PID 2>/dev/null; then
+        echo "⚠ Standalone Pulsar завершился неожиданно"
+        echo "Последние строки лога:"
+        tail -n 10 "$STANDALONE_DATA_DIR/logs/standalone.log" 2>/dev/null || true
+        STARTED=0
+        break
+    fi
+    
+    # Проверяем HTTP API
+    if curl -s -f http://localhost:8080/admin/v2/clusters/standalone >/dev/null 2>&1; then
+        echo "✓ Standalone Pulsar запущен и отвечает на HTTP API (порт 8080)"
+        STARTED=1
+        break
+    fi
+    
+    # Показываем прогресс каждые 10 секунд
+    if [ $((ELAPSED % 10)) -eq 0 ]; then
+        echo "  Ожидание... ($ELAPSED/$TIMEOUT секунд)"
+    fi
+done
+
+if [ $STARTED -eq 1 ]; then
+    # Проверяем порт 6650 (broker)
+    if timeout 1 bash -c "echo > /dev/tcp/localhost/6650" 2>/dev/null; then
+        echo "✓ Broker порт 6650 открыт"
+    else
+        echo "⚠ Broker порт 6650 не отвечает"
+    fi
+    
+    # Проверяем через pulsar-admin
+    if /usr/bin/pulsar-admin clusters list 2>&1 | grep -q "standalone"; then
+        echo "✓ Кластер 'standalone' доступен через pulsar-admin"
+    fi
+    
+    # Проверяем namespaces
+    if /usr/bin/pulsar-admin namespaces list public 2>&1 | grep -q "default"; then
+        echo "✓ Namespace 'public/default' доступен"
+    fi
+    
+    echo ""
+    echo "✓ Standalone Pulsar успешно запущен и работает!"
+    echo "  HTTP API: http://localhost:8080"
+    echo "  Broker: pulsar://localhost:6650"
+    
+    # Останавливаем standalone
+    echo ""
+    echo "Остановка standalone Pulsar..."
+    kill $PULSAR_PID 2>/dev/null || true
+    sleep 3
+    
+    # Если процесс еще работает, принудительно завершаем
+    if kill -0 $PULSAR_PID 2>/dev/null; then
+        kill -9 $PULSAR_PID 2>/dev/null || true
+        echo "  Принудительно завершен"
+    else
+        echo "✓ Standalone Pulsar остановлен"
+    fi
+    
+    # Очистка временных данных
+    rm -rf "$STANDALONE_DATA_DIR" 2>/dev/null || true
+else
+    echo "✗ Standalone Pulsar не запустился в течение $TIMEOUT секунд"
+    if [ -f "$STANDALONE_DATA_DIR/logs/standalone.log" ]; then
+        echo "Последние строки лога:"
+        tail -n 20 "$STANDALONE_DATA_DIR/logs/standalone.log"
+    fi
+    # Останавливаем процесс если он еще работает
+    kill $PULSAR_PID 2>/dev/null || true
+    kill -9 $PULSAR_PID 2>/dev/null || true
+    rm -rf "$STANDALONE_DATA_DIR" 2>/dev/null || true
 fi
 
 # Проверка man страниц (если есть)

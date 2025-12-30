@@ -25,29 +25,53 @@
 
 3. Запустите сборку:
 
+   **Linux/macOS:**
    ```bash
    docker run --rm -v $(pwd)/docker/deb/build/output:/mnt/deb apache-pulsar-builder
    ```
 
-4. Собранный deb пакет будет в директории `docker/deb/build/output/`:
+   **Windows PowerShell:**
+   ```powershell
+   docker run --rm -v ${PWD}/docker/deb/build/output:/mnt/deb apache-pulsar-builder
+   ```
 
+   **Windows CMD:**
+   ```cmd
+   docker run --rm -v %CD%/docker/deb/build/output:/mnt/deb apache-pulsar-builder
+   ```
+
+4. Собранный deb пакет и все файлы результатов будут автоматически скопированы в директорию `docker/deb/build/output/`:
+
+   **Linux/macOS:**
    ```bash
-   ls docker/deb/build/output/*.deb
+   ls -lh docker/deb/build/output/
+   ```
+
+   **Windows PowerShell:**
+   ```powershell
+   Get-ChildItem docker\deb\build\output\
    ```
 
 ### Альтернативный способ (с интерактивным доступом)
 
 Если нужно получить доступ к контейнеру после сборки:
 
+**Linux/macOS:**
 ```bash
 docker run -it --rm -v $(pwd)/docker/deb/build/output:/mnt/deb apache-pulsar-builder bash
 ```
 
-Затем внутри контейнера:
+**Windows PowerShell:**
+```powershell
+docker run -it --rm -v ${PWD}/docker/deb/build/output:/mnt/deb apache-pulsar-builder bash
+```
+
+Затем внутри контейнера файлы автоматически скопируются в `/mnt/deb/` после завершения сборки командой `debuild -us -uc -b`, или вы можете скопировать их вручную:
 
 ```bash
-debuild -us -uc -b
 cp /workspace/*.deb /mnt/deb/
+cp /workspace/*.changes /mnt/deb/
+cp /workspace/*.buildinfo /mnt/deb/
 ```
 
 ## Что делает Dockerfile

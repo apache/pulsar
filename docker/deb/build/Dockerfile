@@ -81,4 +81,10 @@ ENV JAVA_HOME=/usr/lib/jvm/default-java
 # Сборка пакета
 # -us -uc означает: не подписывать (us=unsigned, uc=unsigned changes)
 # -b означает: сборка только бинарного пакета (без исходников)
-CMD debuild -us -uc -b && cp /workspace/*.deb /mnt/deb/ 2>/dev/null || true && tail -f /dev/null
+CMD debuild -us -uc -b && \
+    cp /workspace/*.deb /mnt/deb/ 2>/dev/null || true && \
+    cp /workspace/*.changes /mnt/deb/ 2>/dev/null || true && \
+    cp /workspace/*.buildinfo /mnt/deb/ 2>/dev/null || true && \
+    echo "Build complete! Files copied to /mnt/deb/" && \
+    ls -lh /mnt/deb/ && \
+    tail -f /dev/null
