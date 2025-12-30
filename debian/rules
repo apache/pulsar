@@ -6,63 +6,87 @@ export JAVA_HOME=/usr/lib/jvm/default-java
 	dh $@
 
 override_dh_auto_build:
-	# Build all core Pulsar modules (core-modules profile)
-	# This includes: broker, proxy, websocket, functions-worker and all dependencies
-	# Using -Pcore-modules,-main to build only core modules without external connectors
-	mvn -T 1C -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true
+	# Build Pulsar distribution package (distribution/server module)
+	# This creates a complete distribution layout with all necessary JARs and dependencies
+	# Using -pl distribution/server to build only the server distribution module
+	# Using -am to also build all required dependencies
+	# Using -Dtest.skip=true to completely skip test compilation (not just execution)
+	mvn -T 1C -pl distribution/server -am clean package -DskipTests -Dtest.skip=true -DskipITs -Dlicense.skip=true
 
 override_dh_auto_install:
-	# Create directory structure in tmp
-	mkdir -p debian/tmp/pulsar/java
-	mkdir -p debian/tmp/pulsar/conf
-	mkdir -p debian/tmp/pulsar/bin
-	mkdir -p debian/tmp/pulsar/bin/proto
-	mkdir -p debian/tmp/usr/bin
+	# Find the distribution archive (created during build phase)
+	ARCHIVE=$$(ls distribution/server/target/apache-pulsar-*.tar.gz 2>/dev/null | head -1); \
+	if [ -z "$$ARCHIVE" ]; then \
+		echo "ERROR: Distribution archive not found. Make sure build completed successfully."; \
+		echo "Expected: distribution/server/target/apache-pulsar-*.tar.gz"; \
+		echo "Checking target directory:"; \
+		ls -la distribution/server/target/ 2>/dev/null || echo "Target directory does not exist"; \
+		exit 1; \
+	fi; \
+	echo "Using distribution archive: $$ARCHIVE"; \
+	TMPDIR=$$(mktemp -d); \
+	echo "Temporary extraction directory: $$TMPDIR"; \
+	if [ ! -f "$$ARCHIVE" ]; then \
+		echo "ERROR: Archive file does not exist: $$ARCHIVE"; \
+		rm -rf "$$TMPDIR"; \
+		exit 1; \
+	fi; \
+	tar -xzf "$$ARCHIVE" -C "$$TMPDIR" || { echo "ERROR: Failed to extract archive"; rm -rf "$$TMPDIR"; exit 1; }; \
+	EXTRACTED_DIR=$$(ls -d "$$TMPDIR"/apache-pulsar-*/ 2>/dev/null | head -1); \
+	if [ -z "$$EXTRACTED_DIR" ]; then \
+		echo "ERROR: Failed to find extracted directory."; \
+		echo "Contents of $$TMPDIR:"; \
+		ls -la "$$TMPDIR" || true; \
+		rm -rf "$$TMPDIR"; \
+		exit 1; \
+	fi; \
+	echo "Extracted distribution directory: $$EXTRACTED_DIR"; \
+	# Copy the entire distribution layout to debian/tmp/pulsar
+	mkdir -p debian/tmp/pulsar debian/tmp/etc/apache-pulsar; \
 
-	# Copy jar files
-	# The pulsar script looks for pulsar-*.jar in PULSAR_HOME root or pulsar-broker/target/pulsar-*.jar
-	# Copy main broker jar file to root (as script expects)
-	cp pulsar-broker/target/pulsar-broker*.jar debian/tmp/pulsar/java/ 2>/dev/null || true
-	
-	# Also copy all dependency jar files to lib directory
-	# This is needed for proper classpath work of all components (broker, proxy, websocket, functions-worker)
-	mkdir -p debian/tmp/pulsar/lib
-	# Copy jar files from all modules (excluding test, source and documentation jars)
-	find . -path "*/target/*.jar" ! -name "*tests.jar" ! -name "*sources.jar" ! -name "*javadoc.jar" ! -path "*/distribution/*" ! -path "*/tests/*" -exec cp {} debian/tmp/pulsar/lib/ \; 2>/dev/null || true
-	# Remove execute bits from all jar files (they should not be executable)
-	find debian/tmp/pulsar/lib -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true
-	find debian/tmp/pulsar/java -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true
-
-	# Copy configuration files
-	cp -r conf/* debian/tmp/pulsar/conf
-
-	# Remove execute bits from config and XML/YML files
-	find debian/tmp/pulsar/conf -name "*.conf" -type f -exec chmod -x {} + || true
-	find debian/tmp/pulsar/conf -name "*.xml" -type f -exec chmod -x {} + || true
-	find debian/tmp/pulsar/conf -name "*.yml" -type f -exec chmod -x {} + || true
-	find debian/tmp/pulsar/conf -name "*.json" -type f -exec chmod -x {} + || true
-	find debian/tmp/pulsar/conf -name "*.ini" -type f -exec chmod -x {} + || true
-	find debian/tmp/pulsar/conf -name "*.yaml" -type f -exec chmod -x {} + || true
-
-	# Copy scripts
-	cp bin/pulsar debian/tmp/pulsar/bin
-	cp bin/bookkeeper debian/tmp/pulsar/bin
-	cp bin/function-localrunner debian/tmp/pulsar/bin
-	cp bin/pulsar-admin debian/tmp/pulsar/bin
-	cp bin/pulsar-client debian/tmp/pulsar/bin
-	cp bin/pulsar-daemon debian/tmp/pulsar/bin
-	cp bin/pulsar-managed-ledger-admin debian/tmp/pulsar/bin
-	cp bin/pulsar-perf debian/tmp/pulsar/bin
-	cp bin/pulsar-shell debian/tmp/pulsar/bin
-
-	# Copy proto files
-	cp bin/proto/MLDataFormats_pb2.py debian/tmp/pulsar/bin/proto
-
+	# Copy using find to explicitly exclude problematic filesystems, VCS files, and project directories
+	# This avoids issues with /proc, /sys, /dev, .git directories, and our own debian/ directory
+	DEST_DIR=$$(pwd)/debian/tmp/pulsar; \
+	(cd "$$EXTRACTED_DIR" && find . -mindepth 1 -maxdepth 1 ! -name proc ! -name sys ! -name dev ! -name debian ! -name .git -exec cp -a {} "$$DEST_DIR/" \;); \
+	# Remove VCS files (.gitattributes, .gitignore) that might be in subdirectories
+	find "$$DEST_DIR" -name ".gitattributes" -type f -delete 2>/dev/null || true; \
+	find "$$DEST_DIR" -name ".gitignore" -type f -delete 2>/dev/null || true; \
+	find "$$DEST_DIR" -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true; \
+	# Clean up temporary directory
+	rm -rf "$$TMPDIR"; \
+	# Move conf directory to /etc/apache-pulsar (Debian policy)
+	# Create symlink from PULSAR_HOME/conf to /etc/apache-pulsar for compatibility
+	if [ -d "debian/tmp/pulsar/conf" ]; then \
+		mv debian/tmp/pulsar/conf debian/tmp/etc/apache-pulsar/; \
+		ln -sf /etc/apache-pulsar debian/tmp/pulsar/conf; \
+	fi; \
+	# Remove execute bits from all JAR files (they should not be executable)
+	find debian/tmp/pulsar -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true; \
+	# Fix line endings from CRLF to LF for all scripts (fix Windows line endings)
+	find debian/tmp/pulsar/bin -type f -exec sed -i 's/\r$$//' {} + 2>/dev/null || true; \
+	# Fix pulsar-admin and pulsar-client scripts to correctly resolve PULSAR_HOME
+	# Insert symlink resolution code before BINDIR line (same approach as pulsar-shell)
+	for script in pulsar-admin pulsar-client; do \
+		file="debian/tmp/pulsar/bin/$$script"; \
+		if [ -f "$$file" ]; then \
+			sed -i '/^BINDIR=/i\
+# need this for relative symlinks\
+PRG="$$0"\
+while [ -h "$$PRG" ]; do\
+  link=$$(readlink "$$PRG");\
+  case "$$link" in /*) PRG="$$link" ;; *) PRG="$$(dirname "$$PRG")/$$link" ;; esac;\
+done\
+' "$$file"; \
+			sed -i 's|^BINDIR=$$(dirname "$$0")|BINDIR=$$(dirname "$$PRG")|' "$$file"; \
+		fi; \
+	done; \
+	# Create directory for symlinks
+	mkdir -p debian/tmp/usr/bin; \
 	# Create symbolic links for main commands in /usr/bin
-	ln -sf /usr/lib/apache-pulsar/bin/pulsar debian/tmp/usr/bin/pulsar
-	ln -sf /usr/lib/apache-pulsar/bin/pulsar-admin debian/tmp/usr/bin/pulsar-admin
-	ln -sf /usr/lib/apache-pulsar/bin/pulsar-client debian/tmp/usr/bin/pulsar-client
-	ln -sf /usr/lib/apache-pulsar/bin/pulsar-perf debian/tmp/usr/bin/pulsar-perf
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar debian/tmp/usr/bin/pulsar; \
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar-admin debian/tmp/usr/bin/pulsar-admin; \
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar-client debian/tmp/usr/bin/pulsar-client; \
+	ln -sf /usr/lib/apache-pulsar/bin/pulsar-perf debian/tmp/usr/bin/pulsar-perf; \
 	ln -sf /usr/lib/apache-pulsar/bin/bookkeeper debian/tmp/usr/bin/bookkeeper
 
 	# Copy additional systemd service files as examples to /usr/share/apache-pulsar/examples/systemd/
@@ -84,42 +108,8 @@ override_dh_installsystemd:
 	dh_installsystemd --name=apache-pulsar
 
 override_dh_installdeb:
-	# Run dh_installdeb first - this processes maintainer scripts
+	sed -i 's/\r$$//' debian/postinst debian/preinst debian/prerm debian/postrm 2>/dev/null || true
 	dh_installdeb
-	# Our postinst already contains the systemd section, so we can safely overwrite
-	# the one created by dh_installsystemd with our complete version
-	# IMPORTANT: debian/apache-pulsar/DEBIAN/ is the correct location for maintainer scripts
-	@if [ -f debian/postinst ]; then \
-		mkdir -p debian/apache-pulsar/DEBIAN; \
-		chmod +x debian/postinst; \
-		cp -f debian/postinst debian/apache-pulsar/DEBIAN/postinst; \
-		chmod +x debian/apache-pulsar/DEBIAN/postinst; \
-		echo "✓ postinst copied to debian/apache-pulsar/DEBIAN/"; \
-		ls -lh debian/apache-pulsar/DEBIAN/postinst; \
-	else \
-		echo "ERROR: debian/postinst not found!"; \
-		exit 1; \
-	fi
-	# Final verification
-	@test -f debian/apache-pulsar/DEBIAN/postinst && test -x debian/apache-pulsar/DEBIAN/postinst || (echo "ERROR: postinst not found or not executable after override_dh_installdeb" && ls -la debian/apache-pulsar/DEBIAN/ 2>/dev/null || echo "DEBIAN directory does not exist" && exit 1)
-
-override_dh_builddeb:
-	# ALWAYS copy postinst before building - ensure it's in the package
-	@if [ -f debian/postinst ]; then \
-		mkdir -p debian/apache-pulsar/DEBIAN; \
-		chmod +x debian/postinst; \
-		cp -f debian/postinst debian/apache-pulsar/DEBIAN/postinst; \
-		chmod +x debian/apache-pulsar/DEBIAN/postinst; \
-		echo "✓ Final copy: postinst in debian/apache-pulsar/DEBIAN/"; \
-		ls -lh debian/apache-pulsar/DEBIAN/postinst; \
-		echo "All files in DEBIAN:"; \
-		ls -la debian/apache-pulsar/DEBIAN/ || echo "DEBIAN directory does not exist!"; \
-	else \
-		echo "FATAL ERROR: debian/postinst source file not found!"; \
-		exit 1; \
-	fi
-	@test -f debian/apache-pulsar/DEBIAN/postinst && test -x debian/apache-pulsar/DEBIAN/postinst || (echo "FATAL ERROR: postinst not found or not executable before building package" && exit 1)
-	dh_builddeb
 
 override_dh_installman:
 	# Install man pages from debian/man/
@@ -127,6 +117,8 @@ override_dh_installman:
 
 override_dh_fixperms:
 	dh_fixperms
+	# Fix line endings in scripts (remove CRLF if present)
+	@find debian/apache-pulsar/usr/lib/apache-pulsar/bin -type f -exec sed -i 's/\r$$//' {} + 2>/dev/null || true
 	# Fix missing shebang only for scripts without shebang
 	@for file in debian/apache-pulsar/usr/lib/apache-pulsar/bin/*; do \
 		if [ -f "$$file" ] && file "$$file" | grep -q "text" && [ ! -x "$$file" ]; then \

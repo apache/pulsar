@@ -1,14 +1,10 @@
-# jar файлы основных модулей (в корне для совместимости со скриптом pulsar)
-debian/tmp/pulsar/java/*.jar /usr/lib/apache-pulsar
+# Copy the entire pulsar distribution to /usr/lib/apache-pulsar
+# This includes all JARs, scripts, and other files from the distribution
+# Note: conf/ is a symlink to /etc/apache-pulsar created in debian/rules
+debian/tmp/pulsar /usr/lib/apache-pulsar
 
-# jar файлы зависимостей (lib) - используется для classpath
-debian/tmp/pulsar/lib/*.jar /usr/lib/apache-pulsar/lib
-
-# конфиги
-debian/tmp/pulsar/conf/* /etc/apache-pulsar
-
-# bin файлы
-debian/tmp/pulsar/bin/* /usr/lib/apache-pulsar/bin
+# конфиги идут в /etc/apache-pulsar (moved in debian/rules, symlink created for compatibility)
+debian/tmp/etc/apache-pulsar/conf /etc/apache-pulsar
 
 # символические ссылки для основных команд
 debian/tmp/usr/bin/* /usr/bin

@@ -1,35 +1,34 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-# Automatically added by dh_installsystemd/maintainer
-# See: https://manpages.debian.org/dh_installsystemd
-if [ "$1" = "configure" ]; then
-    if [ -d /run/systemd/system ]; then
-        systemctl --system daemon-reload >/dev/null || true
+case "$1" in
+  configure)
+
+    # Создать системного пользователя apache-pulsar
+    if ! getent passwd apache-pulsar >/dev/null 2>&1; then
+    adduser --system \
+        --home /var/lib/apache-pulsar \
+        --no-create-home \
+        --group \
+        apache-pulsar
     fi
-fi
-# End automatically added section
 
-# Создать системного пользователя apache-pulsar
-if ! getent passwd apache-pulsar >/dev/null 2>&1; then
-    adduser --system --group --home /var/lib/apache-pulsar --no-create-home apache-pulsar
-fi
+    # Выдать права только на корневые каталоги (без recursive chown)
+    if [ -d /usr/lib/apache-pulsar ]; then
+        chown apache-pulsar:apache-pulsar /usr/lib/apache-pulsar || true
+    fi
 
-# Выдаём права только на корневые каталоги, без рекурсивного chown
-# (lintian запрещает recursive chown)
-if [ -d /usr/lib/apache-pulsar ]; then
-    chown apache-pulsar:apache-pulsar /usr/lib/apache-pulsar || true
-fi
+    if [ -d /etc/apache-pulsar ]; then
+        chown apache-pulsar:apache-pulsar /etc/apache-pulsar || true
+    fi
 
-if [ -d /etc/apache-pulsar ]; then
-    chown apache-pulsar:apache-pulsar /etc/apache-pulsar || true
-fi
-
-# Создаем директорию для логов
-if [ ! -d /var/log/apache-pulsar ]; then
-    mkdir -p /var/log/apache-pulsar
-    chown apache-pulsar:apache-pulsar /var/log/apache-pulsar
-    chmod 755 /var/log/apache-pulsar
-fi
+    # Создать директорию логов
+    if [ ! -d /var/log/apache-pulsar ]; then
+        mkdir -p /var/log/apache-pulsar
+        chown apache-pulsar:apache-pulsar /var/log/apache-pulsar
+        chmod 755 /var/log/apache-pulsar
+    fi
+    ;;
+esac
 
 exit 0

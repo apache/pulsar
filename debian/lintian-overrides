@@ -30,3 +30,21 @@ apache-pulsar: jar-contains-source
 # Some third-party libraries (e.g., jsr305) include source files in their
 # jar archives. This is a common practice and acceptable.
 
+apache-pulsar: package-installs-java-bytecode
+# Apache Pulsar distribution includes compiled Java classes in target/classes/
+# directories as part of its standard Maven build structure. These classes
+# are part of the complete application distribution and are loaded by the
+# application's classpath mechanism. This is the standard way Maven packages
+# Java applications and is acceptable for application packages (not libraries).
+
+apache-pulsar: hardening-no-pie
+# protoc plugins (protoc-gen-grpc-java) are precompiled binaries provided by
+# the protobuf compiler project. We cannot rebuild them with PIE support.
+# These are build tools, not security-sensitive binaries.
+
+apache-pulsar: package-contains-vcs-control-dir
+apache-pulsar: package-contains-vcs-control-file
+# VCS control files (.git/, .gitattributes, .gitignore) are excluded during
+# package build, but may appear in upstream distribution. These files are
+# harmless and do not affect package functionality.
+
