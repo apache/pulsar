@@ -1,22 +1,3 @@
-#
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-#
-
 name: Pulsar Bot
 on:
   issue_comment:
@@ -25,6 +6,8 @@ on:
 permissions:
   actions: write
   contents: read
+  pull-requests: read
+  issues: read
 
 jobs:
   pulsarbot:
@@ -33,21 +16,13 @@ jobs:
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/pulsarbot')
     steps:
       - name: Execute pulsarbot command
-        id: pulsarbot
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Supported commands:
-            // - /pulsarbot rerun
-            //   Reruns all completed workflows with conclusions of failure/timed_out/skipped/cancelled
-            //   If workflow is still running, cannot rerun whole workflow, just suggest using "/pulsarbot rerun jobname"
-            // - /pulsarbot rerun jobname
-            //   Matches job.name by keyword, reruns matching jobs (regardless of current state, failures are logged)
-            // - /pulsarbot stop or /pulsarbot cancel
-            //   Cancels all still running (queued/in_progress) workflow runs associated with the current PR
-            const commentBody = context.payload.comment.body.trim();
+            const commentBody = (context.payload.comment?.body || '').trim();
             const prefix = '/pulsarbot';
+
             if (!commentBody.startsWith(prefix)) {
               console.log('Not a pulsarbot command, skipping ...');
               return;
@@ -56,62 +31,71 @@ jobs:
               console.error('This comment is not on a Pull Request. pulsarbot only works on PRs.');
               return;
             }
+
             const parts = commentBody.split(/\s+/);
             const sub = (parts[1] || '').toLowerCase();
             const arg = parts.length > 2 ? parts.slice(2).join(' ') : '';
+
             const supported = ['rerun', 'stop', 'cancel', 'rerun-failure-checks'];
             if (!supported.includes(sub)) {
-              console.log(`Unsupported command '${sub}'. Supported: '/pulsarbot rerun [jobName?]', '/pulsarbot stop', '/pulsarbot cancel'.`);
+              console.log(
+                `Unsupported command '${sub}'. Supported: ${supported
+                  .map(cmd => `'/pulsarbot ${cmd}${cmd === 'rerun' ? ' [jobName?]' : ''}'`)
+                  .join(', ')}.`
+              );
               return;
             }
+
             const prNum = context.payload.issue.number;
+
             // Get PR info
             let pr;
             try {
               ({ data: pr } = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNum
+                pull_number: prNum,
               }));
             } catch (e) {
               console.error(`Failed to fetch PR #${prNum}: ${e.message}`);
               return;
             }
+
             const headSha = pr.head.sha;
             const prBranch = pr.head.ref;
             const prUser = pr.user.login;
             const prUrl = pr.html_url;
+
             console.log(`pulsarbot handling PR #${prNum} ${prUrl}`);
             console.log(`PR branch='${prBranch}', headSha='${headSha}', author='${prUser}'`);
             console.log(`Command parsed => sub='${sub}', arg='${arg || ''}'`);
-            // Fetch workflow runs in this repo triggered by this user on this branch, then filter by headSha
-            let page = 1;
-            const allRunsRaw = [];
-            while (true) {
-              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+
+            // Most reliable: list workflow runs by head_sha (no guessing by actor/branch/event)
+            const runsAtHeadRaw = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                actor: prUser,
-                branch: prBranch,
+                head_sha: headSha,
                 per_page: 100,
-                page
-              });
-              const wr = data.workflow_runs || [];
-              if (wr.length === 0) break;
-              allRunsRaw.push(...wr);
-              if (wr.length < 100) break;
-              page++;
-            }
-            const runsAtHead = allRunsRaw.filter(r => r.head_sha === headSha);
+              },
+            );
+            console.log(`DEBUG runs for head_sha=${headSha}: total_count=${runsAtHeadRaw.total_count}, returned=${(runsAtHeadRaw.workflow_runs||[]).length}`);
+            const runsAtHead = runsAtHeadRaw.filter(r => r && typeof r === 'object');
+
+            console.log(`runsAtHead total=${runsAtHead.length} for head_sha=${headSha}`);
+
             if (runsAtHead.length === 0) {
-              console.error(`No workflow runs found for head SHA ${headSha} on branch ${prBranch}.`);
+              console.error(`No workflow runs found for head SHA ${headSha} (PR branch ${prBranch}).`);
               return;
             }
+
             // Only keep the latest run for each workflow_id
             runsAtHead.sort((a, b) => {
               if (a.workflow_id !== b.workflow_id) return a.workflow_id - b.workflow_id;
               return new Date(b.created_at) - new Date(a.created_at);
             });
+
             const latestRuns = [];
             const seen = new Set();
             for (const r of runsAtHead) {
@@ -120,14 +104,16 @@ jobs:
                 latestRuns.push(r);
               }
             }
+
             function runKey(r) {
               return `[run_id=${r.id}] ${r.name || '(unnamed)'} | status=${r.status} | conclusion=${r.conclusion || '-'} | ${r.html_url}`;
             }
+
             console.log('--- Latest workflow runs for this PR headSHA (one per workflow) ---');
             for (const r of latestRuns) console.log('- ' + runKey(r));
-            // Utility: list all jobs in a run
+
             async function listAllJobs(runId) {
-              let jobs = [];
+              const jobs = [];
               let p = 1;
               while (true) {
                 const { data } = await github.rest.actions.listJobsForWorkflowRun({
@@ -135,7 +121,7 @@ jobs:
                   repo: context.repo.repo,
                   run_id: runId,
                   per_page: 100,
-                  page: p
+                  page: p,
                 });
                 const js = data.jobs || [];
                 if (js.length === 0) break;
@@ -145,22 +131,14 @@ jobs:
               }
               return jobs;
             }
-            // Utility: rerun a single job
+
             async function rerunJob(job, run) {
               try {
-                if (github.rest.actions.reRunJobForWorkflowRun) {
-                  await github.rest.actions.reRunJobForWorkflowRun({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    job_id: job.id
-                  });
-                } else {
-                  await github.request('POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun', {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    job_id: job.id
-                  });
-                }
+                await github.rest.actions.reRunJobForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  job_id: job.id,
+                });
                 console.log(`Re-ran job '${job.name}' (job_id=${job.id}) in run '${run.name}' | ${run.html_url}`);
                 return true;
               } catch (e) {
@@ -168,13 +146,16 @@ jobs:
                 return false;
               }
             }
-            // Command 1: /pulsarbot rerun
+
+            // Command 1: /pulsarbot rerun  (or rerun-failure-checks)
             if ((sub === 'rerun' || sub === 'rerun-failure-checks') && !arg) {
               const targetConclusions = new Set(['failure', 'timed_out', 'cancelled', 'skipped']);
-              let fullRerunCount = 0;
+              let rerunCount = 0;
               let skippedRunning = 0;
               let skippedConclusion = 0;
-              console.log('Mode: full workflow re-run for completed runs with conclusions in [failure,timed_out,cancelled,skipped].');
+
+              console.log('Mode: workflow re-run for completed runs with conclusions in [failure,timed_out,cancelled,skipped].');
+
               for (const r of latestRuns) {
                 if (r.status !== 'completed') {
                   console.log(`Skip (still running) ${runKey(r)}. Cannot re-run whole workflow. Consider '/pulsarbot rerun <jobName>' for single job.`);
@@ -187,30 +168,34 @@ jobs:
                   continue;
                 }
                 try {
-                  await github.rest.actions.reRunWorkflow({
+                  await github.rest.actions.reRunWorkflowFailedJobs({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    run_id: r.id
+                    run_id: r.id,
                   });
-                  console.log(`Triggered full re-run for ${runKey(r)}`);
-                  fullRerunCount++;
+                  console.log(`Triggered re-run for ${runKey(r)}`);
+                  rerunCount++;
                 } catch (e) {
-                  console.log(`Failed to trigger full re-run for ${runKey(r)}: ${e.message}`);
+                  console.log(`Failed to trigger re-run for ${runKey(r)}: ${e.message}`);
                 }
               }
-              if (fullRerunCount === 0) {
+
+              if (rerunCount === 0) {
                 console.error(`No eligible workflow runs to re-run. Skipped running=${skippedRunning}, skipped by conclusion=${skippedConclusion}.`);
               } else {
-                console.log(`Finished. Triggered full re-run for ${fullRerunCount} workflow run(s). Skipped running=${skippedRunning}, skipped by conclusion=${skippedConclusion}.`);
+                console.log(`Finished. Triggered re-run for ${rerunCount} workflow run(s). Skipped running=${skippedRunning}, skipped by conclusion=${skippedConclusion}.`);
               }
               return;
             }
+
             // Command 2: /pulsarbot rerun jobname
             if (sub === 'rerun' && arg) {
               const keyword = arg.trim();
               console.log(`Mode: job-level re-run. keyword='${keyword}'`);
+
               let matchedJobs = 0;
               let successJobs = 0;
+
               for (const r of latestRuns) {
                 let jobs = [];
                 try {
@@ -219,6 +204,7 @@ jobs:
                   console.log(`Failed to list jobs for ${runKey(r)}: ${e.message}`);
                   continue;
                 }
+
                 for (const j of jobs) {
                   if (j.name && j.name.includes(keyword)) {
                     matchedJobs++;
@@ -227,6 +213,7 @@ jobs:
                   }
                 }
               }
+
               if (matchedJobs === 0) {
                 console.error(`No jobs matched keyword '${keyword}' among latest runs for this PR head.`);
               } else {
@@ -234,11 +221,14 @@ jobs:
               }
               return;
             }
+
             // Command 3: /pulsarbot stop or /pulsarbot cancel
             if (sub === 'stop' || sub === 'cancel') {
               console.log('Mode: cancel running workflow runs (queued/in_progress).');
+
               let cancelCount = 0;
               let alreadyCompleted = 0;
+
               for (const r of latestRuns) {
                 if (r.status === 'completed') {
                   console.log(`Skip (already completed) ${runKey(r)}`);
@@ -249,7 +239,7 @@ jobs:
                   await github.rest.actions.cancelWorkflowRun({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    run_id: r.id
+                    run_id: r.id,
                   });
                   console.log(`Cancel requested for ${runKey(r)}`);
                   cancelCount++;
@@ -257,6 +247,7 @@ jobs:
                   console.log(`Failed to cancel ${runKey(r)}: ${e.message}`);
                 }
               }
+
               if (cancelCount === 0) {
                 console.error(`No running workflow runs to cancel. Already completed: ${alreadyCompleted}.`);
               } else {
