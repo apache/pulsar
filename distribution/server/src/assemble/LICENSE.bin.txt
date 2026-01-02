@@ -264,7 +264,7 @@ The Apache Software License, Version 2.0
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.59.2.jar
- * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
+ * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.6.jar
  * Gson
     - com.google.code.gson-gson-2.13.2.jar
     - io.gsonfire-gson-fire-1.9.0.jar
@@ -348,11 +348,11 @@ The Apache Software License, Version 2.0
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
-    - org.apache.logging.log4j-log4j-api-2.25.2.jar
-    - org.apache.logging.log4j-log4j-core-2.25.2.jar
-    - org.apache.logging.log4j-log4j-slf4j2-impl-2.25.2.jar
-    - org.apache.logging.log4j-log4j-web-2.25.2.jar
-    - org.apache.logging.log4j-log4j-layout-template-json-2.25.2.jar
+    - org.apache.logging.log4j-log4j-api-2.25.3.jar
+    - org.apache.logging.log4j-log4j-core-2.25.3.jar
+    - org.apache.logging.log4j-log4j-slf4j2-impl-2.25.3.jar
+    - org.apache.logging.log4j-log4j-web-2.25.3.jar
+    - org.apache.logging.log4j-log4j-layout-template-json-2.25.3.jar
  * Java Native Access JNA
     - net.java.dev.jna-jna-jpms-5.12.1.jar
     - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
