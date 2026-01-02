@@ -26,6 +26,7 @@ import lombok.ToString;
 public class AnalyzeSubscriptionBacklogResult {
     private long entries;
     private long messages;
+    private long markerMessages;
 
     private long filterRejectedEntries;
     private long filterAcceptedEntries;

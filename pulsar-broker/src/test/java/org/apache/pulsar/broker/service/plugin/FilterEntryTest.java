@@ -253,7 +253,7 @@ public class FilterEntryTest extends BrokerTestBase {
             producer.send("test");
         }
 
-        verifyBacklog(topic, subName, 10, 10, 10, 10, 0, 0, 0, 0);
+        verifyBacklog(topic, subName, 10, 10, 0, 10, 10, 0, 0, 0, 0);
 
         int counter = 0;
         while (true) {
@@ -268,7 +268,7 @@ public class FilterEntryTest extends BrokerTestBase {
         // All normal messages can be received
         assertEquals(10, counter);
 
-        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0);
+        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         // stop the consumer
         consumer.close();
@@ -280,7 +280,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         // analyze the subscription and predict that
         // 10 messages will be rejected by the filter
-        verifyBacklog(topic, subName, 10, 10, 0, 0, 10, 10, 0, 0);
+        verifyBacklog(topic, subName, 10, 10, 0, 0, 0, 10, 10, 0, 0);
 
         consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -304,7 +304,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         // now the Filter acknoledged the messages on behalf of the Consumer
         // backlog is now zero again
-        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0);
+        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         // All messages should be acked, check the MarkDeletedPosition
         assertNotNull(lastMsgId);
@@ -545,7 +545,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
 
     private void verifyBacklog(String topic, String subscription,
-                               int numEntries, int numMessages,
+                               int numEntries, int numMessages, int numMarkerMessages,
                                int numEntriesAccepted, int numMessagesAccepted,
                                int numEntriesRejected, int numMessagesRejected,
                                int numEntriesRescheduled, int numMessagesRescheduled
@@ -559,6 +559,7 @@ public class FilterEntryTest extends BrokerTestBase {
         Assert.assertEquals(numEntriesRescheduled, a1.getFilterRescheduledEntries());
 
         Assert.assertEquals(numMessages, a1.getMessages());
+        Assert.assertEquals(numMarkerMessages, a1.getMarkerMessages());
         Assert.assertEquals(numMessagesAccepted, a1.getFilterAcceptedMessages());
         Assert.assertEquals(numMessagesRejected, a1.getFilterRejectedMessages());
         Assert.assertEquals(numMessagesRescheduled, a1.getFilterRescheduledMessages());

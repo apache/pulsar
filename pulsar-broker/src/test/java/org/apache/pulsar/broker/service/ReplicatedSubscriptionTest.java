@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -70,6 +71,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1089,6 +1091,12 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             }
         }
         Assert.assertEquals(numSnapshotRequest, 1);
+
+        // Assert analyze backlog total messages and marker messages.
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin4.topics().analyzeSubscriptionBacklog(topicName, subscriptionName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages);
+        assertEquals(backlogResult.getMarkerMessages(), numSnapshotRequest);
 
         // Wait pending snapshot timeout
         Thread.sleep(config1.getReplicatedSubscriptionsSnapshotTimeoutSeconds() * 1000);
