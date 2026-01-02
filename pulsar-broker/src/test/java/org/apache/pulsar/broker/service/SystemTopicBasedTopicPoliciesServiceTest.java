@@ -475,10 +475,9 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test
     public void testPrepareInitPoliciesCacheAsyncThrowExceptionAfterCreateReader() throws Exception {
-        // catch the log output in SystemTopicBasedTopicPoliciesService
+        // catch the log output
         @Cleanup
-        TestLogAppender testLogAppender =
-                TestLogAppender.create(Optional.of("SystemTopicBasedTopicPoliciesService"));
+        TestLogAppender testLogAppender = TestLogAppender.create(log);
 
         // create namespace-5 and topic
         pulsar.getTopicPoliciesService().close();
@@ -571,10 +570,9 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test
     public void testPrepareInitPoliciesCacheAsyncThrowExceptionInCreateReader() throws Exception {
-        // catch the log output in SystemTopicBasedTopicPoliciesService
+        // catch the log output
         @Cleanup
-        TestLogAppender testLogAppender =
-                TestLogAppender.create(Optional.of("SystemTopicBasedTopicPoliciesService"));
+        TestLogAppender testLogAppender = TestLogAppender.create(log);
 
         // create namespace-5 and topic
         pulsar.getTopicPoliciesService().close();
