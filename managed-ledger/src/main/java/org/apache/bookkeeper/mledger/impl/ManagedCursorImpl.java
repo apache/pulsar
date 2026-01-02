@@ -1281,7 +1281,69 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getEstimatedSizeSinceMarkDeletePosition() {
-        return ledger.estimateBacklogFromPosition(markDeletePosition);
+        long totalSize = ledger.estimateBacklogFromPosition(markDeletePosition);
+
+        // Need to subtract size of individual deleted messages
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Calculating backlog size for cursor {} from position {}, totalSize: {}",
+                    ledger.getName(), name, markDeletePosition, totalSize);
+        }
+
+        // Get count of individually deleted entries in the backlog range
+        long deletedCount = 0;
+        lock.readLock().lock();
+        try {
+            Range<Position> backlogRange = Range.openClosed(markDeletePosition, ledger.getLastPosition());
+
+            if (getConfig().isUnackedRangesOpenCacheSetEnabled()) {
+                deletedCount = individualDeletedMessages.cardinality(
+                        backlogRange.lowerEndpoint().getLedgerId(), backlogRange.lowerEndpoint().getEntryId(),
+                        backlogRange.upperEndpoint().getLedgerId(), backlogRange.upperEndpoint().getEntryId());
+            } else {
+                AtomicLong deletedCounter = new AtomicLong(0);
+                individualDeletedMessages.forEach((r) -> {
+                    if (r.isConnected(backlogRange)) {
+                        Range<Position> intersection = r.intersection(backlogRange);
+                        long countInRange = ledger.getNumberOfEntries(intersection);
+                        deletedCounter.addAndGet(countInRange);
+                    }
+                    return true;
+                }, recyclePositionRangeConverter);
+                deletedCount = deletedCounter.get();
+            }
+        } finally {
+            lock.readLock().unlock();
+        }
+
+        if (deletedCount == 0) {
+            return totalSize;
+        }
+
+        // Estimate size by using average entry size from the backlog range
+        Range<Position> backlogRange = Range.openClosed(markDeletePosition, ledger.getLastPosition());
+        long totalEntriesInBacklog = ledger.getNumberOfEntries(backlogRange);
+
+        if (totalEntriesInBacklog <= deletedCount || totalEntriesInBacklog == 0) {
+            // Should not happen, but avoid division by zero
+            log.warn("[{}] [{}] Inconsistent state: totalEntriesInBacklog={}, deletedCount={}",
+                    ledger.getName(), name, totalEntriesInBacklog, deletedCount);
+            return Math.max(0, totalSize);  // Return the total size and log the issue
+        }
+
+        // Calculate average size in the backlog range
+        long averageSize = totalSize / totalEntriesInBacklog;
+
+        // Subtract size of deleted entries
+        long deletedSize = deletedCount * averageSize;
+        long adjustedSize = totalSize - deletedSize;
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Adjusted backlog size: totalSize={}, deletedCount={}, averageSize={}, "
+                            + "deletedSize={}, adjustedSize={}",
+                    ledger.getName(), name, totalSize, deletedCount, averageSize, deletedSize, adjustedSize);
+        }
+
+        return adjustedSize;
     }
 
     private long getNumberOfEntriesInBacklog() {
