@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import picocli.CommandLine.Command;
@@ -2999,20 +3000,75 @@ public class CmdTopics extends CmdBase {
         private String subName;
 
         @Option(names = { "--position",
-                "-p" }, description = "message position to start the scan from (ledgerId:entryId)", required = false)
+                "-p" }, description = "Message position to start the scan from (ledgerId:entryId)", required = false)
         private String messagePosition;
+
+        @Option(names = {"--backlogScanMaxEntries", "-b"}, description =
+                "The maximum number of backlog entries the client will scan before terminating its loop",
+                required = false)
+        private long backlogScanMaxEntries = -1;
+
+        @Option(names = {"--quiet", "-q"}, description =
+                "Disable analyze-backlog progress reporting",
+                required = false)
+        private boolean quiet = false;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             Optional<MessageId> startPosition = Optional.empty();
+            int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
             if (isNotBlank(messagePosition)) {
-                int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
                 MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
                 startPosition = Optional.of(messageId);
             }
-            print(getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition));
 
+            AnalyzeSubscriptionBacklogResult mergedResult = null;
+            while (true) {
+                AnalyzeSubscriptionBacklogResult currentResult =
+                        getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition);
+                if (mergedResult == null) {
+                    mergedResult = currentResult;
+                } else {
+                    mergedResult.setEntries(mergedResult.getEntries() + currentResult.getEntries());
+                    mergedResult.setMessages(mergedResult.getMessages() + currentResult.getMessages());
+                    mergedResult.setMarkerMessages(
+                            mergedResult.getMarkerMessages() + currentResult.getMarkerMessages());
+
+                    mergedResult.setFilterRejectedEntries(
+                            mergedResult.getFilterRejectedEntries() + currentResult.getFilterRejectedEntries());
+                    mergedResult.setFilterAcceptedEntries(
+                            mergedResult.getFilterAcceptedEntries() + currentResult.getFilterAcceptedEntries());
+                    mergedResult.setFilterRescheduledEntries(
+                            mergedResult.getFilterRescheduledEntries() + currentResult.getFilterRescheduledEntries());
+
+                    mergedResult.setFilterRejectedMessages(
+                            mergedResult.getFilterRejectedMessages() + currentResult.getFilterRejectedMessages());
+                    mergedResult.setFilterAcceptedMessages(
+                            mergedResult.getFilterAcceptedMessages() + currentResult.getFilterAcceptedMessages());
+                    mergedResult.setFilterRescheduledMessages(
+                            mergedResult.getFilterRescheduledMessages() + currentResult.getFilterRescheduledMessages());
+
+                    mergedResult.setAborted(currentResult.isAborted());
+                    mergedResult.setLastMessageId(currentResult.getLastMessageId());
+                }
+
+                if (mergedResult.isAborted() || mergedResult.getEntries() >= backlogScanMaxEntries) {
+                    break;
+                }
+
+                if (!quiet) {
+                    print("Analyze backlog progress, scanned entries: " + mergedResult.getEntries()
+                            + ", scan max entries: " + backlogScanMaxEntries);
+                }
+
+                String[] messageIdSplits = mergedResult.getLastMessageId().split(":");
+                MessageIdImpl nextScanMessageId =
+                        new MessageIdImpl(Long.parseLong(messageIdSplits[0]), Long.parseLong(messageIdSplits[1]) + 1,
+                                partitionIndex);
+                startPosition = Optional.of(nextScanMessageId);
+            }
+            print(mergedResult);
         }
     }
 
