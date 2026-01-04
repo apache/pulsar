@@ -1625,7 +1625,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                 AnalyzeSubscriptionBacklogResult mergedResult = mergeBacklogResults(currentResult, resultRef.get());
                 resultRef.set(mergedResult);
-                if (mergedResult.isAborted() || mergedResult.getEntries() >= backlogScanMaxEntries) {
+                if (!mergedResult.isAborted() || mergedResult.getEntries() >= backlogScanMaxEntries) {
                     future.complete(mergedResult);
                     return;
                 }
