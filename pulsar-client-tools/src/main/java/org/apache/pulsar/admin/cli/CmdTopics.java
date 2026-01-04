@@ -3008,9 +3008,7 @@ public class CmdTopics extends CmdBase {
                 required = false)
         private long backlogScanMaxEntries = -1;
 
-        @Option(names = {"--quiet", "-q"}, description =
-                "Disable analyze-backlog progress reporting",
-                required = false)
+        @Option(names = {"--quiet", "-q"}, description = "Disable analyze-backlog progress reporting", required = false)
         private boolean quiet = false;
 
         @Override
