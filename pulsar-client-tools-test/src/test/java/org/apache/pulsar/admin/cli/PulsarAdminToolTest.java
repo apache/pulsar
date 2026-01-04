@@ -28,6 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -2198,6 +2199,7 @@ public class PulsarAdminToolTest {
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(mockResult);
         cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName));
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
+        verifyNoMoreInteractions(mockTopics);
 
         // Test with the messagePosition parameter.
         reset(mockTopics);
@@ -2209,6 +2211,7 @@ public class PulsarAdminToolTest {
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(mockResult);
         cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName + " -p " + messagePosition));
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
+        verifyNoMoreInteractions(mockTopics);
 
         // Test client side loop: server returns false aborted flag.
         reset(mockTopics);
@@ -2227,6 +2230,7 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName + " -b " + backlogScanMaxEntries));
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId);
+        verifyNoMoreInteractions(mockTopics);
 
         // Test client side loop: total entries exceeds backlogScanMaxEntries.
         reset(mockTopics);
@@ -2252,6 +2256,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, thirdInvocationMsgId);
+        verifyNoMoreInteractions(mockTopics);
     }
 
     private static LedgerInfo newLedger(long id, long entries, long size) {
