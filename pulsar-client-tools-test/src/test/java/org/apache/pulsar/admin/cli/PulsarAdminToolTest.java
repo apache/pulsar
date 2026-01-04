@@ -2247,7 +2247,8 @@ public class PulsarAdminToolTest {
                         PositionFactory.create(14, 9));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, thirdInvocationMsgId)).thenReturn(
                 lastResult);
-        cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName + " -b " + backlogScanMaxEntries + " -q"));
+        cmdTopics.run(
+                split("analyze-backlog " + topic + " -s " + subscriptionName + " -b " + backlogScanMaxEntries + " -q"));
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, thirdInvocationMsgId);
