@@ -101,6 +101,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
@@ -1728,11 +1729,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     BrokerServiceException.getClientErrorCode(exception),
                                     message);
                         }
+
                         var cause = FutureUtil.unwrapCompletionException(exception);
-                        if (!(cause instanceof IncompatibleSchemaException)) {
+                        if (cause instanceof IncompatibleSchemaException) {
+                            // ignore it
+                        } else if (cause instanceof InvalidSchemaDataException) {
+                            log.warn("Try add schema failed due to invalid schema data, "
+                                    + "remote address {}, topic {}, producerId {}",
+                                remoteAddress, topicName, producerId);
+                        } else {
                             log.error("Try add schema failed, remote address {}, topic {}, producerId {}",
-                                    remoteAddress,
-                                    topicName, producerId, exception);
+                            remoteAddress, topicName, producerId, exception);
                         }
                         producers.remove(producerId, producerFuture);
                         return null;
