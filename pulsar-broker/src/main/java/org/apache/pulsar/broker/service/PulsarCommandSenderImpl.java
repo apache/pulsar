@@ -366,7 +366,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     /***
      * @param topics topic names which are matching, the topic name contains the partition suffix.
-     * @return
+     * @return a CompletableFuture&lt;Void&gt; that completes when the operation finishes
      */
     @Override
     public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
@@ -380,7 +380,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     /***
      * {@inheritDoc}
-     * @return
+     * @return a CompletableFuture that completes when the watch topic list update operation finishes
      */
     @Override
     public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
