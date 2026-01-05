@@ -61,7 +61,8 @@ import org.slf4j.LoggerFactory;
 
 public class TopicListService {
     public static class TopicListWatcher implements BiConsumer<String, NotificationType> {
-
+        // upper bound for buffered topic list updates
+        private static final int TOPIC_LIST_UPDATE_MAX_QUEUE_SIZE = 10000;
         /** Topic names which are matching, the topic name contains the partition suffix. **/
         private final List<String> matchingTopics;
         private final TopicListService topicListService;
@@ -71,7 +72,8 @@ public class TopicListService {
         private final Executor executor;
         private volatile boolean closed = false;
         private boolean sendingInProgress;
-        private BlockingDeque<Runnable> sendTopicListUpdateTasks = new LinkedBlockingDeque<>();
+        private BlockingDeque<Runnable> sendTopicListUpdateTasks =
+                new LinkedBlockingDeque<>(TOPIC_LIST_UPDATE_MAX_QUEUE_SIZE);
 
         /***
          * @param topicsPattern The regexp for the topic name(not contains partition suffix).
@@ -132,7 +134,10 @@ public class TopicListService {
                 executor.execute(task);
             } else {
                 // if sendTopicListSuccess hasn't completed, add to a queue to be executed after it completes
-                sendTopicListUpdateTasks.add(task);
+                if (!sendTopicListUpdateTasks.offer(task)) {
+                    log.warn("Dropping update for watcher id {} matching {} since queue is full.", id,
+                            topicsPattern.inputPattern());
+                }
             }
         }
 
