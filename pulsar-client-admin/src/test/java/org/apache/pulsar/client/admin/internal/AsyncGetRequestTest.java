@@ -72,7 +72,7 @@ public class AsyncGetRequestTest {
         CompletableFuture<Object> getRequest =
                 namespaces.asyncGetRequest(admin.getRoot().path("/200-with-body"), Object.class);
 
-        assertThat(getRequest).succeedsWithin(3, TimeUnit. SECONDS);
+        assertThat(getRequest).succeedsWithin(3, TimeUnit.SECONDS);
 
         // Verify the request was made
         server.verify(getRequestedFor(urlEqualTo("/200-with-body")));
@@ -95,7 +95,7 @@ public class AsyncGetRequestTest {
         assertThat(getRequest).succeedsWithin(3, TimeUnit.SECONDS);
 
         // Verify the request was made
-        server. verify(getRequestedFor(urlEqualTo("/204")));
+        server.verify(getRequestedFor(urlEqualTo("/204")));
     }
 
     @Test
@@ -112,10 +112,10 @@ public class AsyncGetRequestTest {
 
         NamespacesImpl namespaces = (NamespacesImpl) admin.namespaces();
         CompletableFuture<Object> getRequest =
-                namespaces.asyncGetRequest(admin. getRoot().path("/404"), Object.class);
+                namespaces.asyncGetRequest(admin.getRoot().path("/404"), Object.class);
 
         assertThat(getRequest)
-                .failsWithin(3, TimeUnit. SECONDS)
+                .failsWithin(3, TimeUnit.SECONDS)
                 .withThrowableOfType(java.util.concurrent.ExecutionException.class)
                 .withCauseInstanceOf(PulsarAdminException.class);
 
@@ -128,18 +128,18 @@ public class AsyncGetRequestTest {
         server.stubFor(get(urlEqualTo("/500"))
                 .willReturn(aResponse()
                         .withStatus(500)
-                        . withBody("Internal Server Error")));
+                        .withBody("Internal Server Error")));
 
         @Cleanup
         PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder().serviceHttpUrl(adminUrl).build();
 
         NamespacesImpl namespaces = (NamespacesImpl) admin.namespaces();
         CompletableFuture<Object> getRequest =
-                namespaces. asyncGetRequest(admin.getRoot().path("/500"), Object.class);
+                namespaces.asyncGetRequest(admin.getRoot().path("/500"), Object.class);
 
         assertThat(getRequest)
-                .failsWithin(3, TimeUnit. SECONDS)
-                .withThrowableOfType(java.util. concurrent.ExecutionException.class)
+                .failsWithin(3, TimeUnit.SECONDS)
+                .withThrowableOfType(java.util.concurrent.ExecutionException.class)
                 .withCauseInstanceOf(PulsarAdminException.class);
 
         server.verify(getRequestedFor(urlEqualTo("/500")));
