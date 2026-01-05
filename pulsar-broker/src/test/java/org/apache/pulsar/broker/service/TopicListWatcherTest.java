@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -57,7 +58,7 @@ public class TopicListWatcherTest {
         topicListService = mock(TopicListService.class);
         watcher = new TopicListService.TopicListWatcher(topicListService, ID, PATTERN, INITIAL_TOPIC_LIST,
                 MoreExecutors.directExecutor());
-        watcher.sendTopicListSuccessCompleted();
+        watcher.sendingCompleted();
     }
 
     @Test
@@ -76,7 +77,7 @@ public class TopicListWatcherTest {
                 "persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2", newTopic);
         String hash = TopicList.calculateHash(allMatchingTopics);
         verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash), eq(Collections.emptyList()),
-                eq(Collections.singletonList(newTopic)));
+                eq(Collections.singletonList(newTopic)), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -90,7 +91,7 @@ public class TopicListWatcherTest {
         List<String> allMatchingTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(allMatchingTopics);
         verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash),
-                eq(Collections.singletonList(deletedTopic)), eq(Collections.emptyList()));
+                eq(Collections.singletonList(deletedTopic)), eq(Collections.emptyList()), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());

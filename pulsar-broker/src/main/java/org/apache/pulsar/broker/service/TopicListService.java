@@ -70,8 +70,8 @@ public class TopicListService {
         private final TopicsPattern topicsPattern;
         private final Executor executor;
         private volatile boolean closed = false;
-        private boolean sendTopicListSuccessCompleted = false;
-        private BlockingDeque<Runnable> sendTopicListUpdateTasksBeforeInit = new LinkedBlockingDeque<>();
+        private boolean sendingInProgress;
+        private BlockingDeque<Runnable> sendTopicListUpdateTasks = new LinkedBlockingDeque<>();
 
         /***
          * @param topicsPattern The regexp for the topic name(not contains partition suffix).
@@ -84,6 +84,8 @@ public class TopicListService {
             this.topicsPattern = topicsPattern;
             this.executor = executor;
             this.matchingTopics = TopicList.filterTopics(topics, topicsPattern);
+            // start with in progress state since topic list update will be sent first
+            this.sendingInProgress = true;
         }
 
         public List<String> getMatchingTopics() {
@@ -118,36 +120,41 @@ public class TopicListService {
             }
         }
 
+        // sends updates one-by-one so that ordering is retained
         private synchronized void sendTopicListUpdate(String hash, List<String> deletedTopics, List<String> newTopics) {
             if (closed) {
                 return;
             }
-            Runnable task = () -> topicListService.sendTopicListUpdate(id, hash, deletedTopics, newTopics);
-            if (sendTopicListSuccessCompleted) {
+            Runnable task = () -> topicListService.sendTopicListUpdate(id, hash, deletedTopics, newTopics,
+                    this::sendingCompleted);
+            if (!sendingInProgress) {
+                sendingInProgress = true;
                 executor.execute(task);
             } else {
                 // if sendTopicListSuccess hasn't completed, add to a queue to be executed after it completes
-                sendTopicListUpdateTasksBeforeInit.add(task);
+                sendTopicListUpdateTasks.add(task);
             }
         }
 
+        // callback that triggers sending the next possibly buffered update
         @VisibleForTesting
-        synchronized void sendTopicListSuccessCompleted() {
+        synchronized void sendingCompleted() {
             if (closed) {
-                sendTopicListUpdateTasksBeforeInit.clear();
+                sendTopicListUpdateTasks.clear();
                 return;
             }
-            // Drain all pending sendTopicListUpdate tasks
-            Runnable task;
-            while ((task = sendTopicListUpdateTasksBeforeInit.poll()) != null) {
+            // Execute the next task
+            Runnable task = sendTopicListUpdateTasks.poll();
+            if (task != null) {
                 executor.execute(task);
+            } else {
+                sendingInProgress = false;
             }
-            sendTopicListSuccessCompleted = true;
         }
 
         public synchronized void close() {
             closed = true;
-            sendTopicListUpdateTasksBeforeInit.clear();
+            sendTopicListUpdateTasks.clear();
         }
     }
 
@@ -248,7 +255,7 @@ public class TopicListService {
                                 connection.toString(), namespaceName, requestId);
                     }
                     sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
-                            watcher::sendTopicListSuccessCompleted);
+                            watcher::sendingCompleted);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
@@ -404,7 +411,7 @@ public class TopicListService {
      * @param newTopics topics names added(contains the partition suffix).
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
-                                    List<String> newTopics) {
+                                    List<String> newTopics, Runnable completionCallback) {
         performOperationWithPermitAcquiringRetries(watcherId, "topic list update", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
@@ -415,6 +422,7 @@ public class TopicListService {
                                 log.warn("[{}] Failed to send topic list update for watcherId={}. Watcher will be in "
                                         + "inconsistent state.", connection, watcherId, t);
                             }
+                            completionCallback.run();
                         }));
     }
 
