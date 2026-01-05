@@ -3055,6 +3055,13 @@ public class CmdTopics extends CmdBase {
                     break;
                 }
 
+                // In analyze-backlog, lastMessageId is null only when: total entries is 0,
+                // with false aborted flag returned.
+                if (StringUtils.isBlank(mergedResult.getLastMessageId())) {
+                    print("Incorrect last message id returned from server");
+                    return;
+                }
+
                 if (!quiet) {
                     print("Analyze backlog progress, scanned entries: " + mergedResult.getEntries()
                             + ", scan max entries: " + backlogScanMaxEntries);
