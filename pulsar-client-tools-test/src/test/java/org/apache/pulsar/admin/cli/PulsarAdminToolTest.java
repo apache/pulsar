@@ -2197,62 +2197,76 @@ public class PulsarAdminToolTest {
                 getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(10, 0),
                         PositionFactory.create(10, 9));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(mockResult);
+
         cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName));
+
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
         verifyNoMoreInteractions(mockTopics);
 
         // Test with the messagePosition parameter.
         reset(mockTopics);
+
         int partitionIndex = TopicName.get(topic).getPartitionIndex();
         startMessageId = Optional.of(new MessageIdImpl(11, 10, partitionIndex));
         String messagePosition = "11:10";
         mockResult = getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(11, 10),
                 PositionFactory.create(11, 19));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(mockResult);
+
         cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName + " -p " + messagePosition));
+
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
         verifyNoMoreInteractions(mockTopics);
 
-        // Test client side loop: server returns false aborted flag.
+        // Test client side loop: the loop termination condition is that server returns false aborted flag.
         reset(mockTopics);
+
         long backlogScanMaxEntries = 30;
         startMessageId = Optional.empty();
         AnalyzeSubscriptionBacklogResult firstResult =
                 getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(12, 0),
                         PositionFactory.create(12, 9));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(firstResult);
+
         Optional<MessageId> secondInvocationMsgId = Optional.of(new MessageIdImpl(12, 10, partitionIndex));
         AnalyzeSubscriptionBacklogResult abortedResult =
                 getAnalyzeSubscriptionBacklogResult(10, false, PositionFactory.create(12, 10),
                         PositionFactory.create(12, 19));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId)).thenReturn(
                 abortedResult);
+
         cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName + " -b " + backlogScanMaxEntries));
+
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId);
         verifyNoMoreInteractions(mockTopics);
 
-        // Test client side loop: total entries exceeds backlogScanMaxEntries.
+        // Test client side loop: the loop termination condition is that total entries exceeds backlogScanMaxEntries.
         reset(mockTopics);
+
         backlogScanMaxEntries = 25;
         startMessageId = Optional.empty();
         firstResult = getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(13, 0),
                 PositionFactory.create(13, 9));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(firstResult);
+
         secondInvocationMsgId = Optional.of(new MessageIdImpl(13, 10, partitionIndex));
         AnalyzeSubscriptionBacklogResult moreResult =
                 getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(13, 10),
                         PositionFactory.create(13, 19));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId)).thenReturn(
                 moreResult);
+
         Optional<MessageId> thirdInvocationMsgId = Optional.of(new MessageIdImpl(13, 20, partitionIndex));
         AnalyzeSubscriptionBacklogResult lastResult =
                 getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(14, 0),
                         PositionFactory.create(14, 9));
         when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, thirdInvocationMsgId)).thenReturn(
                 lastResult);
+
         cmdTopics.run(
                 split("analyze-backlog " + topic + " -s " + subscriptionName + " -b " + backlogScanMaxEntries + " -q"));
+
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId);
         verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, thirdInvocationMsgId);
