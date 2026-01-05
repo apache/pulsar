@@ -458,6 +458,7 @@ public class TopicListService {
                 return;
             }
             long retryDelay = retryBackoff.next();
+            retryCount.incrementAndGet();
             log.info("[{}] Cannot acquire direct memory tokens for sending {}. Retry {} in {} ms. {}", connection,
                     operationName, retryCount.get(), retryDelay, t.getMessage());
             scheduledExecutor.schedule(operationRef.get(), retryDelay, TimeUnit.MILLISECONDS);
