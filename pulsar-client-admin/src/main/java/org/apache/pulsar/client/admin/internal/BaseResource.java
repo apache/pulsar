@@ -202,11 +202,19 @@ public abstract class BaseResource {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                        int status = response.getStatus();
+                        // Accept both 200 OK and 204 No Content as success
+                        if (status != Response.Status.OK.getStatusCode()
+                                && status != Response.Status.NO_CONTENT.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             try {
-                                future.complete(readResponse.apply(response));
+                                // Handle 204 No Content - no response body to read
+                                if (status == Response.Status.NO_CONTENT.getStatusCode()) {
+                                    future.complete(null);
+                                } else {
+                                    future.complete(readResponse.apply(response));
+                                }
                             } catch (Exception e) {
                                 future.completeExceptionally(getApiException(e));
                             }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
@@ -434,5 +435,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
         client.close();
 
         asyncHttpConnector.close();
+    }
+
+    @VisibleForTesting
+     WebTarget getRoot() {
+        return root;
     }
 }
