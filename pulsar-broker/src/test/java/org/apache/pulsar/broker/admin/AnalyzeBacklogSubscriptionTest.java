@@ -276,8 +276,8 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
                 admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), backlogScanMaxEntries);
 
         // Broker returns 15 + 15 + 15 = 45 entries.
-        long expectedEntries = backlogScanMaxEntries / serverSubscriptionBacklogScanMaxEntries
-                + serverSubscriptionBacklogScanMaxEntries;
+        long expectedEntries = (backlogScanMaxEntries / serverSubscriptionBacklogScanMaxEntries + 1)
+                * serverSubscriptionBacklogScanMaxEntries;
         assertEquals(backlogResult.getEntries(), expectedEntries);
         assertEquals(backlogResult.getMessages(), expectedEntries);
     }
@@ -296,17 +296,14 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
         verifyBacklog(topic, subName, 0, 0);
 
-        // Test client side loop with topic unload.
+        // Test client side loop with topic unload. Use sync send method here to avoid potential message duplication.
         @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
-        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
         for (int i = 0; i < numMessages; i++) {
-            CompletableFuture<MessageId> future = producer.sendAsync(("test-" + i).getBytes());
-            futures.add(future);
+            producer.send(("test-" + i).getBytes());
             if (RandomUtils.secure().randomBoolean()) {
                 admin.topics().unload(topic);
             }
         }
-        FutureUtil.waitForAll(futures).get();
 
         AnalyzeSubscriptionBacklogResult backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), numMessages);
@@ -341,11 +338,10 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         AnalyzeSubscriptionBacklogResult backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), backlogScanMaxEntries);
 
-        // Broker will filter deleted entries, total entries is supposed to be 19 + 20 = 39.
-        assertThat(backlogResult.getEntries()).isBetween(backlogScanMaxEntries,
-                backlogScanMaxEntries + serverSubscriptionBacklogScanMaxEntries - 1);
+        assertThat(backlogResult.getEntries()).isEqualTo(backlogScanMaxEntries);
+        assertThat(backlogResult.getMessages()).isEqualTo(backlogScanMaxEntries);
 
-        // Ack message1 and message2.
+        // Ack message1.
         consumer.acknowledge(message1);
 
         backlogResult =
@@ -370,7 +366,10 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         admin.topics().createSubscription(topic, subName, MessageId.latest);
 
         assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
-        verifyBacklog(topic, subName, 0, 0);
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), 1);
+        assertEquals(backlogResult.getEntries(), 0);
+        assertEquals(backlogResult.getMessages(), 0);
 
         @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();

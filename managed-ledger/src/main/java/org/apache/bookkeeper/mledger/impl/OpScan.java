@@ -69,6 +69,7 @@ class OpScan implements ReadEntriesCallback {
         try {
             Position lastPositionForBatch = entries.get(entries.size() - 1).getPosition();
             lastSeenPosition = lastPositionForBatch;
+            // TODO This filter operation is not needed, already handled by OpReadEntry.
             // filter out the entry if it has been already deleted
             // filterReadEntries will call entry.release if the entry is filtered out
             List<Entry> entriesFiltered = this.cursor.filterReadEntries(entries);
@@ -76,7 +77,7 @@ class OpScan implements ReadEntriesCallback {
             remainingEntries.addAndGet(-skippedEntries);
             if (!entriesFiltered.isEmpty()) {
                 for (Entry entry : entriesFiltered) {
-                    if (remainingEntries.decrementAndGet() <= 0) {
+                    if (remainingEntries.getAndDecrement() <= 0) {
                         log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
                         callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
                         return;
