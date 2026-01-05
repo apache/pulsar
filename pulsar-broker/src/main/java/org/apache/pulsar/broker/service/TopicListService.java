@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -36,6 +39,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.TopicResources;
@@ -64,7 +68,7 @@ public class TopicListService {
         // upper bound for buffered topic list updates
         private static final int TOPIC_LIST_UPDATE_MAX_QUEUE_SIZE = 10000;
         /** Topic names which are matching, the topic name contains the partition suffix. **/
-        private final List<String> matchingTopics;
+        private final Set<String> matchingTopics;
         private final TopicListService topicListService;
         private final long id;
         /** The regexp for the topic name(not contains partition suffix). **/
@@ -85,12 +89,13 @@ public class TopicListService {
             this.id = id;
             this.topicsPattern = topicsPattern;
             this.executor = executor;
-            this.matchingTopics = TopicList.filterTopics(topics, topicsPattern);
+            this.matchingTopics =
+                    TopicList.filterTopics(topics, topicsPattern, Collectors.toCollection(LinkedHashSet::new));
             // start with in progress state since topic list update will be sent first
             this.sendingInProgress = true;
         }
 
-        public List<String> getMatchingTopics() {
+        public Collection<String> getMatchingTopics() {
             return matchingTopics;
         }
 
@@ -106,19 +111,19 @@ public class TopicListService {
             String domainLessTopicName = TopicList.removeTopicDomainScheme(partitionedTopicName);
 
             if (topicsPattern.matches(domainLessTopicName)) {
-                List<String> newTopics;
-                List<String> deletedTopics;
+                List<String> newTopics = Collections.emptyList();
+                List<String> deletedTopics = Collections.emptyList();
                 if (notificationType == NotificationType.Deleted) {
-                    newTopics = Collections.emptyList();
-                    deletedTopics = Collections.singletonList(topicName);
-                    matchingTopics.remove(topicName);
-                } else {
-                    deletedTopics = Collections.emptyList();
+                    if (matchingTopics.remove(topicName)) {
+                        deletedTopics = Collections.singletonList(topicName);
+                    }
+                } else if (matchingTopics.add(topicName)) {
                     newTopics = Collections.singletonList(topicName);
-                    matchingTopics.add(topicName);
                 }
-                String hash = TopicList.calculateHash(matchingTopics);
-                sendTopicListUpdate(hash, deletedTopics, newTopics);
+                if (!newTopics.isEmpty() || !deletedTopics.isEmpty()) {
+                    String hash = TopicList.calculateHash(matchingTopics);
+                    sendTopicListUpdate(hash, deletedTopics, newTopics);
+                }
             }
         }
 
@@ -249,7 +254,7 @@ public class TopicListService {
 
         CompletableFuture<TopicListWatcher> finalWatcherFuture = watcherFuture;
         finalWatcherFuture.thenAccept(watcher -> {
-                    List<String> topicList = watcher.getMatchingTopics();
+                    Collection<String> topicList = watcher.getMatchingTopics();
                     String hash = TopicList.calculateHash(topicList);
                     if (hash.equals(topicsHash)) {
                         topicList = Collections.emptyList();
@@ -275,7 +280,8 @@ public class TopicListService {
                 });
     }
 
-    private void sendTopicListSuccessWithPermitAcquiringRetries(long watcherId, long requestId, List<String> topicList,
+    private void sendTopicListSuccessWithPermitAcquiringRetries(long watcherId, long requestId,
+                                                                Collection<String> topicList,
                                                                 String hash,
                                                                 Runnable successfulCompletionCallback) {
         performOperationWithPermitAcquiringRetries(watcherId, "topic list success", permitAcquireErrorHandler ->

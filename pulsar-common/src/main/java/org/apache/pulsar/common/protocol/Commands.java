@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -1628,7 +1629,7 @@ public class Commands {
      * @param topics topic names which are matching, the topic name contains the partition suffix.
      */
     public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
-                                                       List<String> topics) {
+                                                       Collection<String> topics) {
         BaseCommand cmd = new BaseCommand().setType(Type.WATCH_TOPIC_LIST_SUCCESS);
         cmd.setWatchTopicListSuccess()
                 .setRequestId(requestId)

@@ -24,6 +24,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -370,7 +371,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
      */
     @Override
     public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
-                                                             List<String> topics,
+                                                             Collection<String> topics,
                                                              Consumer<Throwable> permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
         safeIntercept(command, cnx);

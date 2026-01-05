@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -56,6 +57,14 @@ public class TopicList {
      * Filter topics using a TopicListPattern instance.
      */
     public static List<String> filterTopics(List<String> original, TopicsPattern topicsPattern) {
+        return filterTopics(original, topicsPattern, Collectors.toList());
+    }
+
+    /**
+     * Filter topics using a TopicListPattern instance and collect the results using a specified collector.
+     */
+    public static <R> R filterTopics(List<String> original, TopicsPattern topicsPattern,
+                                              Collector<String, ?, R> collector) {
         return original.stream()
                 .map(TopicName::get)
                 .filter(topicName -> {
@@ -64,7 +73,7 @@ public class TopicList {
                     return topicsPattern.matches(removedScheme);
                 })
                 .map(TopicName::toString)
-                .collect(Collectors.toList());
+                .collect(collector);
     }
 
     public static List<String> filterSystemTopic(List<String> original) {
@@ -73,7 +82,7 @@ public class TopicList {
                 .collect(Collectors.toList());
     }
 
-    public static String calculateHash(List<String> topics) {
+    public static String calculateHash(Collection<String> topics) {
         Hasher hasher = Hashing.crc32c().newHasher();
         String[] sortedTopics = topics.toArray(new String[topics.size()]);
         Arrays.sort(sortedTopics);
