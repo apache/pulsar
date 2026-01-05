@@ -152,11 +152,11 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
         AsyncDualMemoryLimiterImpl limiter =
                 pulsar.getBrokerService().getMaxTopicListInFlightLimiter();
         assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAvailablePermits())
-                .isEqualTo(pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizeMB() * 1024 * 1024);
+                .isEqualTo(pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024);
         assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAcquiredPermits())
                 .isEqualTo(0);
         assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAvailablePermits())
-                .isEqualTo(pulsar.getConfiguration().getMaxTopicListInFlightDirectMemSizeMB() * 1024 * 1024);
+                .isEqualTo(pulsar.getConfiguration().getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024);
         assertThat(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAcquiredPermits())
                 .isEqualTo(0);
     }
