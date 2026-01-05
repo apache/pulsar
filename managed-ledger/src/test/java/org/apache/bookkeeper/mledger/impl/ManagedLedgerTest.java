@@ -5107,4 +5107,57 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // cleanup.
         ml.delete();
     }
+
+    @Test
+    public void testTrimmerRaceCondition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionSizeInMB(0);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testTrimmerRaceCondition", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        // 1. Add Entry 1 (Ledger 1)
+        ledger.addEntry("entry-1".getBytes(Encoding));
+
+        // 2. Ack Entry 1. Verify Persistence with properties.
+        List<Entry> entries = cursor.readEntries(1);
+        assertEquals(entries.size(), 1);
+        Position lastPosition = entries.get(0).getPosition();
+        entries.forEach(Entry::release);
+
+        // Mark delete with properties
+        Map<String, Long> properties = new HashMap<>();
+        properties.put("test-property", 12345L);
+        CountDownLatch latch = new CountDownLatch(1);
+        cursor.asyncMarkDelete(lastPosition, properties, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                latch.countDown();
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                fail("Mark delete should succeed");
+            }
+        }, null);
+
+        latch.await();
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), lastPosition);
+        assertEquals(ledger.getCursors().getSlowestCursorPosition(), lastPosition);
+        assertEquals(cursor.getProperties(), properties);
+
+        // 3. Add Entry 2. Triggers Rollover.
+        // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
+        Position p = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // Wait for background tasks (metadata callback) to complete.
+        // We expect at least 2 ledgers (Rollover happened).
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), new ImmutablePositionImpl(p.getLedgerId(), -1));
+
+        // Verify properties are preserved after cursor reset
+        assertEquals(cursor.getProperties(), properties);
+    }
 }

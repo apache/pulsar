@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
@@ -49,17 +50,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -69,6 +74,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -110,6 +116,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
@@ -204,6 +211,117 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
     }
 
+    @Test
+    public void testConcurrentPropertyOperationsThreadSafety() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testConcurrentPropertyOperationsThreadSafety", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_concurrent", null);
+
+        int threadCount = 100;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+
+        // Collect all Future objects to ensure all tasks complete before verification
+        List<Future<?>> allFutures = new ArrayList<>();
+
+        // Use fixed number of operations
+        int totalOperations = 10000;
+        AtomicLong completedOperations = new AtomicLong(0);
+        AtomicLong exceptionCount = new AtomicLong(0);
+        AtomicBoolean inconsistencyDetected = new AtomicBoolean(false);
+
+        // Submit fixed number of concurrent tasks
+        for (int i = 0; i < totalOperations; i++) {
+            Future<?> future = executor.submit(() -> {
+                try {
+                    Random random = new Random();
+                    int operationType = random.nextInt(3);
+                    String randomKey = "key" + random.nextInt(20);
+
+                    switch (operationType) {
+                        case 0: // Put operation
+                            Long randomValue = random.nextLong();
+                            cursor.putProperty(randomKey, randomValue);
+                            break;
+
+                        case 1: // Remove operation
+                            cursor.removeProperty(randomKey);
+                            break;
+
+                        case 2: // Read and verify operation
+                            Map<String, Long> properties = cursor.getProperties();
+                            // Verify no inconsistent state (key exists but value is null)
+                            if (properties.containsKey(randomKey) && properties.get(randomKey) == null) {
+                                inconsistencyDetected.set(true);
+                                fail("INCONSISTENT STATE DETECTED: Key '" + randomKey + "' exists but has null value");
+                            }
+                            break;
+                    }
+                    completedOperations.incrementAndGet();
+
+                } catch (ConcurrentModificationException cme) {
+                    // Record ConcurrentModificationException but don't fail immediately
+                    // We'll assert at the end that no exceptions occurred
+                    exceptionCount.incrementAndGet();
+                } catch (Exception e) {
+                    exceptionCount.incrementAndGet();
+                    fail("Unexpected exception: " + e.getMessage());
+                }
+            });
+
+            allFutures.add(future);
+        }
+        executor.shutdown();
+
+        // Wait for each task to complete with timeout
+        for (Future<?> future : allFutures) {
+            try {
+                future.get(30, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                fail("Task timed out after 30 seconds - possible deadlock or infinite loop");
+            } catch (ExecutionException e) {
+                fail("unexpected exception: " + e.getCause());
+            }
+        }
+
+        // Ensure executor is fully terminated
+        boolean terminated = executor.awaitTermination(10, TimeUnit.SECONDS);
+        assertTrue(terminated, "Executor should be fully terminated");
+
+        // Then: Verify test results
+        // 1. No ConcurrentModificationException should occur with fixed code
+        assertEquals(exceptionCount.get(), 0, "No exceptions should occur with thread-safe implementation");
+
+        // 2. No inconsistent states detected
+        assertFalse(inconsistencyDetected.get(), "No inconsistent states (key with null value) should be detected");
+
+        // 3: Final cursor state should be internally consistent
+        Map<String, Long> finalProperties = cursor.getProperties();
+        try {
+            for (Map.Entry<String, Long> entry : finalProperties.entrySet()) {
+                String key = entry.getKey();
+                Long value = entry.getValue();
+                // Verify key is not null
+                assertNotNull(key, "Final key should not be null");
+                // Verify value is not null
+                assertNotNull(value, "Final value should not be null for key: " + key);
+                // Verify key follows expected pattern
+                assertTrue(key.startsWith("key"),
+                        "Final key should start with 'key', got: " + key);
+
+                // Verify key format is valid (key followed by a number 0-19)
+                try {
+                    String numberPart = key.substring(3); // Remove "key" prefix
+                    int keyNumber = Integer.parseInt(numberPart);
+                    assertTrue(keyNumber >= 0 && keyNumber < 20,
+                            "Key number should be between 0 and 19, got: " + keyNumber);
+                } catch (NumberFormatException e) {
+                    fail("Invalid key format: " + key + ". Should be 'keyX' where X is a number");
+                }
+            }
+        } catch (Exception e) {
+            fail("HashMap corruption detected in final state: " + e.getMessage());
+        }
+    }
     private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
         Awaitility.await().until(managedCursor::closeCursorLedger);
     }
@@ -579,7 +697,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        // Add retry logic here to prove open operation will finally success despite race condition.
+        ledger = ManagedLedgerTestUtil.retry(
+                () -> factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)));
+
 
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
@@ -1248,7 +1369,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void cursorPersistence() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        // Open cursor_persistence_ledger ledger, create ledger 3.
+        ManagedLedger ledger = factory.open("cursor_persistence_ledger");
         ManagedCursor c1 = ledger.openCursor("c1");
         ManagedCursor c2 = ledger.openCursor("c2");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -1260,24 +1382,28 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = c1.readEntries(3);
         Position p1 = entries.get(2).getPosition();
+        // Mark delete, create ledger 4 due to cursor ledger state is NoLedger.
         c1.markDelete(p1);
         entries.forEach(Entry::release);
 
         entries = c1.readEntries(4);
         Position p2 = entries.get(2).getPosition();
+        // Mark delete, create ledger 5 due to cursor ledger state is NoLedger.
         c2.markDelete(p2);
         entries.forEach(Entry::release);
 
         // Reopen
-
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger");
+        // Recovery open cursor_persistence_ledger ledger, create ledger 6, and move mark delete position to 6:-1.
+        // See PR https://github.com/apache/pulsar/pull/25087.
+        ledger = factory2.open("cursor_persistence_ledger");
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
 
         assertEquals(c1.getMarkDeletedPosition(), p1);
-        assertEquals(c2.getMarkDeletedPosition(), p2);
+        ManagedCursor finalC2 = c2;
+        Awaitility.await().untilAsserted(() -> assertThat(finalC2.getMarkDeletedPosition()).isGreaterThan(p2));
     }
 
     @Test(timeOut = 20000)
@@ -1348,7 +1474,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c4.getMarkDeletedPosition(), p1);
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void asyncMarkDeleteBlocking() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
@@ -1383,16 +1509,166 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         latch.await();
-
         assertEquals(c1.getNumberOfEntries(), 0);
 
         // Reopen
-        @Cleanup("shutdown")
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger");
+        @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        // flaky test case: factory2.open() may throw MetadataStoreException$BadVersionException, race condition:
+        // 1. factory2.open() triggers ledger recovery, read versionA ManagedLedgerInfo of my_test_ledger ledger.
+        // 2. my_test_ledger ledger rollover triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionB
+        //    ManagedLedgerInfo into metaStore.
+        // 3. factory2.open() triggers MetaStoreImpl.asyncUpdateLedgerIds(), update versionA ManagedLedgerInfo
+        //    into metaStore, then throws BadVersionException and moves my_test_ledger ledger to fenced state.
+        // Recovery open async_mark_delete_blocking_test_ledger ledger, ledgerId++
+        // Add retry logic here to prove open operation will finally success despite race condition.
+        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger"));
         ManagedCursor c2 = ledger.openCursor("c1");
 
-        assertEquals(c2.getMarkDeletedPosition(), lastPosition.get());
+        // Three cases:
+        // 1. cursor recovered with lastPosition markDeletePosition
+        // 2. cursor recovered with (lastPositionLedgerId+1:-1) markDeletePosition, cursor ledger not rolled over, we
+        //    move markDeletePosition to (lastPositionLedgerId+2:-1)
+        // 3. cursor recovered with (lastPositionLedgerId+1:-1) markDeletePosition, cursor ledger rolled over, we
+        //    move markDeletePosition to (lastPositionLedgerId+3:-1)
+        // See PR https://github.com/apache/pulsar/pull/25087.
+        assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition.get());
+    }
+
+    @Test(timeOut = 20000)
+    public void asyncMarkDeleteBlockingWithOneShot() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        // open async_mark_delete_blocking_test_ledger ledger, create ledger 3.
+        ManagedLedger ledger = factory.open("async_mark_delete_blocking_test_ledger", config);
+        final ManagedCursor c1 = ledger.openCursor("c1");
+        final AtomicReference<Position> lastPosition = new AtomicReference<>();
+        // just for log debug purpose
+        Deque<Position> positions = new ConcurrentLinkedDeque<>();
+
+        // In previous flaky test, we set num=100, PR https://github.com/apache/pulsar/pull/25087 will make the test
+        // more flaky. Flaky case:
+        //   1. cursor recovered with markDeletePosition 12:9, persistentMarkDeletePosition 12:9.
+        //   2. cursor recovered with mark markDeletePosition 13:-1, persistentMarkDeletePosition 13:-1.
+        // Here, we set num to 101, make sure the ledger 13 is created and become the active(last) ledger,
+        // and cursor will always be recovered with markDeletePosition 13:0, persistentMarkDeletePosition 13:0.
+        final int num = 101;
+        final CountDownLatch addEntryLatch = new CountDownLatch(num);
+        // 10 entries per ledger, create ledger 4~13
+        for (int i = 0; i < num; i++) {
+            String entryStr = "entry-" + i;
+            ledger.asyncAddEntry(entryStr.getBytes(Encoding), new AddEntryCallback() {
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                }
+
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    lastPosition.set(position);
+                    positions.offer(position);
+                    addEntryLatch.countDown();
+                }
+            }, null);
+        }
+        addEntryLatch.await();
+
+        // If we set num=100, to avoid flaky test, we should add Thread.sleep(1000) here to make sure ledger rollover
+        // is finished, but this sleep can not guarantee c1 always recovered with markDeletePosition 12:9.
+        // Thread.sleep(1000);
+
+        final CountDownLatch markDeleteLatch = new CountDownLatch(1);
+        // Mark delete, create ledger 14 due to cursor ledger state is NoLedger.
+        // The num=100 flaky test case, markDelete operation is triggered twice:
+        //   1. first is triggered by c1.asyncMarkDelete(), markDeletePosition is 12:9.
+        //   2. second is triggered by ManagedLedgerImpl.updateLedgersIdsComplete() due to ledger full rollover,
+        //      The entries in ledger 12 are all consumed, and we move persistentMarkDeletePosition and
+        //      markDeletePosition to 13:-1 due to PR https://github.com/apache/pulsar/pull/25087.
+        //      Before this pr, we will not move persistentMarkDeletePosition.
+        // Two markDelete operations is almost triggered at the same time without order guarantee:
+        //   1. main thread triggered c1.asyncMarkDelete.
+        //   2. bookkeeper-ml-scheduler-OrderedScheduler-0-0 thread triggered create ledger 13 due to ledger full
+        //      rollover by OpAddEntry.
+        // OpAddEntry will close and create a new ledger when closeWhenDone is true.
+        // In ManagedLedgerImpl class, MetaStoreCallback cb calls maybeUpdateCursorBeforeTrimmingConsumedLedger(),
+        // which calls cursor.asyncMarkDelete(), so markDelete operation in ledger rollover may execute after
+        // AddEntryCallback.addComplete(). The root cause is cursor.asyncMarkDelete() does not propagate completion or
+        // failure to it caller callback
+        c1.asyncMarkDelete(lastPosition.get(), new MarkDeleteCallback() {
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+            }
+
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                markDeleteLatch.countDown();
+            }
+        }, null);
+        markDeleteLatch.await();
+        assertEquals(c1.getNumberOfEntries(), 0);
+
+        // Reopen
+        @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        // Recovery open async_mark_delete_blocking_test_ledger ledger, create ledger 15.
+        // When executing ManagedLedgerImpl.maybeUpdateCursorBeforeTrimmingConsumedLedger(), the curPointedLedger is 13,
+        // the nextPointedLedger is 15, ledger 13 only has 1 consumed entry 13:0,
+        // so we will move markDeletePosition to 15:-1, see PR https://github.com/apache/pulsar/pull/25087.
+        ledger = factory2.open("async_mark_delete_blocking_test_ledger");
+        ManagedCursor c2 = ledger.openCursor("c1");
+
+        log.info("positions size: {}, positions: {}", positions.size(), positions);
+        // To make sure ManagedLedgerImpl.maybeUpdateCursorBeforeTrimmingConsumedLedger() is completed, we should
+        // wait until c2.getMarkDeletedPosition() equals 15:-1, see PR https://github.com/apache/pulsar/pull/25087.
+        Awaitility.await()
+                .untilAsserted(() -> assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get()));
+    }
+
+    @Test(timeOut = 20000)
+    public void asyncMarkDeleteBlockingWithMultiShots() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMetadataMaxEntriesPerLedger(5);
+        ManagedLedger ledger = factory.open("async_mark_delete_blocking_test_ledger", config);
+        final ManagedCursor c1 = ledger.openCursor("c1");
+        final AtomicReference<Position> lastPosition = new AtomicReference<>();
+
+        final int num = 101;
+        final CountDownLatch addEntryLatch = new CountDownLatch(num);
+        for (int i = 0; i < num; i++) {
+            String entryStr = "entry-" + i;
+            ledger.asyncAddEntry(entryStr.getBytes(Encoding), new AddEntryCallback() {
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                }
+
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    lastPosition.set(position);
+                    c1.asyncMarkDelete(lastPosition.get(), new MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                        }
+
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                            addEntryLatch.countDown();
+                        }
+                    }, null);
+
+                }
+            }, null);
+        }
+        addEntryLatch.await();
+        assertEquals(c1.getNumberOfEntries(), 0);
+
+        // Reopen
+        @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ledger = factory2.open("async_mark_delete_blocking_test_ledger");
+        ManagedCursor c2 = ledger.openCursor("c1");
+
+        // flaky test case: c2.getMarkDeletedPosition() may be equals lastPositionLedgerId+1 or lastPositionLedgerId+2,
+        // the last c1.asyncMarkDelete() operation may trigger a cursor ledger rollover
+        // See PR https://github.com/apache/pulsar/pull/25087.
+        Awaitility.await()
+                .untilAsserted(() -> assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get()));
     }
 
     @Test(timeOut = 20000)
@@ -1402,7 +1678,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final ManagedCursor c1 = ledger.openCursor("c1");
 
         final int num = 100;
-        List<Position> positions = new ArrayList();
+        List<Position> positions = new ArrayList<>();
         for (int i = 0; i < num; i++) {
             Position p = ledger.addEntry("dummy-entry".getBytes(Encoding));
             positions.add(p);
@@ -1431,10 +1707,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Reopen
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger");
+        // Add retry logic here to prove open operation will finally success despite race condition.
+        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger"));
         ManagedCursor c2 = ledger.openCursor("c1");
 
-        assertEquals(c2.getMarkDeletedPosition(), lastPosition);
+        assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
     }
 
     @Test(timeOut = 20000)
@@ -3522,6 +3799,81 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 10 * entryData.length);
     }
 
+    /**
+     * Test that cursor.getEstimatedSizeSinceMarkDeletePosition() correctly accounts for individual
+     * message deletions (asyncDelete/individual ack).
+     *
+     * This verifies the fix: when messages are acknowledged out of order using asyncDelete,
+     * the backlog size is now correctly adjusted to reflect the individually deleted messages.
+     */
+    @Test(timeOut = 20000)
+    public void testEstimatedSizeWithIndividualAcks() throws Exception {
+        ManagedLedger ledger = factory.open("test_cursor_backlog_size_individual_acks");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        // Each entry is 100 bytes
+        byte[] entryData = new byte[100];
+
+        // Add 5 entries: positions should be 0:0, 0:1, 0:2, 0:3, 0:4
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            positions.add(ledger.addEntry(entryData));
+        }
+
+        // Initial state: 5 entries * 100 bytes = 500 bytes
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 500);
+
+        // Read all entries so they can be acknowledged
+        List<Entry> entries = cursor.readEntries(5);
+        assertEquals(entries.size(), 5);
+        entries.forEach(Entry::release);
+
+        // Individual acknowledge positions 1, 3, 4 (leaving 0:0 and 0:2 unacknowledged)
+        AtomicInteger callbackCount = new AtomicInteger(0);
+        CountDownLatch latch = new CountDownLatch(3);
+
+        DeleteCallback callback = new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                callbackCount.incrementAndGet();
+                latch.countDown();
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                latch.countDown();
+            }
+        };
+
+        cursor.asyncDelete(positions.get(1), callback, null);
+        cursor.asyncDelete(positions.get(3), callback, null);
+        cursor.asyncDelete(positions.get(4), callback, null);
+
+        // Wait for async operations to complete
+        assertTrue(latch.await(5, TimeUnit.SECONDS), "Deletes should complete");
+        assertEquals(callbackCount.get(), 3, "All 3 deletes should succeed");
+
+        // Get current state
+        // After fix: should now account for individual deleted messages
+        long expectedBacklogSize = 200;  // 2 remaining entries (0:0, 0:2) * 100 bytes
+        long actualBacklogSize = cursor.getEstimatedSizeSinceMarkDeletePosition();
+        Position markDeletePos = cursor.getMarkDeletedPosition();
+
+        log.info("Backlog size after individual acks:");
+        log.info("  Expected: {}. Actual: {}", expectedBacklogSize, actualBacklogSize);
+        log.info("  Mark delete position: {}", markDeletePos);
+        log.info("  Individual deleted: {}", ((ManagedCursorImpl) cursor).getIndividuallyDeletedMessagesSet());
+
+        // After fix: backlog size should now correctly account for individual deletions
+        assertEquals(actualBacklogSize, expectedBacklogSize,
+                "Backlog size should account for individual deletions");
+
+        // Verify both count and size are correct
+        assertEquals(cursor.getNumberOfEntriesInBacklog(true), 2, "Backlog count should be 2");
+
+        ledger.close();
+    }
+
     @Test(timeOut = 20000)
     public void testRecoverCursorAheadOfLastPosition() throws Exception {
         final String mlName = "my_test_ledger";
@@ -4507,7 +4859,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testLazyCursorLedgerCreationForSubscriptionCreation() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         ManagedLedgerImpl ledger =
@@ -4519,7 +4871,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = (ManagedLedgerImpl) factory2.open("testLazyCursorLedgerCreation", managedLedgerConfig);
         assertNotNull(ledger.getCursors().get("test"));
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
-        assertEquals(cursor1.getMarkDeletedPosition(), p1);
+        // Reopen ledger may move cursor to next position. See PR https://github.com/apache/pulsar/pull/25087.
+        assertThat(cursor1.getMarkDeletedPosition()).isGreaterThanOrEqualTo(p1);
         factory2.shutdown();
     }
 

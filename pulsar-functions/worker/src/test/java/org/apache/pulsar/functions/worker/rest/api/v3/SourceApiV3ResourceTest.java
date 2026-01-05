@@ -74,7 +74,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
     private static final String source = "test-source";
     private static final String outputTopic = "test-output-topic";
     private static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
-    private static final String TWITTER_FIRE_HOSE = "org.apache.pulsar.io.twitter.TwitterFireHose";
+    private static final String DATAGEN_SOURCE = "org.apache.pulsar.io.datagenerator.DataGeneratorSource";
     private SourcesImpl resource;
 
     @Override
@@ -109,7 +109,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     null
             );
@@ -130,7 +130,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     null
             );
@@ -151,7 +151,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     null
             );
@@ -206,7 +206,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
     public void testRegisterSourceMissingPackageDetails() throws IOException {
-        try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
+        try (InputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
             testRegisterSourceMissingArguments(
                     TENANT,
                     NAMESPACE,
@@ -215,7 +215,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     null,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     null
             );
@@ -271,7 +271,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
 
     @Test
     public void testRegisterSourceNoOutputTopic() throws IOException {
-        try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
+        try (InputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
             testRegisterSourceMissingArguments(
                     TENANT,
                     NAMESPACE,
@@ -280,7 +280,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     null,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     null
             );
@@ -302,7 +302,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     null,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     "http://localhost:1234/test"
             );
@@ -386,7 +386,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
     }
 
     private void registerDefaultSource() throws IOException {
-        registerDefaultSourceWithPackageUrl(getPulsarIOTwitterNar().toURI().toString());
+        registerDefaultSourceWithPackageUrl(getPulsarIODataGenNar().toURI().toString());
     }
 
     private void registerDefaultSourceWithPackageUrl(String packageUrl) throws IOException {
@@ -482,7 +482,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
 
         SourceConfig sourceConfig = createDefaultSourceConfig();
-        try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
+        try (InputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
             resource.registerSource(
                     actualTenant,
                     actualNamespace,
@@ -545,7 +545,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     "Tenant is not provided");
         } catch (RestException re) {
@@ -565,7 +565,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     "Namespace is not provided");
         } catch (RestException re) {
@@ -585,7 +585,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     "Source name is not provided");
         } catch (RestException re) {
@@ -654,7 +654,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     -2,
                     "Source parallelism must be a positive number");
         } catch (RestException re) {
@@ -668,7 +668,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
         try {
             mockWorkerUtils();
 
-            try (FileInputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
+            try (FileInputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
                 testUpdateSourceMissingArguments(
                         TENANT,
                         NAMESPACE,
@@ -677,7 +677,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                         mockedFormData,
                         outputTopic,
                         outputSerdeClassName,
-                        TWITTER_FIRE_HOSE,
+                        DATAGEN_SOURCE,
                         PARALLELISM + 1,
                         null);
             }
@@ -691,7 +691,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
     public void testUpdateSourceChangedTopic() throws Exception {
         mockWorkerUtils();
 
-        try (FileInputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
+        try (FileInputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
             testUpdateSourceMissingArguments(
                     TENANT,
                     NAMESPACE,
@@ -700,7 +700,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     "DifferentTopic",
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     PARALLELISM,
                     null);
         }
@@ -756,7 +756,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
         // no changes but set the auth-update flag to true, should not fail
         UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
         updateOptions.setUpdateAuthData(true);
-        try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
+        try (InputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
             resource.updateSource(
                     sourceConfig.getTenant(),
                     sourceConfig.getNamespace(),
@@ -784,7 +784,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     mockedFormData,
                     outputTopic,
                     outputSerdeClassName,
-                    TWITTER_FIRE_HOSE,
+                    DATAGEN_SOURCE,
                     0,
                     "Source parallelism must be a positive number");
         } catch (RestException re) {
@@ -861,7 +861,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
     }
 
     private void updateDefaultSource() throws Exception {
-        updateDefaultSourceWithPackageUrl(getPulsarIOTwitterNar().toURI().toString());
+        updateDefaultSourceWithPackageUrl(getPulsarIODataGenNar().toURI().toString());
     }
 
     private void updateDefaultSourceWithPackageUrl(String packageUrl) throws Exception {
@@ -910,7 +910,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
                     FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
             when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
 
-            try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
+            try (InputStream inputStream = new FileInputStream(getPulsarIODataGenNar())) {
                 resource.updateSource(
                         TENANT,
                         NAMESPACE,
@@ -940,7 +940,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
     public void testUpdateSourceWithUrl() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
-        String filePackageUrl = getPulsarIOTwitterNar().toURI().toString();
+        String filePackageUrl = getPulsarIODataGenNar().toURI().toString();
 
         SourceConfig sourceConfig = createDefaultSourceConfig();
 
@@ -1454,7 +1454,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
         sourceConfig.setTenant(TENANT);
         sourceConfig.setNamespace(NAMESPACE);
         sourceConfig.setName(source);
-        sourceConfig.setClassName(TWITTER_FIRE_HOSE);
+        sourceConfig.setClassName(DATAGEN_SOURCE);
         sourceConfig.setParallelism(PARALLELISM);
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
