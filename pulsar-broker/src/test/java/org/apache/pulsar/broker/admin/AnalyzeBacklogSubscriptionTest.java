@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
@@ -49,6 +50,12 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     public void setup() throws Exception {
         super.internalSetup();
         producerBaseSetup();
+    }
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setDispatcherMaxReadBatchSize(10);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -191,101 +198,187 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void analyzeBacklogUsingClientSideLooping() throws Exception {
-        int serverSubscriptionBacklogScanMaxEntries = 10;
+    public void analyzeBacklogServerReturnFalseAbortedFlagWithoutLoop() throws Exception {
+        long serverSubscriptionBacklogScanMaxEntries = 20;
         conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-using-client-side-looping-topic";
+        String topic = "persistent://my-property/my-ns/analyze-backlog-server-return-false-aborted-flag-without-loop";
         String subName = "sub-1";
+        int numMessages = 10;
+
+        // Test server returns false aborted flag.
+        clientSideLoopAnalyzeBacklogSetup(topic, subName, numMessages);
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), numMessages - 1);
+
+        assertEquals(backlogResult.getEntries(), numMessages);
+        assertEquals(backlogResult.getMessages(), numMessages);
+    }
+
+    @Test
+    public void analyzeBacklogMaxEntriesExceedWithoutLoop() throws Exception {
+        long serverSubscriptionBacklogScanMaxEntries = 20;
+        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+
+        String topic = "persistent://my-property/my-ns/analyze-backlog-max-entries-exceed-without-loop";
+        String subName = "sub-1";
+        int numMessages = 25;
+
+        // Test backlogScanMaxEntries(client side) <= subscriptionBacklogScanMaxEntries(server side), but server
+        // returns true aborted flag. Server dispatcherMaxReadBatchSize is set to 10.
+        clientSideLoopAnalyzeBacklogSetup(topic, subName, numMessages);
+
+        AnalyzeSubscriptionBacklogResult backlogResult = admin.topics()
+                .analyzeSubscriptionBacklog(topic, subName, Optional.empty(),
+                        serverSubscriptionBacklogScanMaxEntries - 1);
+
+        assertEquals(backlogResult.getEntries(), serverSubscriptionBacklogScanMaxEntries);
+        assertEquals(backlogResult.getMessages(), serverSubscriptionBacklogScanMaxEntries);
+    }
+
+    @Test
+    public void analyzeBacklogServerReturnFalseAbortedFlagWithLoop() throws Exception {
+        long serverSubscriptionBacklogScanMaxEntries = 20;
+        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+
+        String topic = "persistent://my-property/my-ns/analyze-backlog-server-return-false-aborted-flag-with-loop";
+        String subName = "sub-1";
+        int numMessages = 45;
+
+        // Test client side loop: backlogScanMaxEntries > subscriptionBacklogScanMaxEntries, the loop termination
+        // condition is that server returns false aborted flag.
+        clientSideLoopAnalyzeBacklogSetup(topic, subName, numMessages);
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), numMessages);
+
+        assertEquals(backlogResult.getEntries(), numMessages);
+        assertEquals(backlogResult.getMessages(), numMessages);
+    }
+
+    @Test
+    public void analyzeBacklogMaxEntriesExceedWithLoop() throws Exception {
+        long serverSubscriptionBacklogScanMaxEntries = 15;
+        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+
+        String topic = "persistent://my-property/my-ns/analyze-backlog-max-entries-exceed-with-loop";
+        String subName = "sub-1";
+        int numMessages = 55;
+        int backlogScanMaxEntries = 40;
+
+        // Test client side loop: backlogScanMaxEntries > subscriptionBacklogScanMaxEntries, the loop termination
+        // condition is that total entries exceeds backlogScanMaxEntries.
+        // Server dispatcherMaxReadBatchSize is set to 10.
+        clientSideLoopAnalyzeBacklogSetup(topic, subName, numMessages);
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), backlogScanMaxEntries);
+
+        // Broker returns 15 + 15 + 15 = 45 entries.
+        long expectedEntries = backlogScanMaxEntries / serverSubscriptionBacklogScanMaxEntries
+                + serverSubscriptionBacklogScanMaxEntries;
+        assertEquals(backlogResult.getEntries(), expectedEntries);
+        assertEquals(backlogResult.getMessages(), expectedEntries);
+    }
+
+    @Test
+    public void analyzeBacklogWithTopicUnload() throws Exception {
+        long serverSubscriptionBacklogScanMaxEntries = 10;
+        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+
+        String topic = "persistent://my-property/my-ns/analyze-backlog-with-topic-unload";
+        String subName = "sub-1";
+        int numMessages = 35;
+
+        admin.topics().createSubscription(topic, subName, MessageId.latest);
+
+        assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
+        verifyBacklog(topic, subName, 0, 0);
+
+        // Test client side loop with topic unload.
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            CompletableFuture<MessageId> future = producer.sendAsync(("test-" + i).getBytes());
+            futures.add(future);
+            if (RandomUtils.secure().randomBoolean()) {
+                admin.topics().unload(topic);
+            }
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), numMessages);
+
+        assertEquals(backlogResult.getEntries(), numMessages);
+        assertEquals(backlogResult.getMessages(), numMessages);
+    }
+
+    @Test
+    public void analyzeBacklogWithIndividualAck() throws Exception {
+        long serverSubscriptionBacklogScanMaxEntries = 20;
+        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+
+        String topic = "persistent://my-property/my-ns/analyze-backlog-with-topic-Unloaded";
+        String subName = "sub-1";
+        int messages = 55;
+
+        // Test client side loop with individual ack.
+        clientSideLoopAnalyzeBacklogSetup(topic, subName, messages);
+
+        // we want to wait for the server to process acks, in order to not have a flaky test.
+        @Cleanup Consumer<byte[]> consumer =
+                pulsarClient.newConsumer().topic(topic).isAckReceiptEnabled(true).subscriptionName(subName)
+                        .subscriptionType(SubscriptionType.Shared).subscribe();
+
+        // Individual ack message2.
+        Message<byte[]> message1 = consumer.receive();
+        Message<byte[]> message2 = consumer.receive();
+        consumer.acknowledge(message2);
+
+        long backlogScanMaxEntries = 20;
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), backlogScanMaxEntries);
+
+        // Broker will filter deleted entries, total entries is supposed to be 19 + 20 = 39.
+        assertThat(backlogResult.getEntries()).isBetween(backlogScanMaxEntries,
+                backlogScanMaxEntries + serverSubscriptionBacklogScanMaxEntries - 1);
+
+        // Ack message1 and message2.
+        consumer.acknowledge(message1);
+
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), backlogScanMaxEntries);
+
+        assertEquals(backlogResult.getEntries(), backlogScanMaxEntries);
+        assertEquals(backlogResult.getMessages(), backlogScanMaxEntries);
+
+        // Ack all messages.
+        for (int i = 2; i < messages; i++) {
+            Message<byte[]> message = consumer.receive();
+            consumer.acknowledge(message);
+        }
+
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), backlogScanMaxEntries);
+        assertEquals(backlogResult.getEntries(), 0);
+        assertEquals(backlogResult.getMessages(), 0);
+    }
+
+    private void clientSideLoopAnalyzeBacklogSetup(String topic, String subName, int numMessages) throws Exception {
         admin.topics().createSubscription(topic, subName, MessageId.latest);
 
         assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
         verifyBacklog(topic, subName, 0, 0);
 
         @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
-
-        // Test server returns false aborted flag.
-        int firstSendMessages = 5;
-        List<CompletableFuture<MessageId>> firstSendFutures = new ArrayList<>();
-        for (int i = 0; i < firstSendMessages; i++) {
-            CompletableFuture<MessageId> future = producer.sendAsync(("first-" + i).getBytes());
-            firstSendFutures.add(future);
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            CompletableFuture<MessageId> future = producer.sendAsync(("test-" + i).getBytes());
+            futures.add(future);
         }
-        FutureUtil.waitForAll(firstSendFutures).get();
-
-        AnalyzeSubscriptionBacklogResult backlogResult =
-                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), 15);
-
-        assertEquals(backlogResult.getEntries(), firstSendMessages);
-        assertEquals(backlogResult.getMessages(), firstSendMessages);
-
-        // Test backlogScanMaxEntries(client side) <= subscriptionBacklogScanMaxEntries(server side), but server returns
-        // true aborted flag.
-        int secondSendMessages = 10;
-        List<CompletableFuture<MessageId>> secondSendFutures = new ArrayList<>();
-        for (int i = 0; i < secondSendMessages; i++) {
-            CompletableFuture<MessageId> future = producer.sendAsync(("second-" + i).getBytes());
-            secondSendFutures.add(future);
-        }
-        FutureUtil.waitForAll(secondSendFutures).get();
-
-        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(),
-                serverSubscriptionBacklogScanMaxEntries - 1);
-
-        assertEquals(backlogResult.getEntries(), serverSubscriptionBacklogScanMaxEntries);
-        assertEquals(backlogResult.getMessages(), serverSubscriptionBacklogScanMaxEntries);
-
-        // Test client side loop: backlogScanMaxEntries > subscriptionBacklogScanMaxEntries, the loop termination
-        // condition is that server returns false aborted flag.
-        int thirdSendMessages = 10;
-        List<CompletableFuture<MessageId>> thirdFutures = new ArrayList<>();
-        for (int i = 0; i < thirdSendMessages; i++) {
-            CompletableFuture<MessageId> future = producer.sendAsync(("third-" + i).getBytes());
-            thirdFutures.add(future);
-        }
-        FutureUtil.waitForAll(thirdFutures).get();
-
-        int thirdTotalMessages = firstSendMessages + secondSendMessages + thirdSendMessages;
-        backlogResult =
-                admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), thirdTotalMessages + 1);
-
-        assertEquals(backlogResult.getEntries(), thirdTotalMessages);
-        assertEquals(backlogResult.getMessages(), thirdTotalMessages);
-
-        // Test client side loop: backlogScanMaxEntries > subscriptionBacklogScanMaxEntries, the loop termination
-        // condition is that total entries exceeds backlogScanMaxEntries.
-        int fourthSendMessages = 10;
-        List<CompletableFuture<MessageId>> fourthFutures = new ArrayList<>();
-        for (int i = 0; i < fourthSendMessages; i++) {
-            CompletableFuture<MessageId> future = producer.sendAsync(("fourth-" + i).getBytes());
-            fourthFutures.add(future);
-        }
-        FutureUtil.waitForAll(fourthFutures).get();
-
-        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), thirdTotalMessages);
-
-        int fourthExpectedMessages = (thirdTotalMessages / serverSubscriptionBacklogScanMaxEntries)
-                + serverSubscriptionBacklogScanMaxEntries;
-        assertEquals(backlogResult.getEntries(), fourthExpectedMessages);
-        assertEquals(backlogResult.getMessages(), fourthExpectedMessages);
-
-        // Test client side loop with topic unload.
-        admin.topics().unload(topic);
-        int fifthSendMessages = 10;
-        List<CompletableFuture<MessageId>> fifthFutures = new ArrayList<>();
-        for (int i = 0; i < fifthSendMessages; i++) {
-            CompletableFuture<MessageId> future = producer.sendAsync(("fifth-" + i).getBytes());
-            fifthFutures.add(future);
-            if (RandomUtils.secure().randomBoolean()) {
-                admin.topics().unload(topic);
-            }
-        }
-        FutureUtil.waitForAll(fifthFutures).get();
-
-        int fifthTotalMessages = thirdTotalMessages + fourthSendMessages + fifthSendMessages;
-        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), fifthTotalMessages);
-
-        assertEquals(backlogResult.getEntries(), fifthTotalMessages);
-        assertEquals(backlogResult.getMessages(), fifthTotalMessages);
+        FutureUtil.waitForAll(futures).get();
     }
+
 }

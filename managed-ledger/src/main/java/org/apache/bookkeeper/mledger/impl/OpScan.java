@@ -91,7 +91,8 @@ class OpScan implements ReadEntriesCallback {
             searchPosition = ledger.getPositionAfterN(lastPositionForBatch, 1,
                     PositionBound.startExcluded);
             if (log.isDebugEnabled()) {
-                log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
+                log.debug("[{}] readEntryComplete at {} next is {}", OpScan.this.cursor, lastPositionForBatch,
+                        searchPosition);
             }
 
             if (searchPosition.compareTo(lastPositionForBatch) == 0) {
