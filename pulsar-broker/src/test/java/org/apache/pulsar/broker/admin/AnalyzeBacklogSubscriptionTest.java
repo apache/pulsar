@@ -320,7 +320,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         long serverSubscriptionBacklogScanMaxEntries = 20;
         conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-with-topic-Unloaded";
+        String topic = "persistent://my-property/my-ns/analyze-backlog-with-individual-ack";
         String subName = "sub-1";
         int messages = 55;
 
