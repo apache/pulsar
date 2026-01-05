@@ -47,6 +47,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -1628,6 +1629,15 @@ public class TopicsImpl extends BaseResource implements Topics {
                 if (!mergedResult.isAborted() || mergedResult.getEntries() >= backlogScanMaxEntries) {
                     future.complete(mergedResult);
                     return;
+                }
+
+                // In analyze-backlog, lastMessageId is null only when: total entries is 0,
+                // with false aborted flag returned.
+                if (StringUtils.isBlank(mergedResult.getLastMessageId())) {
+                    log.warn("[{}][{}] Scanned last message id is blank, abort analyze backlog, start position is: {}",
+                            topic, subscriptionName, startPositionRef.get());
+                    future.completeExceptionally(
+                            new PulsarAdminException("Incorrect last message id returned from server"));
                 }
 
                 String[] messageIdSplits = mergedResult.getLastMessageId().split(":");
