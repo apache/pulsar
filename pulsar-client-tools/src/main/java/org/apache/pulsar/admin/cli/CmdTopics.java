@@ -3055,6 +3055,12 @@ public class CmdTopics extends CmdBase {
                     break;
                 }
 
+                // To avoid infinite loops, we ensure the entry count is incremented after each loop.
+                if (currentResult.getEntries() <= 0) {
+                    print("Incorrect total entry count returned from server");
+                    return;
+                }
+
                 // In analyze-backlog, lastMessageId is null only when: total entries is 0,
                 // with false aborted flag returned.
                 if (StringUtils.isBlank(mergedResult.getLastMessageId())) {
