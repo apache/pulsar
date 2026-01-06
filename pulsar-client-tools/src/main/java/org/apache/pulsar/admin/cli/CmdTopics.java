@@ -3003,7 +3003,7 @@ public class CmdTopics extends CmdBase {
                 "-p" }, description = "Message position to start the scan from (ledgerId:entryId)", required = false)
         private String messagePosition;
 
-        @Option(names = {"--backlogScanMaxEntries", "-b"}, description =
+        @Option(names = {"--backlog-scan-max-entries", "-b"}, description =
                 "The maximum number of backlog entries the client will scan before terminating its loop",
                 required = false)
         private long backlogScanMaxEntries = -1;
