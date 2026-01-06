@@ -1,0 +1,147 @@
+# Files and directories that should not be installed in the package
+# These are source code, tests, and build artifacts that are not needed at runtime
+# Patterns are relative to debian/tmp/
+# Supports ** glob patterns for recursive matching
+
+# Test classes and test artifacts (Maven target/test-classes)
+**/target/test-classes/**
+**/*Test.class
+**/Test*.class
+
+# Maven project files
+**/pom.xml
+**/*.pom
+
+# Wireshark scripts (development/testing tool)
+pulsar/wireshark/**
+
+# Pulsar Improvement Proposals (documentation, not runtime)
+pulsar/pip/**
+
+# Source code directories (entire directories)
+# Exclude all Pulsar source modules - they are compiled into JARs
+pulsar/pulsar-*
+pulsar/managed-ledger
+pulsar/tests
+pulsar/src
+pulsar/target
+pulsar/structured-event-log
+pulsar/testmocks
+pulsar/tiered-storage
+pulsar/buildtools
+pulsar/bouncy-castle
+pulsar/pulsar-bom
+pulsar/pulsar-common
+pulsar/pulsar-broker-common
+pulsar/pulsar-broker
+pulsar/pulsar-cli-utils
+pulsar/pulsar-client-api
+pulsar/pulsar-client
+pulsar/pulsar-client-shaded
+pulsar/pulsar-client-admin-api
+pulsar/pulsar-client-admin
+pulsar/pulsar-client-admin-shaded
+pulsar/pulsar-client-tools-api
+pulsar/pulsar-client-tools
+pulsar/pulsar-client-tools-customcommand-example
+pulsar/pulsar-client-tools-test
+pulsar/pulsar-client-all
+pulsar/pulsar-docs-tools
+pulsar/pulsar-websocket
+pulsar/pulsar-proxy
+pulsar/pulsar-testclient
+pulsar/pulsar-broker-auth-*
+pulsar/pulsar-client-auth-*
+pulsar/pulsar-config-validation
+pulsar/pulsar-opentelemetry
+pulsar/pulsar-transaction
+pulsar/pulsar-functions
+pulsar/pulsar-io
+pulsar/pulsar-client-messagecrypto-bc
+pulsar/pulsar-metadata
+pulsar/jetcd-core-shaded
+pulsar/jclouds-shaded
+pulsar/pulsar-client-dependencies-minimized
+pulsar/pulsar-package-management
+
+# Build-only config files
+**/lombok.config
+
+# Maven build artifacts
+**/target/.plxarc
+**/maven-archiver/**
+**/maven-shared-archive-resources/**
+
+# Source code files
+**/*.java
+**/src/**
+
+# JMH benchmark generated files
+pulsar/microbench/**
+**/target/generated-sources/annotations/**
+
+# Maven wrapper scripts (not needed in package)
+pulsar/mvnw
+pulsar/mvnw.cmd
+**/mvnw
+**/mvnw.cmd
+
+# Grafana dashboards (monitoring templates, not runtime)
+pulsar/grafana/**
+
+# Git and CI files
+pulsar/.git*
+pulsar/.github/**
+pulsar/.asf.yaml
+
+# IDE configuration files
+pulsar/.idea/**
+pulsar/.vscode/**
+
+# Maven wrapper configuration
+pulsar/.mvn/**
+pulsar/.mvn/.develocity/**
+
+# Git ignore files (should be removed but just in case)
+pulsar/docker/.gitignore
+**/.gitignore
+
+# Documentation files (handled separately by dh_installdocs if needed)
+pulsar/README.md
+pulsar/LICENSE
+pulsar/NOTICE
+pulsar/CONTRIBUTING.md
+pulsar/CONTRIBUTORS.md
+pulsar/SECURITY.md
+pulsar/faq.md
+pulsar/doap_*.rdf
+pulsar/codecov.yml
+
+# Deployment and infrastructure files
+pulsar/deployment/**
+pulsar/docker/**
+pulsar/docker-compose/**
+
+# Distribution source files (not the final distribution)
+pulsar/distribution/**
+
+# Build scripts (not runtime)
+pulsar/build/**
+
+# Bin and conf - copied manually in override_dh_install, not via debian/install
+# Note: conf is moved to /etc/apache-pulsar in override_dh_auto_install
+pulsar/bin/**
+pulsar/conf
+
+# Configuration files - copied manually in override_dh_install to /etc/apache-pulsar
+# Files are moved from pulsar/conf to etc/apache-pulsar in override_dh_auto_install
+# and then copied directly in override_dh_install before dh_install
+etc/apache-pulsar/**
+
+# All other markdown files in root (README, LICENSE, etc. handled by dh_installdocs if needed)
+pulsar/*.md
+
+# All files from pulsar/ directory are copied manually in override_dh_install
+# They are installed to /usr/lib/apache-pulsar, not via debian/install
+pulsar/**
+

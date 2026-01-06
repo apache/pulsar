@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     git \
+    rsync \
     && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем yarn глобально

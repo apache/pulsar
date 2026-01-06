@@ -1,3 +1,28 @@
+apache-pulsar (4.1.2-10) unstable; urgency=medium
+
+  * Fixed debian/rules: added symlink resolution fix for pulsar script.
+    The pulsar script now correctly resolves PULSAR_HOME when called from
+    /usr/bin symlink, fixing ClassNotFoundException errors for PulsarVersionStarter
+    and PulsarStandaloneStarter classes
+  * Fixed debian/rules: corrected configuration files installation structure.
+    Configuration files are now copied directly to /etc/apache-pulsar/ instead
+    of /etc/apache-pulsar/conf/ subdirectory, ensuring proper symlink resolution
+    from /usr/lib/apache-pulsar/conf to /etc/apache-pulsar
+  * Fixed debian/rules: changed conf directory handling in override_dh_auto_install.
+    Configuration files are now moved directly to debian/tmp/etc/apache-pulsar/
+    (not in a conf subdirectory) and copied manually in override_dh_install
+    before dh_install to avoid nested directory structure
+  * Updated debian/install: removed configuration files from dh_install mapping.
+    Files are now copied directly in override_dh_install to ensure correct
+    directory structure without nested paths
+  * Updated debian/not-installed: added etc/apache-pulsar/** pattern to indicate
+    that configuration files are installed manually in override_dh_install,
+    preventing dh_missing errors during package build
+  * Fixed debian/rules: added comprehensive verification of configuration files
+    installation, including checks for standalone.conf and symlink correctness
+
+ -- HelgiSaga <bglegb@gmail.com>  Mon, 06 Jan 2026 10:00:00 +0300
+
 apache-pulsar (4.1.2-9) unstable; urgency=medium
 
   * Fixed debian/rules: converted all scripts line endings from CRLF to LF for
@@ -18,10 +43,10 @@ apache-pulsar (4.1.2-9) unstable; urgency=medium
   * Updated docker/deb/test/Dockerfile: added comprehensive standalone Pulsar
     startup test. Test verifies HTTP API, broker port, and pulsar-admin
     functionality with real running instance
-  * Updated docker/deb/test/Dockerfile: added curl dependency for HTTP API testing
-    and improved Java version detection in test output
+  * Updated docker/deb/test/Dockerfile: added curl dependency for HTTP API
+    testing and improved Java version detection in test output
 
- -- HelgiSaga <bglegb@gmail.com>  Thu, 30 Dec 2025 18:00:00 +0300
+ -- HelgiSaga <bglegb@gmail.com>  Tue, 30 Dec 2025 18:00:00 +0300
 
 apache-pulsar (4.1.2-8) unstable; urgency=medium
 

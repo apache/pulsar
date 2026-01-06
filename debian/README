@@ -55,12 +55,18 @@ apache-pulsar (VERSION) DISTRIBUTION; urgency=LEVEL
 
 Основные этапы:
 1. `override_dh_auto_build`: Сборка исходного кода (Maven)
-2. `override_dh_auto_install`: Копирование файлов в `debian/tmp/`
-3. `override_dh_installsystemd`: Установка systemd сервисов
-4. `override_dh_installdeb`: Обработка maintainer scripts (postinst, prerm)
-5. `override_dh_builddeb`: Финальная проверка перед упаковкой
-6. `override_dh_installman`: Установка man страниц
-7. `override_dh_fixperms`: Исправление прав доступа
+2. `override_dh_auto_install`: Копирование файлов в `debian/tmp/`, перемещение
+   конфигурационных файлов из `pulsar/conf` в `etc/apache-pulsar/`, создание
+   симлинков для скриптов и исправление разрешения симлинков в скриптах
+3. `override_dh_install`: Копирование основных файлов в `debian/apache-pulsar/`,
+   копирование конфигурационных файлов напрямую в `/etc/apache-pulsar/`,
+   создание симлинка `/usr/lib/apache-pulsar/conf` → `/etc/apache-pulsar`,
+   проверка установки файлов
+4. `override_dh_installsystemd`: Установка systemd сервисов
+5. `override_dh_installdeb`: Обработка maintainer scripts (postinst, prerm)
+6. `override_dh_builddeb`: Финальная проверка перед упаковкой
+7. `override_dh_installman`: Установка man страниц
+8. `override_dh_fixperms`: Исправление прав доступа
 
 **Ключевые команды**:
 - `dh $@`: Вызов debhelper для стандартных операций
@@ -93,10 +99,13 @@ var/log/apache-pulsar          # Логи
 
 Формат: `источник назначение`
 
+**Примечание**: Основные файлы Pulsar (bin, lib, etc.) копируются вручную в `override_dh_install`.
+Конфигурационные файлы также копируются вручную, чтобы избежать вложенной структуры директорий.
+
 Примеры:
 ```
-debian/tmp/pulsar/bin/* /usr/lib/apache-pulsar/bin
-debian/tmp/pulsar/conf/* /etc/apache-pulsar
+debian/tmp/usr/bin/* /usr/bin
+debian/tmp/usr/share/apache-pulsar/examples/systemd/*.service /usr/share/apache-pulsar/examples/systemd
 ```
 
 ### Maintainer скрипты
@@ -202,6 +211,19 @@ debian/man/pulsar-client.1
 - `missing-dep-on-jarwrapper`: Используются bash скрипты, не jarwrapper
 - `codeless-jar`: Пустые JAR файлы для управления зависимостями
 
+#### `not-installed`
+**Назначение**: Список файлов и директорий, которые не устанавливаются через стандартные
+инструменты debhelper, а копируются вручную
+
+Используется для:
+- Указания `dh_missing`, что файлы устанавливаются вручную в `override_dh_install`
+- Предотвращения ошибок при проверке отсутствующих файлов
+
+**Примеры**:
+- `pulsar/bin/**`: Скрипты копируются вручную в `override_dh_install`
+- `pulsar/conf`: Конфигурация перемещается в `/etc/apache-pulsar` вручную
+- `etc/apache-pulsar/**`: Конфигурационные файлы копируются напрямую в `override_dh_install`
+
 #### `source/format`
 **Назначение**: Формат исходного пакета
 
@@ -230,13 +252,17 @@ debian/man/pulsar-client.1
 └── lib/                        # JAR файлы зависимостей
     └── *.jar                   # Все зависимости
 
-/etc/apache-pulsar/              # Конфигурация
+/etc/apache-pulsar/              # Конфигурация (напрямую, не в поддиректории)
 ├── broker.conf                 # Конфигурация broker
 ├── bookkeeper.conf             # Конфигурация BookKeeper
 ├── proxy.conf                  # Конфигурация proxy
 ├── websocket.conf              # Конфигурация WebSocket
+├── standalone.conf             # Конфигурация standalone режима
 ├── functions_worker.yml        # Конфигурация Functions
 └── ...                         # Другие конфиги
+
+/usr/lib/apache-pulsar/
+└── conf -> /etc/apache-pulsar  # Символическая ссылка для совместимости
 
 /var/lib/apache-pulsar/          # Home directory пользователя apache-pulsar
 
@@ -244,8 +270,11 @@ debian/man/pulsar-client.1
 
 /usr/bin/                       # Символические ссылки
 ├── pulsar -> /usr/lib/apache-pulsar/bin/pulsar
+│   (скрипт автоматически разрешает симлинк для правильного определения PULSAR_HOME)
 ├── pulsar-admin -> /usr/lib/apache-pulsar/bin/pulsar-admin
+│   (скрипт автоматически разрешает симлинк для правильного определения PULSAR_HOME)
 ├── pulsar-client -> /usr/lib/apache-pulsar/bin/pulsar-client
+│   (скрипт автоматически разрешает симлинк для правильного определения PULSAR_HOME)
 ├── pulsar-perf -> /usr/lib/apache-pulsar/bin/pulsar-perf
 └── bookkeeper -> /usr/lib/apache-pulsar/bin/bookkeeper
 

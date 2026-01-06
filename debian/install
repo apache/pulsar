@@ -1,10 +1,7 @@
-# Copy the entire pulsar distribution to /usr/lib/apache-pulsar
-# This includes all JARs, scripts, and other files from the distribution
-# Note: conf/ is a symlink to /etc/apache-pulsar created in debian/rules
-debian/tmp/pulsar /usr/lib/apache-pulsar
+# Note: The main pulsar distribution is copied manually in override_dh_install
+# This file only handles additional files
 
-# конфиги идут в /etc/apache-pulsar (moved in debian/rules, symlink created for compatibility)
-debian/tmp/etc/apache-pulsar/conf /etc/apache-pulsar
+# конфиги копируются напрямую в override_dh_install (not via dh_install to avoid nested directories)
 
 # символические ссылки для основных команд
 debian/tmp/usr/bin/* /usr/bin

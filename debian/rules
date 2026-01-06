@@ -41,32 +41,50 @@ override_dh_auto_install:
 		exit 1; \
 	fi; \
 	echo "Extracted distribution directory: $$EXTRACTED_DIR"; \
-	# Copy the entire distribution layout to debian/tmp/pulsar
+	test -d "$$EXTRACTED_DIR" || { echo "ERROR: Extracted directory does not exist: $$EXTRACTED_DIR"; rm -rf "$$TMPDIR"; exit 1; }; \
+	echo "Contents of extracted directory:"; \
+	ls -la "$$EXTRACTED_DIR" | head -20; \
+	test -d "$$EXTRACTED_DIR/lib" || { echo "ERROR: lib/ directory does not exist!"; find "$$EXTRACTED_DIR" -maxdepth 1 -type d | head -20; rm -rf "$$TMPDIR"; exit 1; }; \
+	EXTRACTED_JAR_COUNT=$$(find "$$EXTRACTED_DIR/lib" -name "*.jar" -type f 2>/dev/null | wc -l); \
+	if [ "$$EXTRACTED_JAR_COUNT" -lt 50 ]; then \
+		echo "ERROR: Only $$EXTRACTED_JAR_COUNT JAR files found in lib/"; \
+		ls -la "$$EXTRACTED_DIR/lib" | head -30; \
+		find "$$EXTRACTED_DIR/lib" -name "*.jar" -type f | head -10; \
+		rm -rf "$$TMPDIR"; \
+		exit 1; \
+	fi; \
+	echo "✓ Found $$EXTRACTED_JAR_COUNT JAR files in extracted distribution"; \
 	mkdir -p debian/tmp/pulsar debian/tmp/etc/apache-pulsar; \
-
-	# Copy using find to explicitly exclude problematic filesystems, VCS files, and project directories
-	# This avoids issues with /proc, /sys, /dev, .git directories, and our own debian/ directory
-	DEST_DIR=$$(pwd)/debian/tmp/pulsar; \
-	(cd "$$EXTRACTED_DIR" && find . -mindepth 1 -maxdepth 1 ! -name proc ! -name sys ! -name dev ! -name debian ! -name .git -exec cp -a {} "$$DEST_DIR/" \;); \
+	if command -v rsync >/dev/null 2>&1; then \
+		rsync -a "$$EXTRACTED_DIR/" debian/tmp/pulsar/; \
+	else \
+		cp -a "$$EXTRACTED_DIR"/. debian/tmp/pulsar/; \
+	fi; \
 	# Remove VCS files (.gitattributes, .gitignore) that might be in subdirectories
-	find "$$DEST_DIR" -name ".gitattributes" -type f -delete 2>/dev/null || true; \
-	find "$$DEST_DIR" -name ".gitignore" -type f -delete 2>/dev/null || true; \
-	find "$$DEST_DIR" -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true; \
+	find debian/tmp/pulsar -name ".gitattributes" -type f -delete 2>/dev/null || true; \
+	find debian/tmp/pulsar -name ".gitignore" -type f -delete 2>/dev/null || true; \
+	find debian/tmp/pulsar -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true; \
 	# Clean up temporary directory
 	rm -rf "$$TMPDIR"; \
-	# Move conf directory to /etc/apache-pulsar (Debian policy)
+	# Move conf directory contents to /etc/apache-pulsar (Debian policy)
 	# Create symlink from PULSAR_HOME/conf to /etc/apache-pulsar for compatibility
 	if [ -d "debian/tmp/pulsar/conf" ]; then \
-		mv debian/tmp/pulsar/conf debian/tmp/etc/apache-pulsar/; \
+		mkdir -p debian/tmp/etc/apache-pulsar; \
+		mv debian/tmp/pulsar/conf/* debian/tmp/etc/apache-pulsar/ 2>/dev/null || true; \
+		rmdir debian/tmp/pulsar/conf 2>/dev/null || true; \
 		ln -sf /etc/apache-pulsar debian/tmp/pulsar/conf; \
 	fi; \
 	# Remove execute bits from all JAR files (they should not be executable)
 	find debian/tmp/pulsar -name "*.jar" -type f -exec chmod -x {} + 2>/dev/null || true; \
+	# Remove execute bits from configuration files (.conf, .yml, .yaml, .xml, .ini, .json)
+	if [ -d "debian/tmp/etc/apache-pulsar" ]; then \
+		find debian/tmp/etc/apache-pulsar -type f \( -name "*.conf" -o -name "*.yml" -o -name "*.yaml" -o -name "*.xml" -o -name "*.ini" -o -name "*.json" \) -exec chmod -x {} + 2>/dev/null || true; \
+	fi; \
 	# Fix line endings from CRLF to LF for all scripts (fix Windows line endings)
 	find debian/tmp/pulsar/bin -type f -exec sed -i 's/\r$$//' {} + 2>/dev/null || true; \
-	# Fix pulsar-admin and pulsar-client scripts to correctly resolve PULSAR_HOME
+	# Fix pulsar, pulsar-admin and pulsar-client scripts to correctly resolve PULSAR_HOME
 	# Insert symlink resolution code before BINDIR line (same approach as pulsar-shell)
-	for script in pulsar-admin pulsar-client; do \
+	for script in pulsar pulsar-admin pulsar-client; do \
 		file="debian/tmp/pulsar/bin/$$script"; \
 		if [ -f "$$file" ]; then \
 			sed -i '/^BINDIR=/i\
@@ -100,6 +118,84 @@ done\
 
 	# dh_install and other debhelper commands will work
 
+override_dh_install:
+	# Copy the entire Pulsar distribution (monolithic Java distribution)
+	# Pulsar binary distribution should only contain runtime files (bin, lib, conf, etc.)
+	# Copy EVERYTHING from extracted distribution - no filtering!
+	mkdir -p debian/apache-pulsar/usr/lib/apache-pulsar
+	test -d debian/tmp/pulsar || { echo "ERROR: debian/tmp/pulsar does not exist"; exit 1; }
+	# Copy everything using cp -a (simple and reliable)
+	# The binary distribution tar.gz should NOT contain source code
+	# First, remove the conf symlink/directory if it exists, as we'll handle it separately
+	if [ -e "debian/tmp/pulsar/conf" ]; then \
+		rm -rf debian/tmp/pulsar/conf; \
+	fi; \
+	cp -a debian/tmp/pulsar/* debian/apache-pulsar/usr/lib/apache-pulsar/
+	# Remove Windows .cmd scripts (not needed on Linux)
+	find debian/apache-pulsar/usr/lib/apache-pulsar/bin -name "*.cmd" -type f -delete 2>/dev/null || true
+	# Create symlink from /usr/lib/apache-pulsar/conf to /etc/apache-pulsar
+	# This ensures scripts can find configuration files in the expected location
+	# Remove any existing conf (directory or symlink) and create symlink
+	if [ -e "debian/apache-pulsar/usr/lib/apache-pulsar/conf" ]; then \
+		rm -rf debian/apache-pulsar/usr/lib/apache-pulsar/conf; \
+	fi; \
+	ln -sf /etc/apache-pulsar debian/apache-pulsar/usr/lib/apache-pulsar/conf
+	# Verify critical directories and files exist
+	test -d debian/apache-pulsar/usr/lib/apache-pulsar/bin || { echo "ERROR: bin directory was not copied!"; exit 1; }
+	test -d debian/apache-pulsar/usr/lib/apache-pulsar/lib || { echo "ERROR: lib directory was not copied!"; exit 1; }
+	# Count JAR files in lib/ - should be > 100
+	JAR_COUNT=$$(find debian/apache-pulsar/usr/lib/apache-pulsar/lib -name "*.jar" -type f 2>/dev/null | wc -l); \
+	if [ "$$JAR_COUNT" -lt 50 ]; then \
+		echo "ERROR: Only $$JAR_COUNT JAR files found in lib/ - expected > 100!"; \
+		echo "List of JAR files:"; \
+		find debian/apache-pulsar/usr/lib/apache-pulsar/lib -name "*.jar" -type f | head -20; \
+		exit 1; \
+	fi; \
+	echo "✓ Copied $$JAR_COUNT JAR files to lib/"
+	# Verify critical JAR files
+	for jar in pulsar-broker pulsar-admin picocli; do \
+		if ! find debian/apache-pulsar/usr/lib/apache-pulsar/lib -name "$$jar-*.jar" -type f | grep -q .; then \
+			echo "WARNING: $$jar-*.jar not found in lib/"; \
+		fi; \
+	done
+	# Copy configuration files directly to /etc/apache-pulsar (before dh_install)
+	# This avoids nested directory structure that dh_install would create
+	if [ -d "debian/tmp/etc/apache-pulsar" ]; then \
+		mkdir -p debian/apache-pulsar/etc/apache-pulsar; \
+		cp -a debian/tmp/etc/apache-pulsar/* debian/apache-pulsar/etc/apache-pulsar/ 2>/dev/null || true; \
+		echo "✓ Copied configuration files to /etc/apache-pulsar"; \
+	fi; \
+	dh_install
+	# Verify that configuration files were installed correctly
+	if [ -d "debian/apache-pulsar/etc/apache-pulsar" ]; then \
+		CONF_COUNT=$$(find debian/apache-pulsar/etc/apache-pulsar -name "*.conf" -type f 2>/dev/null | wc -l); \
+		if [ "$$CONF_COUNT" -eq 0 ]; then \
+			echo "ERROR: No .conf files found in /etc/apache-pulsar!"; \
+			echo "Checking source directory:"; \
+			ls -la debian/tmp/etc/apache-pulsar/ 2>/dev/null || echo "Source directory does not exist"; \
+			exit 1; \
+		else \
+			echo "✓ Found $$CONF_COUNT configuration files in /etc/apache-pulsar"; \
+		fi; \
+		if [ ! -f "debian/apache-pulsar/etc/apache-pulsar/standalone.conf" ]; then \
+			echo "ERROR: standalone.conf not found in /etc/apache-pulsar!"; \
+			echo "Contents of /etc/apache-pulsar:"; \
+			ls -la debian/apache-pulsar/etc/apache-pulsar/ 2>/dev/null || echo "Directory does not exist"; \
+			exit 1; \
+		fi; \
+	fi; \
+	# Verify symlink is correct
+	if [ ! -L "debian/apache-pulsar/usr/lib/apache-pulsar/conf" ]; then \
+		echo "ERROR: /usr/lib/apache-pulsar/conf is not a symlink!"; \
+		exit 1; \
+	fi; \
+	SYMLINK_TARGET=$$(readlink debian/apache-pulsar/usr/lib/apache-pulsar/conf); \
+	if [ "$$SYMLINK_TARGET" != "/etc/apache-pulsar" ]; then \
+		echo "ERROR: Symlink points to '$$SYMLINK_TARGET' instead of '/etc/apache-pulsar'!"; \
+		exit 1; \
+	fi; \
+	echo "✓ Symlink /usr/lib/apache-pulsar/conf -> /etc/apache-pulsar is correct"
+
 override_dh_installsystemd:
 	# Install only the main apache-pulsar service (broker)
 	# Additional services (bookie, proxy, functions-worker, websocket, autorecovery)
@@ -119,6 +215,12 @@ override_dh_fixperms:
 	dh_fixperms
 	# Fix line endings in scripts (remove CRLF if present)
 	@find debian/apache-pulsar/usr/lib/apache-pulsar/bin -type f -exec sed -i 's/\r$$//' {} + 2>/dev/null || true
+	# Remove execute bits from markdown files (documentation, not scripts)
+	@find debian/apache-pulsar/usr/lib/apache-pulsar -name "*.md" -type f -exec chmod -x {} + 2>/dev/null || true
+	# Remove execute bits from Python files in bin/proto (not executable scripts)
+	@find debian/apache-pulsar/usr/lib/apache-pulsar/bin/proto -name "*.py" -type f -exec chmod -x {} + 2>/dev/null || true
+	# Remove execute bits from YAML config files (they might have been copied)
+	@find debian/apache-pulsar/etc/apache-pulsar -name "*.yaml" -type f -exec chmod -x {} + 2>/dev/null || true
 	# Fix missing shebang only for scripts without shebang
 	@for file in debian/apache-pulsar/usr/lib/apache-pulsar/bin/*; do \
 		if [ -f "$$file" ] && file "$$file" | grep -q "text" && [ ! -x "$$file" ]; then \
