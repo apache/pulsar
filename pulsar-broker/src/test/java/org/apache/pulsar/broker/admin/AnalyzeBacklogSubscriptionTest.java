@@ -324,7 +324,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         // Test client side loop with individual ack.
         clientSideLoopAnalyzeBacklogSetup(topic, subName, messages);
 
-        // we want to wait for the server to process acks, in order to not have a flaky test.
+        // We want to wait for the server to process acks, in order to not have a flaky test.
         @Cleanup Consumer<byte[]> consumer =
                 pulsarClient.newConsumer().topic(topic).isAckReceiptEnabled(true).subscriptionName(subName)
                         .subscriptionType(SubscriptionType.Shared).subscribe();
