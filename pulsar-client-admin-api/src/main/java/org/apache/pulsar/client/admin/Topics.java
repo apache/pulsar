@@ -2284,7 +2284,7 @@ public interface Topics {
      * 4. This means that backlogScanMaxEntries cannot be used to precisely control the number of entries scanned by
      *    the server, it only serves to determine when the loop should terminate. <br/>
      * 5. With this method, the server can reduce the values of the two parameters subscriptionBacklogScanMaxTimeMs and
-     *    subscriptionBacklogScanMaxEntries, and then retrieve the desired number of backlog entries through
+     *    subscriptionBacklogScanMaxEntries, so user can retrieve the desired number of backlog entries through
      *    client-side looping.
      *<p/>
      * @param topic
