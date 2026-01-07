@@ -495,6 +495,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         admin1.namespaces().createNamespace(ns1);
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
         admin1.topics().createNonPartitionedTopic(topic);
+        admin1.topics().createSubscription(topic, "s1", MessageId.earliest);
 
         // Wait for loading topic up.
         Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
