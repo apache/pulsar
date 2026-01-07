@@ -1092,7 +1092,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             Transaction txn = pulsarClient.newTransaction().build().get();
             MessageId messageId = producer.newMessage(txn).value("aborted-msg" + i).send();
             abortedMsgIds.add(messageId);
-            txn.abort();
+            txn.abort().get();
         }
         backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
         assertEquals(backlogResult.getMessages(), numMessages * 2);
