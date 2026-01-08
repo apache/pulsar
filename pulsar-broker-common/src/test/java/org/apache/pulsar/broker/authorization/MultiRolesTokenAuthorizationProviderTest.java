@@ -321,7 +321,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String userA = "user-a";
         String userB = "user-b";
         String token = Jwts.builder()
-                .claim(MultiRolesTokenAuthorizationProvider.DEFAULT_ROLE_CLAIM, new String[]{userA, userB})
+                .claim("sub", new String[]{userA, userB})
                 .signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
@@ -375,7 +375,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String userA = "user-a";
         String token = Jwts.builder()
-                .claim(MultiRolesTokenAuthorizationProvider.DEFAULT_ROLE_CLAIM, userA)
+                .claim("sub", userA)
                 .signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
