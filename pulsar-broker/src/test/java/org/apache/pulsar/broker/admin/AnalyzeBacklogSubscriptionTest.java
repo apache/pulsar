@@ -338,11 +338,11 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
 
-        verifyClientSideLoopBacklog(topic, subName, backlogScanMaxEntries, 0, null,
-                null);
+        verifyClientSideLoopBacklog(topic, subName, backlogScanMaxEntries, 0, null, null);
     }
 
-    private List<MessageId> clientSideLoopAnalyzeBacklogSetup(String topic, String subName, int numMessages) throws Exception {
+    private List<MessageId> clientSideLoopAnalyzeBacklogSetup(String topic, String subName, int numMessages)
+            throws Exception {
         admin.topics().createSubscription(topic, subName, MessageId.latest);
 
         assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
@@ -359,8 +359,8 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     }
 
     private void verifyClientSideLoopBacklog(String topic, String subName, int backlogMaxScanEntries,
-                                                    int expectedEntries, MessageId firstMessageId,
-                                                    MessageId lastMessageId) throws Exception {
+                                             int expectedEntries, MessageId firstMessageId, MessageId lastMessageId)
+            throws Exception {
         AnalyzeSubscriptionBacklogResult backlogResult =
                 admin.topics().analyzeSubscriptionBacklog(topic, subName, Optional.empty(), backlogMaxScanEntries);
 
