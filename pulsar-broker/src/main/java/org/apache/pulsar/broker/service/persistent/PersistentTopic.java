@@ -1089,6 +1089,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     close();
                 } else if (ex.getCause() instanceof BrokerServiceException.ConnectionClosedException) {
                     log.warn("[{}][{}] Connection was closed while the opening the cursor", topic, subscriptionName);
+                } else if (ex.getCause() instanceof BrokerServiceException.NotAllowedException) {
+                    log.info("[{}] Subscription: {} with the same name already exists", topic, subscriptionName);
                 } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }
