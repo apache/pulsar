@@ -1633,10 +1633,11 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                 // To avoid infinite loops, we ensure the entry count is incremented after each loop.
                 if (currentResult.getEntries() <= 0) {
-                    log.warn("[{}][{}] Scanned total entry count is null, abort analyze backlog, start position is: {}",
-                            topic, subscriptionName, startPositionRef.get());
+                    log.warn("[{}][{}] Scanned total entry count is zero or negative, abort analyze backlog, start "
+                            + "position is: {}", topic, subscriptionName, startPositionRef.get());
                     future.completeExceptionally(
                             new PulsarAdminException("Incorrect total entry count returned from server"));
+                    return;
                 }
 
                 // In analyze-backlog, lastMessageId is null only when: total entries is 0,
@@ -1646,6 +1647,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                             topic, subscriptionName, startPositionRef.get());
                     future.completeExceptionally(
                             new PulsarAdminException("Incorrect last message id returned from server"));
+                    return;
                 }
 
                 String[] messageIdSplits = mergedResult.getLastMessageId().split(":");
@@ -1684,7 +1686,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 current.getFilterRescheduledMessages() + previous.getFilterRescheduledMessages());
 
         mergedRes.setAborted(current.isAborted());
-        mergedRes.setFirstMessageId(current.getFirstMessageId());
+        mergedRes.setFirstMessageId(previous.getFirstMessageId());
         mergedRes.setLastMessageId(current.getLastMessageId());
 
         return mergedRes;
