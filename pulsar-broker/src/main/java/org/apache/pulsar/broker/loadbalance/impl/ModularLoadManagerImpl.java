@@ -1130,7 +1130,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     @Override
     public void writeBrokerDataOnZooKeeper(boolean force) {
-//        lock.lock();
+        lock.lock();
         try {
             updateLocalBrokerData();
 
@@ -1154,7 +1154,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 throw (ConcurrentModificationException) e;
             }
         } finally {
-//            lock.unlock();
+            lock.unlock();
         }
     }
 
