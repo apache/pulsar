@@ -40,6 +40,7 @@ import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,6 +71,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLo
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -1151,13 +1153,15 @@ public class ModularLoadManagerImplTest {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getBrokerServiceUrl()).build();
 
         // create a lot of topic to fully distributed among bundles.
+        List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             String topicNameI = topicName + i;
             admin1.topics().createPartitionedTopic(topicNameI, 20);
             // trigger bundle assignment
 
-            pulsarClient.newConsumer().topic(topicNameI)
-                    .subscriptionName("my-subscriber-name2").subscribe();
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicNameI)
+                .subscriptionName("my-subscriber-name2").subscribe();
+            consumers.add(consumer);
         }
 
         String topicToFindBundle = topicName + 0;
@@ -1174,6 +1178,10 @@ public class ModularLoadManagerImplTest {
 
         primaryLoadManager.updateAll();
         Assert.assertFalse(loadData.getBundleData().containsKey(bundleKey));
+
+        for (Consumer consumer : consumers) {
+            consumer.close();
+        }
     }
 
 }
