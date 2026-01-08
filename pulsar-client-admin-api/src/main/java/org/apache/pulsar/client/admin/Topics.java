@@ -2271,7 +2271,7 @@ public interface Topics {
      * Increasing these settings is possible. However, it's possible that the HTTP request times out (also idle timeout
      * in NAT/firewall etc.) before the command completes so increasing the limits might not be useful beyond a few
      * minutes.
-     *<p/>
+     *</p>
      *
      *<p>
      * How does this method work? <br/>
@@ -2286,7 +2286,7 @@ public interface Topics {
      * 5. With this method, the server can reduce the values of the two parameters subscriptionBacklogScanMaxTimeMs and
      *    subscriptionBacklogScanMaxEntries, so user can retrieve the desired number of backlog entries through
      *    client-side looping.
-     *<p/>
+     *</p>
      * @param topic
      *            Topic name
      * @param subscriptionName
