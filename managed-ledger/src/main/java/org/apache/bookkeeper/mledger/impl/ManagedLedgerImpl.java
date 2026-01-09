@@ -2739,22 +2739,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 Position finalPosition = lastAckedPosition;
                 log.info("Mark deleting cursor:{} from {} to {} since ledger consumed completely.", cursor,
                         markDeletedPosition, lastAckedPosition);
-                cursor.asyncMarkDelete(lastAckedPosition, cursor.getProperties(),
-                    new MarkDeleteCallback() {
-                        @Override
-                        public void markDeleteComplete(Object ctx) {
-                            log.info("Successfully persisted cursor position for cursor:{} to {}",
-                                    cursor, finalPosition);
-                            future.complete(null);
-                        }
+                cursor.asyncMarkDelete(lastAckedPosition, null, new MarkDeleteCallback() {
+                    @Override
+                    public void markDeleteComplete(Object ctx) {
+                        log.info("Successfully persisted cursor position for cursor:{} to {}", cursor, finalPosition);
+                        future.complete(null);
+                    }
 
-                        @Override
-                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                            log.warn("Failed to mark delete: {} from {} to {}. ", cursor,
-                                    cursor.getMarkDeletedPosition(), finalPosition, exception);
-                            future.completeExceptionally(exception);
-                        }
-                    }, null);
+                    @Override
+                    public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                        log.warn("Failed to mark delete: {} from {} to {}. ", cursor, cursor.getMarkDeletedPosition(),
+                                finalPosition, exception);
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
             } else if (compareResult == 0) {
                 log.debug("No need to reset cursor: {}, last acked position equals to current mark-delete position {}.",
                         cursor, markDeletedPosition);

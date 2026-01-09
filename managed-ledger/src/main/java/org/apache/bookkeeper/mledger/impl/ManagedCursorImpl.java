@@ -2334,11 +2334,15 @@ public class ManagedCursorImpl implements ManagedCursor {
             final MarkDeleteCallback callback, final Object ctx, Runnable alignAcknowledgeStatusAfterPersisted) {
         ledger.mbean.addMarkDeleteOp();
 
-        MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx,
-                alignAcknowledgeStatusAfterPersisted);
-
         // We cannot write to the ledger during the switch, need to wait until the new metadata ledger is available
         synchronized (pendingMarkDeleteOps) {
+            // use given properties or when missing, use the properties from the previous field value
+            MarkDeleteEntry last = pendingMarkDeleteOps.peekLast();
+            Map<String, Long> propertiesToUse =
+                    properties != null ? properties : (last != null ? last.properties : getProperties());
+            MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, propertiesToUse, callback, ctx,
+                    alignAcknowledgeStatusAfterPersisted);
+
             // The state might have changed while we were waiting on the queue mutex
             switch (state) {
             case Closed:
