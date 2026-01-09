@@ -1724,6 +1724,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         @Cleanup
         PulsarAdmin admin = mockReplicationAdmin();
+        PulsarService pulsar = brokerService.getPulsar();
+        doReturn(admin).when(pulsar).getAdminClient();
         brokerService.getClusterAdmins().put(remoteCluster, admin);
         Optional<ClusterData> clusterData = brokerService.pulsar().getPulsarResources().getClusterResources()
                 .getCluster(remoteCluster);
@@ -1781,6 +1783,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         @Cleanup
         PulsarAdmin admin = mockReplicationAdmin();
+        doReturn(admin).when(pulsar).getAdminClient();
         brokerService.getClusterAdmins().put(remoteCluster, admin);
         Optional<ClusterData> clusterData = brokerService.pulsar().getPulsarResources().getClusterResources()
                 .getCluster(remoteCluster);
