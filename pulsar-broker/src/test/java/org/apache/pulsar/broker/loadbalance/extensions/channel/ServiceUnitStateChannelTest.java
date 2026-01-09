@@ -96,6 +96,7 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
@@ -729,6 +730,41 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertThat(lastMetadataSessionEventTimestamp,
                 lessThanOrEqualTo(ts));
 
+    }
+
+
+    @Test
+    public void metadataStateMetricsTest() throws IllegalAccessException {
+        ServiceUnitStateChannelImpl channel1 = (ServiceUnitStateChannelImpl) this.channel1;
+
+        long now = System.currentTimeMillis();
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp",
+                now - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000) - 1, true);
+        assertEquals(0, getMetadataStateMetric(channel1.getMetrics()));
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", now, true);
+        assertEquals(1, getMetadataStateMetric(channel1.getMetrics()));
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionLost, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", now, true);
+        assertEquals(2, getMetadataStateMetric(channel1.getMetrics()));
+    }
+
+    private static int getMetadataStateMetric(List<Metrics> metrics) {
+        for (Metrics metric : metrics) {
+            Object value = metric.getMetrics().get("brk_sunit_state_chn_metadata_state");
+            if (value == null) {
+                continue;
+            }
+            if (!(value instanceof Number)) {
+                fail("brk_sunit_state_chn_metadata_state is not numeric: " + value);
+            }
+            return ((Number) value).intValue();
+        }
+        fail("Missing brk_sunit_state_chn_metadata_state metric");
+        return -1;
     }
 
     @Test(priority = 8)
