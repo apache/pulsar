@@ -5275,4 +5275,61 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), properties);
     }
+
+    @Test
+    public void testTrimmerRaceConditionWithThrottleMarkDeleteInDurableCursor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        int maxEntriesPerLedger = 1;
+        config.setMaxEntriesPerLedger(maxEntriesPerLedger);
+        config.setThrottleMarkDelete(1);
+        config.setRetentionTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionSizeInMB(0);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionWithThrottleMarkDeleteInDurableCursor", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        CountDownLatch latch = new CountDownLatch(1);
+        ledger.asyncAddEntry("entry-1".getBytes(Encoding), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                // Mark delete with properties
+                Map<String, Long> properties = new HashMap<>();
+                properties.put("test-property", 12345L);
+                cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
+                    @Override
+                    public void markDeleteComplete(Object ctx) {
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                        fail("Mark delete should succeed");
+                    }
+                }, null);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                fail("Add entry should succeed");
+            }
+        }, null);
+
+        latch.await();
+
+        Map<String, Long> expectedProperties = new HashMap<>();
+        expectedProperties.put("test-property", 12345L);
+        assertEquals(cursor.getProperties(), expectedProperties);
+
+        // 3. Add Entry 2. Triggers second rollover process.
+        // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
+        ledger.addEntry(("entry-2").getBytes(Encoding));
+
+        // Wait for background tasks (metadata callback) to complete.
+        // We expect at least 2 ledgers (Rollover happened).
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
+
+        // Verify properties are preserved after cursor reset
+        assertEquals(cursor.getProperties(), expectedProperties);
+    }
 }

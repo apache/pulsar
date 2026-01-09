@@ -2710,17 +2710,20 @@ public class ManagedCursorImpl implements ManagedCursor {
     // update lastMarkDeleteEntry field if newPosition is later than the current lastMarkDeleteEntry.newPosition
     private void updateLastMarkDeleteEntryToLatest(final Position newPosition,
                                                    final Map<String, Long> properties) {
-        LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
-            if (last != null && last.newPosition.compareTo(newPosition) > 0) {
-                // keep current value, don't update
-                return last;
-            } else {
-                // use given properties or when missing, use the properties from the previous field value
-                Map<String, Long> propertiesToUse =
-                        properties != null ? properties : (last != null ? last.properties : Collections.emptyMap());
-                return new MarkDeleteEntry(newPosition, propertiesToUse, null, null);
-            }
-        });
+        synchronized (pendingMarkDeleteOps) {
+            // use given properties or when missing, use the properties from the previous field value
+            MarkDeleteEntry lastPending = pendingMarkDeleteOps.peekLast();
+            Map<String, Long> propertiesToUse =
+                    properties != null ? properties : (lastPending != null ? lastPending.properties : getProperties());
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
+                if (last != null && last.newPosition.compareTo(newPosition) > 0) {
+                    // keep current value, don't update
+                    return last;
+                } else {
+                    return new MarkDeleteEntry(newPosition, propertiesToUse, null, null);
+                }
+            });
+        }
     }
 
     /**
