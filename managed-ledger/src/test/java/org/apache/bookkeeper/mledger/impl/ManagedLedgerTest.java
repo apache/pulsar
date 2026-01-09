@@ -5286,7 +5286,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setRetentionSizeInMB(0);
 
         ManagedLedgerImpl ledger =
-                (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionWithThrottleMarkDeleteInDurableCursor", config);
+                (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionWithThrottleMarkDeleteInDurableCursor",
+                        config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
         CountDownLatch latch = new CountDownLatch(1);
