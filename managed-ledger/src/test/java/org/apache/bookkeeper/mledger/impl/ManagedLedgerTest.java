@@ -5167,13 +5167,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testTrimmerRaceCondition() throws Exception {
+    public void testTrimmerRaceConditionInDurableCursor() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(1);
         config.setRetentionTime(0, TimeUnit.MILLISECONDS);
         config.setRetentionSizeInMB(0);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testTrimmerRaceCondition", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionInDurableCursor", config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
         // 1. Add Entry 1 (Ledger 1)
@@ -5215,6 +5215,62 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
         // First ledger is all consumed and trimmed, left current ledger and next empty ledger.
         assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), -1));
+
+        // Verify properties are preserved after cursor reset
+        assertEquals(cursor.getProperties(), properties);
+    }
+
+    @Test
+    public void testTrimmerRaceConditionInNonDurableCursor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionSizeInMB(0);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionInNonDurableCursor", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.newNonDurableCursor(PositionFactory.EARLIEST);
+
+        // 1. Add Entry 1 (Ledger 1)
+        ledger.addEntry("entry-1".getBytes(Encoding));
+
+        // 2. Ack Entry 1. Verify Persistence with properties.
+        List<Entry> entries = cursor.readEntries(1);
+        assertEquals(entries.size(), 1);
+        Position lastPosition = entries.get(0).getPosition();
+        entries.forEach(Entry::release);
+
+        // Mark delete with properties
+        Map<String, Long> properties = new HashMap<>();
+        properties.put("test-property", 12345L);
+        CountDownLatch latch = new CountDownLatch(1);
+        cursor.asyncMarkDelete(lastPosition, properties, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                latch.countDown();
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                fail("Mark delete should succeed");
+            }
+        }, null);
+
+        latch.await();
+        assertThat(cursor.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
+        assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
+        assertEquals(cursor.getProperties(), properties);
+
+        // 3. Add Entry 2. Triggers second rollover process.
+        // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
+        Position p = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // Wait for background tasks (metadata callback and trim) to complete.
+        // We expect only one ledger (Rollover and trim happened).
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() == 1);
+        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to p.getLedgerId():0
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), properties);
