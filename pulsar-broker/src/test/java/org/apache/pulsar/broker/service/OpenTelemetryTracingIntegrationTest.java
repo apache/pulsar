@@ -21,7 +21,11 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -747,6 +751,73 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
                             io.opentelemetry.api.common.AttributeKey.stringKey("messaging.system")));
                     assertEquals(span.getAttributes().get(
                             io.opentelemetry.api.common.AttributeKey.stringKey("messaging.system")), "pulsar");
+                });
+    }
+
+    @Test
+    public void testCustomSpan() throws Exception {
+        String topic = "persistent://prop/ns-abc/testCustomSpan";
+        spanExporter.reset();
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .openTelemetry(openTelemetry)
+                .enableTracing(true)
+                .build();
+
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(5)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test-sub")
+                .subscribe();
+
+        // Send batch of messages
+        for (int i = 0; i < 5; i++) {
+            producer.sendAsync("message-" + i);
+        }
+        producer.flush();
+
+        final Tracer tracer = tracerProvider.get("");
+        String customSpanName = "business-logic";
+        // Receive and acknowledge all messages
+        for (int i = 0; i < 5; i++) {
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            Span processingSpan = tracer.spanBuilder(customSpanName)
+                    .setSpanKind(SpanKind.CLIENT).startSpan();
+            try (Scope scope = processingSpan.makeCurrent()) {
+                processingSpan.setStatus(StatusCode.OK);
+                consumer.acknowledge(msg);
+            } catch (Exception e) {
+                processingSpan.recordException(e);
+                processingSpan.setStatus(StatusCode.ERROR);
+                consumer.negativeAcknowledge(msg);
+                throw e;
+            } finally {
+                processingSpan.end();
+            }
+        }
+
+        producer.close();
+        consumer.close();
+        client.close();
+
+        // Wait for spans
+        flushSpans();
+
+        List<SpanData> spans = spanExporter.getFinishedSpanItems();
+        assertTrue(spans.size() > 0, "Expected at least some spans for batched messages");
+
+        spans.stream()
+                .filter(s -> s.getName().equals(customSpanName))
+                .forEach(span -> {
+                    assertEquals(span.getKind(), SpanKind.CLIENT);
                 });
     }
 }

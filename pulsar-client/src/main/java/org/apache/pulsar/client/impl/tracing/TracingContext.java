@@ -150,7 +150,7 @@ public class TracingContext {
      * @param span the span to end
      */
     public static void endSpan(Span span) {
-        if (span != null && span.isRecording()) {
+        if (span != null) {
             span.setStatus(StatusCode.OK);
             span.end();
         }
@@ -163,9 +163,11 @@ public class TracingContext {
      * @param throwable the exception that caused the failure
      */
     public static void endSpan(Span span, Throwable throwable) {
-        if (span != null && span.isRecording()) {
+        if (span != null) {
             span.setStatus(StatusCode.ERROR, throwable.getMessage());
-            span.recordException(throwable);
+            if (span.isRecording()) {
+                span.recordException(throwable);
+            }
             span.end();
         }
     }

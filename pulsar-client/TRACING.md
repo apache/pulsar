@@ -278,6 +278,7 @@ The tracing implementation adds the following attributes to spans following the 
 ### Consumer Spans
 - `messaging.system`: "pulsar"
 - `messaging.destination.name`: Topic name
+- `messaging.destination.subscription.name`: Subscription name
 - `messaging.operation.name`: "process"
 - `messaging.message.id`: Message ID
 - `messaging.pulsar.acknowledgment.type`: How the message was acknowledged
