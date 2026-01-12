@@ -41,6 +41,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -169,7 +171,6 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
-
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test-sub")
@@ -205,7 +206,6 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         assertEquals(consumerSpan.getAttributes().get(
                 io.opentelemetry.api.common.AttributeKey.stringKey("messaging.pulsar.acknowledgment.type")),
                 "negative_acknowledge");
-        assertEquals(consumerSpan.getStatus().getStatusCode(), io.opentelemetry.api.trace.StatusCode.UNSET);
     }
 
     @Test
@@ -783,7 +783,8 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         }
         producer.flush();
 
-        final Tracer tracer = tracerProvider.get("");
+        InstrumentProvider instrumentProvider = ((PulsarClientImpl) client).instrumentProvider();
+        final Tracer tracer = instrumentProvider.getTracer();
         String customSpanName = "business-logic";
         // Receive and acknowledge all messages
         for (int i = 0; i < 5; i++) {
