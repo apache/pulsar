@@ -25,10 +25,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -46,6 +46,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -71,6 +73,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.awaitility.Awaitility;
+import org.mockito.InOrder;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -90,6 +93,7 @@ public class TopicListServiceTest {
     private PulsarCommandSender pulsarCommandSender;
     private Consumer<Notification> notificationConsumer;
     private AsyncDualMemoryLimiterImpl memoryLimiter;
+    private ScheduledExecutorService scheduledExecutorService;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -133,16 +137,15 @@ public class TopicListServiceTest {
         when(pulsarCommandSender.sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(connection.ctx()).thenReturn(ctx);
         EventExecutor executor = spy(ImmediateEventExecutor.INSTANCE);
         doReturn(executor).when(ctx).executor();
         doAnswer(invocationOnMock -> {
-            Runnable runnable = invocationOnMock.getArgument(0);
-            // run immediately
-            log.info("Running runnable immediately");
-            runnable.run();
+            scheduledExecutorService.schedule(invocationOnMock.<Runnable>getArgument(0),
+                    invocationOnMock.getArgument(1), invocationOnMock.getArgument(2));
             return mock(ScheduledFuture.class);
         }).when(executor).schedule(any(Runnable.class), anyLong(), any());
         Channel channel = mock(Channel.class);
@@ -150,10 +153,8 @@ public class TopicListServiceTest {
         eventLoop = mock(EventLoop.class);
         when(channel.eventLoop()).thenReturn(eventLoop);
         doAnswer(invocationOnMock -> {
-            Runnable runnable = invocationOnMock.getArgument(0);
-            // run immediately
-            log.info("Running runnable immediately");
-            runnable.run();
+            scheduledExecutorService.schedule(invocationOnMock.<Runnable>getArgument(0),
+                    invocationOnMock.getArgument(1), invocationOnMock.getArgument(2));
             return mock(ScheduledFuture.class);
         }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
 
@@ -165,6 +166,9 @@ public class TopicListServiceTest {
     void cleanup() {
         if (memoryLimiter != null) {
             memoryLimiter.close();
+        }
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdownNow();
         }
     }
 
@@ -245,7 +249,7 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
-        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
 
         CommandWatchTopicListClose watchTopicListClose = new CommandWatchTopicListClose()
                 .setRequestId(8)
@@ -278,9 +282,9 @@ public class TopicListServiceTest {
             }
         }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any());
         topicListFuture.complete(topics);
-        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
         Set<String> expectedTopics = new LinkedHashSet<>(topics);
-        verify(connection.getCommandSender(), times(3))
+        verify(connection.getCommandSender(), timeout(2000L).times(3))
                 .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any());
     }
 
@@ -295,19 +299,19 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
-        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
 
         List<String> newTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(ListUtils.union(topics, newTopics));
         notificationConsumer.accept(
                 new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
-        verify(connection.getCommandSender(), timeout(1000L))
+        verify(connection.getCommandSender(), timeout(2000L))
                 .sendWatchTopicListUpdate(eq(13L), eq(newTopics), any(), eq(hash), any());
 
         hash = TopicList.calculateHash(newTopics);
         notificationConsumer.accept(
                 new Notification(NotificationType.Deleted, "/managed-ledgers/tenant/ns/persistent/topic1"));
-        verify(connection.getCommandSender(), timeout(1000L))
+        verify(connection.getCommandSender(), timeout(2000L))
                 .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(topics), eq(hash), any());
     }
 
@@ -322,13 +326,14 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
-        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
 
         List<String> newTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(ListUtils.union(topics, newTopics));
         AtomicInteger failureCount = new AtomicInteger(0);
         doAnswer(invocationOnMock -> {
-            if (failureCount.incrementAndGet() < 3) {
+            List<String> newTopicsArg = invocationOnMock.getArgument(1);
+            if (!newTopicsArg.isEmpty() && failureCount.incrementAndGet() < 3) {
                 Throwable failure = new AsyncSemaphore.PermitAcquireTimeoutException("Acquire timed out");
                 Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
                         invocationOnMock.getArgument(4);
@@ -339,7 +344,12 @@ public class TopicListServiceTest {
         }).when(pulsarCommandSender).sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any());
         notificationConsumer.accept(
                 new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
-        verify(connection.getCommandSender(), timeout(1000L).times(3))
+        notificationConsumer.accept(
+                new Notification(NotificationType.Deleted, "/managed-ledgers/tenant/ns/persistent/topic2"));
+        InOrder inOrder = inOrder(connection.getCommandSender());
+        inOrder.verify(connection.getCommandSender(), timeout(2000L).times(3))
                 .sendWatchTopicListUpdate(eq(13L), eq(newTopics), eq(List.of()), eq(hash), any());
+        inOrder.verify(connection.getCommandSender(), timeout(2000L).times(1))
+                .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(newTopics), any(), any());
     }
 }
