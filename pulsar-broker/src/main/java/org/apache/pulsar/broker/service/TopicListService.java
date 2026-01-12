@@ -36,7 +36,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -57,7 +56,6 @@ import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.slf4j.Logger;
@@ -440,32 +438,34 @@ public class TopicListService {
     // performs an operation with infinite permit acquiring retries.
     // If acquiring permits fails, it will retry after a backoff period
     private void performOperationWithPermitAcquiringRetries(long watcherId, String operationName,
-                                                            Function<Consumer<Throwable>,
+                                                            Function<Function<Throwable, CompletableFuture<Void>>,
                                                                     Supplier<CompletableFuture<Void>>>
                                                                     asyncOperationFactory) {
         // holds a reference to the operation, this is to resolve a circular dependency between the error handler and
         // the actual operation
-        AtomicReference<Runnable> operationRef = new AtomicReference<>();
+        AtomicReference<Supplier<CompletableFuture<Void>>> operationRef = new AtomicReference<>();
         // create the error handler for the operation
-        Consumer<Throwable> permitAcquireErrorHandler =
-                createPermitAcquireErrorHandler(watcherId, operationName, operationRef);
+        Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
+                createPermitAcquireErrorHandler(watcherId, operationName, () -> operationRef.get().get());
         // create the async operation using the factory function. Pass the error handler to the factory function.
         Supplier<CompletableFuture<Void>> asyncOperation = asyncOperationFactory.apply(permitAcquireErrorHandler);
         // set the operation to run into the operation reference
-        operationRef.set(Runnables.catchingAndLoggingThrowables(() -> {
+        operationRef.set(() -> {
             if (!connection.isActive() || !watchers.containsKey(watcherId)) {
                 // do nothing if the connection has already been closed or the watcher has been removed
-                return;
+                return CompletableFuture.completedFuture(null);
             }
-            asyncOperation.get().thenRun(() -> retryBackoff.reset());
-        }));
+            return asyncOperation.get().thenRun(() -> retryBackoff.reset());
+        });
         // run the operation
-        operationRef.get().run();
+        operationRef.get().get();
     }
 
     // retries acquiring permits until the connection is closed or the watcher is removed
-    private Consumer<Throwable> createPermitAcquireErrorHandler(long watcherId, String operationName,
-                                                                AtomicReference<Runnable> operationRef) {
+    private Function<Throwable, CompletableFuture<Void>> createPermitAcquireErrorHandler(long watcherId,
+                                                                                         String operationName,
+                                                                                         Supplier<CompletableFuture
+                                                                                                 <Void>> operationRef) {
         ScheduledExecutorService scheduledExecutor = connection.ctx().channel().eventLoop();
         AtomicInteger retryCount = new AtomicInteger(0);
         return t -> {
@@ -474,13 +474,17 @@ public class TopicListService {
                     || unwrappedException instanceof AsyncSemaphore.PermitAcquireAlreadyClosedException
                     || !connection.isActive()
                     || !watchers.containsKey(watcherId)) {
-                return;
+                // stop retrying and complete successfully
+                return CompletableFuture.completedFuture(null);
             }
             long retryDelay = retryBackoff.next();
             retryCount.incrementAndGet();
             log.info("[{}] Cannot acquire direct memory tokens for sending {}. Retry {} in {} ms. {}", connection,
                     operationName, retryCount.get(), retryDelay, t.getMessage());
-            scheduledExecutor.schedule(operationRef.get(), retryDelay, TimeUnit.MILLISECONDS);
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            scheduledExecutor.schedule(() -> FutureUtil.completeAfter(future, operationRef.get()), retryDelay,
+                    TimeUnit.MILLISECONDS);
+            return future;
         };
     }
 

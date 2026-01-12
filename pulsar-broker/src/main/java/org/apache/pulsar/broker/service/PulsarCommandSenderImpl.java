@@ -28,7 +28,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -130,7 +130,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     @Override
     public CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
                                                                     boolean filtered, boolean changed, long requestId,
-                                                                    Consumer<Throwable> permitAcquireErrorHandler) {
+                                                                    Function<Throwable,
+                                                                            CompletableFuture<Void>>
+                                                                                permitAcquireErrorHandler) {
         BaseCommand command = Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash,
                 filtered, changed, requestId);
         safeIntercept(command, cnx);
@@ -372,7 +374,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     @Override
     public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                              Collection<String> topics,
-                                                             Consumer<Throwable> permitAcquireErrorHandler) {
+                                                             Function<Throwable, CompletableFuture<Void>>
+                                                                         permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
         safeIntercept(command, cnx);
         return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
@@ -386,7 +389,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     @Override
     public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
                                                             List<String> deletedTopics, String topicsHash,
-                                                            Consumer<Throwable> permitAcquireErrorHandler) {
+                                                            Function<Throwable, CompletableFuture<Void>>
+                                                                        permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
         safeIntercept(command, cnx);
         return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),

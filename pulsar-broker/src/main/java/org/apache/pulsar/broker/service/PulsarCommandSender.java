@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -56,7 +56,8 @@ public interface PulsarCommandSender {
 
     CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
                                                              boolean changed, long requestId,
-                                                             Consumer<Throwable> permitAcquireErrorHandler);
+                                                             Function<Throwable, CompletableFuture<Void>>
+                                                                     permitAcquireErrorHandler);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
@@ -99,9 +100,11 @@ public interface PulsarCommandSender {
 
     CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                       Collection<String> topics,
-                                                      Consumer<Throwable> permitAcquireErrorHandler);
+                                                      Function<Throwable, CompletableFuture<Void>>
+                                                              permitAcquireErrorHandler);
 
     CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId,
                                   List<String> newTopics, List<String> deletedTopics, String topicsHash,
-                                  Consumer<Throwable> permitAcquireErrorHandler);
+                                  Function<Throwable, CompletableFuture<Void>>
+                                                             permitAcquireErrorHandler);
 }

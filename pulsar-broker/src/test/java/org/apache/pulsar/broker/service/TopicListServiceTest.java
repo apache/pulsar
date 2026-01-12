@@ -50,6 +50,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -269,9 +270,9 @@ public class TopicListServiceTest {
         doAnswer(invocationOnMock -> {
             if (failureCount.incrementAndGet() < 3) {
                 Throwable failure = new AsyncSemaphore.PermitAcquireTimeoutException("Acquire timed out");
-                Consumer<Throwable> permitAcquireErrorHandler = invocationOnMock.getArgument(4);
-                permitAcquireErrorHandler.accept(failure);
-                return CompletableFuture.failedFuture(failure);
+                Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
+                        invocationOnMock.getArgument(4);
+                return permitAcquireErrorHandler.apply(failure);
             } else {
                 return CompletableFuture.completedFuture(null);
             }
@@ -329,9 +330,9 @@ public class TopicListServiceTest {
         doAnswer(invocationOnMock -> {
             if (failureCount.incrementAndGet() < 3) {
                 Throwable failure = new AsyncSemaphore.PermitAcquireTimeoutException("Acquire timed out");
-                Consumer<Throwable> permitAcquireErrorHandler = invocationOnMock.getArgument(4);
-                permitAcquireErrorHandler.accept(failure);
-                return CompletableFuture.failedFuture(failure);
+                Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
+                        invocationOnMock.getArgument(4);
+                return permitAcquireErrorHandler.apply(failure);
             } else {
                 return CompletableFuture.completedFuture(null);
             }
