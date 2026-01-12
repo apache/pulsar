@@ -391,8 +391,7 @@ The Apache Software License, Version 2.0
  * AirCompressor
     - io.airlift-aircompressor-0.27.jar
  * AsyncHttpClient
-    - org.asynchttpclient-async-http-client-2.12.4.jar
-    - org.asynchttpclient-async-http-client-netty-utils-2.12.4.jar
+    - org.asynchttpclient-async-http-client-3.0.4.jar
  * Jetty
     - org.eclipse.jetty-jetty-client-9.4.58.v20250814.jar
     - org.eclipse.jetty-jetty-continuation-9.4.58.v20250814.jar
@@ -428,7 +427,7 @@ The Apache Software License, Version 2.0
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-1.8.20.jar
      - org.jetbrains.kotlin-kotlin-stdlib-common-1.8.20.jar
-     - org.jetbrains-annotations-13.0.jar
+     - org.jetbrains-annotations-26.0.2.jar
  * gRPC
     - io.grpc-grpc-all-1.75.0.jar
     - io.grpc-grpc-auth-1.75.0.jar
@@ -578,7 +577,7 @@ Protocol Buffers License
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
-    - com.sun.activation-jakarta.activation-1.2.2.jar
+    - com.sun.activation-jakarta.activation-2.0.1.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
  * HK2 - Dependency Injection Kernel
@@ -601,7 +600,7 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
-    - jakarta.activation-jakarta.activation-api-1.2.2.jar
+    - jakarta.activation-jakarta.activation-api-2.0.1.jar
  * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.3.jar
 
 Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt

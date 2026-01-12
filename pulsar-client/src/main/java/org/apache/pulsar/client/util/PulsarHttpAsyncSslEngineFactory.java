@@ -32,20 +32,28 @@ public class PulsarHttpAsyncSslEngineFactory extends DefaultSslEngineFactory {
 
     private final PulsarSslFactory pulsarSslFactory;
     private final String host;
+    private final boolean enableHostnameVerification;
 
-    public PulsarHttpAsyncSslEngineFactory(PulsarSslFactory pulsarSslFactory, String host) {
+    public PulsarHttpAsyncSslEngineFactory(PulsarSslFactory pulsarSslFactory, String host,
+                                           boolean enableHostnameVerification) {
         this.pulsarSslFactory = pulsarSslFactory;
         this.host = host;
+        this.enableHostnameVerification = enableHostnameVerification;
     }
 
     @Override
     protected void configureSslEngine(SSLEngine sslEngine, AsyncHttpClientConfig config) {
         super.configureSslEngine(sslEngine, config);
+        SSLParameters parameters = sslEngine.getSSLParameters();
         if (StringUtils.isNotBlank(host)) {
-            SSLParameters parameters = sslEngine.getSSLParameters();
             parameters.setServerNames(Collections.singletonList(new SNIHostName(host)));
-            sslEngine.setSSLParameters(parameters);
         }
+
+        if (enableHostnameVerification) {
+            parameters.setEndpointIdentificationAlgorithm("HTTPS");
+        }
+
+        sslEngine.setSSLParameters(parameters);
     }
 
     @Override
