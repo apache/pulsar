@@ -1089,6 +1089,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     close();
                 } else if (ex.getCause() instanceof BrokerServiceException.ConnectionClosedException) {
                     log.warn("[{}][{}] Connection was closed while the opening the cursor", topic, subscriptionName);
+                } else if (ex.getCause() instanceof BrokerServiceException.NotAllowedException) {
+                    log.info("[{}][{}] Not allowed to create subscription: {}", topic, subscriptionName,
+                            ex.getCause().getMessage());
                 } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }
@@ -1273,34 +1276,29 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .getTransactionPendingAckStoreSuffix(topic,
                         Codec.encode(subscriptionName)));
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
-            CompletableFuture<ManagedLedgerConfig> managedLedgerConfig = getBrokerService().getManagedLedgerConfig(tn);
-            managedLedgerConfig.thenAccept(config -> {
-                ManagedLedgerFactory managedLedgerFactory =
-                        getBrokerService().getManagedLedgerFactoryForTopic(tn, config.getStorageClassName());
+            ManagedLedgerConfig managedLedgerConfig = ledger.getConfig();
+                ManagedLedgerFactory managedLedgerFactory = getBrokerService()
+                        .getManagedLedgerFactoryForTopic(tn, managedLedgerConfig.getStorageClassName());
                 managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
-                        managedLedgerConfig,
-                        new AsyncCallbacks.DeleteLedgerCallback() {
-                            @Override
-                            public void deleteLedgerComplete(Object ctx) {
+                    CompletableFuture.completedFuture(managedLedgerConfig),
+                    new AsyncCallbacks.DeleteLedgerCallback() {
+                        @Override
+                        public void deleteLedgerComplete(Object ctx) {
+                            asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
+                        }
+
+                        @Override
+                        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                            if (exception instanceof MetadataNotFoundException) {
                                 asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
+                                return;
                             }
 
-                            @Override
-                            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                if (exception instanceof MetadataNotFoundException) {
-                                    asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
-                                    return;
-                                }
-
-                                unsubscribeFuture.completeExceptionally(exception);
-                                log.error("[{}][{}] Error deleting subscription pending ack store",
-                                        topic, subscriptionName, exception);
-                            }
-                        }, null);
-            }).exceptionally(ex -> {
-                unsubscribeFuture.completeExceptionally(ex);
-                return null;
-            });
+                            unsubscribeFuture.completeExceptionally(exception);
+                            log.error("[{}][{}] Error deleting subscription pending ack store",
+                                    topic, subscriptionName, exception);
+                        }
+                    }, null);
         } else {
             asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
         }
