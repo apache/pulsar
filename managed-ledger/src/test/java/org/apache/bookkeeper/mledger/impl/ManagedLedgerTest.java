@@ -5291,9 +5291,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
         CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Position> lastPosition = new AtomicReference<>();
         ledger.asyncAddEntry("entry-1".getBytes(Encoding), new AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                lastPosition.set(position);
                 // Mark delete with properties
                 Map<String, Long> properties = new HashMap<>();
                 properties.put("test-property", 12345L);
@@ -5320,15 +5322,17 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Map<String, Long> expectedProperties = new HashMap<>();
         expectedProperties.put("test-property", 12345L);
+        assertThat(cursor.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition.get());
         assertEquals(cursor.getProperties(), expectedProperties);
 
         // 3. Add Entry 2. Triggers second rollover process.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
-        ledger.addEntry(("entry-2").getBytes(Encoding));
+        Position p2 = ledger.addEntry(("entry-2").getBytes(Encoding));
 
         // Wait for background tasks (metadata callback) to complete.
         // We expect at least 2 ledgers (Rollover happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p2.getLedgerId(), -1));
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), expectedProperties);
