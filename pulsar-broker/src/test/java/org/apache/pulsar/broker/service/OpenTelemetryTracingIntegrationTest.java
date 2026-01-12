@@ -185,6 +185,8 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         assertNotNull(msg);
         consumer.negativeAcknowledge(msg);
 
+        Thread.sleep(3000);
+
         // Close to ensure negative ack is processed
         producer.close();
         consumer.close();
