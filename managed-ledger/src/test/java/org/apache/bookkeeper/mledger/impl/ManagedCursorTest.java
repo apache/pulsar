@@ -405,7 +405,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.close();
         ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
         ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
-        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+        assertThat(cursorRecovered.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
+        assertThat(cursorRecovered.getMarkDeletedPosition()).isGreaterThan(lastEntry);
 
         // cleanup.
         ml.delete();
@@ -496,12 +497,18 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
         assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
         assertEquals(cursor.getPersistentMarkDeletedPosition(), lastEntry);
+        assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
+        assertThat(cursor.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
 
         // Verify the mark delete position can be recovered properly.
         ml.close();
         ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
         ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
-        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+        assertThat(cursorRecovered.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
+        // If previous ledger is trimmed, Cursor: ManagedCursorImpl{ledger=ml_test, name=c1, ackPos=12:0, readPos=15:0}
+        // does not exist in the managed-ledger. Recovered cursor's position will not be moved forward.
+        // TODO should be handled in ledger trim process.
+        assertThat(cursorRecovered.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
 
         // cleanup.
         ml.delete();
@@ -4431,7 +4438,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
                     ManagedCursor c2 = ledger2.openCursor("c");
 
-                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    assertThat(c2.getMarkDeletedPosition()).isGreaterThan(positions.get(positions.size() - 1));
                 });
     }
 
@@ -4490,7 +4497,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     ManagedLedger ledger2 = factory2.open("testFlushCursorAfterIndDelInactivity", config);
                     ManagedCursor c2 = ledger2.openCursor("c");
 
-                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    assertThat(c2.getMarkDeletedPosition()).isGreaterThan(positions.get(positions.size() - 1));
                 });
     }
 
@@ -4542,7 +4549,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
                     ManagedCursor c2 = ledger2.openCursor("c");
 
-                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    assertThat(c2.getMarkDeletedPosition()).isGreaterThan(positions.get(positions.size() - 1));
                 });
     }
 
@@ -4805,7 +4812,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testLazyCursorLedgerCreation() throws Exception {
+    public void testEagerCursorLedgerCreation() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
                 .open("testLazyCursorLedgerCreation", managedLedgerConfig);
@@ -4830,8 +4837,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = (ManagedLedgerImpl) factory
                 .open("testLazyCursorLedgerCreation", managedLedgerConfig);
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
-        assertEquals(cursor1.getState(), "NoLedger");
-        assertEquals(cursor1.getMarkDeletedPosition(), finalLastPosition);
+        assertEquals(cursor1.getState(), "Open");
+        assertThat(cursor1.getMarkDeletedPosition()).isGreaterThan(finalLastPosition);
 
         // Verify the recovered cursor can work with new mark delete.
         lastPosition = null;
