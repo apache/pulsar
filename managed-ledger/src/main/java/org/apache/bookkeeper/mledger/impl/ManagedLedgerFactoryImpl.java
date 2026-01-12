@@ -424,14 +424,15 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             public void initializeComplete() {
                                 log.info("[{}] Successfully initialize managed ledger", name);
                                 pendingInitializeLedgers.remove(name, pendingLedger);
-                                future.complete(newledger);
-
-                                // May need to update the cursor position
-                                newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
-                                // May need to trigger offloading
-                                if (config.isTriggerOffloadOnTopicLoad()) {
-                                    newledger.maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
-                                }
+                                // May need to update the cursor position and wait them finished
+                                newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger().whenComplete((__, ex) -> {
+                                    // ignore ex since it is handled in maybeUpdateCursorBeforeTrimmingConsumedLedger
+                                    future.complete(newledger);
+                                    // May need to trigger offloading
+                                    if (config.isTriggerOffloadOnTopicLoad()) {
+                                        newledger.maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+                                    }
+                                });
                             }
 
                             @Override

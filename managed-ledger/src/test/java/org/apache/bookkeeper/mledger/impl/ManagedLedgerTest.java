@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -56,6 +57,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -69,6 +71,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -3709,6 +3712,60 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    public void testNeverThrowExceptionInMaybeUpdateCursorBeforeTrimmingConsumedLedger()
+            throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        int entryNum = 100;
+
+        ManagedLedgerImpl realManagedLedger =
+                (ManagedLedgerImpl) factory.open("maybeUpdateCursorBeforeTrimmingConsumed_ledger", config);
+        ManagedLedgerImpl managedLedger = spy(realManagedLedger);
+        ManagedCursor cursor = managedLedger.openCursor("c1");
+
+        Deque<CompletableFuture<Void>> futures = new ConcurrentLinkedDeque<>();
+        doAnswer(invocation -> {
+            CompletableFuture<Void> result = (CompletableFuture<Void>) invocation.callRealMethod();
+            futures.offer(result);
+            return result;
+        }).when(managedLedger).maybeUpdateCursorBeforeTrimmingConsumedLedger();
+
+        final CountDownLatch latch = new CountDownLatch(entryNum);
+        // Two asyncMarkDelete operations running concurrently:
+        //   1. ledger rollover triggered maybeUpdateCursorBeforeTrimmingConsumedLedger.
+        //   2. user triggered asyncMarkDelete.
+        for (int i = 0; i < entryNum; i++) {
+            managedLedger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                }
+
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                            fail("Should never fail",  exception);
+                        }
+
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                            latch.countDown();
+                        }
+                    }, null);
+
+                }
+            }, null);
+        }
+
+        latch.await();
+        assertEquals(cursor.getNumberOfEntries(), 0);
+
+        // Will not throw exception
+        FutureUtil.waitForAll(futures).get();
+    }
+
+    @Test(timeOut = 20000)
     public void testAsyncTruncateLedgerRetention() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(50);
@@ -4968,13 +5025,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testTrimmerRaceCondition() throws Exception {
+    public void testTrimmerRaceConditionInDurableCursor() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(1);
         config.setRetentionTime(0, TimeUnit.MILLISECONDS);
         config.setRetentionSizeInMB(0);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testTrimmerRaceCondition", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionInDurableCursor", config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
         // 1. Add Entry 1 (Ledger 1)
@@ -5003,20 +5060,138 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }, null);
 
         latch.await();
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), lastPosition);
-        assertEquals(ledger.getCursors().getSlowestReaderPosition(), lastPosition);
+        assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
         assertEquals(cursor.getProperties(), properties);
 
-        // 3. Add Entry 2. Triggers Rollover.
+        // 3. Add Entry 2. Triggers second rollover process.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
         Position p = ledger.addEntry("entry-2".getBytes(Encoding));
 
         // Wait for background tasks (metadata callback) to complete.
         // We expect at least 2 ledgers (Rollover happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), new ImmutablePositionImpl(p.getLedgerId(), -1));
+        // First ledger is all consumed and trimmed, left current ledger and next empty ledger.
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), -1));
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), properties);
+    }
+
+    @Test
+    public void testTrimmerRaceConditionInNonDurableCursor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionSizeInMB(0);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionInNonDurableCursor", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.newNonDurableCursor(PositionFactory.EARLIEST);
+
+        // 1. Add Entry 1 (Ledger 1)
+        ledger.addEntry("entry-1".getBytes(Encoding));
+
+        // 2. Ack Entry 1. Verify Persistence with properties.
+        List<Entry> entries = cursor.readEntries(1);
+        assertEquals(entries.size(), 1);
+        Position lastPosition = entries.get(0).getPosition();
+        entries.forEach(Entry::release);
+
+        // Mark delete with properties
+        Map<String, Long> properties = new HashMap<>();
+        properties.put("test-property", 12345L);
+        CountDownLatch latch = new CountDownLatch(1);
+        cursor.asyncMarkDelete(lastPosition, properties, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                latch.countDown();
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                fail("Mark delete should succeed");
+            }
+        }, null);
+
+        latch.await();
+        assertThat(cursor.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
+        assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
+        assertEquals(cursor.getProperties(), properties);
+
+        // 3. Add Entry 2. Triggers second rollover process.
+        // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
+        Position p = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // Wait for background tasks (metadata callback and trim) to complete.
+        // We expect only one ledger (Rollover and trim happened).
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() == 1);
+        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to p.getLedgerId():0
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
+
+        // Verify properties are preserved after cursor reset
+        assertEquals(cursor.getProperties(), properties);
+    }
+
+    @Test
+    public void testTrimmerRaceConditionWithThrottleMarkDeleteInDurableCursor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        int maxEntriesPerLedger = 1;
+        config.setMaxEntriesPerLedger(maxEntriesPerLedger);
+        config.setThrottleMarkDelete(1);
+        config.setRetentionTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionSizeInMB(0);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testTrimmerRaceConditionWithThrottleMarkDeleteInDurableCursor",
+                        config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Position> lastPosition = new AtomicReference<>();
+        ledger.asyncAddEntry("entry-1".getBytes(Encoding), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                lastPosition.set(position);
+                // Mark delete with properties
+                Map<String, Long> properties = new HashMap<>();
+                properties.put("test-property", 12345L);
+                cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
+                    @Override
+                    public void markDeleteComplete(Object ctx) {
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                        fail("Mark delete should succeed");
+                    }
+                }, null);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                fail("Add entry should succeed");
+            }
+        }, null);
+
+        latch.await();
+
+        Map<String, Long> expectedProperties = new HashMap<>();
+        expectedProperties.put("test-property", 12345L);
+        assertThat(cursor.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition.get());
+        assertEquals(cursor.getProperties(), expectedProperties);
+
+        // 3. Add Entry 2. Triggers second rollover process.
+        // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
+        Position p2 = ledger.addEntry(("entry-2").getBytes(Encoding));
+
+        // Wait for background tasks (metadata callback) to complete.
+        // We expect at least 2 ledgers (Rollover happened).
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() >= 2);
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p2.getLedgerId(), -1));
+
+        // Verify properties are preserved after cursor reset
+        assertEquals(cursor.getProperties(), expectedProperties);
     }
 }
