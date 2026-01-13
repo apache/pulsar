@@ -296,7 +296,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
 
     /**
-     * Counter for counting delayed messages exceed TTL time
+     * Counter for counting delayed messages exceed TTL time.
      */
     private final Rate ttlExceededDelayedMessagesRate = new Rate();
 
