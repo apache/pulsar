@@ -39,11 +39,26 @@
 
   <dependencyManagement>
     <dependencies>
-      <!-- enforce kafka client version that gets pulled transitively -->
+      <!-- enforce kafka client version that gets pulled transitively  -->
       <dependency>
         <groupId>org.apache.kafka</groupId>
         <artifactId>kafka-clients</artifactId>
         <version>${kafka-client.version}</version>
+        <!-- Exclude lz4-java as 1.10.1 fixes the vulnerability but pulsar-client:3.9.1 has 1.8.0
+             and project is migrated to at.yawk.lz4
+             TODO: Review this exclusion while doing version upgrade for kafka -->
+        <exclusions>
+          <exclusion>
+            <groupId>org.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <!-- Override the lz4-java version which gets pulled transitively -->
+      <dependency>
+        <groupId>at.yawk.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>${lz4-java.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

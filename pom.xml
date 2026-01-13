@@ -190,6 +190,7 @@ flexible messaging model and an intuitive client API.</description>
     <jetty.version>9.4.58.v20250814</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.42</jersey.version>
+    <jersey-client.version>2.46</jersey-client.version>
     <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.5.24</vertx.version>
@@ -227,6 +228,7 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.9.1</kafka-client.version>
+    <lz4-java.version>1.10.1</lz4-java.version>
     <rabbitmq-client.version>5.28.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.788</aws-sdk.version>
     <aws-sdk2.version>2.32.28</aws-sdk2.version>
@@ -243,9 +245,11 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.19.4</opensearch.version>
     <debezium.version>3.2.0.Final</debezium.version>
+    <mssql-jdbc.version>12.4.3.jre8</mssql-jdbc.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
     <debezium.postgresql.version>42.7.7</debezium.postgresql.version>
     <debezium.mysql.version>9.3.0</debezium.mysql.version>
+    <mysql-connector-j.version>9.3.0</mysql-connector-j.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
@@ -892,7 +896,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-client</artifactId>
-        <version>${jersey.version}</version>
+        <version>${jersey-client.version}</version>
       </dependency>
 
       <dependency>

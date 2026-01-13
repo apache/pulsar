@@ -81,6 +81,13 @@
           <artifactId>jose4j</artifactId>
           <groupId>org.bitbucket.b_c</groupId>
         </exclusion>
+        <!-- Exclude lz4-java as 1.10.1 fixes the vulnerability but pulsar-client:3.9.1 has 1.8.0
+             and project is migrated to at.yawk.lz4
+             TODO: Review this exclusion while doing version upgrade for kafka -->
+        <exclusion>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -111,6 +118,18 @@
       <artifactId>debezium-connector-mysql</artifactId>
       <version>${debezium.version}</version>
       <scope>test</scope>
+    </dependency>
+    <!-- Override the mysql-connector-j version which gets pulled transitively in debezium-connector-mysql -->
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>${mysql-connector-j.version}</version>
+    </dependency>
+    <!-- Override the lz4-java version which gets pulled transitively in connect-runtime -->
+    <dependency>
+      <groupId>at.yawk.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
+      <version>${lz4-java.version}</version>
     </dependency>
 
     <dependency>

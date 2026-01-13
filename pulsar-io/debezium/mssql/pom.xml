@@ -50,6 +50,12 @@
       <artifactId>debezium-connector-sqlserver</artifactId>
       <version>${debezium.version}</version>
     </dependency>
+    <!-- Override the mssql-jdbc version which gets pulled transitively in debezium-connector-sqlserver -->
+    <dependency>
+      <groupId>com.microsoft.sqlserver</groupId>
+      <artifactId>mssql-jdbc</artifactId>
+      <version>${mssql-jdbc.version}</version>
+    </dependency>
 
   </dependencies>
 
