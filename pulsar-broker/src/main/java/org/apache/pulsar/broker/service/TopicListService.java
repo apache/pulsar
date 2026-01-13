@@ -336,9 +336,10 @@ public class TopicListService {
                                     }, CompletableFuture::failedFuture);
                         }).whenComplete((watcher, exception) -> {
                             if (exception != null) {
-                                if (watcherRef.get() != null) {
-                                    watcher.close();
-                                    topicResources.deregisterPersistentTopicListener(watcherRef.get());
+                                TopicListWatcher w = watcherRef.get();
+                                if (w != null) {
+                                    w.close();
+                                    topicResources.deregisterPersistentTopicListener(w);
                                 }
                                 // triggers a retry
                                 throw FutureUtil.wrapToCompletionException(exception);
