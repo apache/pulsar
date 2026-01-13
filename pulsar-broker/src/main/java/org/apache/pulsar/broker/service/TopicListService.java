@@ -101,7 +101,7 @@ public class TopicListService {
                     new LinkedBlockingDeque<>(topicListUpdateMaxQueueSize);
         }
 
-        public Collection<String> getMatchingTopics() {
+        public synchronized Collection<String> getMatchingTopics() {
             return matchingTopics;
         }
 

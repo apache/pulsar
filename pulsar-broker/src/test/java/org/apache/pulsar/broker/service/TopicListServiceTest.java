@@ -53,6 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -94,6 +95,7 @@ public class TopicListServiceTest {
     private Consumer<Notification> notificationConsumer;
     private AsyncDualMemoryLimiterImpl memoryLimiter;
     private ScheduledExecutorService scheduledExecutorService;
+    private PulsarService pulsar;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -110,11 +112,13 @@ public class TopicListServiceTest {
         topicResources = spy(new TopicResources(metadataStore));
         notificationConsumer = listenerRef.get();
 
-        PulsarService pulsar = mock(PulsarService.class);
-        when(pulsar.getNamespaceService()).thenReturn(mock(NamespaceService.class));
+        pulsar = mock(PulsarService.class);
+        NamespaceService namespaceService = mock(NamespaceService.class);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        doAnswer(invocationOnMock -> topicListFuture)
+                .when(namespaceService).getListOfPersistentTopics(any());
         when(pulsar.getPulsarResources()).thenReturn(mock(PulsarResources.class));
         when(pulsar.getPulsarResources().getTopicResources()).thenReturn(topicResources);
-        when(pulsar.getNamespaceService().getListOfPersistentTopics(any())).thenReturn(topicListFuture);
 
         BrokerService brokerService = mock(BrokerService.class);
         when(pulsar.getBrokerService()).thenReturn(brokerService);
@@ -352,4 +356,44 @@ public class TopicListServiceTest {
         inOrder.verify(connection.getCommandSender(), timeout(2000L).times(1))
                 .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(newTopics), any(), any());
     }
+
+    @Test
+    public void testCommandWatchUpdateQueueOverflows() {
+        int topicListUpdateMaxQueueSize = 10;
+        topicListService = new TopicListService(pulsar, connection, true, 30,
+                topicListUpdateMaxQueueSize);
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d+",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
+        topicListFuture.complete(topics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
+
+        CompletableFuture<Void> completePending = new CompletableFuture<>();
+        doReturn(completePending).when(pulsarCommandSender)
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any());
+        topicListFuture = new CompletableFuture<>();
+
+        // when the queue overflows
+        for (int i = 10; i <= 10 + topicListUpdateMaxQueueSize + 1; i++) {
+            notificationConsumer.accept(
+                    new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic" + i));
+        }
+
+        // a new listing should be performed. Return 100 topics in the response, simulating that events have been lost
+        List<String> updatedTopics = IntStream.range(1, 101).mapToObj(i -> "persistent://tenant/ns/topic" + i).toList();
+        topicListFuture.complete(updatedTopics);
+        // validate that the watcher's matching topics have been updated
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<TopicListService.TopicListWatcher> watcherFuture = topicListService.getWatcherFuture(13);
+            assertThat(watcherFuture).isNotNull();
+            assertThat(watcherFuture.join().getMatchingTopics())
+                    .containsExactlyInAnyOrderElementsOf(updatedTopics);
+        });
+    }
+
 }
