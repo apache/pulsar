@@ -263,7 +263,7 @@ public class TopicListService {
                                 connection.toString(), namespaceName, requestId);
                     }
                     sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
-                            watcher::sendingCompleted);
+                            watcher::sendingCompleted, watcher::close);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
@@ -281,15 +281,17 @@ public class TopicListService {
     private void sendTopicListSuccessWithPermitAcquiringRetries(long watcherId, long requestId,
                                                                 Collection<String> topicList,
                                                                 String hash,
-                                                                Runnable successfulCompletionCallback) {
+                                                                Runnable successfulCompletionCallback,
+                                                                Runnable failedCompletionCallback) {
         performOperationWithPermitAcquiringRetries(watcherId, "topic list success", permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler)
                         .whenComplete((__, t) -> {
                             if (t != null) {
                                 // this is an unexpected case
-                                log.warn("[{}] Failed to send topic list success for watcherId={}. Watcher will be in "
-                                        + "inconsistent state.", connection, watcherId, t);
+                                log.warn("[{}] Failed to send topic list success for watcherId={}. "
+                                        + "Watcher is not active.", connection, watcherId, t);
+                                failedCompletionCallback.run();
                             } else {
                                 // completed successfully, run the callback
                                 successfulCompletionCallback.run();
