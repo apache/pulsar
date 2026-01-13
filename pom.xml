@@ -3129,6 +3129,14 @@ flexible messaging model and an intuitive client API.</description>
   </profiles>
 
   <repositories>
+      <repository>
+          <id>bk-staging</id>
+          <name>bk-staging</name>
+          <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1103/</url>
+          <snapshots>
+              <enabled>false</enabled>
+          </snapshots>
+      </repository>
     <repository>
       <id>central</id>
       <layout>default</layout>
