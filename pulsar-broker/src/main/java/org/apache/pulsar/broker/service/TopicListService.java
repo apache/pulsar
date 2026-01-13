@@ -405,16 +405,12 @@ public class TopicListService {
             if (watcher != null) {
                 topicResources.deregisterPersistentTopicListener(watcher);
                 watcher.close();
+                log.info("[{}] Closed watcher, watcherId={}", connection.toString(), watcherId);
+            } else if (t != null) {
+                log.info("[{}] Closed watcher that failed to be created. watcherId={}",
+                        connection.toString(), watcherId);
             }
         });
-
-        if (watcherFuture.isCompletedExceptionally()) {
-            log.info("[{}] Closed watcher that already failed to be created. watcherId={}",
-                    connection.toString(), watcherId);
-            return;
-        }
-
-        log.info("[{}] Closed watcher, watcherId={}", connection.toString(), watcherId);
     }
 
     /**
