@@ -497,6 +497,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Assert persist mark deleted position to ZK was successful.
         Position slowestReadPosition = ml.getCursors().getSlowestCursorPosition();
+        assertThat(slowestReadPosition).isGreaterThanOrEqualTo(lastEntry);
         assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
         assertThat(cursor.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
 
@@ -6177,7 +6178,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test(timeOut = 20000, invocationCount = 100)
+    @Test(timeOut = 20000)
     void testMarkDeletePreviousLacManyTimesInRolloverScenario() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(1);

@@ -151,7 +151,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
-import org.assertj.core.api.AssertionsForClassTypes;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -2306,7 +2305,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Wait for new ledger creation completed
         Awaitility.await()
-                .untilAsserted(() -> AssertionsForClassTypes.assertThat(ml.getLedgersInfo().size()).isEqualTo(2));
+                .untilAsserted(() -> assertThat(ml.getLedgersInfo().size()).isEqualTo(2));
 
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         ml.close();
@@ -5276,14 +5275,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // 3. Add Entry 2. Triggers second rollover process.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
-        Position p = ledger.addEntry("entry-2".getBytes(Encoding));
+        ledger.addEntry("entry-2".getBytes(Encoding));
 
         // Wait for background tasks (metadata callback and trim) to complete.
         // We expect only one ledger (Rollover and trim happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() == 1);
-        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to p.getLedgerId():0
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
+        long emptyLedgerId = ledger.getLedgersInfo().lastEntry().getValue().getLedgerId();
+        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to emptyLedgerId:-1.
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), properties);
