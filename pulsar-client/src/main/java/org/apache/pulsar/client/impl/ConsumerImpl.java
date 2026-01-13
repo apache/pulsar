@@ -844,6 +844,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public void negativeAcknowledge(MessageId messageId, long delay, TimeUnit unit) {
+        negativeAcksTracker.add(messageId, delay, unit);
+        unAckedMessageTracker.remove(MessageIdAdvUtils.discardBatch(messageId));
+    }
+
+    @Override
+    public void negativeAcknowledge(Message<?> message, long delay, TimeUnit unit) {
+        negativeAcknowledge(message.getMessageId(), delay, unit);
+    }
+
+    @Override
     public void negativeAcknowledge(Message<?> message) {
         consumerNacksCounter.increment();
         negativeAcksTracker.add(message);
@@ -2284,6 +2295,47 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             return;
         }
+        if (cnx == null || (getState() == State.Connecting)) {
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
+        } else {
+            log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
+            cnx.ctx().close();
+        }
+    }
+
+    @Override
+    protected void redeliverUnacknowledgedMessages(Set<MessageId> messageIds, long delayAtTime) {
+        if (messageIds.isEmpty()) {
+            return;
+        }
+
+        if (conf.getSubscriptionType() != SubscriptionType.Shared
+                && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+            redeliverUnacknowledgedMessages();
+            return;
+        }
+        ClientCnx cnx = cnx();
+        if (isConnected()) {
+            int messagesFromQueue = removeExpiredMessagesFromQueue(messageIds);
+            Iterables.partition(messageIds, MAX_REDELIVER_UNACKNOWLEDGED).forEach(ids -> {
+                getRedeliveryMessageIdData(ids).thenAccept(messageIdData -> {
+                    if (!messageIdData.isEmpty()) {
+                        ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessages(consumerId, messageIdData,
+                                delayAtTime);
+                        cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                    }
+                });
+            });
+            if (messagesFromQueue > 0) {
+                increaseAvailablePermits(cnx, messagesFromQueue);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] [{}] Redeliver unacked messages and increase {} permits", subscription, topic,
+                        consumerName, messagesFromQueue);
+            }
+            return;
+        }
+
         if (cnx == null || (getState() == State.Connecting)) {
             log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
         } else {

@@ -1190,6 +1190,54 @@ public class Consumer {
         }
     }
 
+    public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds, long delayAtTime) {
+        if (messageIds.isEmpty()) {
+            return;
+        }
+
+        if (delayAtTime <= 0 || !(Subscription.isIndividualAckMode(this.subType()))) {
+            redeliverUnacknowledgedMessages(messageIds);
+            return;
+        }
+
+        List<Position> pendingPositions = new ArrayList<>();
+        int totalRedeliveryMessages = 0;
+        for (MessageIdData msg : messageIds) {
+            Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
+            IntIntPair pendingAck = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            if (pendingAck != null) {
+                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, pendingAck.leftInt());
+                pendingAcks.remove(position.getLedgerId(), position.getEntryId());
+                totalRedeliveryMessages += unAckedCount;
+                pendingPositions.add(position);
+            }
+        }
+
+        addAndGetUnAckedMsgs(this, -totalRedeliveryMessages);
+        blockedConsumerOnUnackedMsgs = false;
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] consumer {} received {} msg-redelivery {}", topicName, subscription, consumerId,
+                    totalRedeliveryMessages, pendingPositions.size());
+        }
+
+        subscription.redeliverUnacknowledgedMessages(this, pendingPositions, delayAtTime);
+        msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
+        msgRedeliverCounter.add(totalRedeliveryMessages);
+
+        int numberOfBlockedPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
+
+        // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
+        if (numberOfBlockedPermits > 0) {
+            MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Added {} blockedPermits to broker.service.Consumer's messagePermits for consumer {}",
+                        topicName, subscription, numberOfBlockedPermits, consumerId);
+            }
+            subscription.consumerFlow(this, numberOfBlockedPermits);
+        }
+    }
+
     public Subscription getSubscription() {
         return subscription;
     }

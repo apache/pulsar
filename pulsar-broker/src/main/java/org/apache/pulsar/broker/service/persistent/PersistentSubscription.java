@@ -1508,6 +1508,14 @@ public class PersistentSubscription extends AbstractSubscription {
         }
     }
 
+    @Override
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions, long delayAtTime) {
+        Dispatcher dispatcher = getDispatcher();
+        if (dispatcher != null) {
+            dispatcher.redeliverUnacknowledgedMessages(consumer, positions, delayAtTime);
+        }
+    }
+
     private void trimByMarkDeletePosition(List<Position> positions) {
         positions.removeIf(position -> cursor.getMarkDeletedPosition() != null
                 && position.compareTo(cursor.getMarkDeletedPosition()) <= 0);

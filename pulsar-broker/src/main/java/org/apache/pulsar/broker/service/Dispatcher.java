@@ -94,6 +94,8 @@ public interface Dispatcher {
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions);
 
+    void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions, long delayAtTime);
+
     void addUnAckedMessages(int unAckMessages);
 
     RedeliveryTracker getRedeliveryTracker();

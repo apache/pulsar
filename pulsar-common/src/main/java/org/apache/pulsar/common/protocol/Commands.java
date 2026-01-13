@@ -1201,6 +1201,23 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, List<MessageIdData> messageIds,
+                                                             long delayAtTime) {
+        BaseCommand cmd = localCmd(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
+        CommandRedeliverUnacknowledgedMessages req = cmd.setRedeliverUnacknowledgedMessages()
+                .setConsumerId(consumerId)
+                .setDelayAtTime(delayAtTime);
+        messageIds.forEach(msgId -> {
+            MessageIdData m = req.addMessageId()
+                    .setLedgerId(msgId.getLedgerId())
+                    .setEntryId(msgId.getEntryId());
+            if (msgId.hasBatchIndex()) {
+                m.setBatchIndex(msgId.getBatchIndex());
+            }
+        });
+        return serializeWithSize(cmd);
+    }
+
     public static ByteBuf newConsumerStatsResponse(ServerError serverError, String errMsg, long requestId) {
         return serializeWithSize(newConsumerStatsResponseCommand(serverError, errMsg, requestId));
     }

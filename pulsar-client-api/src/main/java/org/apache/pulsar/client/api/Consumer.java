@@ -272,6 +272,36 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     void negativeAcknowledge(Messages<?> messages);
 
     /**
+     * Negatively Acknowledges a single message and requests redelivery after a specified delay.
+     * <p>
+     * When a message is negatively acknowledged with a delay, the broker will stop
+     * counting it against the normal ack-timeout and will schedule it for redelivery
+     * to this (or another) consumer on the same subscription after the specified delay.
+     * </p>
+     *
+     * <p><b>Note</b>: messages are only delivered with delay when a consumer is consuming
+     * through a {@link SubscriptionType#Shared} or {@link SubscriptionType#Key_Shared} subscription.
+     * With other subscription types, the messages will still be delivered immediately.
+     *
+     * @param messageId the {@code MessageId} to be delayed in delivery
+     * @param delay the amount of delay before the message will be delivered
+     * @param unit the time unit for the delay
+     */
+    void negativeAcknowledge(MessageId messageId, long delay, TimeUnit unit);
+
+    /**
+     * Negatively Acknowledges a single message and requests redelivery after a specified delay.
+     * <p>
+     * See {@link #negativeAcknowledge(MessageId, long, TimeUnit)} for details.
+     * </p>
+     *
+     * @param message the {@code Message} to be delayed in delivery
+     * @param delay the amount of delay before the message will be delivered
+     * @param unit the time unit for the delay
+     */
+    void negativeAcknowledge(Message<?> message, long delay, TimeUnit unit);
+
+    /**
      * reconsumeLater the consumption of {@link Messages}.
      *
      *<p>When a message is "reconsumeLater" it will be marked for redelivery after

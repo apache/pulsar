@@ -888,6 +888,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
      */
     protected abstract void redeliverUnacknowledgedMessages(Set<MessageId> messageIds);
 
+    protected abstract void redeliverUnacknowledgedMessages(Set<MessageId> messageIds, long delayAtTime);
+
     @Override
     public String toString() {
         return "ConsumerBase{"
