@@ -124,8 +124,8 @@ public class TopicResources {
     }
 
     Pattern namespaceNameToTopicNamePattern(NamespaceName namespaceName) {
-        return Pattern.compile(MANAGED_LEDGER_PATH + "/(" + Pattern.quote(namespaceName.toString()) + ")/("
-                        + TopicDomain.persistent + ")/(" + "[^/]+)");
+        return Pattern.compile(
+                MANAGED_LEDGER_PATH + "/(" + namespaceName + ")/(" + TopicDomain.persistent + ")/(" + "[^/]+)");
     }
 
     public void registerPersistentTopicListener(
