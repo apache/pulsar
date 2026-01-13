@@ -115,4 +115,15 @@ public class TopicResourcesTest {
         verify(listener).accept("persistent://tenant/namespace/topic:test", NotificationType.Created);
     }
 
+    @Test
+    public void testNamespaceContainsDotsShouldntMatchAny() {
+        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
+        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/name.pace"), listener);
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic"));
+        verifyNoInteractions(listener);
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/name.pace/persistent/topic"));
+        verify(listener).accept("persistent://tenant/name.pace/topic", NotificationType.Created);
+    }
 }
