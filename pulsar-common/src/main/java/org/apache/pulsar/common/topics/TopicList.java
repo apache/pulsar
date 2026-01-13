@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -65,6 +66,14 @@ public class TopicList {
      */
     public static <R> R filterTopics(List<String> original, TopicsPattern topicsPattern,
                                               Collector<String, ?, R> collector) {
+        return filterTopicsToStream(original, topicsPattern)
+                .collect(collector);
+    }
+
+    /**
+     * Filter topics using a TopicListPattern instance and return a stream of filtered topic names.
+     */
+    public static Stream<String> filterTopicsToStream(List<String> original, TopicsPattern topicsPattern) {
         return original.stream()
                 .map(TopicName::get)
                 .filter(topicName -> {
@@ -72,8 +81,7 @@ public class TopicList {
                     String removedScheme = SCHEME_SEPARATOR_PATTERN.split(partitionedTopicName)[1];
                     return topicsPattern.matches(removedScheme);
                 })
-                .map(TopicName::toString)
-                .collect(collector);
+                .map(TopicName::toString);
     }
 
     public static List<String> filterSystemTopic(List<String> original) {
