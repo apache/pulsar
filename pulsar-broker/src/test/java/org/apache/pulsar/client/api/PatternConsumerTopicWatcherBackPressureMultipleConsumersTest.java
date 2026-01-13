@@ -23,6 +23,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -31,9 +32,11 @@ import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
@@ -134,6 +137,19 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
             FutureUtil.waitForAll(consumerFutures).get(60, TimeUnit.SECONDS);
 
             List<Consumer<String>> consumers = consumerFutures.stream().map(CompletableFuture::join).toList();
+
+            List<? extends CompletableFuture<?>> watcherFutures = consumers.stream().map(consumer -> {
+                try {
+                    CompletableFuture<?> watcherFuture = consumer instanceof PatternMultiTopicsConsumerImpl
+                            ? (CompletableFuture<?>) FieldUtils.readField(consumer, "watcherFuture", true) : null;
+                    return watcherFuture;
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+            }).filter(Objects::nonNull).toList();
+
+            // wait for all watcher futures to complete
+            FutureUtil.waitForAll(watcherFutures).get(60, TimeUnit.SECONDS);
 
             PulsarClientImpl client = clients.get(0);
             sendAndValidate(topicCount, client, consumers, topicNamePrefix, "_0");
