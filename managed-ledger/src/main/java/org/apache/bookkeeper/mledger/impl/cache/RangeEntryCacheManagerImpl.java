@@ -95,6 +95,8 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
                         rangeCacheRemovalQueue, entryLengthFunction);
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
+            log.warn("Entry cache for {} already exists, newEntryCache: {}, currentEntryCache: {}", ml.getName(),
+                    newEntryCache, currentEntryCache);
             return currentEntryCache;
         } else {
             return newEntryCache;

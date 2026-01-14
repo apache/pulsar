@@ -3957,7 +3957,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         initManagedLedgerConfig(config);
         config.setMaxEntriesPerLedger(1);
 
-        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("testLockReleaseWhenTrimLedger", config));
+        ManagedLedgerImpl originalLedger = (ManagedLedgerImpl) factory.open("testLockReleaseWhenTrimLedger", config);
+        ManagedLedgerImpl ledger = spy(originalLedger);
         doThrow(new ManagedLedgerException.LedgerNotExistException("First non deleted Ledger is not found"))
                 .when(ledger).advanceCursorsIfNecessary(any());
         final int entries = 10;
