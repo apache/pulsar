@@ -147,7 +147,6 @@ jobs:
                   run_id: runId,
                   per_page: 100,
                 },
-                (response) => response.data.jobs || []
               );
               return jobs;
             }
