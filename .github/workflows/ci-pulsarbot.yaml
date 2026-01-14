@@ -71,7 +71,7 @@ jobs:
             console.log(`Command parsed => sub='${sub}', arg='${arg || ''}'`);
 
             // Most reliable: list workflow runs by head_sha (no guessing by actor/branch/event)
-            const runsAtHeadRaw = await github.paginate(
+            const runsAtHead = await github.paginate(
               github.rest.actions.listWorkflowRunsForRepo,
               {
                 owner: context.repo.owner,
@@ -80,9 +80,6 @@ jobs:
                 per_page: 100,
               },
             );
-            console.log(`DEBUG runs for head_sha=${headSha}: runs_returned=${runsAtHeadRaw.length}`);
-            const runsAtHead = runsAtHeadRaw;
-
             console.log(`runsAtHead total=${runsAtHead.length} for head_sha=${headSha}`);
 
             if (runsAtHead.length === 0) {
