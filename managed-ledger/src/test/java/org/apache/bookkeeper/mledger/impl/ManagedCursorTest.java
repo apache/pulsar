@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,6 +58,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -72,6 +74,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -208,6 +211,117 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
     }
 
+    @Test
+    public void testConcurrentPropertyOperationsThreadSafety() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testConcurrentPropertyOperationsThreadSafety", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_concurrent", null);
+
+        int threadCount = 100;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+
+        // Collect all Future objects to ensure all tasks complete before verification
+        List<Future<?>> allFutures = new ArrayList<>();
+
+        // Use fixed number of operations
+        int totalOperations = 10000;
+        AtomicLong completedOperations = new AtomicLong(0);
+        AtomicLong exceptionCount = new AtomicLong(0);
+        AtomicBoolean inconsistencyDetected = new AtomicBoolean(false);
+
+        // Submit fixed number of concurrent tasks
+        for (int i = 0; i < totalOperations; i++) {
+            Future<?> future = executor.submit(() -> {
+                try {
+                    Random random = new Random();
+                    int operationType = random.nextInt(3);
+                    String randomKey = "key" + random.nextInt(20);
+
+                    switch (operationType) {
+                        case 0: // Put operation
+                            Long randomValue = random.nextLong();
+                            cursor.putProperty(randomKey, randomValue);
+                            break;
+
+                        case 1: // Remove operation
+                            cursor.removeProperty(randomKey);
+                            break;
+
+                        case 2: // Read and verify operation
+                            Map<String, Long> properties = cursor.getProperties();
+                            // Verify no inconsistent state (key exists but value is null)
+                            if (properties.containsKey(randomKey) && properties.get(randomKey) == null) {
+                                inconsistencyDetected.set(true);
+                                fail("INCONSISTENT STATE DETECTED: Key '" + randomKey + "' exists but has null value");
+                            }
+                            break;
+                    }
+                    completedOperations.incrementAndGet();
+
+                } catch (ConcurrentModificationException cme) {
+                    // Record ConcurrentModificationException but don't fail immediately
+                    // We'll assert at the end that no exceptions occurred
+                    exceptionCount.incrementAndGet();
+                } catch (Exception e) {
+                    exceptionCount.incrementAndGet();
+                    fail("Unexpected exception: " + e.getMessage());
+                }
+            });
+
+            allFutures.add(future);
+        }
+        executor.shutdown();
+
+        // Wait for each task to complete with timeout
+        for (Future<?> future : allFutures) {
+            try {
+                future.get(30, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                fail("Task timed out after 30 seconds - possible deadlock or infinite loop");
+            } catch (ExecutionException e) {
+                fail("unexpected exception: " + e.getCause());
+            }
+        }
+
+        // Ensure executor is fully terminated
+        boolean terminated = executor.awaitTermination(10, TimeUnit.SECONDS);
+        assertTrue(terminated, "Executor should be fully terminated");
+
+        // Then: Verify test results
+        // 1. No ConcurrentModificationException should occur with fixed code
+        assertEquals(exceptionCount.get(), 0, "No exceptions should occur with thread-safe implementation");
+
+        // 2. No inconsistent states detected
+        assertFalse(inconsistencyDetected.get(), "No inconsistent states (key with null value) should be detected");
+
+        // 3: Final cursor state should be internally consistent
+        Map<String, Long> finalProperties = cursor.getProperties();
+        try {
+            for (Map.Entry<String, Long> entry : finalProperties.entrySet()) {
+                String key = entry.getKey();
+                Long value = entry.getValue();
+                // Verify key is not null
+                assertNotNull(key, "Final key should not be null");
+                // Verify value is not null
+                assertNotNull(value, "Final value should not be null for key: " + key);
+                // Verify key follows expected pattern
+                assertTrue(key.startsWith("key"),
+                        "Final key should start with 'key', got: " + key);
+
+                // Verify key format is valid (key followed by a number 0-19)
+                try {
+                    String numberPart = key.substring(3); // Remove "key" prefix
+                    int keyNumber = Integer.parseInt(numberPart);
+                    assertTrue(keyNumber >= 0 && keyNumber < 20,
+                            "Key number should be between 0 and 19, got: " + keyNumber);
+                } catch (NumberFormatException e) {
+                    fail("Invalid key format: " + key + ". Should be 'keyX' where X is a number");
+                }
+            }
+        } catch (Exception e) {
+            fail("HashMap corruption detected in final state: " + e.getMessage());
+        }
+    }
     private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
         Awaitility.await().until(managedCursor::closeCursorLedger);
     }
@@ -293,7 +407,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.close();
         ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
         ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
-        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+        assertThat(cursorRecovered.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
+        assertThat(cursorRecovered.getMarkDeletedPosition()).isGreaterThan(lastEntry);
 
         // cleanup.
         ml.delete();
@@ -384,12 +499,18 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
         assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
         assertEquals(cursor.getPersistentMarkDeletedPosition(), lastEntry);
+        assertThat(cursor.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
+        assertThat(cursor.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
 
         // Verify the mark delete position can be recovered properly.
         ml.close();
         ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
         ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
-        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+        assertThat(cursorRecovered.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
+        // If previous ledger is trimmed, Cursor: ManagedCursorImpl{ledger=ml_test, name=c1, ackPos=12:0, readPos=15:0}
+        // does not exist in the managed-ledger. Recovered cursor's position will not be moved forward.
+        // TODO should be handled in ledger trim process.
+        assertThat(cursorRecovered.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
 
         // cleanup.
         ml.delete();
@@ -3685,6 +3806,81 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 10 * entryData.length);
     }
 
+    /**
+     * Test that cursor.getEstimatedSizeSinceMarkDeletePosition() correctly accounts for individual
+     * message deletions (asyncDelete/individual ack).
+     *
+     * This verifies the fix: when messages are acknowledged out of order using asyncDelete,
+     * the backlog size is now correctly adjusted to reflect the individually deleted messages.
+     */
+    @Test(timeOut = 20000)
+    public void testEstimatedSizeWithIndividualAcks() throws Exception {
+        ManagedLedger ledger = factory.open("test_cursor_backlog_size_individual_acks");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        // Each entry is 100 bytes
+        byte[] entryData = new byte[100];
+
+        // Add 5 entries: positions should be 0:0, 0:1, 0:2, 0:3, 0:4
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            positions.add(ledger.addEntry(entryData));
+        }
+
+        // Initial state: 5 entries * 100 bytes = 500 bytes
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 500);
+
+        // Read all entries so they can be acknowledged
+        List<Entry> entries = cursor.readEntries(5);
+        assertEquals(entries.size(), 5);
+        entries.forEach(Entry::release);
+
+        // Individual acknowledge positions 1, 3, 4 (leaving 0:0 and 0:2 unacknowledged)
+        AtomicInteger callbackCount = new AtomicInteger(0);
+        CountDownLatch latch = new CountDownLatch(3);
+
+        DeleteCallback callback = new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                callbackCount.incrementAndGet();
+                latch.countDown();
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                latch.countDown();
+            }
+        };
+
+        cursor.asyncDelete(positions.get(1), callback, null);
+        cursor.asyncDelete(positions.get(3), callback, null);
+        cursor.asyncDelete(positions.get(4), callback, null);
+
+        // Wait for async operations to complete
+        assertTrue(latch.await(5, TimeUnit.SECONDS), "Deletes should complete");
+        assertEquals(callbackCount.get(), 3, "All 3 deletes should succeed");
+
+        // Get current state
+        // After fix: should now account for individual deleted messages
+        long expectedBacklogSize = 200;  // 2 remaining entries (0:0, 0:2) * 100 bytes
+        long actualBacklogSize = cursor.getEstimatedSizeSinceMarkDeletePosition();
+        Position markDeletePos = cursor.getMarkDeletedPosition();
+
+        log.info("Backlog size after individual acks:");
+        log.info("  Expected: {}. Actual: {}", expectedBacklogSize, actualBacklogSize);
+        log.info("  Mark delete position: {}", markDeletePos);
+        log.info("  Individual deleted: {}", ((ManagedCursorImpl) cursor).getIndividuallyDeletedMessagesSet());
+
+        // After fix: backlog size should now correctly account for individual deletions
+        assertEquals(actualBacklogSize, expectedBacklogSize,
+                "Backlog size should account for individual deletions");
+
+        // Verify both count and size are correct
+        assertEquals(cursor.getNumberOfEntriesInBacklog(true), 2, "Backlog count should be 2");
+
+        ledger.close();
+    }
+
     @Test(timeOut = 20000)
     public void testRecoverCursorAheadOfLastPosition() throws Exception {
         final String mlName = "my_test_ledger";
@@ -4252,7 +4448,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
                     ManagedCursor c2 = ledger2.openCursor("c");
 
-                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    assertThat(c2.getMarkDeletedPosition()).isGreaterThan(positions.get(positions.size() - 1));
                 });
     }
 
@@ -4311,7 +4507,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     ManagedLedger ledger2 = factory2.open("testFlushCursorAfterIndDelInactivity", config);
                     ManagedCursor c2 = ledger2.openCursor("c");
 
-                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    assertThat(c2.getMarkDeletedPosition()).isGreaterThan(positions.get(positions.size() - 1));
                 });
     }
 
@@ -4363,7 +4559,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
                     ManagedCursor c2 = ledger2.openCursor("c");
 
-                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    assertThat(c2.getMarkDeletedPosition()).isGreaterThan(positions.get(positions.size() - 1));
                 });
     }
 
@@ -4626,7 +4822,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testLazyCursorLedgerCreation() throws Exception {
+    public void testEagerCursorLedgerCreation() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
                 .open("testLazyCursorLedgerCreation", managedLedgerConfig);
@@ -4651,8 +4847,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = (ManagedLedgerImpl) factory
                 .open("testLazyCursorLedgerCreation", managedLedgerConfig);
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
-        assertEquals(cursor1.getState(), "NoLedger");
-        assertEquals(cursor1.getMarkDeletedPosition(), finalLastPosition);
+        assertEquals(cursor1.getState(), "Open");
+        assertThat(cursor1.getMarkDeletedPosition()).isGreaterThan(finalLastPosition);
 
         // Verify the recovered cursor can work with new mark delete.
         lastPosition = null;

@@ -31,6 +31,7 @@ import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -79,6 +80,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
@@ -1051,6 +1053,63 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> peekMsg = peekMsgs.get(i);
             assertEquals(new String(peekMsg.getValue()), "msg-uncommitted");
         }
+    }
+
+    @Test
+    public void testAnalyzeSubscriptionBacklogWithTransactionMarker() throws Exception {
+        initTransaction(1);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/analyze-subscription-backlog");
+        String transactionSubName = "analyze-subscription-backlog-topic-sub";
+
+        // Init subscription and then close the consumer. If consumer is connected and has available permits,
+        // AbstractBaseDispatcher#filterEntriesForConsumer will auto ack marker messages
+        pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(transactionSubName).subscribe().close();
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        int numMessages = 10;
+        List<MessageId> committedMsgIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            MessageId messageId = producer.newMessage(txn).value("commited-msg" + i).send();
+            committedMsgIds.add(messageId);
+            txn.commit().get();
+        }
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages);
+
+        MessageId committedMiddleMsgId = committedMsgIds.get(numMessages / 2);
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(committedMiddleMsgId));
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
+
+        List<MessageId> abortedMsgIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            MessageId messageId = producer.newMessage(txn).value("aborted-msg" + i).send();
+            abortedMsgIds.add(messageId);
+            txn.abort().get();
+        }
+        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages * 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages * 2);
+
+        MessageId abortedMiddleMsgId = abortedMsgIds.get(numMessages / 2);
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(abortedMiddleMsgId));
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
+
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage(txn).value("uncommitted-msg-" + i).send();
+        }
+        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages * 3);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages * 2);
     }
 
     private static void verifyCoordinatorStats(String state,

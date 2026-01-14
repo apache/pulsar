@@ -635,6 +635,7 @@ public class PersistentSubscription extends AbstractSubscription {
         AtomicLong rejected = new AtomicLong();
         AtomicLong rescheduled = new AtomicLong();
         AtomicLong messages = new AtomicLong();
+        AtomicLong markerMessages = new AtomicLong();
         AtomicLong acceptedMessages = new AtomicLong();
         AtomicLong rejectedMessages = new AtomicLong();
         AtomicLong rescheduledMessages = new AtomicLong();
@@ -666,6 +667,10 @@ public class PersistentSubscription extends AbstractSubscription {
                 messageMetadata = entry.getMessageMetadata();
             } else {
                 messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            }
+            if (messageMetadata.hasMarkerType()) {
+                markerMessages.incrementAndGet();
+                return true;
             }
             int numMessages = 1;
             if (messageMetadata.hasNumMessagesInBatch()) {
@@ -716,6 +721,7 @@ public class PersistentSubscription extends AbstractSubscription {
             result.setLastPosition(lastPosition.get());
             result.setEntries(entries.get());
             result.setMessages(messages.get());
+            result.setMarkerMessages(markerMessages.get());
             result.setFilterAcceptedEntries(accepted.get());
             result.setFilterAcceptedMessages(acceptedMessages.get());
             result.setFilterRejectedEntries(rejected.get());
