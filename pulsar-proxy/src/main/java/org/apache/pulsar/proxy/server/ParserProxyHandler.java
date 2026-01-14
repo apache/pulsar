@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.Getter;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.raw.MessageParser;
@@ -53,6 +54,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
     private final int maxMessageSize;
     private final ChannelId peerChannelId;
+    @Getter
     private final Context context;
     private final ProxyService service;
 
@@ -61,11 +63,13 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
         /**
          * producerid as key.
          */
+        @Getter
         private final Map<Long, String> producerIdToTopicName = new ConcurrentHashMap<>();
 
         /**
          * consumerid as key.
          */
+        @Getter
         private final Map<Long, String> consumerIdToTopicName = new ConcurrentHashMap<>();
 
         private Context() {
