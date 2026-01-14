@@ -37,6 +37,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,14 +131,15 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
             switch (cmd.getType()) {
                 case PRODUCER:
-                    context.producerIdToTopicName.put(cmd.getProducer().getProducerId(), cmd.getProducer().getTopic());
+                    topicName = StringInterner.intern(cmd.getProducer().getTopic());
+                    context.producerIdToTopicName.put(cmd.getProducer().getProducerId(), topicName);
 
                     String producerName = "";
                     if (cmd.getProducer().hasProducerName()){
                         producerName = cmd.getProducer().getProducerName();
                     }
                     logging(ctx.channel(), cmd.getType(), "{producer:" + producerName
-                            + ",topic:" + cmd.getProducer().getTopic() + "}", null);
+                            + ",topic:" + topicName + "}", null);
                     break;
                 case CLOSE_PRODUCER:
                     context.producerIdToTopicName.remove(cmd.getCloseProducer().getProducerId());
@@ -170,11 +172,11 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     break;
 
                 case SUBSCRIBE:
-                    context.consumerIdToTopicName.put(cmd.getSubscribe().getConsumerId(),
-                            cmd.getSubscribe().getTopic());
+                    topicName = StringInterner.intern(cmd.getSubscribe().getTopic());
+                    context.consumerIdToTopicName.put(cmd.getSubscribe().getConsumerId(), topicName);
 
                     logging(ctx.channel(), cmd.getType(), "{consumer:" + cmd.getSubscribe().getConsumerName()
-                            + ",topic:" + cmd.getSubscribe().getTopic() + "}", null);
+                            + ",topic:" + topicName + "}", null);
                     break;
                 case CLOSE_CONSUMER:
                     context.consumerIdToTopicName.remove(cmd.getCloseConsumer().getConsumerId());
