@@ -64,22 +64,37 @@ public class ProducerCacheTest {
         cache.close();
     }
 
-    @Test(enabled = false)
-    public void shouldCompleteFlushBeforeClose() {
+    @Test
+    public void shouldCompleteFlushBeforeCloseAndWaitForClosing() {
         ProducerCache cache = new ProducerCache();
         Producer producer = mock(Producer.class);
         AtomicBoolean flushCompleted = new AtomicBoolean(false);
         when(producer.flushAsync()).thenReturn(CompletableFuture.supplyAsync(() -> {
+            try {
+                // add delay to make sure that cache close waits for completion of flushAsync
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // ignore
+            }
             flushCompleted.set(true);
             return null;
         }));
-        when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        AtomicBoolean closeCompleted = new AtomicBoolean(false);
+        when(producer.closeAsync()).thenReturn(CompletableFuture.supplyAsync(() -> {
+            try {
+                // add delay to make sure that cache close waits for completion of closeAsync
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            closeCompleted.set(true);
+            return null;
+        }));
         cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
                 () -> (Producer<Object>) producer);
         cache.close();
-        // TODO - this currently works, but only due to race conditions; adding a `Thread.sleep` before `flushCompleted.set(true)` makes it fail
         assertTrue(flushCompleted.get());
-        // TODO - this currently fails, because `cache.close()` doesn't actually see any shutdown futures
+        assertTrue(closeCompleted.get());
         assertEquals(cache.closeFutures.size(), 1);
     }
 }
