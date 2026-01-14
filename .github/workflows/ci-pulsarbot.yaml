@@ -80,8 +80,8 @@ jobs:
                 per_page: 100,
               },
             );
-            console.log(`DEBUG runs for head_sha=${headSha}: total_count=${runsAtHeadRaw.total_count}, returned=${(runsAtHeadRaw.workflow_runs||[]).length}`);
-            const runsAtHead = runsAtHeadRaw.filter(r => r && typeof r === 'object');
+            console.log(`DEBUG runs for head_sha=${headSha}: runs_returned=${runsAtHeadRaw.length}`);
+            const runsAtHead = runsAtHeadRaw;
 
             console.log(`runsAtHead total=${runsAtHead.length} for head_sha=${headSha}`);
 
@@ -92,8 +92,18 @@ jobs:
 
             // Only keep the latest run for each workflow_id
             runsAtHead.sort((a, b) => {
-              if (a.workflow_id !== b.workflow_id) return a.workflow_id - b.workflow_id;
-              return new Date(b.created_at) - new Date(a.created_at);
+              const aw = String(a.workflow_id);
+              const bw = String(b.workflow_id);
+              if (aw !== bw) {
+                if (aw.length < bw.length) return -1;
+                if (aw.length > bw.length) return 1;
+                return aw < bw ? -1 : 1;
+              }
+              const at = new Date(a.created_at).getTime();
+              const bt = new Date(b.created_at).getTime();
+              if (bt > at) return 1;
+              if (bt < at) return -1;
+              return 0;
             });
 
             const latestRuns = [];
@@ -113,22 +123,16 @@ jobs:
             for (const r of latestRuns) console.log('- ' + runKey(r));
 
             async function listAllJobs(runId) {
-              const jobs = [];
-              let p = 1;
-              while (true) {
-                const { data } = await github.rest.actions.listJobsForWorkflowRun({
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   run_id: runId,
                   per_page: 100,
-                  page: p,
-                });
-                const js = data.jobs || [];
-                if (js.length === 0) break;
-                jobs.push(...js);
-                if (js.length < 100) break;
-                p++;
-              }
+                },
+                (response) => response.data.jobs || []
+              );
               return jobs;
             }
 
