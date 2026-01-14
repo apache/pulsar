@@ -21,13 +21,10 @@ package org.apache.pulsar.websocket;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
@@ -54,6 +51,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -91,8 +89,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     public static final List<Long> ENTRY_LATENCY_BUCKETS_USEC = Collections.unmodifiableList(Arrays.asList(
             500L, 1_000L, 5_000L, 10_000L, 20_000L, 50_000L, 100_000L, 200_000L, 1000_000L));
-    private final ObjectReader producerMessageReader =
-            ObjectMapperFactory.getMapper().reader().forType(ProducerMessage.class);
 
     public ProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -156,28 +152,25 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    public void onWebSocketText(String message) {
+    protected void handleMessage(ProducerMessage sendRequest) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received new message from producer {} ", producer.getTopic(),
                     getRemote().getInetSocketAddress().toString());
         }
-        ProducerMessage sendRequest;
         byte[] rawPayload = null;
         String requestContext = null;
         try {
-            sendRequest = producerMessageReader.readValue(message);
             requestContext = sendRequest.context;
+            if (sendRequest.payload == null) {
+                // Null payload
+                sendAckResponse(new ProducerAck(PayloadEncodingError, "Empty payload", null,
+                requestContext));
+                return;
+            }
             rawPayload = Base64.getDecoder().decode(sendRequest.payload);
-        } catch (IOException e) {
-            sendAckResponse(new ProducerAck(FailedToDeserializeFromJSON, e.getMessage(), null, null));
-            return;
         } catch (IllegalArgumentException e) {
             String msg = format("Invalid Base64 message-payload error=%s", e.getMessage());
             sendAckResponse(new ProducerAck(PayloadEncodingError, msg, null, requestContext));
-            return;
-        } catch (NullPointerException e) {
-            // Null payload
-            sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
             return;
         }
 

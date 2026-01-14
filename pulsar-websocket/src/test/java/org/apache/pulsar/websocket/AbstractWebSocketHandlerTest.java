@@ -19,14 +19,25 @@
 package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.net.InetSocketAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -42,6 +53,7 @@ import javax.servlet.http.HttpServletResponse;
 import lombok.Cleanup;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -467,5 +479,57 @@ public class AbstractWebSocketHandlerTest {
 
         webSocketHandler.onWebSocketError(new RuntimeException("INTERNAL_SERVER_ERROR_500"));
         assertTrue(pingFuture.isDone());
+    }
+
+    @Test
+    public void testDropSessionAfterTokenExpiration()
+            throws IOException, IllegalArgumentException, IllegalAccessException, NoSuchFieldException,
+            SecurityException, InstantiationException, InvocationTargetException, NoSuchMethodException {
+
+        WebSocketProxyConfiguration webSocketProxyConfiguration = new WebSocketProxyConfiguration();
+        webSocketProxyConfiguration.setAuthenticationEnabled(true);
+        webSocketProxyConfiguration.setAuthenticationRefreshCheckSeconds(1);
+        WebSocketService webSocketService = spy(new WebSocketService(webSocketProxyConfiguration));
+
+        HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
+        String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
+        when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
+
+        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
+        AbstractWebSocketHandler webSocketHandler = new WebSocketHandlerImpl(webSocketService, httpServletRequest,
+                response);
+        AuthenticationState authState = mock(AuthenticationState.class);
+        when(authState.isExpired()).thenReturn(false).thenReturn(false).thenReturn(true);
+
+        Class<?> webSocketHandlerClass = AbstractWebSocketHandler.class;
+        Field field = webSocketHandlerClass.getDeclaredField("authState");
+        field.setAccessible(true);
+        field.set(webSocketHandler, authState);
+
+        Session session = mock(Session.class);
+        RemoteEndpoint remoteEndpoint = mock(RemoteEndpoint.class);
+        when(session.getRemote()).thenReturn(remoteEndpoint);
+        when(session.getRemoteAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 20));
+
+        webSocketHandler.onWebSocketConnect(session);
+
+        verify(session, after(8000).atLeast(1)).close();
+        verify(remoteEndpoint, after(5000)).sendString(argThat(x -> {
+            try {
+                assertNotNull(x);
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode json = mapper.readTree(x);
+
+                assertNotNull(json);
+                assertTrue(json.has("type"));
+                assertEquals(json.get("type").asText(), "AUTH_CHALLENGE");
+                return true;
+            } catch (JsonMappingException e) {
+                e.printStackTrace();
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+            return false;
+        }));
     }
 }
