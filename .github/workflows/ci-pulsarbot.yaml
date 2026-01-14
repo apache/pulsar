@@ -226,8 +226,10 @@ jobs:
                 }
 
                 for (const j of jobs) {
+                  console.log(`Inspecting job '${j.name}' (job_id=${j.id}) in run '${r.name}' | ${r.html_url}`);
                   if (j.name && j.name.includes(keyword)) {
                     matchedJobs++;
+                    console.log(`Matched job '${j.name}'. Rerunning...`);
                     const ok = await rerunJob(j, r);
                     if (ok) successJobs++;
                   }
