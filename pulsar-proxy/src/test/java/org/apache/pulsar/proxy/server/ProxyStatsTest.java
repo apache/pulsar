@@ -21,7 +21,9 @@ package org.apache.pulsar.proxy.server;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.util.List;
@@ -214,6 +216,11 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         consumer2.close();
+
+        // check that topic stats are cleared after setting proxy log level to 0
+        assertFalse(proxyService.getTopicStats().isEmpty());
+        proxyService.setProxyLogLevel(0);
+        assertTrue(proxyService.getTopicStats().isEmpty());
     }
 
     @Test
