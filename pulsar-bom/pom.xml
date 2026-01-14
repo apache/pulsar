@@ -472,11 +472,6 @@
       </dependency>
       <dependency>
         <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-io-flume</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-io-hbase</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -578,11 +573,6 @@
       <dependency>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-io-solr</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-io-twitter</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

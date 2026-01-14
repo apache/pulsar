@@ -260,14 +260,14 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.17.2.jar
      - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.17.2.jar
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.17.2.jar
- * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.1.jar
+ * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.3.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.59.2.jar
- * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
+ * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.6.jar
  * Gson
-    - com.google.code.gson-gson-2.8.9.jar
-    - io.gsonfire-gson-fire-1.8.5.jar
+    - com.google.code.gson-gson-2.13.2.jar
+    - io.gsonfire-gson-fire-1.9.0.jar
  * Guava
     - com.google.guava-guava-33.4.8-jre.jar
     - com.google.guava-failureaccess-1.0.3.jar
@@ -283,37 +283,36 @@ The Apache Software License, Version 2.0
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
  * Apache Commons
     - commons-beanutils-commons-beanutils-1.11.0.jar
-    - commons-cli-commons-cli-1.9.0.jar
-    - commons-codec-commons-codec-1.18.0.jar
-    - commons-io-commons-io-2.19.0.jar
+    - commons-cli-commons-cli-1.11.0.jar
+    - commons-codec-commons-codec-1.20.0.jar
+    - commons-io-commons-io-2.21.0.jar
     - commons-logging-commons-logging-1.3.5.jar
-    - commons-collections-commons-collections-3.2.2.jar
-    - org.apache.commons-commons-collections4-4.4.jar
-    - org.apache.commons-commons-compress-1.27.1.jar
+    - org.apache.commons-commons-collections4-4.5.0.jar
+    - org.apache.commons-commons-compress-1.28.0.jar
     - org.apache.commons-commons-configuration2-2.12.0.jar
-    - org.apache.commons-commons-lang3-3.18.0.jar
-    - org.apache.commons-commons-text-1.13.1.jar
+    - org.apache.commons-commons-lang3-3.19.0.jar
+    - org.apache.commons-commons-text-1.14.0.jar
  * Netty
-    - io.netty-netty-buffer-4.1.128.Final.jar
-    - io.netty-netty-codec-4.1.128.Final.jar
-    - io.netty-netty-codec-dns-4.1.128.Final.jar
-    - io.netty-netty-codec-http-4.1.128.Final.jar
-    - io.netty-netty-codec-http2-4.1.128.Final.jar
-    - io.netty-netty-codec-socks-4.1.128.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.128.Final.jar
-    - io.netty-netty-common-4.1.128.Final.jar
-    - io.netty-netty-handler-4.1.128.Final.jar
-    - io.netty-netty-handler-proxy-4.1.128.Final.jar
-    - io.netty-netty-resolver-4.1.128.Final.jar
-    - io.netty-netty-resolver-dns-4.1.128.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.128.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.128.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.128.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.1.128.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.128.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.128.Final-linux-aarch_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.128.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.1.128.Final.jar
+    - io.netty-netty-buffer-4.1.130.Final.jar
+    - io.netty-netty-codec-4.1.130.Final.jar
+    - io.netty-netty-codec-dns-4.1.130.Final.jar
+    - io.netty-netty-codec-http-4.1.130.Final.jar
+    - io.netty-netty-codec-http2-4.1.130.Final.jar
+    - io.netty-netty-codec-socks-4.1.130.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.130.Final.jar
+    - io.netty-netty-common-4.1.130.Final.jar
+    - io.netty-netty-handler-4.1.130.Final.jar
+    - io.netty-netty-handler-proxy-4.1.130.Final.jar
+    - io.netty-netty-resolver-4.1.130.Final.jar
+    - io.netty-netty-resolver-dns-4.1.130.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.130.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.130.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.130.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.1.130.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.130.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.130.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.130.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.1.130.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.74.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-aarch_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-x86_64.jar
@@ -339,20 +338,21 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_tracer_otel-0.16.0.jar
     - io.prometheus-simpleclient_tracer_otel_agent-0.16.0.jar
  * Prometheus exporter
-    - io.prometheus-prometheus-metrics-config-1.3.4.jar
-    - io.prometheus-prometheus-metrics-exporter-common-1.3.4.jar
-    - io.prometheus-prometheus-metrics-exporter-httpserver-1.3.4.jar
-    - io.prometheus-prometheus-metrics-exposition-formats-1.3.4.jar
-    - io.prometheus-prometheus-metrics-model-1.3.4.jar
-    - io.prometheus-prometheus-metrics-exposition-textformats-1.3.4.jar
+    - io.prometheus-prometheus-metrics-config-1.3.10.jar
+    - io.prometheus-prometheus-metrics-exporter-common-1.3.10.jar
+    - io.prometheus-prometheus-metrics-exporter-httpserver-1.3.10.jar
+    - io.prometheus-prometheus-metrics-exposition-formats-no-protobuf-1.3.10.jar
+    - io.prometheus-prometheus-metrics-model-1.3.10.jar
+    - io.prometheus-prometheus-metrics-exposition-textformats-1.3.10.jar
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
-    - org.apache.logging.log4j-log4j-api-2.23.1.jar
-    - org.apache.logging.log4j-log4j-core-2.23.1.jar
-    - org.apache.logging.log4j-log4j-slf4j2-impl-2.23.1.jar
-    - org.apache.logging.log4j-log4j-web-2.23.1.jar
+    - org.apache.logging.log4j-log4j-api-2.25.3.jar
+    - org.apache.logging.log4j-log4j-core-2.25.3.jar
+    - org.apache.logging.log4j-log4j-slf4j2-impl-2.25.3.jar
+    - org.apache.logging.log4j-log4j-web-2.25.3.jar
+    - org.apache.logging.log4j-log4j-layout-template-json-2.25.3.jar
  * Java Native Access JNA
     - net.java.dev.jna-jna-jpms-5.12.1.jar
     - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
@@ -415,20 +415,19 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty-jetty-alpn-server-9.4.58.v20250814.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.38.0.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.45.0.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp3
-     - com.squareup.okhttp3-logging-interceptor-4.9.3.jar
-     - com.squareup.okhttp3-okhttp-4.9.3.jar
+     - com.squareup.okhttp3-logging-interceptor-5.3.1.jar
+     - com.squareup.okhttp3-okhttp-5.3.1.jar
+     - com.squareup.okhttp3-okhttp-jvm-5.3.1.jar
  * Okio
-     - com.squareup.okio-okio-3.4.0.jar
-     - com.squareup.okio-okio-jvm-3.4.0.jar
+     - com.squareup.okio-okio-3.16.3.jar
+     - com.squareup.okio-okio-jvm-3.16.3.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-1.8.20.jar
      - org.jetbrains.kotlin-kotlin-stdlib-common-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
     - io.grpc-grpc-all-1.75.0.jar
@@ -473,9 +472,9 @@ The Apache Software License, Version 2.0
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-18.0.0.jar
-    - io.kubernetes-client-java-api-18.0.0.jar
-    - io.kubernetes-client-java-proto-18.0.0.jar
+    - io.kubernetes-client-java-23.0.0.jar
+    - io.kubernetes-client-java-api-23.0.0.jar
+    - io.kubernetes-client-java-proto-23.0.0.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar
@@ -484,14 +483,14 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.7.0.jar
-    - io.github.oxia-db-oxia-client-0.7.0.jar
+    - io.github.oxia-db-oxia-client-api-0.7.2.jar
+    - io.github.oxia-db-oxia-client-0.7.2.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
-    - io.jsonwebtoken-jjwt-api-0.11.1.jar
-    - io.jsonwebtoken-jjwt-impl-0.11.1.jar
-    - io.jsonwebtoken-jjwt-jackson-0.11.1.jar
+    - io.jsonwebtoken-jjwt-api-0.13.0.jar
+    - io.jsonwebtoken-jjwt-impl-0.13.0.jar
+    - io.jsonwebtoken-jjwt-jackson-0.13.0.jar
   * JCTools - Java Concurrency Tools for the JVM
     - org.jctools-jctools-core-4.0.5.jar
   * Vertx
@@ -519,27 +518,28 @@ The Apache Software License, Version 2.0
   * RoaringBitmap
     - org.roaringbitmap-RoaringBitmap-1.2.0.jar
   * OpenTelemetry
-    - io.opentelemetry-opentelemetry-api-1.45.0.jar
-    - io.opentelemetry-opentelemetry-api-incubator-1.45.0-alpha.jar
-    - io.opentelemetry-opentelemetry-context-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-common-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.45.0.jar
-    - io.opentelemetry-opentelemetry-exporter-prometheus-1.45.0-alpha.jar
-    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-common-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-logs-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-metrics-1.45.0.jar
-    - io.opentelemetry-opentelemetry-sdk-trace-1.45.0.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.6.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.6-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.6-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.6-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.6-alpha.jar
-    - io.opentelemetry.semconv-opentelemetry-semconv-1.29.0-alpha.jar
+    - io.opentelemetry-opentelemetry-api-1.56.0.jar
+    - io.opentelemetry-opentelemetry-api-incubator-1.56.0-alpha.jar
+    - io.opentelemetry-opentelemetry-common-1.56.0.jar
+    - io.opentelemetry-opentelemetry-context-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-common-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.56.0.jar
+    - io.opentelemetry-opentelemetry-exporter-prometheus-1.56.0-alpha.jar
+    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-common-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-logs-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-metrics-1.56.0.jar
+    - io.opentelemetry-opentelemetry-sdk-trace-1.56.0.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-2.21.0.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-incubator-2.21.0-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-resources-2.21.0-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-2.21.0-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-2.21.0-alpha.jar
+    - io.opentelemetry.semconv-opentelemetry-semconv-1.37.0.jar
     - com.google.cloud.opentelemetry-detector-resources-support-0.33.0.jar
     - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.48.0-alpha.jar
   * Spotify completable-futures
@@ -562,8 +562,8 @@ BSD 2-Clause License
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-0.9.0.jar -- ../licenses/LICENSE-SemVer.txt
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
-    - org.slf4j-slf4j-api-2.0.13.jar
-    - org.slf4j-jcl-over-slf4j-2.0.13.jar
+    - org.slf4j-slf4j-api-2.0.17.jar
+    - org.slf4j-jcl-over-slf4j-2.0.17.jar
  * The Checker Framework
     - org.checkerframework-checker-qual-3.33.0.jar
  * oshi

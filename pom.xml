@@ -180,16 +180,16 @@ flexible messaging model and an intuitive client API.</description>
     <narPluginPhase>package</narPluginPhase>
 
     <!-- apache commons -->
-    <commons-compress.version>1.27.1</commons-compress.version>
+    <commons-compress.version>1.28.0</commons-compress.version>
 
     <bookkeeper.version>4.17.2</bookkeeper.version>
     <zookeeper.version>3.9.4</zookeeper.version>
-    <commons-cli.version>1.9.0</commons-cli.version>
-    <commons-text.version>1.13.1</commons-text.version>
+    <commons-cli.version>1.11.0</commons-cli.version>
+    <commons-text.version>1.14.0</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.128.Final</netty.version>
+    <netty.version>4.1.130.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
     <jetty.version>9.4.58.v20250814</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -198,9 +198,9 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.5.22</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
-    <slf4j.version>2.0.13</slf4j.version>
-    <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.23.1</log4j2.version>
+    <slf4j.version>2.0.17</slf4j.version>
+    <commons.collections4.version>4.5.0</commons.collections4.version>
+    <log4j2.version>2.25.3</log4j2.version>
     <!-- bouncycastle dependencies aren't necessarily aligned -->
     <bouncycastle.bcprov-jdk18on.version>1.78.1</bouncycastle.bcprov-jdk18on.version>
     <bouncycastle.bcpkix-jdk18on.version>1.81</bouncycastle.bcpkix-jdk18on.version>
@@ -225,14 +225,14 @@ flexible messaging model and an intuitive client API.</description>
     <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.26.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
-    <gson.version>2.8.9</gson.version>
+    <gson.version>2.13.2</gson.version>
     <system-lambda.version>1.2.1</system-lambda.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.9.1</kafka-client.version>
-    <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
+    <rabbitmq-client.version>5.28.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.788</aws-sdk.version>
     <aws-sdk2.version>2.32.28</aws-sdk2.version>
     <avro.version>1.12.0</avro.version>
@@ -247,29 +247,29 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
-    <debezium.version>3.2.4.Final</debezium.version>
+    <debezium.version>3.2.5.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
     <debezium.mysql.version>9.4.0</debezium.mysql.version>
-    <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
+    <jsonwebtoken.version>0.13.0</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hadoop3.version>3.4.0</hadoop3.version>
+    <hadoop3.version>3.4.2</hadoop3.version>
     <dnsjava3.version>3.6.2</dnsjava3.version>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
-    <hbase.version>2.6.0-hadoop3</hbase.version>
+    <hbase.version>2.6.3-hadoop3</hbase.version>
     <guava.version>33.4.8-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>7.9.2</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
-    <commons-lang3.version>3.18.0</commons-lang3.version>
-    <commons-io.version>2.19.0</commons-io.version>
-    <commons-codec.version>1.18.0</commons-codec.version>
+    <commons-lang3.version>3.19.0</commons-lang3.version>
+    <commons-io.version>2.21.0</commons-io.version>
+    <commons-codec.version>1.20.0</commons-codec.version>
     <commons-logging.version>1.3.5</commons-logging.version>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
-    <caffeine.version>3.2.1</caffeine.version>
+    <caffeine.version>3.2.3</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
     <jline.version>2.14.6</jline.version>
     <jline3.version>3.21.0</jline3.version>
@@ -283,11 +283,11 @@ flexible messaging model and an intuitive client API.</description>
     <jakarta.xml.bind.version>2.3.3</jakarta.xml.bind.version>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
     <jna.version>5.12.1</jna.version>
-    <kubernetesclient.version>18.0.0</kubernetesclient.version>
-    <jose4j.version>0.9.4</jose4j.version>
-    <okhttp3.version>4.9.3</okhttp3.version>
+    <kubernetesclient.version>23.0.0</kubernetesclient.version>
+    <jose4j.version>0.9.6</jose4j.version>
+    <okhttp3.version>5.3.1</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
-    <okio.version>3.4.0</okio.version>
+    <okio.version>3.16.3</okio.version>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
@@ -296,7 +296,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
-    <oxia.version>0.7.0</oxia.version>
+    <oxia.version>0.7.2</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
@@ -306,20 +306,20 @@ flexible messaging model and an intuitive client API.</description>
     the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
     <zstd-jni.version>1.5.7-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.45.0</opentelemetry.version>
+    <opentelemetry.version>1.56.0</opentelemetry.version>
     <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
-    <opentelemetry.instrumentation.version>1.33.6</opentelemetry.instrumentation.version>
+    <opentelemetry.instrumentation.version>2.21.0</opentelemetry.instrumentation.version>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
-    <opentelemetry.semconv.version>1.29.0-alpha</opentelemetry.semconv.version>
+    <opentelemetry.semconv.version>1.37.0</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
     <re2j.version>1.8</re2j.version>
     <completable-futures.version>0.3.6</completable-futures.version>
     <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
-    <testcontainers.version>1.20.4</testcontainers.version>
+    <testcontainers.version>1.21.3</testcontainers.version>
     <!-- Set docker-java.version to the version of docker-java used in org.testcontainers:testcontainers pom -->
-    <docker-java.version>3.4.0</docker-java.version>
+    <docker-java.version>3.4.2</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
     <restassured.version>5.4.0</restassured.version>
     <kerby.version>1.1.1</kerby.version>
@@ -359,8 +359,8 @@ flexible messaging model and an intuitive client API.</description>
     <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.9.6.0</spotbugs-maven-plugin.version>
     <spotbugs.version>4.9.6</spotbugs.version>
-    <errorprone.version>2.38.0</errorprone.version>
-    <errorprone-slf4j.version>0.1.28</errorprone-slf4j.version>
+    <errorprone.version>2.45.0</errorprone.version>
+    <errorprone-slf4j.version>0.1.29</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
@@ -369,9 +369,10 @@ flexible messaging model and an intuitive client API.</description>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
-
+    <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
     <commons-beanutils.version>1.11.0</commons-beanutils.version>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
+    <mina-core.version>2.1.10</mina-core.version>
   </properties>
 
   <dependencyManagement>
@@ -643,6 +644,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1203,18 +1208,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-api</artifactId>
+        <artifactId>jjwt-bom</artifactId>
         <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-impl</artifactId>
-        <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-jackson</artifactId>
-        <version>${jsonwebtoken.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
@@ -1630,23 +1627,17 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>com.squareup.okhttp3</groupId>
-        <artifactId>okhttp</artifactId>
+        <artifactId>okhttp-bom</artifactId>
         <version>${okhttp3.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.squareup.okhttp3</groupId>
-        <artifactId>okhttp-urlconnection</artifactId>
-        <version>${okhttp3.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.squareup.okhttp3</groupId>
-        <artifactId>logging-interceptor</artifactId>
-        <version>${okhttp3.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>com.squareup.okio</groupId>
-        <artifactId>okio</artifactId>
+        <artifactId>okio-bom</artifactId>
         <version>${okio.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
@@ -1739,10 +1730,22 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opentelemetry-semconv</artifactId>
         <version>${opentelemetry.semconv.version}</version>
       </dependency>
+      <!-- enforce nimbus-jose-jwt version that gets pulled transitively -->
+      <dependency>
+        <groupId>com.nimbusds</groupId>
+        <artifactId>nimbus-jose-jwt</artifactId>
+        <version>${nimbus-jose-jwt.version}</version>
+      </dependency>
       <dependency>
         <groupId>commons-beanutils</groupId>
         <artifactId>commons-beanutils</artifactId>
         <version>${commons-beanutils.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -2765,14 +2768,14 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <fork>true</fork>
               <meminitial>128m</meminitial>
-              <maxmem>1024m</maxmem>
+              <maxmem>1500m</maxmem>
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:-options</arg>
                 <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
                 <!-- the following argument must be kept on one line when building with JDK8 -->
-                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</arg>
+                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF -Xep:StringConcatToTextBlock:OFF -Xep:InconsistentCapitalization:OFF</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -2983,7 +2986,7 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>jdk21</id>
       <activation>
-        <jdk>21</jdk>
+        <jdk>[21,)</jdk>
       </activation>
       <properties>
         <!-- nifi-nar-maven-plugin >= 2.0.0 require Java 21+ -->
@@ -3023,7 +3026,7 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>jdk24</id>
       <activation>
-        <jdk>24</jdk>
+        <jdk>[24,)</jdk>
       </activation>
       <properties>
         <!-- JDK 24+ specific arguments -->
@@ -3130,21 +3133,6 @@ flexible messaging model and an intuitive client API.</description>
       <id>central</id>
       <layout>default</layout>
       <url>https://repo1.maven.org/maven2</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>confluent</id>
-      <url>https://packages.confluent.io/maven/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>maven.restlet.org</id>
-      <name>maven.restlet.org</name>
-      <url>https://maven.restlet.talend.com</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>

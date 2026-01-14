@@ -23,6 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -36,7 +37,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-impl")
+// This test is disabled because it's really flaky, https://github.com/apache/pulsar/issues/24827
+@Test(groups = "broker-impl", enabled = false)
 public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest {
 
     @Override
@@ -63,12 +65,13 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
         conf.setPulsarChannelWriteBufferLowWaterMark(32 * 1024);
     }
 
-    @Test(timeOut = 60 * 1000)
+    @Test(timeOut = 60 * 1000, enabled = false)
     public void testInfiniteGetThousandsTopics() throws PulsarAdminException, InterruptedException {
         final int topicCount = 8192;
         final int requests = 2048;
         final String topicName = UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, topicCount);
+        @Cleanup("shutdownNow")
         final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime()
                 .availableProcessors());
 

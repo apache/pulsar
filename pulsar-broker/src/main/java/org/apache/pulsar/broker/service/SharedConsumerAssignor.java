@@ -27,11 +27,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
  */
+@Slf4j
 @RequiredArgsConstructor
 public class SharedConsumerAssignor {
 
@@ -50,6 +52,8 @@ public class SharedConsumerAssignor {
     // Process the unassigned messages, e.g. adding them to the replay queue
     private final java.util.function.Consumer<EntryAndMetadata> unassignedMessageProcessor;
 
+    private final Subscription subscription;
+
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
                                                         final int numConsumers) {
         assert numConsumers >= 0;
@@ -58,7 +62,11 @@ public class SharedConsumerAssignor {
 
         Consumer consumer = getConsumer(numConsumers);
         if (consumer == null) {
-            entryAndMetadataList.forEach(EntryAndMetadata::release);
+            if (subscription != null) {
+                log.info("No consumer found to assign in topic:{}, subscription:{}, redelivering {} messages.",
+                        subscription.getTopic().getName(), subscription.getName(), entryAndMetadataList.size());
+            }
+            entryAndMetadataList.forEach(unassignedMessageProcessor);
             return consumerToEntries;
         }
         // The actual available permits might change, here we use the permits at the moment to assign entries

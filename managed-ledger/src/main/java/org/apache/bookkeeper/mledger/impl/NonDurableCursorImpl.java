@@ -101,11 +101,20 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     @Override
     protected void internalAsyncMarkDelete(final Position newPosition, Map<String, Long> properties,
-            final MarkDeleteCallback callback, final Object ctx) {
+            final MarkDeleteCallback callback, final Object ctx, Runnable alignAcknowledgeStatusAfterPersisted) {
         // Bypass persistence of mark-delete position and individually deleted messages info
-
-        MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx);
-        lastMarkDeleteEntry = mdEntry;
+        MarkDeleteEntry mdEntry;
+        lock.writeLock().lock();
+        try {
+            // use given properties or when missing, use the properties from the previous field value
+            Map<String, Long> propertiesToUse = properties != null ? properties : getProperties();
+            mdEntry = new MarkDeleteEntry(newPosition, propertiesToUse, callback, ctx,
+                    alignAcknowledgeStatusAfterPersisted);
+            lastMarkDeleteEntry = mdEntry;
+            mdEntry.alignAcknowledgeStatus();
+        } finally {
+            lock.writeLock().unlock();
+        }
         // it is important to advance cursor so the retention can kick in as expected.
         ledger.onCursorMarkDeletePositionUpdated(NonDurableCursorImpl.this, mdEntry.newPosition);
 

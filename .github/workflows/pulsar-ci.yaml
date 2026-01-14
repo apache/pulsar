@@ -683,6 +683,9 @@ jobs:
           - name: Upgrade
             group: UPGRADE
 
+          - name: Kubernetes
+            group: PULSAR_K8S
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1639,12 +1642,12 @@ jobs:
         run: |
           echo "::warning::OWASP Dependency Check was skipped since the OWASP Dependency check data wasn't found in the cache. Run ci-owasp-dependency-check.yaml workflow to update the cache."
 
-      # Projects dependent on flume, hdfs, and hbase currently excluded from the scan.
+      # Projects dependent on hdfs, and hbase currently excluded from the scan.
       - name: trigger dependency check
         if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-matched-key }}
         run: |
           mvn -B -ntp verify -PskipDocker,skip-all,owasp-dependency-check -Dcheckstyle.skip=true -DskipTests \
-            -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
+            -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/hbase,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
         uses: actions/upload-artifact@v4
