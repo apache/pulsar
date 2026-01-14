@@ -2103,8 +2103,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         assertEquals(c1.getReadPosition(), pos);
 
-        pos = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        pos = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
 
         // Wait new empty ledger created completely.
         Awaitility.await().untilAsserted(() -> {
@@ -2119,11 +2119,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         assertEquals(c1.getNumberOfEntries(), 0);
         assertEquals(c1.getReadPosition(), PositionFactory.create(ledger.currentLedger.getId(), 0));
-        assertThat(c1.getMarkDeletedPosition()).isGreaterThan(pos);
+        assertThat(c1.getMarkDeletedPosition()).isEqualByComparingTo(
+                PositionFactory.create(ledger.ledgers.lastKey(), -1));
 
         // skip entries across ledgers
         for (int i = 0; i < 6; i++) {
-            pos = ledger.addEntry("dummy-entry".getBytes(Encoding));
+            ledger.addEntry("dummy-entry".getBytes(Encoding));
         }
 
         // Wait new empty ledger created completely.
@@ -2140,7 +2141,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(c1.getReadPosition().getEntryId(), 0);
         });
-        assertThat(c1.getMarkDeletedPosition()).isGreaterThan(pos);
+        assertThat(c1.getMarkDeletedPosition()).isEqualByComparingTo(
+                PositionFactory.create(ledger.ledgers.lastKey(), -1));
     }
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
@@ -6012,7 +6014,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c2.getNumberOfEntries(), 0);
         // Should move to nextLedgerId:-1 since entries in lastPositionLedger are all consumed.
         // Here we can guarantee next ledger is created since the asyncOpenLedger guarantees this order.
-        assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get());
+        assertThat(c2.getMarkDeletedPosition()).isEqualByComparingTo(
+                PositionFactory.create(ledger.getLedgersInfo().lastKey(), -1));
     }
 
     @Test(timeOut = 20000)
@@ -6062,8 +6065,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor c2 = newLedger.openCursor("c1");
 
         assertEquals(c2.getNumberOfEntries(), 0);
-        Awaitility.await()
-                .untilAsserted(() -> assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get()));
+        assertThat(c2.getMarkDeletedPosition()).isEqualByComparingTo(
+                PositionFactory.create(newLedger.getLedgersInfo().lastKey(), -1));
     }
 
     @Test(timeOut = 20000)
@@ -6122,8 +6125,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 () -> factory2.open("async_mark_delete_move_to_next_ledger_one_by_one_test"));
         ManagedCursor c2 = newLedger.openCursor("c1");
         assertEquals(c2.getNumberOfEntries(), 0);
-        Awaitility.await()
-                .untilAsserted(() -> assertThat(c2.getMarkDeletedPosition()).isGreaterThan(lastPosition.get()));
+        assertThat(c2.getMarkDeletedPosition()).isEqualByComparingTo(
+                PositionFactory.create(newLedger.getLedgersInfo().lastKey(), -1));
     }
 
     @Test(timeOut = 20000)
@@ -6201,7 +6204,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.markDelete(position);
         }
 
-        assertThat(cursor.getMarkDeletedPosition()).isGreaterThan(position);
+        assertThat(cursor.getMarkDeletedPosition()).isEqualByComparingTo(
+                PositionFactory.create(ledger.getLedgersInfo().lastKey(), -1));
     }
 
     @Test
