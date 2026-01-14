@@ -57,16 +57,16 @@ public class ManagedLedgerSpyUsingOverrideTest {
 
         @Override
         protected ManagedLedgerFactoryImpl initManagedLedgerFactory(MetadataStoreExtended metadataStore,
-                                                                    BookKeeper bookKeeper,
-                                                                    ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
-                                                                    ManagedLedgerConfig managedLedgerConfig)
+                                                                BookKeeper bookKeeper,
+                                                                ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                ManagedLedgerConfig managedLedgerConfig)
                 throws Exception {
             return new ManagedLedgerFactoryImpl(metadataStore, bookKeeper, managedLedgerFactoryConfig,
                     managedLedgerConfig) {
                 @Override
                 protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
-                                                                ManagedLedgerConfig config,
-                                                                Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+                                                            ManagedLedgerConfig config,
+                                                            Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
                     return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker) {
                         @Override
                         void advanceCursorsIfNecessary(List<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersToDelete)
