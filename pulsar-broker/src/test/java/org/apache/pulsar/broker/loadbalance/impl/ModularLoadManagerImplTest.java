@@ -1126,10 +1126,12 @@ public class ModularLoadManagerImplTest {
 
         // check bundle data should be deleted from metadata store.
 
-        CompletableFuture<List<String>> childrenAfterSplit = bundlesCache.getChildren(bundleDataPath);
-        List<String> bundlesAfterSplit = childrenAfterSplit.join();
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<List<String>> childrenAfterSplit = bundlesCache.getChildren(bundleDataPath);
+            List<String> bundlesAfterSplit = childrenAfterSplit.join();
 
-        assertFalse(bundlesAfterSplit.contains(bundleWillBeSplit.getBundleRange()));
+            assertFalse(bundlesAfterSplit.contains(bundleWillBeSplit.getBundleRange()));
+        });
     }
 
     @Test
