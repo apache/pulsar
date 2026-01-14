@@ -106,7 +106,7 @@ public class NamespaceBundles {
         return bundles.size();
     }
 
-    public void validateBundle(NamespaceBundle nsBundle) throws Exception {
+    public void validateBundle(NamespaceBundle nsBundle) throws IllegalArgumentException {
         int idx = Arrays.binarySearch(partitions, nsBundle.getLowerEndpoint());
         checkArgument(idx >= 0, "Cannot find bundle %s in the bundles list", nsBundle);
         NamespaceBundle foundBundle = bundles.get(idx);
