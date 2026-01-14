@@ -216,6 +216,8 @@ jobs:
               let successJobs = 0;
 
               for (const r of latestRuns) {
+                console.log(`Inspecting jobs in run for workflow '${r.name}' | ${r.html_url}`);
+
                 let jobs = [];
                 try {
                   jobs = await listAllJobs(r.id);
@@ -223,9 +225,9 @@ jobs:
                   console.log(`Failed to list jobs for ${runKey(r)}: ${e.message}`);
                   continue;
                 }
-
+        
                 for (const j of jobs) {
-                  console.log(`Inspecting job '${j.name}' (job_id=${j.id}) in run '${r.name}' | ${r.html_url}`);
+                  console.log(`Inspecting job '${j.name}' (job_id=${j.id})`);
                   if (j.name && j.name.includes(keyword)) {
                     matchedJobs++;
                     console.log(`Matched job '${j.name}'. Rerunning...`);
