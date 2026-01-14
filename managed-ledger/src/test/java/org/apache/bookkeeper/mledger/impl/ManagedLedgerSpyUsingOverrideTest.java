@@ -88,11 +88,11 @@ public class ManagedLedgerSpyUsingOverrideTest {
 
         @Override
         protected void cleanUpTestCase() throws Exception {
-            advanceCursorsIfNecessaryCallTimes = new AtomicInteger(0);
+            advanceCursorsIfNecessaryCallTimes.set(0);
             super.cleanUpTestCase();
         }
 
-        @Test
+        @Test(invocationCount = 1000)
         public void testLockReleaseWhenTrimLedger() throws Exception {
             ManagedLedgerConfig config = new ManagedLedgerConfig();
             initManagedLedgerConfig(config);
