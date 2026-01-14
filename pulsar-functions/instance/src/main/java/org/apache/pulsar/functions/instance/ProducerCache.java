@@ -60,7 +60,8 @@ public class ProducerCache implements Closeable {
 
     private final Cache<ProducerCacheKey, Producer<?>> cache;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final CopyOnWriteArrayList<CompletableFuture<Void>> closeFutures = new CopyOnWriteArrayList<>();
+    @VisibleForTesting
+    final CopyOnWriteArrayList<CompletableFuture<Void>> closeFutures = new CopyOnWriteArrayList<>();
 
     public ProducerCache() {
         Caffeine<ProducerCacheKey, Producer<?>> builder = Caffeine.newBuilder()
@@ -69,7 +70,7 @@ public class ProducerCache implements Closeable {
                 .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
                     log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
                     CompletableFuture closeFuture =
-                            CompletableFuture.supplyAsync(() -> producer.flushAsync(), Runnable::run)
+                            producer.flushAsync()
                                     .orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                     .exceptionally(ex -> {
                                         Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);

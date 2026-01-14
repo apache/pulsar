@@ -20,7 +20,10 @@ package org.apache.pulsar.functions.instance;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.annotations.Test;
@@ -61,4 +64,22 @@ public class ProducerCacheTest {
         cache.close();
     }
 
+    @Test(enabled = false)
+    public void shouldCompleteFlushBeforeClose() {
+        ProducerCache cache = new ProducerCache();
+        Producer producer = mock(Producer.class);
+        AtomicBoolean flushCompleted = new AtomicBoolean(false);
+        when(producer.flushAsync()).thenReturn(CompletableFuture.supplyAsync(() -> {
+            flushCompleted.set(true);
+            return null;
+        }));
+        when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
+                () -> (Producer<Object>) producer);
+        cache.close();
+        // TODO - this currently works, but only due to race conditions; adding a `Thread.sleep` before `flushCompleted.set(true)` makes it fail
+        assertTrue(flushCompleted.get());
+        // TODO - this currently fails, because `cache.close()` doesn't actually see any shutdown futures
+        assertEquals(cache.closeFutures.size(), 1);
+    }
 }
