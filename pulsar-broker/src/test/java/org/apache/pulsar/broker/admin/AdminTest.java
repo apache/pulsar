@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import javax.servlet.ServletContext;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -137,7 +138,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(properties).validateSuperUserAccess();
 
         namespaces = spy(Namespaces.class);
-        namespaces.setServletContext(new MockServletContext());
+        namespaces.setServletContext(mock(ServletContext.class));
         namespaces.setPulsar(pulsar);
         doReturn("test").when(namespaces).clientAppId();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
@@ -154,7 +155,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         uriField.setAccessible(true);
 
         persistentTopics = spy(PersistentTopics.class);
-        persistentTopics.setServletContext(new MockServletContext());
+        persistentTopics.setServletContext(mock(ServletContext.class));
         persistentTopics.setPulsar(pulsar);
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn("persistent").when(persistentTopics).domain();
@@ -164,11 +165,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessForTenant("prop-xyz");
 
         resourceQuotas = spy(ResourceQuotas.class);
-        resourceQuotas.setServletContext(new MockServletContext());
+        resourceQuotas.setServletContext(mock(ServletContext.class));
         resourceQuotas.setPulsar(pulsar);
 
         brokerStats = spy(BrokerStats.class);
-        brokerStats.setServletContext(new MockServletContext());
+        brokerStats.setServletContext(mock(ServletContext.class));
         brokerStats.setPulsar(pulsar);
 
         doReturn(false).when(persistentTopics).isRequestHttps();
@@ -177,7 +178,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
         schemasResource = spy(SchemasResource.class);
-        schemasResource.setServletContext(new MockServletContext());
+        schemasResource.setServletContext(mock(ServletContext.class));
         schemasResource.setPulsar(pulsar);
     }
 

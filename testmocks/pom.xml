@@ -35,8 +35,9 @@
   <dependencies>
 
     <dependency>
-      <groupId>org.apache.zookeeper</groupId>
-      <artifactId>zookeeper</artifactId>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>zookeeper-with-patched-admin</artifactId>
+      <version>${project.version}</version>
       <exclusions>
         <exclusion>
           <groupId>ch.qos.logback</groupId>
