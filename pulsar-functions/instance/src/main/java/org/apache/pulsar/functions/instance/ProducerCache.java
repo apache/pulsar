@@ -22,12 +22,16 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Scheduler;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.MoreExecutors;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
@@ -60,16 +64,20 @@ public class ProducerCache implements Closeable {
 
     private final Cache<ProducerCacheKey, Producer<?>> cache;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final CopyOnWriteArrayList<CompletableFuture<Void>> closeFutures = new CopyOnWriteArrayList<>();
+    @VisibleForTesting
+    final CopyOnWriteArrayList<CompletableFuture<Void>> closeFutures = new CopyOnWriteArrayList<>();
+    private final ExecutorService cacheExecutor;
 
     public ProducerCache() {
+        cacheExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("ProducerCache"));
         Caffeine<ProducerCacheKey, Producer<?>> builder = Caffeine.newBuilder()
                 .recordStats()
                 .scheduler(Scheduler.systemScheduler())
+                .executor(cacheExecutor)
                 .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
                     log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
                     CompletableFuture closeFuture =
-                            CompletableFuture.supplyAsync(() -> producer.flushAsync(), Runnable::run)
+                            producer.flushAsync()
                                     .orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                     .exceptionally(ex -> {
                                         Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
@@ -131,10 +139,21 @@ public class ProducerCache implements Closeable {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             cache.invalidateAll();
-            try {
-                FutureUtil.waitForAll(closeFutures).get();
-            } catch (InterruptedException | ExecutionException e) {
-                log.warn("Failed to close producers", e);
+            // schedule the waiting job on the cache executor
+            cacheExecutor.execute(() -> {
+                try {
+                    FutureUtil.waitForAll(closeFutures).get();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.warn("Failed to close producers", e);
+                }
+            });
+            // Wait for the cache executor to terminate.
+            // The eviction jobs and waiting for the close futures to complete will run on the single-threaded
+            // cache executor, so we need to wait for them to finish to ensure that the cache is closed properly.
+            boolean terminated = MoreExecutors.shutdownAndAwaitTermination(cacheExecutor,
+                    Duration.ofSeconds(FLUSH_OR_CLOSE_TIMEOUT_SECONDS));
+            if (!terminated) {
+                log.warn("Failed to shutdown cache executor gracefully.");
             }
         }
     }
