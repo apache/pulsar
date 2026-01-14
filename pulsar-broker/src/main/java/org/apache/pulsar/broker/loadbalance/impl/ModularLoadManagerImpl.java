@@ -67,6 +67,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -363,6 +364,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     }
                 });
         return future;
+    }
+
+    private boolean checkBundleDataExistInNamespaceBundles(NamespaceBundles namespaceBundles,
+                                                           NamespaceBundle bundleRange) {
+        try {
+            namespaceBundles.validateBundle(bundleRange);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     // Attempt to local the data for the given bundle in metadata store
@@ -751,8 +762,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
-                    if (!namespaceBundleFactory
-                            .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
+                    NamespaceBundle bundle = namespaceBundleFactory.getBundle(namespaceName, bundleRange);
+                    if (!namespaceBundleFactory.canSplitBundle(bundle)) {
+                        continue;
+                    }
+
+                    NamespaceBundles bundles = namespaceBundleFactory.getBundles(NamespaceName.get(namespaceName));
+                    if (!checkBundleDataExistInNamespaceBundles(bundles, bundle)) {
+                        log.warn("Bundle {} has been removed, skip split this bundle ", bundleName);
                         continue;
                     }
 

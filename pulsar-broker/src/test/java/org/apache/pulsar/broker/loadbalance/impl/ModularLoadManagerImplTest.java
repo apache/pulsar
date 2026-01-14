@@ -40,6 +40,7 @@ import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,6 +71,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLo
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -1128,6 +1130,58 @@ public class ModularLoadManagerImplTest {
         List<String> bundlesAfterSplit = childrenAfterSplit.join();
 
         assertFalse(bundlesAfterSplit.contains(bundleWillBeSplit.getBundleRange()));
+    }
+
+    @Test
+    public void testRepeatSplitBundle() throws Exception {
+        final String cluster = "use";
+        final String tenant = "my-tenant";
+        final String namespace = "repeat-split-bundle";
+        final String topicName = tenant + "/" + namespace + "/" + "topic";
+        int bundleNumbers = 8;
+
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+            .serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.tenants().createTenant(tenant,
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin1.namespaces().createNamespace(tenant + "/" + namespace, bundleNumbers);
+
+        LoadData loadData = (LoadData) getField(primaryLoadManager, "loadData");
+        LocalBrokerData localData = (LocalBrokerData) getField(primaryLoadManager, "localData");
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getBrokerServiceUrl()).build();
+
+        // create a lot of topic to fully distributed among bundles.
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String topicNameI = topicName + i;
+            admin1.topics().createPartitionedTopic(topicNameI, 20);
+            // trigger bundle assignment
+
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicNameI)
+                .subscriptionName("my-subscriber-name2").subscribe();
+            consumers.add(consumer);
+        }
+
+        String topicToFindBundle = topicName + 0;
+        NamespaceBundle realBundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
+        String bundleKey = realBundle.toString();
+        log.info("Before bundle={}", bundleKey);
+
+        NamespaceBundleStats stats = new NamespaceBundleStats();
+        stats.msgRateIn = 100000.0;
+        localData.getLastStats().put(bundleKey, stats);
+        pulsar1.getBrokerService().updateRates();
+
+        primaryLoadManager.updateAll();
+
+        primaryLoadManager.updateAll();
+        Assert.assertFalse(loadData.getBundleData().containsKey(bundleKey));
+
+        for (Consumer consumer : consumers) {
+            consumer.close();
+        }
     }
 
 }
