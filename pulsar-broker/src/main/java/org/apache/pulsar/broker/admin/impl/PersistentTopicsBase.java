@@ -5475,7 +5475,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         // Validate labels against allowed keys and value length
-        Set<String> allowedKeys = getAllowedCustomMetricLabelKeys();
+        Set<String> allowedKeys = pulsar().getConfiguration().getAllowedCustomMetricLabelKeys();
         int maxValueLength = pulsar().getConfiguration().getMaxCustomMetricLabelValueLength();
 
         if (labels != null && !labels.isEmpty()) {
@@ -5539,13 +5539,5 @@ public class PersistentTopicsBase extends AdminResource {
                 policies.setCustomMetricLabels(currentLabels);
             }
         });
-    }
-
-    private Set<String> getAllowedCustomMetricLabelKeys() {
-        String allowedKeysStr = pulsar().getConfiguration().getAllowedCustomMetricLabelKeys();
-        if (allowedKeysStr == null || allowedKeysStr.trim().isEmpty()) {
-            return Set.of();
-        }
-        return Set.of(allowedKeysStr.split(","));
     }
 }

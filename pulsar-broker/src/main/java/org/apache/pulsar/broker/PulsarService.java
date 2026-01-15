@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -62,6 +63,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 import lombok.AccessLevel;
@@ -212,6 +214,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
     private static final int DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS = 8;
+    private static final Pattern METRICS_LABEL_NAME_PATTERN = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
     private final ServiceConfiguration config;
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerStorage = null;
@@ -350,6 +353,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         TransactionBatchedWriteValidator.validate(config);
+        validateCustomMetricLabelKeys(config);
         this.config = config;
         this.clock = Clock.systemUTC();
 
@@ -2251,5 +2255,34 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
         }
         return healthChecker;
+    }
+
+    // https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+    private static void validateCustomMetricLabelKeys(ServiceConfiguration config) {
+        boolean exposeCustomTopicMetricLabelsEnabled = config.isExposeCustomTopicMetricLabelsEnabled();
+        if (exposeCustomTopicMetricLabelsEnabled) {
+            Set<String> allowedCustomMetricLabelKeys = config.getAllowedCustomMetricLabelKeys();
+            for (String labelKey : allowedCustomMetricLabelKeys) {
+                if (!isValidMetricsName(labelKey)) {
+                    throw new IllegalArgumentException(String.format(
+                            "Invalid custom metric label key '%s'. A valid metric label key must match the regex '%s' "
+                                    + "and cannot start with '__'", labelKey,
+                            METRICS_LABEL_NAME_PATTERN));
+                }
+            }
+        }
+    }
+
+    private static boolean isValidMetricsName(String labelName) {
+        if (labelName == null || labelName.isEmpty()) {
+            return false;
+        }
+
+        // Prometheus reserves all labels starting with "__" for internal use.
+        if (labelName.startsWith("__")) {
+            return false;
+        }
+
+        return METRICS_LABEL_NAME_PATTERN.matcher(labelName).matches();
     }
 }
