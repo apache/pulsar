@@ -3517,7 +3517,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Enable or disable custom topic metric labels feature. "
-                    + "If enabled, custom metric labels can be set on topics and will be exposed in Prometheus metrics. "
+                    + "If enabled, custom metric labels can be set on topics and will be exposed in metrics. "
                     + "Default is false."
     )
     private boolean exposeCustomTopicMetricLabelsEnabled = false;

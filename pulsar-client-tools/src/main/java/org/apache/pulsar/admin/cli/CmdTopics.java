@@ -3115,7 +3115,7 @@ public class CmdTopics extends CmdBase {
                     labels.put(kv[0].trim(), kv[1].trim());
                 }
             }
-            
+
             getAdmin().topicPolicies().setCustomMetricLabels(topic, labels);
         }
     }

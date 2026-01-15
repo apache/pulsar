@@ -5211,8 +5211,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalRemoveCustomMetricLabels(removeAll, keys, isGlobal))
                 .thenRun(() -> {
-                    log.info("[{}] Successfully removed custom metric labels: tenant={}, namespace={}, topic={}, isGlobal={}",
-                            clientAppId(), tenant, namespace, topicName.getLocalName(), isGlobal);
+                    log.info(
+                        "[{}] Successfully removed custom metric labels: tenant={}, namespace={}, topic={}, "
+                            + "isGlobal={}", clientAppId(), tenant, namespace, topicName.getLocalName(), isGlobal);
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {

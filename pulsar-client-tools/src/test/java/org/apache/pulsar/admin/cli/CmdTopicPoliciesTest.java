@@ -156,7 +156,9 @@ public class CmdTopicPoliciesTest {
         CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
 
         // Test set custom metric labels
-        cmd.run("set-custom-metric-labels persistent://public/default/topic --labels sla_tier=gold,app_owner=team-a".split("\\s+"));
+        cmd.run(
+            "set-custom-metric-labels persistent://public/default/topic --labels sla_tier=gold,app_owner=team-a".split(
+                "\\s+"));
 
         Map<String, String> expectedLabels = new HashMap<>();
         expectedLabels.put("sla_tier", "gold");
@@ -191,7 +193,8 @@ public class CmdTopicPoliciesTest {
         CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
 
         // Test with global flag
-        cmd.run("set-custom-metric-labels persistent://public/default/topic --labels sla_tier=gold --global".split("\\s+"));
+        cmd.run(
+            "set-custom-metric-labels persistent://public/default/topic --labels sla_tier=gold --global".split("\\s+"));
 
         Map<String, String> expectedLabels = new HashMap<>();
         expectedLabels.put("sla_tier", "gold");
@@ -226,7 +229,8 @@ public class CmdTopicPoliciesTest {
         CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
 
         // Test remove specific keys
-        cmd.run("remove-custom-metric-labels persistent://public/default/topic --keys sla_tier,app_owner".split("\\s+"));
+        cmd.run(
+            "remove-custom-metric-labels persistent://public/default/topic --keys sla_tier,app_owner".split("\\s+"));
 
         List<String> expectedKeys = Arrays.asList("sla_tier", "app_owner");
         verify(topicPolicies, times(1)).removeCustomMetricLabels(

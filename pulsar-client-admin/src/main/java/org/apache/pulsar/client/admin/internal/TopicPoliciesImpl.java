@@ -1348,7 +1348,8 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public void removeCustomMetricLabels(String topic, boolean removeAll, List<String> keys) throws PulsarAdminException {
+    public void removeCustomMetricLabels(String topic, boolean removeAll,
+                                         List<String> keys) throws PulsarAdminException {
         sync(() -> removeCustomMetricLabelsAsync(topic, removeAll, keys));
     }
 

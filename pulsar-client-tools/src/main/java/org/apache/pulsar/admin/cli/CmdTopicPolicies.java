@@ -2103,7 +2103,9 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = {"--labels", "-l"}, description = "Custom metric labels (key=value pairs, comma separated, e.g. sla_tier=gold,app_owner=team-a)", required = true)
+        @Option(names = {"--labels",
+            "-l"}, description = "Custom metric labels (key=value pairs, comma separated, e.g. sla_tier=gold,"
+            + "app_owner=team-a)", required = true)
         private String labelsStr;
 
         @Option(names = {"--global", "-g"}, description = "Whether to set this policy globally. "
@@ -2135,7 +2137,9 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = {"--keys", "-k"}, description = "Label keys to remove (comma separated, e.g. sla_tier,app_owner). If not specified, all labels will be removed.", required = false)
+        @Option(names = {"--keys", "-k"},
+            description = "Label keys to remove (comma separated, e.g. sla_tier,app_owner). If not specified, "
+            + "all labels will be removed.", required = false)
         private String keysStr;
 
         @Option(names = {"--global", "-g"}, description = "Whether to remove this policy globally. "
