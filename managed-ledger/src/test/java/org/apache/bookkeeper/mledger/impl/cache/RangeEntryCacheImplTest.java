@@ -33,7 +33,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.IntSupplier;
+import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -181,6 +183,59 @@ public class RangeEntryCacheImplTest {
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), any(), any(), any());
+    }
+
+    @Test
+    public void testReadFromStorageRetriesWhenHandleClosed() {
+        RangeEntryCacheManagerImpl mockEntryCacheManager = mock(RangeEntryCacheManagerImpl.class);
+        ManagedLedgerFactoryMBeanImpl mlFactoryMBean = mock(ManagedLedgerFactoryMBeanImpl.class);
+        when(mockEntryCacheManager.getMlFactoryMBean()).thenReturn(mlFactoryMBean);
+        ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
+        ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
+        when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
+        when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(java.util.concurrent.ExecutorService.class));
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        RangeCacheRemovalQueue mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
+        when(mockRangeCacheRemovalQueue.addEntry(any())).thenReturn(true);
+        InflightReadsLimiter inflightReadsLimiter = mock(InflightReadsLimiter.class);
+        when(mockEntryCacheManager.getInflightReadsLimiter()).thenReturn(inflightReadsLimiter);
+        doAnswer(invocation -> {
+            long permits = invocation.getArgument(0);
+            InflightReadsLimiter.Handle handle = new InflightReadsLimiter.Handle(permits, System.currentTimeMillis(),
+                    true);
+            return Optional.of(handle);
+        }).when(inflightReadsLimiter).acquire(anyLong(), any());
+
+        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false,
+                mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, mock(PendingReadsManager.class));
+
+        ReadHandle readHandle = mock(ReadHandle.class);
+        when(readHandle.getId()).thenReturn(1L);
+        when(mockManagedLedger.reopenReadHandle(1L)).thenReturn(CompletableFuture.completedFuture(readHandle));
+
+        LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(1L, 0L, 1, Unpooled.wrappedBuffer(new byte[] {1}));
+        org.apache.bookkeeper.client.api.LedgerEntries ledgerEntries =
+                mock(org.apache.bookkeeper.client.api.LedgerEntries.class);
+        List<LedgerEntry> entryList = List.of((LedgerEntry) ledgerEntry);
+        when(ledgerEntries.iterator()).thenReturn(entryList.iterator());
+
+        java.util.concurrent.atomic.AtomicInteger readAttempts = new java.util.concurrent.atomic.AtomicInteger();
+        when(readHandle.readAsync(0L, 0L)).thenAnswer(invocation -> {
+            if (readAttempts.getAndIncrement() == 0) {
+                return CompletableFuture.failedFuture(new ManagedLedgerException.OffloadReadHandleClosedException());
+            }
+            return CompletableFuture.completedFuture(ledgerEntries);
+        });
+
+        CompletableFuture<List<Entry>> future = cache.readFromStorage(readHandle, 0L, 0L, () -> 1);
+        assertThat(future).isCompleted().satisfies(f -> {
+            List<Entry> entries = f.getNow(null);
+            assertThat(entries).hasSize(1);
+            assertThat(entries.get(0).getLedgerId()).isEqualTo(1L);
+            assertThat(entries.get(0).getEntryId()).isEqualTo(0L);
+        });
+        assertThat(readAttempts.get()).isEqualTo(2);
     }
 
     private void performReadAndValidateResult() {
