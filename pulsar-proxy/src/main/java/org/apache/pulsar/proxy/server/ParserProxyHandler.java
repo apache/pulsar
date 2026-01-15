@@ -31,11 +31,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.Getter;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,25 +55,39 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
     private final int maxMessageSize;
     private final ChannelId peerChannelId;
+    @Getter
+    private final Context context;
     private final ProxyService service;
 
 
-    /**
-     * producerid + channelid as key.
-     */
-    private static final Map<String, String> producerHashMap = new ConcurrentHashMap<>();
+    public static class Context {
+        /**
+         * producerid as key.
+         */
+        @Getter
+        private final Map<Long, String> producerIdToTopicName = new ConcurrentHashMap<>();
 
-    /**
-     * consumerid + channelid as key.
-     */
-    private static final Map<String, String> consumerHashMap = new ConcurrentHashMap<>();
+        /**
+         * consumerid as key.
+         */
+        @Getter
+        private final Map<Long, String> consumerIdToTopicName = new ConcurrentHashMap<>();
 
-    public ParserProxyHandler(ProxyService service, String type, int maxMessageSize,
+        private Context() {
+        }
+    }
+
+    public ParserProxyHandler(Context context, ProxyService service, String type, int maxMessageSize,
                               ChannelId peerChannelId) {
+        this.context = context;
         this.service = service;
         this.connType = type;
         this.maxMessageSize = maxMessageSize;
         this.peerChannelId = peerChannelId;
+    }
+
+    public static Context createContext() {
+        return new Context();
     }
 
     private void logging(Channel conn, BaseCommand.Type cmdtype, String info, List<RawMessage> messages) {
@@ -115,64 +131,86 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
             switch (cmd.getType()) {
                 case PRODUCER:
-                    ParserProxyHandler.producerHashMap.put(cmd.getProducer().getProducerId() + "," + ctx.channel().id(),
-                            cmd.getProducer().getTopic());
+                    topicName = StringInterner.intern(cmd.getProducer().getTopic());
+                    context.producerIdToTopicName.put(cmd.getProducer().getProducerId(), topicName);
 
                     String producerName = "";
                     if (cmd.getProducer().hasProducerName()){
                         producerName = cmd.getProducer().getProducerName();
                     }
                     logging(ctx.channel(), cmd.getType(), "{producer:" + producerName
-                            + ",topic:" + cmd.getProducer().getTopic() + "}", null);
+                            + ",topic:" + topicName + "}", null);
                     break;
-
+                case CLOSE_PRODUCER:
+                    context.producerIdToTopicName.remove(cmd.getCloseProducer().getProducerId());
+                    logging(ctx.channel(), cmd.getType(), "", null);
+                    break;
                 case SEND:
                     if (service.getProxyLogLevel() != 2) {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    topicName = TopicName.toFullTopicName(ParserProxyHandler.producerHashMap.get(
-                            cmd.getSend().getProducerId() + "," + ctx.channel().id()));
-                    MutableLong msgBytes = new MutableLong(0);
-                    MessageParser.parseMessage(topicName, -1L,
-                            -1L, buffer, (message) -> {
-                                messages.add(message);
-                                msgBytes.add(message.getData().readableBytes());
-                            }, maxMessageSize);
-                    // update topic stats
-                    TopicStats topicStats = this.service.getTopicStats().computeIfAbsent(topicName,
-                        topic -> new TopicStats());
-                    topicStats.getMsgInRate().recordMultipleEvents(messages.size(), msgBytes.longValue());
-                    logging(ctx.channel(), cmd.getType(), "", messages);
+                    long producerId = cmd.getSend().getProducerId();
+                    String topicForProducer = context.producerIdToTopicName.get(producerId);
+                    if (topicForProducer != null) {
+                        topicName = TopicName.toFullTopicName(topicForProducer);
+                        MutableLong msgBytes = new MutableLong(0);
+                        MessageParser.parseMessage(topicName, -1L,
+                                -1L, buffer, (message) -> {
+                                    messages.add(message);
+                                    msgBytes.add(message.getData().readableBytes());
+                                }, maxMessageSize);
+                        // update topic stats
+                        TopicStats topicStats = this.service.getTopicStats().computeIfAbsent(topicName,
+                                topic -> new TopicStats());
+                        topicStats.getMsgInRate().recordMultipleEvents(messages.size(), msgBytes.longValue());
+                        logging(ctx.channel(), cmd.getType(), "", messages);
+                    } else {
+                        logging(ctx.channel(), cmd.getType(),
+                                "Cannot find topic name for producerId " + producerId, null);
+                    }
                     break;
 
                 case SUBSCRIBE:
-                    ParserProxyHandler.consumerHashMap.put(cmd.getSubscribe().getConsumerId() + ","
-                                    + ctx.channel().id(), cmd.getSubscribe().getTopic());
+                    topicName = StringInterner.intern(cmd.getSubscribe().getTopic());
+                    context.consumerIdToTopicName.put(cmd.getSubscribe().getConsumerId(), topicName);
 
                     logging(ctx.channel(), cmd.getType(), "{consumer:" + cmd.getSubscribe().getConsumerName()
-                            + ",topic:" + cmd.getSubscribe().getTopic() + "}", null);
+                            + ",topic:" + topicName + "}", null);
                     break;
-
+                case CLOSE_CONSUMER:
+                    context.consumerIdToTopicName.remove(cmd.getCloseConsumer().getConsumerId());
+                    logging(ctx.channel(), cmd.getType(), "", null);
+                    break;
+                case UNSUBSCRIBE:
+                    context.consumerIdToTopicName.remove(cmd.getUnsubscribe().getConsumerId());
+                    logging(ctx.channel(), cmd.getType(), "", null);
+                    break;
                 case MESSAGE:
                     if (service.getProxyLogLevel() != 2) {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    topicName = TopicName.toFullTopicName(ParserProxyHandler.consumerHashMap.get(
-                            cmd.getMessage().getConsumerId() + "," + peerChannelId));
+                    long consumerId = cmd.getMessage().getConsumerId();
+                    String topicForConsumer = context.consumerIdToTopicName.get(consumerId);
+                    if (topicForConsumer != null) {
+                        topicName = TopicName.toFullTopicName(topicForConsumer);
 
-                    msgBytes = new MutableLong(0);
-                    MessageParser.parseMessage(topicName, -1L,
-                            -1L, buffer, (message) -> {
-                                messages.add(message);
-                                msgBytes.add(message.getData().readableBytes());
-                            }, maxMessageSize);
-                    // update topic stats
-                    topicStats = this.service.getTopicStats().computeIfAbsent(topicName.toString(),
-                            topic -> new TopicStats());
-                    topicStats.getMsgOutRate().recordMultipleEvents(messages.size(), msgBytes.longValue());
-                    logging(ctx.channel(), cmd.getType(), "", messages);
+                        MutableLong msgBytes = new MutableLong(0);
+                        MessageParser.parseMessage(topicName, -1L,
+                                -1L, buffer, (message) -> {
+                                    messages.add(message);
+                                    msgBytes.add(message.getData().readableBytes());
+                                }, maxMessageSize);
+                        // update topic stats
+                        TopicStats topicStats = this.service.getTopicStats().computeIfAbsent(topicName.toString(),
+                                topic -> new TopicStats());
+                        topicStats.getMsgOutRate().recordMultipleEvents(messages.size(), msgBytes.longValue());
+                        logging(ctx.channel(), cmd.getType(), "", messages);
+                    } else {
+                        logging(ctx.channel(), cmd.getType(), "Cannot find topic name for consumerId " + consumerId,
+                                null);
+                    }
                     break;
 
                  default:
