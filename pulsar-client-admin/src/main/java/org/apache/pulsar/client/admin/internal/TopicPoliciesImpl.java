@@ -1357,9 +1357,9 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "customMetricLabels");
         if (removeAll) {
-            path.queryParam("all", true);
+            path = path.queryParam("all", true);
         } else if (keys != null && !keys.isEmpty()) {
-            path.queryParam("keys", keys);
+            path = path.queryParam("keys", keys);
         }
         return asyncDeleteRequest(path);
     }

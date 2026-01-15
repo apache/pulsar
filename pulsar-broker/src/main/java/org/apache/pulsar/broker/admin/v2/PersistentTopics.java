@@ -5205,7 +5205,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("all") @DefaultValue("false") boolean removeAll,
-            @QueryParam(value = "List of keys to remove, or null to remove all") List<String> keys) {
+            @QueryParam("keys") List<String> keys) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE)
                 .thenCompose(__ -> preValidation(authoritative))

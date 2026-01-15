@@ -5533,6 +5533,9 @@ public class PersistentTopicsBase extends AdminResource {
             if (removeAll) {
                 policies.setCustomMetricLabels(new HashMap<>());
             } else {
+                if (keys == null || keys.isEmpty()) {
+                    return; // Nothing to remove
+                }
                 for (String key : keys) {
                     currentLabels.remove(key);
                 }

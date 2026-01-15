@@ -3138,7 +3138,9 @@ public class CmdTopics extends CmdBase {
             String topic = validateTopicName(topicName);
 
             if (!removeAll) {
-                List<String> keys = Arrays.asList(keysStr.split(","));
+                List<String> keys = keysStr == null || keysStr.trim().isEmpty()
+                        ? Collections.emptyList()
+                        : Arrays.asList(keysStr.split(","));
                 keys = keys.stream().map(String::trim).collect(Collectors.toList());
                 if (keys.isEmpty()) {
                     throw new ParameterException("No label keys specified for removal.");
