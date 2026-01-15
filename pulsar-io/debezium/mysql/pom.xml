@@ -50,6 +50,13 @@
       <version>${debezium.version}</version>
     </dependency>
 
+    <!-- Override the mysql-connector-j version which gets pulled transitively in debezium-connector-mysql -->
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>${mysql-connector-j.version}</version>
+    </dependency>
+
   </dependencies>
 
   <dependencyManagement>
@@ -58,6 +65,12 @@
         <groupId>mysql</groupId>
         <artifactId>mysql-connector-java</artifactId>
         <version>${debezium.mysql.version}</version>
+      </dependency>
+      <!-- Override the mysql-connector-j version which gets pulled transitively in debezium-connector-mysql -->
+      <dependency>
+        <groupId>com.mysql</groupId>
+        <artifactId>mysql-connector-j</artifactId>
+        <version>${mysql-connector-j.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

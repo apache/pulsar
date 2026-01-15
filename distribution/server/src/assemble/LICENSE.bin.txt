@@ -590,7 +590,7 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Jersey
     - org.glassfish.jersey.containers-jersey-container-servlet-2.42.jar
     - org.glassfish.jersey.containers-jersey-container-servlet-core-2.42.jar
-    - org.glassfish.jersey.core-jersey-client-2.42.jar
+    - org.glassfish.jersey.core-jersey-client-2.46.jar
     - org.glassfish.jersey.core-jersey-common-2.42.jar
     - org.glassfish.jersey.core-jersey-server-2.42.jar
     - org.glassfish.jersey.ext-jersey-entity-filtering-2.42.jar
