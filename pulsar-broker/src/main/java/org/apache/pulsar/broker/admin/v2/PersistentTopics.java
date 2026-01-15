@@ -2945,7 +2945,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperationAsync(topicName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.CUSTOM_METRIC_LABELS, PolicyOperation.READ)
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalGetMaxSubscriptionsPerTopic(isGlobal))
             .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
@@ -2976,7 +2976,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max subscriptions of the topic") int maxSubscriptionsPerTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperationAsync(topicName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.CUSTOM_METRIC_LABELS, PolicyOperation.WRITE)
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic, isGlobal))
             .thenRun(() -> {
@@ -3009,7 +3009,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperationAsync(topicName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.CUSTOM_METRIC_LABELS, PolicyOperation.WRITE)
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(null, isGlobal))
             .thenRun(() -> {

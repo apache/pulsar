@@ -4329,7 +4329,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Enable custom metric labels feature
         conf.setExposeCustomTopicMetricLabelsEnabled(true);
-        conf.setAllowedCustomMetricLabelKeys("sla_tier,app_owner,data_sensitivity");
+        conf.setAllowedCustomMetricLabelKeys(Set.of("sla_tier", "app_owner", "data_sensitivity"));
         conf.setMaxCustomMetricLabelValueLength(128);
 
         // Test 1: Set custom metric labels
@@ -4390,7 +4390,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Enable custom metric labels feature
         conf.setExposeCustomTopicMetricLabelsEnabled(true);
-        conf.setAllowedCustomMetricLabelKeys("sla_tier,app_owner");
+        conf.setAllowedCustomMetricLabelKeys(Set.of("sla_tier", "app_owner"));
         conf.setMaxCustomMetricLabelValueLength(10);
 
         // Test 1: Invalid key (not in allowed list)
@@ -4459,7 +4459,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Enable custom metric labels feature
         conf.setExposeCustomTopicMetricLabelsEnabled(true);
-        conf.setAllowedCustomMetricLabelKeys("sla_tier,app_owner");
+        conf.setAllowedCustomMetricLabelKeys(Set.of("sla_tier", "app_owner"));
         conf.setMaxCustomMetricLabelValueLength(128);
 
         // Set global custom metric labels
@@ -4498,7 +4498,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Enable custom metric labels feature
         conf.setExposeCustomTopicMetricLabelsEnabled(true);
-        conf.setAllowedCustomMetricLabelKeys("sla_tier,app_owner");
+        conf.setAllowedCustomMetricLabelKeys(Set.of("sla_tier", "app_owner"));
         conf.setMaxCustomMetricLabelValueLength(128);
 
         // Set custom metric labels
