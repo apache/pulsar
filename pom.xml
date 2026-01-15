@@ -198,7 +198,7 @@ flexible messaging model and an intuitive client API.</description>
     <jersey.version>2.42</jersey.version>
     <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.5.22</vertx.version>
+    <vertx.version>4.5.24</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.17</slf4j.version>
     <commons.collections4.version>4.5.0</commons.collections4.version>
