@@ -450,26 +450,27 @@ public class DirectProxyHandler {
             } else {
                 // Enable parsing feature, proxyLogLevel(1 or 2)
                 // Add parser handler
+                ParserProxyHandler.Context parserContext = ParserProxyHandler.createContext();
                 if (connected.hasMaxMessageSize()) {
                     FrameDecoderUtil.replaceFrameDecoder(inboundChannel.pipeline(),
                             connected.getMaxMessageSize());
                     FrameDecoderUtil.replaceFrameDecoder(outboundChannel.pipeline(),
                             connected.getMaxMessageSize());
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service,
+                            new ParserProxyHandler(parserContext, service,
                                     ParserProxyHandler.FRONTEND_CONN,
                                     connected.getMaxMessageSize(), outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service,
+                            new ParserProxyHandler(parserContext, service,
                                     ParserProxyHandler.BACKEND_CONN,
                                     connected.getMaxMessageSize(), inboundChannel.id()));
                 } else {
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service,
+                            new ParserProxyHandler(parserContext, service,
                                     ParserProxyHandler.FRONTEND_CONN,
                                     Commands.DEFAULT_MAX_MESSAGE_SIZE, outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service,
+                            new ParserProxyHandler(parserContext, service,
                                     ParserProxyHandler.BACKEND_CONN,
                                     Commands.DEFAULT_MAX_MESSAGE_SIZE, inboundChannel.id()));
                 }

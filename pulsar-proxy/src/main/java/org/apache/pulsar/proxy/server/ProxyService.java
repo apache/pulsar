@@ -53,7 +53,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
-import lombok.Setter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -110,7 +109,6 @@ public class ProxyService implements Closeable {
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
     @Getter
-    @Setter
     protected int proxyLogLevel;
 
     @Getter
@@ -527,5 +525,15 @@ public class ProxyService implements Closeable {
 
     protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
         return new LookupProxyHandler(this, proxyConnection);
+    }
+
+    public void setProxyLogLevel(int proxyLogLevel) {
+        this.proxyLogLevel = proxyLogLevel;
+        // clear the topic stats when proxy log level is changed to < 2
+        // this is a way to avoid the proxy consuming too much memory when there are a lot of topics and log level
+        // has been temporarily set to 2
+        if (proxyLogLevel < 2) {
+            topicStats.clear();
+        }
     }
 }
