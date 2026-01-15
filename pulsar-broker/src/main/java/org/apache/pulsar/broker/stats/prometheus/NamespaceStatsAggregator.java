@@ -22,6 +22,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
@@ -96,10 +97,28 @@ public class NamespaceStatsAggregator {
 
                 brokerStats.updateStats(topicStats);
 
+                // Get and convert custom metric labels if feature is enabled
+                String[] customMetricLabelAndValues = null;
+                if (pulsar.getConfiguration().isExposeCustomTopicMetricLabelsEnabled()) {
+                    Set<String> allowedCustomLabelKeys = pulsar.getConfiguration().getAllowedCustomMetricLabelKeys();
+                    Map<String, String> customMetricLabels =
+                        topic.getHierarchyTopicPolicies().getCustomMetricLabels().get();
+                    if (customMetricLabels != null && !customMetricLabels.isEmpty()) {
+                        customMetricLabelAndValues = new String[customMetricLabels.size() * 2];
+                        int index = 0;
+                        for (Map.Entry<String, String> entry : customMetricLabels.entrySet()) {
+                            if (allowedCustomLabelKeys.contains(entry.getKey())) {
+                                customMetricLabelAndValues[index++] = entry.getKey();
+                                customMetricLabelAndValues[index++] = entry.getValue();
+                            }
+                        }
+                    }
+                }
+
                 if (includeTopicMetrics) {
                     topicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
-                            splitTopicAndPartitionIndexLabel);
+                            splitTopicAndPartitionIndexLabel, customMetricLabelAndValues);
                 } else {
                     namespaceStats.updateStats(topicStats);
                 }
