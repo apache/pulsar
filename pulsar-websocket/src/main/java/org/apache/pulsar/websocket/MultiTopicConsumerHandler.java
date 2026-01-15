@@ -32,7 +32,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 public class MultiTopicConsumerHandler extends ConsumerHandler {
 
     public MultiTopicConsumerHandler(WebSocketService service, HttpServletRequest request,
-                                     ServletUpgradeResponse response) {
+                                     JettyServerUpgradeResponse response) {
         super(service, request, response);
     }
 

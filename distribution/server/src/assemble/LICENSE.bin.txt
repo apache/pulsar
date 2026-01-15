@@ -330,7 +330,6 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_common-0.16.0.jar
     - io.prometheus-simpleclient_hotspot-0.16.0.jar
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
-    - io.prometheus-simpleclient_jetty-0.16.0.jar
     - io.prometheus-simpleclient_log4j2-0.16.0.jar
     - io.prometheus-simpleclient_servlet-0.16.0.jar
     - io.prometheus-simpleclient_servlet_common-0.16.0.jar
@@ -354,8 +353,8 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-web-2.25.3.jar
     - org.apache.logging.log4j-log4j-layout-template-json-2.25.3.jar
  * Java Native Access JNA
-    - net.java.dev.jna-jna-jpms-5.12.1.jar
-    - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
+    - net.java.dev.jna-jna-jpms-5.18.1.jar
+    - net.java.dev.jna-jna-platform-jpms-5.18.1.jar
  * BookKeeper
     - org.apache.bookkeeper-bookkeeper-common-4.17.2.jar
     - org.apache.bookkeeper-bookkeeper-common-allocator-4.17.2.jar
@@ -376,12 +375,10 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.http-http-server-4.17.2.jar
     - org.apache.bookkeeper.http-vertx-http-server-4.17.2.jar
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.17.2.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.17.2.jar
     - org.apache.distributedlog-distributedlog-common-4.17.2.jar
     - org.apache.distributedlog-distributedlog-core-4.17.2-tests.jar
     - org.apache.distributedlog-distributedlog-core-4.17.2.jar
     - org.apache.distributedlog-distributedlog-protocol-4.17.2.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.17.2.jar
     - org.apache.bookkeeper-bookkeeper-slogger-api-4.17.2.jar
     - org.apache.bookkeeper-bookkeeper-slogger-slf4j-4.17.2.jar
     - org.apache.bookkeeper-native-io-4.17.2.jar
@@ -394,25 +391,43 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.12.4.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.4.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-http-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-io-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-security-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-server-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-util-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.58.v20250814.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.58.v20250814.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.58.v20250814.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.58.v20250814.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.58.v20250814.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.58.v20250814.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.58.v20250814.jar
-    - org.eclipse.jetty-jetty-alpn-server-9.4.58.v20250814.jar
+    - org.eclipse.jetty-jetty-alpn-client-12.1.5.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-12.1.5.jar
+    - org.eclipse.jetty-jetty-alpn-server-12.1.5.jar
+    - org.eclipse.jetty-jetty-annotations-12.1.5.jar
+    - org.eclipse.jetty-jetty-client-12.1.5.jar
+    - org.eclipse.jetty-jetty-http-12.1.5.jar
+    - org.eclipse.jetty-jetty-io-12.1.5.jar
+    - org.eclipse.jetty-jetty-jndi-12.1.5.jar
+    - org.eclipse.jetty-jetty-plus-12.1.5.jar
+    - org.eclipse.jetty-jetty-security-12.1.5.jar
+    - org.eclipse.jetty-jetty-server-12.1.5.jar
+    - org.eclipse.jetty-jetty-session-12.1.5.jar
+    - org.eclipse.jetty-jetty-util-12.1.5.jar
+    - org.eclipse.jetty-jetty-xml-12.1.5.jar
+    - org.eclipse.jetty.compression-jetty-compression-common-12.1.5.jar
+    - org.eclipse.jetty.compression-jetty-compression-gzip-12.1.5.jar
+    - org.eclipse.jetty.compression-jetty-compression-server-12.1.5.jar
+    - org.eclipse.jetty.ee-jetty-ee-webapp-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-annotations-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-nested-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-plus-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-proxy-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-security-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-servlet-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-servlets-12.1.5.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-webapp-12.1.5.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-api-12.1.5.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-common-12.1.5.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-server-12.1.5.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-servlet-12.1.5.jar
+    - org.eclipse.jetty.toolchain-jetty-servlet-api-4.0.6.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-client-12.1.5.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-common-12.1.5.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-server-12.1.5.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-api-12.1.5.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-client-12.1.5.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-common-12.1.5.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.45.0.jar
@@ -479,7 +494,6 @@ The Apache Software License, Version 2.0
     - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-jvm-4.1.12.1.jar
-    - io.dropwizard.metrics-metrics-jmx-4.1.12.1.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
@@ -500,9 +514,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-4.5.22.jar
     - io.vertx-vertx-web-common-4.5.22.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.9.4.jar
     - org.apache.zookeeper-zookeeper-jute-3.9.4.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.4.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
@@ -555,6 +567,10 @@ BSD 3-clause "New" or "Revised" License
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- ../licenses/LICENSE-JLine.txt
  * JLine3 -- org.jline-jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
+ * OW2 ASM
+   - org.ow2.asm-asm-9.9.jar -- ../licenses/LICENSE-ASM.txt
+   - org.ow2.asm-asm-commons-9.9.jar -- ../licenses/LICENSE-ASM.txt
+   - org.ow2.asm-asm-tree-9.9.jar -- ../licenses/LICENSE-ASM.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- ../licenses/LICENSE-HdrHistogram.txt
@@ -580,7 +596,6 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
     - com.sun.activation-jakarta.activation-1.2.2.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
- * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
  * HK2 - Dependency Injection Kernel
     - org.glassfish.hk2-hk2-api-2.6.1.jar
     - org.glassfish.hk2-hk2-locator-2.6.1.jar
@@ -608,6 +623,7 @@ Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
  * Jakarta Annotations API -- jakarta.annotation-jakarta.annotation-api-1.3.5.jar
  * Jakarta RESTful Web Services -- jakarta.ws.rs-jakarta.ws.rs-api-2.1.6.jar
  * Jakarta Injection -- org.glassfish.hk2.external-jakarta.inject-2.6.1.jar
+ * Jakarta Transactions API -- jakarta.transaction-jakarta.transaction-api-1.3.3.jar
 
 Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.3.jar

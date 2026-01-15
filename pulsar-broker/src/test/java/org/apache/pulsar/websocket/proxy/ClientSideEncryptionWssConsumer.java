@@ -34,14 +34,17 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
 @Slf4j
-@WebSocket(maxTextMessageSize = 64 * 1024)
-public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements Closeable {
+@WebSocket
+public class ClientSideEncryptionWssConsumer implements Closeable {
 
     private Session session;
     private final CryptoKeyReader cryptoKeyReader;
@@ -69,8 +72,8 @@ public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements
     public void start() throws Exception {
         wssClient = new WebSocketClient();
         wssClient.start();
-        session = wssClient.connect(this, buildConnectURL(), new ClientUpgradeRequest()).get();
-        assertTrue(session.isOpen());
+        Session ses = wssClient.connect(this, new ClientUpgradeRequest(buildConnectURL())).get();
+        assertTrue(ses.isOpen());
     }
 
     private URI buildConnectURL() throws PulsarClientException.CryptoException {
@@ -93,24 +96,24 @@ public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements
         return msg;
     }
 
-    @Override
+    @OnWebSocketClose
     public void onWebSocketClose(int statusCode, String reason) {
         log.info("Connection closed: {} - {}", statusCode, reason);
         this.session = null;
     }
 
-    @Override
+    @OnWebSocketOpen
     public void onWebSocketConnect(Session session) {
         log.info("Got connect: {}", session);
         this.session = session;
     }
 
-    @Override
+    @OnWebSocketError
     public void onWebSocketError(Throwable cause) {
         log.error("Received an error", cause);
     }
 
-    @Override
+    @OnWebSocketMessage
     public void onWebSocketText(String text) {
 
         try {

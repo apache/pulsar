@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -101,9 +103,9 @@ public class ConsumerBuilderImplTest {
     @Test
     public void testConsumerBuilderImpl() throws PulsarClientException {
         Consumer consumer = mock(Consumer.class);
-        when(consumerBuilderImpl.subscribeAsync())
-                .thenReturn(CompletableFuture.completedFuture(consumer));
-        assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
+        ConsumerBuilderImpl spyBuilder = spy(consumerBuilderImpl);
+        doReturn(CompletableFuture.completedFuture(consumer)).when(spyBuilder).subscribeAsync();
+        assertNotNull(spyBuilder.topic(TOPIC_NAME).subscribe());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)

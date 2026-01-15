@@ -40,7 +40,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
 import org.testng.annotations.Test;
 
 public class ProducerHandlerTest {
@@ -82,7 +82,7 @@ public class ProducerHandlerTest {
         when(producer.newMessage()).thenReturn(messageBuilder);
         when(messageBuilder.sendAsync()).thenReturn(CompletableFuture.completedFuture(new MessageIdImpl(1, 2, 3)));
 
-        ServletUpgradeResponse response = mock(ServletUpgradeResponse.class);
+        JettyServerUpgradeResponse response = mock(JettyServerUpgradeResponse.class);
 
         ProducerHandler producerHandler = new ProducerHandler(service, httpServletRequest, response);
         producerHandler.onWebSocketText(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));

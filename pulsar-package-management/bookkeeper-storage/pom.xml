@@ -51,6 +51,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>zookeeper-with-patched-admin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
             <classifier>tests</classifier>
@@ -102,6 +108,7 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>testmocks</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

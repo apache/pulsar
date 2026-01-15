@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -44,7 +43,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -71,8 +70,7 @@ public class ReaderHandlerTest {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getRequestURI()).thenReturn("/ws/v2/producer/persistent/my-property/my-ns/my-topic");
         // create reader handler
-        HttpServletResponse response = spy(HttpServletResponse.class);
-        ServletUpgradeResponse servletUpgradeResponse = new ServletUpgradeResponse(response);
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
         ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
         // verify success
         Assert.assertEquals(readerHandler.getSubscription(), subName);
@@ -101,8 +99,7 @@ public class ReaderHandlerTest {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getRequestURI()).thenReturn("/ws/v2/producer/persistent/my-property/my-ns/my-topic");
         // create reader handler
-        HttpServletResponse response = spy(HttpServletResponse.class);
-        ServletUpgradeResponse servletUpgradeResponse = new ServletUpgradeResponse(response);
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
         ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
         // verify success
         Assert.assertEquals(readerHandler.getSubscription(), subName);
@@ -127,11 +124,10 @@ public class ReaderHandlerTest {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getRequestURI()).thenReturn("/ws/v2/producer/persistent/my-property/my-ns/my-topic");
         // create reader handler
-        HttpServletResponse response = spy(HttpServletResponse.class);
-        ServletUpgradeResponse servletUpgradeResponse = new ServletUpgradeResponse(response);
+        JettyServerUpgradeResponse servletUpgradeResponse = spy(JettyServerUpgradeResponse.class);
         new ReaderHandler(wss, request, servletUpgradeResponse);
         // verify get error
-        verify(response, times(1)).sendError(anyInt(), anyString());
+        verify(servletUpgradeResponse, times(1)).sendError(anyInt(), anyString());
     }
 
 
