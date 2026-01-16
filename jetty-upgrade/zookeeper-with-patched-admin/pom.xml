@@ -68,28 +68,6 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>attach-shade-jar</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attach-artifact</goal>
-            </goals>
-            <configuration>
-              <artifacts>
-                <artifact>
-                  <file>${project.build.directory}/${project.build.finalName}.jar</file>
-                  <type>jar</type>
-                  <classifier>shaded</classifier>
-                </artifact>
-              </artifacts>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
@@ -106,10 +84,6 @@
                 <includes>
                   <include>org.apache.zookeeper:zookeeper</include>
                 </includes>
-                <excludes>
-                  <!-- This is required for execute shade multiple times without clean -->
-                  <exclude>org.apache.pulsar:zookeeper-with-patched-admin</exclude>
-                </excludes>
               </artifactSet>
               <filters>
                 <filter>
@@ -128,4 +102,43 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <!-- Profile that is activated when using IntelliJ IDEA -->
+      <id>intellij</id>
+      <activation>
+        <property>
+          <name>idea.maven.embedder.version</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <!-- Add shaded jar to artifacts for IntelliJ IDEA so that IntelliJ builds
+          and running tests work -->
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-shade-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>attach-artifact</goal>
+                </goals>
+                <configuration>
+                  <artifacts>
+                    <artifact>
+                      <file>${project.build.directory}/${project.build.finalName}.jar</file>
+                      <type>jar</type>
+                      <classifier>shaded</classifier>
+                    </artifact>
+                  </artifacts>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
