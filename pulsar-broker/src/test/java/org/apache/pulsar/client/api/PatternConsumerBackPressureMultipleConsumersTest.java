@@ -256,7 +256,7 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
     }
 
     // Use this implementation when PIP-234 isn't available
-    private static class SharedClientResources implements AutoCloseable {
+    public static class SharedClientResources implements AutoCloseable {
         private final EventLoopGroup ioEventLoopGroup;
         private final ExecutorProvider internalExecutorProvider;
         private final ExecutorProvider externalExecutorProvider;

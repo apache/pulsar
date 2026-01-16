@@ -262,7 +262,10 @@ public class AsyncDualMemoryLimiterUtilTest {
                 limiter,
                 () -> false,
                 command,
-                throwable -> errorHandlerCalled.set(true)
+                throwable -> {
+                    errorHandlerCalled.set(true);
+                    return FutureUtil.failedFuture(throwable);
+                }
         );
 
         result.get(1, TimeUnit.SECONDS);
@@ -297,6 +300,7 @@ public class AsyncDualMemoryLimiterUtilTest {
                 throwable -> {
                     errorHandlerCalled.set(true);
                     capturedError.set(throwable);
+                    return FutureUtil.failedFuture(throwable);
                 }
         );
 
@@ -323,7 +327,10 @@ public class AsyncDualMemoryLimiterUtilTest {
                 limiter,
                 () -> false,
                 command,
-                throwable -> errorHandlerCalled.set(true)
+                throwable -> {
+                    errorHandlerCalled.set(true);
+                    return FutureUtil.failedFuture(throwable);
+                }
         );
 
         try {
@@ -351,7 +358,10 @@ public class AsyncDualMemoryLimiterUtilTest {
                 limiter,
                 () -> false,
                 command,
-                throwable -> errorHandlerCalled.set(true)
+                throwable -> {
+                    errorHandlerCalled.set(true);
+                    return FutureUtil.failedFuture(throwable);
+                }
         );
 
         try {
@@ -382,7 +392,10 @@ public class AsyncDualMemoryLimiterUtilTest {
                 limiter,
                 cancelled::get,
                 command,
-                throwable -> errorHandlerCalled.set(true)
+                throwable -> {
+                    errorHandlerCalled.set(true);
+                    return FutureUtil.failedFuture(throwable);
+                }
         );
 
         // Cancel the request
@@ -420,6 +433,7 @@ public class AsyncDualMemoryLimiterUtilTest {
                     () -> false,
                     command,
                     throwable -> {
+                        return FutureUtil.failedFuture(throwable);
                     }
             );
         }
@@ -453,7 +467,10 @@ public class AsyncDualMemoryLimiterUtilTest {
                 limiter,
                 () -> false,
                 command,
-                throwable -> errorHandlerCalled.set(true)
+                throwable -> {
+                    errorHandlerCalled.set(true);
+                    return FutureUtil.failedFuture(throwable);
+                }
         );
 
         result.get(1, TimeUnit.SECONDS);
