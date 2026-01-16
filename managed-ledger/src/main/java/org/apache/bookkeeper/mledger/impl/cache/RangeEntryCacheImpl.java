@@ -577,9 +577,8 @@ public class RangeEntryCacheImpl implements EntryCache {
                 pendingReadsManager.invalidateLedger(lh.getId());
             }
 
-            CompletableFuture<List<Entry>> failed = new CompletableFuture<>();
-            failed.completeExceptionally(cause);
-            return failed;
+            CompletableFuture<List<Entry>> failedFuture = CompletableFuture.failedFuture(cause);
+            return failedFuture;
         }).thenCompose(Function.identity());
     }
 
