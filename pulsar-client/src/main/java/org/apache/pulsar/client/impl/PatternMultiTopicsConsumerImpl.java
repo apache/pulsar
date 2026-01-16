@@ -229,7 +229,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private CompletableFuture<Void> doLookupBasedRecheck(final int epoch) {
         final String pattern = topicsPattern.inputPattern();
         return client.getLookup()
-                .getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, getLocalStateTopicsHash())
+                .getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern,
+                    getLocalStateTopicsHash(), conf.getProperties())
                 .thenCompose(getTopicsResult -> {
                     // If "recheckTopicsChange" has been called more than one times, only make the last one take
                     // affects.

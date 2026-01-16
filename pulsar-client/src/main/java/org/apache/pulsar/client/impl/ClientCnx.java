@@ -1223,7 +1223,7 @@ public class ClientCnx extends PulsarHandler {
         if (!supportsTopicWatchers) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.NotAllowedException(
-                            "Broker does not allow broker side pattern evaluation."));
+                            "Broker does not support topic list watchers."));
         }
         return sendRequestAndHandleTimeout(Commands.serializeWithSize(commandWatchTopicList), requestId,
                 RequestType.Command, true);

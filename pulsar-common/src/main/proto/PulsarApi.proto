@@ -791,6 +791,8 @@ message CommandGetTopicsOfNamespace {
     optional Mode mode = 3 [default = PERSISTENT];
     optional string topics_pattern = 4;
     optional string topics_hash    = 5;
+    // Context properties from the client
+    repeated KeyValue properties = 6;
 }
 
 message CommandGetTopicsOfNamespaceResponse {

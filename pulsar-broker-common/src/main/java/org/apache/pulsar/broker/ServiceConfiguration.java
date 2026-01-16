@@ -1272,6 +1272,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,
+            doc = "Enables watching topic add/remove events on broker side for "
+                    + "subscription pattern evaluation."
+    )
+    private boolean enableBrokerTopicListWatcher = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
             doc = "Max length of subscription pattern"
     )
     private int subscriptionPatternMaxLength = 50;
@@ -1611,7 +1619,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of broker interceptor to load, which is a list of broker interceptor names"
     )
-    private Set<String> brokerInterceptors = new TreeSet<>();
+    private Set<String> brokerInterceptors = new LinkedHashSet<>();
 
     @FieldContext(
             category = CATEGORY_SERVER,
