@@ -349,6 +349,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (stats != null) {
                 stats.incrSysExceptions(t);
             }
+            // clear possible thread interrupted state so that closing can be handled gracefully
+            Thread.interrupted();
         } finally {
             log.info("Closing instance");
             close();
