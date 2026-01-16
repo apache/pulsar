@@ -92,8 +92,10 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -4320,5 +4322,39 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertEquals(cursor.getThrottleMarkDelete(),
                 pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit(), 0.0001);
         });
+    }
+
+    @Test
+    public void testGetAppliedOffloadPoliciesWithLegacyNamespacePolicies() throws Exception {
+        String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        OffloadPolicies initialPolicies = admin.topics().getOffloadPolicies(topicName, true);
+        assertNull(initialPolicies, "Applied policies should not be null");
+
+        Policies policies = admin.namespaces().getPolicies(myNamespace);
+        policies.offload_policies = null;
+        policies.offload_threshold = 1024 * 1024 * 10L; // 10MB
+
+        pulsar.getConfigurationMetadataStore().put(
+                "/admin/policies/" + myNamespace,
+                org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                java.util.Optional.empty()
+        ).join();
+
+        Policies updatedPolicies = admin.namespaces().getPolicies(myNamespace);
+        assertNull(updatedPolicies.offload_policies, "offload_policies should be null for this test case");
+        assertEquals(updatedPolicies.offload_threshold, 1024 * 1024 * 10L);
+
+        OffloadPolicies appliedPolicies = admin.topics().getOffloadPolicies(topicName, true);
+
+        assertNotNull(appliedPolicies, "Applied policies should not be null");
+        assertEquals(appliedPolicies.getManagedLedgerOffloadThresholdInBytes(), (Long) (1024 * 1024 * 10L),
+                "Should inherit offload threshold from legacy namespace policy");
+
+        OffloadPolicies offloadPolicies = admin.topicPolicies().getOffloadPolicies(topicName, true);
+        assertNotNull(offloadPolicies, "Applied policies should not be null");
+        assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), (Long) (1024 * 1024 * 10L),
+                "Should inherit offload threshold from legacy namespace policy");
     }
 }
