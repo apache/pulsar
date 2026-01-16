@@ -74,6 +74,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.awaitility.Awaitility;
+import org.jspecify.annotations.NonNull;
 import org.mockito.InOrder;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -162,8 +163,17 @@ public class TopicListServiceTest {
             return mock(ScheduledFuture.class);
         }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
 
-        topicListService = new TopicListService(pulsar, connection, true, 30);
+        topicListService = newTopicListService();
 
+    }
+
+    private @NonNull TopicListService newTopicListService() {
+        return new TopicListService(pulsar, connection, true, 30);
+    }
+
+    private @NonNull TopicListService newTopicListService(int topicListUpdateMaxQueueSize) {
+        return new TopicListService(pulsar, connection, true, 30,
+                topicListUpdateMaxQueueSize);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -360,8 +370,7 @@ public class TopicListServiceTest {
     @Test
     public void testCommandWatchUpdateQueueOverflows() {
         int topicListUpdateMaxQueueSize = 10;
-        topicListService = new TopicListService(pulsar, connection, true, 30,
-                topicListUpdateMaxQueueSize);
+        topicListService = newTopicListService(topicListUpdateMaxQueueSize);
         topicListService.handleWatchTopicList(
                 NamespaceName.get("tenant/ns"),
                 13,

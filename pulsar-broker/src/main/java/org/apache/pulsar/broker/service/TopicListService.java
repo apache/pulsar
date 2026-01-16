@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -80,13 +81,6 @@ public class TopicListService {
 
         public TopicListWatcher(TopicListService topicListService, long id,
                                 NamespaceName namespace, TopicsPattern topicsPattern, List<String> topics,
-                                Executor executor) {
-            this(topicListService, id, namespace, topicsPattern, topics, executor,
-                    DEFAULT_TOPIC_LIST_UPDATE_MAX_QUEUE_SIZE);
-        }
-
-        public TopicListWatcher(TopicListService topicListService, long id,
-                                NamespaceName namespace, TopicsPattern topicsPattern, List<String> topics,
                                 Executor executor, int topicListUpdateMaxQueueSize) {
             this.topicListService = topicListService;
             this.id = id;
@@ -102,7 +96,7 @@ public class TopicListService {
         }
 
         public synchronized Collection<String> getMatchingTopics() {
-            return matchingTopics;
+            return new ArrayList<>(matchingTopics);
         }
 
         /***
@@ -205,6 +199,7 @@ public class TopicListService {
                 TopicListWatcher.DEFAULT_TOPIC_LIST_UPDATE_MAX_QUEUE_SIZE);
     }
 
+    @VisibleForTesting
     public TopicListService(PulsarService pulsar, ServerCnx connection,
                             boolean enableSubscriptionPatternEvaluation, int maxSubscriptionPatternLength,
                             int topicListUpdateMaxQueueSize) {
