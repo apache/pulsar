@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -82,15 +83,7 @@ public class LoadSimulationController extends CmdBase implements AutoCloseable {
 
     @Override
     public void close() {
-        threadPool.shutdown();
-        try {
-            if (!threadPool.awaitTermination(5, TimeUnit.SECONDS)) {
-                threadPool.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            threadPool.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
+        MoreExecutors.shutdownAndAwaitTermination(threadPool, 5, TimeUnit.SECONDS);
     }
 
     // picocli arguments for starting a controller via main.
