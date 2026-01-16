@@ -133,6 +133,12 @@ public class NamespaceResources extends BaseResources<Policies> {
         return getCache().getIfCached(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
+    public Optional<Policies> getPoliciesIfCachedAndAsyncLoad(NamespaceName ns) {
+        Optional<Policies> policiesOptional = getCache().getIfCached(joinPath(BASE_POLICIES_PATH, ns.toString()));
+        getPoliciesAsync(ns);
+        return policiesOptional;
+    }
+
     public CompletableFuture<Optional<Policies>> getPoliciesAsync(NamespaceName ns) {
         return getCache().get(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
@@ -277,6 +283,14 @@ public class NamespaceResources extends BaseResources<Policies> {
                             list.stream().map(x -> TopicName.get(domain.value(), ns, Codec.decode(x)).toString())
                                     .collect(Collectors.toList())
                     );
+        }
+
+        public Optional<PartitionedTopicMetadata> getPartitionedTopicMetadataFromCacheAndAsyncLoad(TopicName tn) {
+            String path = joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                tn.getEncodedLocalName());
+            Optional<PartitionedTopicMetadata> result = getCache().getIfCached(path);
+            getAsync(path);
+            return result;
         }
 
         public CompletableFuture<Optional<PartitionedTopicMetadata>> getPartitionedTopicMetadataAsync(TopicName tn) {

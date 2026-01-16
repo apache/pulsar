@@ -3524,12 +3524,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = "A comma-separated set of allowed custom metric label keys. "
-                    + "Only these keys can be set as custom metric labels on topics. "
-                    + "Example: sla_tier,data_sensitivity,cost_center,app_owner. "
-                    + "If empty and the feature is enabled, no custom metric labels can be set."
+            doc = "A comma-separated list of Topic Property keys that are allowed to be exposed as metrics."
+            + "Only keys explicitly listed here will be exposed."
     )
-    private Set<String> allowedCustomMetricLabelKeys = new HashSet<>();
+    private Set<String> allowedTopicPropertiesForMetrics = new HashSet<>();
 
     @FieldContext(
             category = CATEGORY_METRICS,

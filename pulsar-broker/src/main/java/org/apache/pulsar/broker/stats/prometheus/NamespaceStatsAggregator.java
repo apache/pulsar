@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +37,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
@@ -97,28 +100,28 @@ public class NamespaceStatsAggregator {
 
                 brokerStats.updateStats(topicStats);
 
-                // Get and convert custom metric labels if feature is enabled
-                String[] customMetricLabelAndValues = null;
-                if (pulsar.getConfiguration().isExposeCustomTopicMetricLabelsEnabled()) {
-                    Set<String> allowedCustomLabelKeys = pulsar.getConfiguration().getAllowedCustomMetricLabelKeys();
-                    Map<String, String> customMetricLabels =
-                        topic.getHierarchyTopicPolicies().getCustomMetricLabels().get();
-                    if (customMetricLabels != null && !customMetricLabels.isEmpty()) {
-                        customMetricLabelAndValues = new String[customMetricLabels.size() * 2];
-                        int index = 0;
-                        for (Map.Entry<String, String> entry : customMetricLabels.entrySet()) {
-                            if (allowedCustomLabelKeys.contains(entry.getKey())) {
-                                customMetricLabelAndValues[index++] = entry.getKey();
-                                customMetricLabelAndValues[index++] = entry.getValue();
+                if (includeTopicMetrics) {
+                    // Get and convert custom metric labels if feature is enabled
+                    String[] customMetricLabelAndValues = null;
+                    if (pulsar.getConfiguration().isExposeCustomTopicMetricLabelsEnabled()) {
+                        Set<String> allowedCustomLabelKeys =
+                            pulsar.getConfiguration().getAllowedTopicPropertiesForMetrics();
+                        Map<String, String> customMetricLabels = fetchPropertiesFromCache(pulsar, TopicName.get(name));
+                        if (customMetricLabels != null && !customMetricLabels.isEmpty()) {
+                            customMetricLabelAndValues = new String[customMetricLabels.size() * 2];
+                            int index = 0;
+                            for (Map.Entry<String, String> entry : customMetricLabels.entrySet()) {
+                                if (allowedCustomLabelKeys.contains(entry.getKey())) {
+                                    customMetricLabelAndValues[index++] = entry.getKey();
+                                    customMetricLabelAndValues[index++] = entry.getValue();
+                                }
                             }
                         }
                     }
-                }
 
-                if (includeTopicMetrics) {
                     topicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
-                            splitTopicAndPartitionIndexLabel, customMetricLabelAndValues);
+                        splitTopicAndPartitionIndexLabel, customMetricLabelAndValues);
                 } else {
                     namespaceStats.updateStats(topicStats);
                 }
@@ -138,6 +141,42 @@ public class NamespaceStatsAggregator {
         }
 
         printBrokerStats(stream, cluster, brokerStats);
+    }
+
+    public static Map<String, String> fetchPropertiesFromCache(PulsarService pulsarService, TopicName topicName) {
+        int timeoutSeconds = pulsarService.getConfig().getMetadataStoreOperationTimeoutSeconds();
+        try {
+            // Only persistent topics have properties
+            if (!topicName.isPersistent()) {
+                return Collections.emptyMap();
+            }
+
+            if (!topicName.isPartitioned()) {
+                return getNonPartitionedPropertiesAsync(pulsarService, topicName);
+            }
+            TopicName partitionedTopicName = TopicName.getPartitionedTopicName(topicName.toString());
+            PartitionedTopicMetadata metadata = pulsarService.getBrokerService()
+                    .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(partitionedTopicName);
+            if (metadata.partitions == 0) {
+                return getNonPartitionedPropertiesAsync(pulsarService, topicName);
+            } else {
+                return metadata.properties;
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch properties from topic {}", topicName, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Map<String, String> getNonPartitionedPropertiesAsync(PulsarService pulsarService,
+                                                                        TopicName topicName) {
+        Optional<Topic> topicOptional = pulsarService.getBrokerService().getTopicIfExists(topicName.toString())
+            .getNow(Optional.empty());
+        if (topicOptional.isPresent()) {
+            return ((PersistentTopic) topicOptional.get()).getManagedLedger().getProperties();
+        } else {
+            return Collections.emptyMap();
+        }
     }
 
     private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {

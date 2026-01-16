@@ -2284,7 +2284,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static void validateCustomMetricLabelKeys(ServiceConfiguration config) {
         boolean exposeCustomTopicMetricLabelsEnabled = config.isExposeCustomTopicMetricLabelsEnabled();
         if (exposeCustomTopicMetricLabelsEnabled) {
-            Set<String> allowedCustomMetricLabelKeys = config.getAllowedCustomMetricLabelKeys();
+            Set<String> allowedCustomMetricLabelKeys = config.getAllowedTopicPropertiesForMetrics();
             for (String labelKey : allowedCustomMetricLabelKeys) {
                 if (!isValidMetricsName(labelKey)) {
                     throw new IllegalArgumentException(String.format(

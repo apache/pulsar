@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PrometheusMetricsLabelsTest extends BrokerTestBase {
 
-    private static Set<String> ALLOWED_CUSTOM_METRIC_LABEL_KEYS = Set.of("sla_tier", "app_owner");
+    private static final Set<String> ALLOWED_CUSTOM_METRIC_LABEL_KEYS = Set.of("sla_tier", "app_owner");
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -59,7 +59,7 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
         conf.setExposeCustomTopicMetricLabelsEnabled(true);
-        conf.setAllowedCustomMetricLabelKeys(ALLOWED_CUSTOM_METRIC_LABEL_KEYS);
+        conf.setAllowedTopicPropertiesForMetrics(ALLOWED_CUSTOM_METRIC_LABEL_KEYS);
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
         conf.setBrokerShutdownTimeoutMs(5000L);
@@ -111,22 +111,25 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
         Map<String, String> labels = new HashMap<>();
         labels.put("sla_tier", "gold");
         labels.put("app_owner", "team-a");
-        admin.topicPolicies().setCustomMetricLabels(topic1, labels);
+//        admin.topicPolicies().setCustomMetricLabels(topic1, labels);
+        admin.topics().updateProperties(topic1, labels);
 
         labels = new HashMap<>();
         labels.put("sla_tier", "platinum");
         labels.put("app_owner", "team-b");
-        admin.topicPolicies().setCustomMetricLabels(topic2, labels);
+//        admin.topicPolicies().setCustomMetricLabels(topic2, labels);
+        admin.topics().updateProperties(topic2, labels);
 
         // Verify labels are set
         Awaitility.await().untilAsserted(() -> {
-            Map<String, String> retrievedLabels = admin.topicPolicies().getCustomMetricLabels(topic1);
+//            Map<String, String> retrievedLabels = admin.topicPolicies().getCustomMetricLabels(topic1);
+            Map<String, String> retrievedLabels = admin.topics().getProperties(topic1);
             assertNotNull(retrievedLabels);
             assertEquals(retrievedLabels.size(), 2);
             assertEquals(retrievedLabels.get("sla_tier"), "gold");
             assertEquals(retrievedLabels.get("app_owner"), "team-a");
 
-            retrievedLabels = admin.topicPolicies().getCustomMetricLabels(topic2);
+            retrievedLabels = admin.topics().getProperties(topic2);
             assertNotNull(retrievedLabels);
             assertEquals(retrievedLabels.size(), 2);
             assertEquals(retrievedLabels.get("sla_tier"), "platinum");

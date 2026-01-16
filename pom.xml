@@ -1856,6 +1856,11 @@ flexible messaging model and an intuitive client API.</description>
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -2037,7 +2042,7 @@ flexible messaging model and an intuitive client API.</description>
                 at the top level. This helps exclude directories used by AI tools
                 while preserving license checks in subdirectories.
                 -->
-                <exclude>.*/**</exclude>
+                <exclude>*/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
