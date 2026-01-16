@@ -3160,7 +3160,7 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
-                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL, null, null);
+                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3179,7 +3179,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/topic-.*", null);
+                "use/ns-abc/topic-.*", null, null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3199,7 +3199,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/(t|o|to|p|i|c)+-?)+!", null);
+                "use/ns-abc/(t|o|to|p|i|c)+-?)+!", null, null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3218,7 +3218,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/topic-.*", "SOME_HASH");
+                "use/ns-abc/topic-.*", "SOME_HASH", null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3237,7 +3237,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/topic-.*", TopicList.calculateHash(matchingTopics));
+                "use/ns-abc/topic-.*", TopicList.calculateHash(matchingTopics), null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 

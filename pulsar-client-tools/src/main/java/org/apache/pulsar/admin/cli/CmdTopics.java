@@ -296,12 +296,17 @@ public class CmdTopics extends CmdBase {
                 "--include-system-topic" }, description = "Include system topic")
         private boolean includeSystemTopic;
 
+        @Option(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
+        private Map<String, String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             ListTopicsOptions options = ListTopicsOptions.builder()
                     .bundle(bundle)
                     .includeSystemTopic(includeSystemTopic)
+                    .properties(properties)
                     .build();
             print(getTopics().getList(namespace, topicDomain, options));
         }

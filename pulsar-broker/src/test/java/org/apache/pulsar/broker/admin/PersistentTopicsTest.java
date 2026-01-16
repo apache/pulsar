@@ -853,14 +853,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         response = mock(AsyncResponse.class);
         ArgumentCaptor<List<String>> listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        persistentTopics.getList(response, testTenant, testNamespace, null, false);
+        persistentTopics.getList(response, testTenant, testNamespace, null, false, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         List<String> topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 1);
 
         response = mock(AsyncResponse.class);
         listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        persistentTopics.getList(response, testTenant, testNamespace, null, true);
+        persistentTopics.getList(response, testTenant, testNamespace, null, true, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 2);
@@ -879,14 +879,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         response = mock(AsyncResponse.class);
         listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        nonPersistentTopic.getList(response, testTenant, testNamespace, null, false);
+        nonPersistentTopic.getList(response, testTenant, testNamespace, null, false, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 1);
 
         response = mock(AsyncResponse.class);
         listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        nonPersistentTopic.getList(response, testTenant, testNamespace, null, true);
+        nonPersistentTopic.getList(response, testTenant, testNamespace, null, true, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 2);

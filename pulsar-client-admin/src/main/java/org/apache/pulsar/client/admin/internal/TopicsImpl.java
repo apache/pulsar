@@ -44,6 +44,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -195,9 +196,14 @@ public class TopicsImpl extends BaseResource implements Topics {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns);
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
+
         persistentPath = persistentPath
                 .queryParam("bundle", options.getBundle())
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
+        String encodedPropertiesString = toEncodedPropertiesString(options.getProperties());
+        if (StringUtils.isNotBlank(encodedPropertiesString)) {
+            persistentPath = persistentPath.queryParam("properties", encodedPropertiesString);
+        }
         nonPersistentPath = nonPersistentPath
                 .queryParam("bundle", options.getBundle())
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
@@ -2843,6 +2849,20 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
         });
         return messageIdCompletableFuture;
+    }
+
+    public static String toEncodedPropertiesString(Map<String, String> properties) {
+        if (properties == null || properties.isEmpty()) {
+            return null;
+        }
+
+        return properties.entrySet().stream()
+            .map(entry -> {
+                String encodedKey = Codec.encode(entry.getKey());
+                String encodedValue = Codec.encode(entry.getValue());
+                return encodedKey + "=" + encodedValue;
+            })
+            .collect(Collectors.joining(","));
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
