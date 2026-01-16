@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -454,56 +453,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         for (PulsarAdminException exception : exceptions) {
             log.error("Meet Exception", exception);
-            assertTrue(exception.getMessage().contains("Failed to fence subscription"));
-        }
-    }
-
-    @Test
-    public void testConcurrentResetCursorByTimestamp() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testConcurrentResetTimestamp_"
-                + System.currentTimeMillis();
-        final String subscriptionName = "test-sub-name";
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
-
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        long resetTimestamp = System.currentTimeMillis();
-        List<PulsarAdminException> exceptions = new CopyOnWriteArrayList<>();
-        class ResetCursorThread extends Thread {
-            public void run() {
-                try {
-                    admin.topics().resetCursor(topicName, subscriptionName, resetTimestamp);
-                } catch (PulsarAdminException e) {
-                    exceptions.add(e);
-                }
-            }
-        }
-
-        List<ResetCursorThread> resetCursorThreads = new ArrayList<>();
-        for (int i = 0; i < 4; i++) {
-            ResetCursorThread thread = new ResetCursorThread();
-            resetCursorThreads.add(thread);
-        }
-        for (int i = 0; i < 4; i++) {
-            resetCursorThreads.get(i).start();
-        }
-        for (int i = 0; i < 4; i++) {
-            resetCursorThreads.get(i).join();
-        }
-
-        assertTrue(exceptions.size() > 0);
-        for (PulsarAdminException exception : exceptions) {
             assertTrue(exception.getMessage().contains("Failed to fence subscription"));
         }
     }
