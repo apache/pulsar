@@ -20,12 +20,17 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -37,6 +42,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -478,34 +484,40 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
+        PersistentSubscription subscription = (PersistentSubscription) topicRef.getSubscription(subscriptionName);
+
+        ManagedCursor originalCursor = subscription.getCursor();
+        ManagedCursor spyCursor = spy(originalCursor);
+
+        Field cursorField = PersistentSubscription.class.getDeclaredField("cursor");
+        cursorField.setAccessible(true);
+        cursorField.set(subscription, spyCursor);
+
+        AtomicInteger findCallCount = new AtomicInteger(0);
+        doAnswer(invocation -> {
+            findCallCount.incrementAndGet();
+            return invocation.callRealMethod();
+        }).when(spyCursor).asyncFindNewestMatching(any(), any(), any(), any(), any(), any(), anyBoolean());
+
         long resetTimestamp = System.currentTimeMillis();
-        List<PulsarAdminException> exceptions = new CopyOnWriteArrayList<>();
-        class ResetCursorThread extends Thread {
-            public void run() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        CyclicBarrier barrier = new CyclicBarrier(4);
+
+        for (int i = 0; i < 4; i++) {
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
+                    barrier.await();
                     admin.topics().resetCursor(topicName, subscriptionName, resetTimestamp);
-                } catch (PulsarAdminException e) {
-                    exceptions.add(e);
+                } catch (Exception e) {
                 }
-            }
+            });
+            futures.add(future);
         }
 
-        List<ResetCursorThread> resetCursorThreads = new ArrayList<>();
-        for (int i = 0; i < 4; i++) {
-            ResetCursorThread thread = new ResetCursorThread();
-            resetCursorThreads.add(thread);
-        }
-        for (int i = 0; i < 4; i++) {
-            resetCursorThreads.get(i).start();
-        }
-        for (int i = 0; i < 4; i++) {
-            resetCursorThreads.get(i).join();
-        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-        assertTrue(exceptions.size() > 0);
-        for (PulsarAdminException exception : exceptions) {
-            assertTrue(exception.getMessage().contains("Failed to fence subscription"));
-        }
+        assertEquals(findCallCount.get(), 1,
+                "asyncFindNewestMatching should only be called once due to subscription fencing");
     }
 
     @Test
