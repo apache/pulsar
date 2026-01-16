@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -428,7 +429,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             messageIds.add(msgId);
         }
 
-        List<PulsarAdminException> exceptions = new java.util.concurrent.CopyOnWriteArrayList<>();
+        List<PulsarAdminException> exceptions = new ArrayList<>();
         class ResetCursorThread extends Thread {
             public void run() {
                 try {
@@ -478,7 +479,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
 
         long resetTimestamp = System.currentTimeMillis();
-        List<PulsarAdminException> exceptions = new java.util.concurrent.CopyOnWriteArrayList<>();
+        List<PulsarAdminException> exceptions = new CopyOnWriteArrayList<>();
         class ResetCursorThread extends Thread {
             public void run() {
                 try {

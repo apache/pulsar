@@ -32,7 +32,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
@@ -215,12 +217,11 @@ public class RangeEntryCacheImplTest {
         when(mockManagedLedger.reopenReadHandle(1L)).thenReturn(CompletableFuture.completedFuture(readHandle));
 
         LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(1L, 0L, 1, Unpooled.wrappedBuffer(new byte[] {1}));
-        org.apache.bookkeeper.client.api.LedgerEntries ledgerEntries =
-                mock(org.apache.bookkeeper.client.api.LedgerEntries.class);
+        LedgerEntries ledgerEntries = mock(LedgerEntries.class);
         List<LedgerEntry> entryList = List.of((LedgerEntry) ledgerEntry);
         when(ledgerEntries.iterator()).thenReturn(entryList.iterator());
 
-        java.util.concurrent.atomic.AtomicInteger readAttempts = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicInteger readAttempts = new AtomicInteger();
         when(readHandle.readAsync(0L, 0L)).thenAnswer(invocation -> {
             if (readAttempts.getAndIncrement() == 0) {
                 return CompletableFuture.failedFuture(new ManagedLedgerException.OffloadReadHandleClosedException());
