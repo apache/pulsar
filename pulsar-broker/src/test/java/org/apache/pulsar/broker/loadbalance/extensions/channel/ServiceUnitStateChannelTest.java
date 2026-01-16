@@ -96,6 +96,7 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
@@ -729,6 +730,82 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertThat(lastMetadataSessionEventTimestamp,
                 lessThanOrEqualTo(ts));
 
+    }
+
+
+    @Test
+    public void metadataStateMetricsTest() throws IllegalAccessException {
+        ServiceUnitStateChannelImpl channel1 = (ServiceUnitStateChannelImpl) this.channel1;
+
+        long now = System.currentTimeMillis();
+        long oldTimestamp = now - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000) - 1;
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", oldTimestamp, true);
+        long beforeMetricsCall = System.currentTimeMillis();
+        var metrics = channel1.getMetrics();
+        long afterMetricsCall = System.currentTimeMillis();
+        assertEquals(0, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(oldTimestamp, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        long ageSeconds = getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue();
+        long minAgeSeconds = TimeUnit.MILLISECONDS.toSeconds(beforeMetricsCall - oldTimestamp);
+        long maxAgeSeconds = TimeUnit.MILLISECONDS.toSeconds(afterMetricsCall - oldTimestamp);
+        assertTrue(ageSeconds >= minAgeSeconds && ageSeconds <= maxAgeSeconds,
+                "Unexpected age seconds: " + ageSeconds + ", expected within [" + minAgeSeconds + ", "
+                        + maxAgeSeconds + "]");
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", now, true);
+        metrics = channel1.getMetrics();
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(now, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        ageSeconds = getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue();
+        assertTrue(ageSeconds >= 0 && ageSeconds <= 1, "Unexpected age seconds: " + ageSeconds);
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionLost, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", now, true);
+        metrics = channel1.getMetrics();
+        assertEquals(2, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(0, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(now, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        ageSeconds = getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue();
+        assertTrue(ageSeconds >= 0 && ageSeconds <= 1, "Unexpected age seconds: " + ageSeconds);
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", 0L, true);
+        metrics = channel1.getMetrics();
+        assertEquals(0, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(0L, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        assertEquals(-1L, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue());
+    }
+
+    private static Number getMetric(List<Metrics> metrics, String metricName) {
+        for (Metrics metric : metrics) {
+            Object value = metric.getMetrics().get(metricName);
+            if (value == null) {
+                continue;
+            }
+            if (!(value instanceof Number)) {
+                fail(metricName + " is not numeric: " + value);
+            }
+            return (Number) value;
+        }
+        fail("Missing " + metricName + " metric");
+        return -1L;
     }
 
     @Test(priority = 8)
