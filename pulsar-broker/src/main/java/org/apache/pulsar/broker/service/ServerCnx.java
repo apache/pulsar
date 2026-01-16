@@ -2624,6 +2624,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                             commandSender.sendErrorResponse(requestId,
                                                                     ServerError.TooManyRequests,
                                                                     "Cannot acquire permits for direct memory");
+                                                            return CompletableFuture.completedFuture(null);
                                                         });
                                             }, t -> {
                                                 log.warn("[{}] Failed to acquire heap memory permits for "
