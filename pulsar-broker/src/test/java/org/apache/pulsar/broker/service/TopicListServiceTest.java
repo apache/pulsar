@@ -40,10 +40,10 @@ import io.netty.util.concurrent.ImmediateEventExecutor;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -202,7 +202,7 @@ public class TopicListServiceTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(1, lookupSemaphore.availablePermits()));
         verify(topicResources).registerPersistentTopicListener(
                 eq(NamespaceName.get("tenant/ns")), any(TopicListService.TopicListWatcher.class));
-        Set<String> expectedTopics = new LinkedHashSet<>(topics);
+        Collection<String> expectedTopics = new ArrayList<>(topics);
         verify(connection.getCommandSender()).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics),
                 any());
     }
@@ -231,7 +231,7 @@ public class TopicListServiceTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(1, lookupSemaphore.availablePermits()));
         verify(topicResources).registerPersistentTopicListener(
                 eq(NamespaceName.get("tenant/ns")), any(TopicListService.TopicListWatcher.class));
-        Set<String> expectedTopics = new LinkedHashSet<>(topics);
+        Collection<String> expectedTopics = new ArrayList<>(topics);
         verify(connection.getCommandSender()).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics),
                 any());
     }
@@ -297,7 +297,7 @@ public class TopicListServiceTest {
         }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any());
         topicListFuture.complete(topics);
         assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
-        Set<String> expectedTopics = new LinkedHashSet<>(topics);
+        Collection<String> expectedTopics = new ArrayList<>(topics);
         verify(connection.getCommandSender(), timeout(2000L).times(3))
                 .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any());
     }
