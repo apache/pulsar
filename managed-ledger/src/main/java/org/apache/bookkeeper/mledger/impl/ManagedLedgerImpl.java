@@ -2084,6 +2084,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Optional.ofNullable(ledgers.get(ledgerId));
     }
 
+    public CompletableFuture<ReadHandle> reopenReadHandle(long ledgerId) {
+        invalidateReadHandle(ledgerId);
+        return getLedgerHandle(ledgerId);
+    }
+
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
