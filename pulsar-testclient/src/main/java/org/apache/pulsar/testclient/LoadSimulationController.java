@@ -20,6 +20,7 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.RESOURCE_QUOTA_BASE_PATH;
+
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -58,6 +59,8 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
@@ -79,7 +82,8 @@ public class LoadSimulationController extends CmdBase implements AutoCloseable {
 
     private Random random;
 
-    private final ExecutorService threadPool = Executors.newCachedThreadPool();
+    private final ExecutorService threadPool =
+    Executors.newCachedThreadPool(new DefaultThreadFactory("LoadSimulationController"));
 
     @Override
     public void close() {

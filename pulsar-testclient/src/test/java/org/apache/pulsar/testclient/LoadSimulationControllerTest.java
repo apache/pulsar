@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class LoadSimulationControllerTest {
 
     @Test
-    public void shouldLeakThreadsWhenExecutorIsNotShutdown() throws Exception {
+    public void shouldNotLeakThreadsAfterClose() throws Exception {
         LoadSimulationController controller = new LoadSimulationController();
         Field threadPoolField = LoadSimulationController.class.getDeclaredField("threadPool");
         threadPoolField.setAccessible(true);
@@ -52,7 +52,7 @@ public class LoadSimulationControllerTest {
             poolThreadCount = threads.keySet().stream()
                     .filter(Thread::isAlive)
                     .filter(t -> !t.isDaemon())
-                    .filter(t -> t.getName().startsWith("pool-"))
+                    .filter(t -> t.getName().startsWith("LoadSimulationController"))
                     .count();
             if (poolThreadCount == 0) {
                 break;
@@ -61,7 +61,9 @@ public class LoadSimulationControllerTest {
         }
 
         assertTrue(poolThreadCount == 0,
-                String.format("Found %d alive non-daemon pool- threads after close", poolThreadCount));
-    }
+            String.format("Found %d alive non-daemon LoadSimulationController threads after close", poolThreadCount));
 }
+}
+
+
 
