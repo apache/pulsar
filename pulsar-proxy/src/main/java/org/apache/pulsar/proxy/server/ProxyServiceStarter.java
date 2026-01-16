@@ -38,6 +38,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import javax.servlet.Servlet;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -62,9 +63,10 @@ import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.eclipse.jetty.proxy.ProxyServlet;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
+import org.eclipse.jetty.ee8.proxy.ProxyServlet;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee8.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -402,9 +404,37 @@ public class ProxyServiceStarter {
                     service.getProxyAdditionalServlets().getServlets().values();
             for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
-                server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
-                        Collections.emptyList(), config.isAuthenticationEnabled());
-                log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                switch (servletWithClassLoader.getServletType()) {
+                    case JAVAX_SERVLET -> {
+                        Object servletInstance = servletWithClassLoader.getServletInstance();
+                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
+                            log.error("AdditionalServletWithClassLoader {} has invalid servlet instance type {} which "
+                                            + "doesn't match {}. Skipping.", servletWithClassLoader,
+                                    servletInstance.getClass().getName(), servletWithClassLoader.getServletType());
+                            try {
+                                servletWithClassLoader.close();
+                            } catch (Exception e) {
+                                log.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                            }
+                            continue;
+                        }
+                        ServletHolder additionalServletHolder =
+                                new ServletHolder((Servlet) servletInstance);
+                        server.addServlet(servletWithClassLoader.getBasePath(), additionalServletHolder,
+                                Collections.emptyList(), config.isAuthenticationEnabled());
+                        log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                    }
+                    default -> {
+                        log.error("AdditionalServletWithClassLoader {} has unsupported servlet type {}. Skipping.",
+                                servletWithClassLoader, servletWithClassLoader.getServletType());
+                        try {
+                            servletWithClassLoader.close();
+                        } catch (Exception e) {
+                            log.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                        }
+                        continue;
+                    }
+                }
             }
         }
 
@@ -418,29 +448,29 @@ public class ProxyServiceStarter {
             if (webSocketServiceRef != null) {
                 webSocketServiceRef.set(webSocketService);
             }
-            final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
-            server.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                    new ServletHolder(producerWebSocketServlet));
-            server.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(producerWebSocketServlet));
+            final JettyWebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
+            addWebSocketServlet(server, WebSocketProducerServlet.SERVLET_PATH, producerWebSocketServlet);
+            addWebSocketServlet(server, WebSocketProducerServlet.SERVLET_PATH_V2, producerWebSocketServlet);
 
-            final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
-            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(consumerWebSocketServlet));
-            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(consumerWebSocketServlet));
+            final JettyWebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
+            addWebSocketServlet(server, WebSocketConsumerServlet.SERVLET_PATH, consumerWebSocketServlet);
+            addWebSocketServlet(server, WebSocketConsumerServlet.SERVLET_PATH_V2, consumerWebSocketServlet);
 
-            final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
-            server.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                    new ServletHolder(readerWebSocketServlet));
-            server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                    new ServletHolder(readerWebSocketServlet));
+            final JettyWebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
+            addWebSocketServlet(server, WebSocketReaderServlet.SERVLET_PATH, readerWebSocketServlet);
+            addWebSocketServlet(server, WebSocketReaderServlet.SERVLET_PATH_V2, readerWebSocketServlet);
 
             final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
                     new WebSocketMultiTopicConsumerServlet(webSocketService);
-            server.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(multiTopicConsumerWebSocketServlet));
+            addWebSocketServlet(server, WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
+                    multiTopicConsumerWebSocketServlet);
         }
+    }
+
+    private static void addWebSocketServlet(WebServer server, String servletPath,
+                                            JettyWebSocketServlet producerWebSocketServlet) {
+        JettyWebSocketServletContainerInitializer.configure(server.addServlet(servletPath,
+                new ServletHolder(producerWebSocketServlet)), null);
     }
 
     private static ClusterData createClusterData(ProxyConfiguration config) {

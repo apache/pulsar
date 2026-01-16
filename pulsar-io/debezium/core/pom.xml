@@ -81,6 +81,10 @@
           <artifactId>jose4j</artifactId>
           <groupId>org.bitbucket.b_c</groupId>
         </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 

@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.servlet.ServletContext;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
@@ -69,7 +70,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"));
         persistentTopics = spy(PersistentTopics.class);
-        persistentTopics.setServletContext(new MockServletContext());
+        persistentTopics.setServletContext(mock(ServletContext.class));
         persistentTopics.setPulsar(pulsar);
 
         doReturn(false).when(persistentTopics).isRequestHttps();

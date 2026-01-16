@@ -29,16 +29,16 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@WebSocket(maxTextMessageSize = 64 * 1024)
+@WebSocket
 public class SimpleConsumerSocket {
     private static final String X_PULSAR_MESSAGE_ID = "messageId";
     private final CountDownLatch closeLatch;
@@ -70,7 +70,7 @@ public class SimpleConsumerSocket {
         this.closeLatch.countDown();
     }
 
-    @OnWebSocketConnect
+    @OnWebSocketOpen
     public void onConnect(Session session) throws InterruptedException {
         log.info("Got connect: {}", session);
         this.session = session;
@@ -86,12 +86,12 @@ public class SimpleConsumerSocket {
             String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
             consumerBuffer.add(messageId);
             if (customMessageHandler != null) {
-                this.getRemote().sendString(customMessageHandler.handle(messageId, message));
+                this.getSession().sendText(customMessageHandler.handle(messageId, message), Callback.NOOP);
             } else {
                 JsonObject ack = new JsonObject();
                 ack.add("messageId", new JsonPrimitive(messageId));
                 // Acking the proxy
-                this.getRemote().sendString(ack.toString());
+                this.getSession().sendText(ack.toString(), Callback.NOOP);
             }
         } else {
             consumerBuffer.add(message.toString());
@@ -102,23 +102,19 @@ public class SimpleConsumerSocket {
         JsonObject permitMessage = new JsonObject();
         permitMessage.add("type", new JsonPrimitive("permit"));
         permitMessage.add("permitMessages", new JsonPrimitive(nbPermits));
-        this.getRemote().sendString(permitMessage.toString());
+        this.getSession().sendText(permitMessage.toString(), Callback.NOOP);
     }
 
     public void unsubscribe() throws IOException {
         JsonObject message = new JsonObject();
         message.add("type", new JsonPrimitive("unsubscribe"));
-        this.getRemote().sendString(message.toString());
+        this.getSession().sendText(message.toString(), Callback.NOOP);
     }
 
     public void isEndOfTopic() throws IOException {
         JsonObject message = new JsonObject();
         message.add("type", new JsonPrimitive("isEndOfTopic"));
-        this.getRemote().sendString(message.toString());
-    }
-
-    public RemoteEndpoint getRemote() {
-        return this.session.getRemote();
+        this.getSession().sendText(message.toString(), Callback.NOOP);
     }
 
     public Session getSession() {
