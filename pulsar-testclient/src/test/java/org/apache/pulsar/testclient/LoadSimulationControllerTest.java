@@ -29,47 +29,39 @@ public class LoadSimulationControllerTest {
 
     @Test
     public void shouldLeakThreadsWhenExecutorIsNotShutdown() throws Exception {
-        // Access the private static field threadPool using reflection
+        LoadSimulationController controller = new LoadSimulationController();
         Field threadPoolField = LoadSimulationController.class.getDeclaredField("threadPool");
         threadPoolField.setAccessible(true);
-        ExecutorService threadPool = (ExecutorService) threadPoolField.get(null);
+        ExecutorService threadPool = (ExecutorService) threadPoolField.get(controller);
 
-        // Count alive, non-daemon threads BEFORE submitting work
-        Map<Thread, StackTraceElement[]> threadsBefore = Thread.getAllStackTraces();
-        long countBefore = threadsBefore.keySet().stream()
-                .filter(Thread::isAlive)
-                .filter(t -> !t.isDaemon())
-                .count();
-
-        // Submit a task to force thread creation
         threadPool.submit(() -> {
             try {
-                Thread.sleep(100);
+                Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
 
-        // Wait to ensure the thread starts
         Thread.sleep(100);
 
-        // Count alive, non-daemon threads AFTER submitting work
-        Map<Thread, StackTraceElement[]> threadsAfter = Thread.getAllStackTraces();
-        long countAfter = threadsAfter.keySet().stream()
-                .filter(Thread::isAlive)
-                .filter(t -> !t.isDaemon())
-                .count();
+        controller.close();
 
-        // Assert that thread count increased (proving leak)
-        assertTrue(countAfter > countBefore,
-                String.format("Thread leak detected: thread count increased from %d to %d", countBefore, countAfter));
+        long poolThreadCount = 0;
+        for (int i = 0; i < 20; i++) {
+            Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
+            poolThreadCount = threads.keySet().stream()
+                    .filter(Thread::isAlive)
+                    .filter(t -> !t.isDaemon())
+                    .filter(t -> t.getName().startsWith("pool-"))
+                    .count();
+            if (poolThreadCount == 0) {
+                break;
+            }
+            Thread.sleep(25);
+        }
 
-        // Additional signal: verify at least one thread with executor-style name exists
-        boolean foundPoolThread = threadsAfter.keySet().stream()
-                .filter(Thread::isAlive)
-                .filter(t -> !t.isDaemon())
-                .anyMatch(t -> t.getName().startsWith("pool-"));
-        assertTrue(foundPoolThread, "Found executor thread with pool- prefix");
+        assertTrue(poolThreadCount == 0,
+                String.format("Found %d alive non-daemon pool- threads after close", poolThreadCount));
     }
 }
 
