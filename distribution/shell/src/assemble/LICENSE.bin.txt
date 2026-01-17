@@ -411,8 +411,8 @@ The Apache Software License, Version 2.0
  * Google Error Prone Annotations - error_prone_annotations-2.5.1.jar
  * Javassist -- javassist-3.25.0-GA.jar
   * Apache Avro
-    - avro-1.11.4.jar
-    - avro-protobuf-1.11.4.jar
+    - avro-1.11.5.jar
+    - avro-protobuf-1.11.5.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
 
 BSD 3-clause "New" or "Revised" License
