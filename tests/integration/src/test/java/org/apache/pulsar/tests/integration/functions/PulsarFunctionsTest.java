@@ -95,6 +95,9 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
+import org.testng.IRetryAnalyzer;
+import org.testng.ITestResult;
+import org.testng.annotations.Test;
 
 /**
  * A test base for testing functions.
@@ -291,25 +294,32 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function info
         getFunctionInfoSuccess(functionName);
 
-        containerExecResult = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
+        // Use Awaitility with retry mechanism for function status check to improve stability
+        Awaitility.await()
+                .pollInterval(Duration.ofSeconds(2))
+                .atMost(Duration.ofSeconds(30))
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    ContainerExecResult statusResult = pulsarCluster.getAnyWorker().execCmd(
+                            PulsarCluster.ADMIN_SCRIPT,
+                            "functions",
+                            "status",
+                            "--tenant", "public",
+                            "--namespace", "default",
+                            "--name", functionName
+                    );
 
-        FunctionStatus functionStatus = FunctionStatusUtil.decode(containerExecResult.getStdout());
-        assertEquals(functionStatus.getNumInstances(), 1);
-        assertEquals(functionStatus.getNumRunning(), 1);
-        assertEquals(functionStatus.getInstances().size(), 1);
-        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+                    FunctionStatus functionStatus = FunctionStatusUtil.decode(statusResult.getStdout());
+                    assertEquals(functionStatus.getNumInstances(), 1);
+                    assertEquals(functionStatus.getNumRunning(), 1);
+                    assertEquals(functionStatus.getInstances().size(), 1);
+                    assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
+                    assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
+                    assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), 0);
+                    assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), 0);
+                    assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
+                    assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+                });
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
