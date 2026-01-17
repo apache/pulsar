@@ -47,6 +47,7 @@ abstract class FlowBase implements Flow {
     public static final String CONFIG_PARAM_CONNECT_TIMEOUT = "connectTimeout";
     public static final String CONFIG_PARAM_READ_TIMEOUT = "readTimeout";
     public static final String CONFIG_PARAM_TRUST_CERTS_FILE_PATH = "trustCertsFilePath";
+    public static final String CONFIG_PARAM_WELL_KNOWN_METADATA_PATH = "wellKnownMetadataPath";
 
     protected static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
     protected static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
@@ -55,12 +56,15 @@ abstract class FlowBase implements Flow {
 
     protected final URL issuerUrl;
     protected final AsyncHttpClient httpClient;
+    protected final String wellKnownMetadataPath;
 
     protected transient Metadata metadata;
 
-    protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath) {
+    protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
+                       String wellKnownMetadataPath) {
         this.issuerUrl = issuerUrl;
         this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
+        this.wellKnownMetadataPath = wellKnownMetadataPath;
     }
 
     private AsyncHttpClient defaultHttpClient(Duration readTimeout, Duration connectTimeout,
@@ -110,7 +114,7 @@ abstract class FlowBase implements Flow {
     }
 
     protected MetadataResolver createMetadataResolver() {
-        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, httpClient);
+        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, httpClient, wellKnownMetadataPath);
     }
 
     static String parseParameterString(Map<String, String> params, String name) {
