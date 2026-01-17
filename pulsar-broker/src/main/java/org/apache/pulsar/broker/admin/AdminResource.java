@@ -341,31 +341,33 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<Policies> getNamespacePoliciesAsync(NamespaceName namespaceName) {
-        CompletableFuture<Policies> result = new CompletableFuture<>();
-        namespaceResources().getPoliciesAsync(namespaceName)
-                .thenCombine(getLocalPolicies().getLocalPoliciesAsync(namespaceName), (pl, localPolicies) -> {
-                    if (pl.isPresent()) {
-                        Policies policies = pl.get();
-                        if (localPolicies.isPresent()) {
-                            policies.bundles = localPolicies.get().bundles;
-                            policies.migrated = localPolicies.get().migrated;
-                        }
+        return namespaceResources().getPoliciesAsync(namespaceName)
+                .thenCompose(pl -> {
+                    if (pl.isEmpty()) {
+                        return FutureUtil.failedFuture(
+                                new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                    }
+                    Policies policies = pl.get();
+                    // fetch bundles from NamespaceBundleFactory (aligns with sync method)
+                    CompletableFuture<BundlesData> bundlesFuture = pulsar().getNamespaceService()
+                            .getNamespaceBundleFactory()
+                            .getBundlesAsync(namespaceName)
+                            .thenApply(bundles -> bundles.getBundlesData());
+                    CompletableFuture<Optional<LocalPolicies>> localPoliciesFuture =
+                            getLocalPolicies().getLocalPoliciesAsync(namespaceName);
+
+                    return bundlesFuture.thenCombine(localPoliciesFuture, (bundleData, localPolicies) -> {
+                        policies.bundles = bundleData != null ? bundleData : policies.bundles;
+                        policies.migrated = localPolicies.isPresent() ? localPolicies.get().migrated : false;
                         if (policies.is_allow_auto_update_schema == null) {
                             // the type changed from boolean to Boolean. return
                             // broker value here for keeping compatibility.
                             policies.is_allow_auto_update_schema = pulsar().getConfig()
                                     .isAllowAutoUpdateSchemaEnabled();
                         }
-                        result.complete(policies);
-                    } else {
-                        result.completeExceptionally(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                    }
-                    return null;
-                }).exceptionally(ex -> {
-                    result.completeExceptionally(ex.getCause());
-                    return null;
+                        return policies;
+                    });
                 });
-        return result;
     }
 
     protected BacklogQuota namespaceBacklogQuota(NamespaceName namespace,

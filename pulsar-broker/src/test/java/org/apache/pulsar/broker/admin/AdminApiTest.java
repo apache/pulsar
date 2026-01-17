@@ -3430,6 +3430,36 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetNamespacePoliciesSyncAsyncBundlesConsistency() throws Exception {
+        // Test that sync (getPolicies) and async (getPoliciesAsync) methods return consistent bundles data.
+        String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        int numBundles = 16;
+
+        admin.namespaces().createNamespace(ns, numBundles);
+
+        try {
+            // Get policies using sync method
+            Policies syncPolicies = admin.namespaces().getPolicies(ns);
+
+            // Get policies using async method
+            Policies asyncPolicies = admin.namespaces().getPoliciesAsync(ns).get();
+
+            // Verify bundles are consistent between sync and async
+            assertNotNull(syncPolicies.bundles, "Sync policies should have bundles");
+            assertNotNull(asyncPolicies.bundles, "Async policies should have bundles");
+            assertEquals(asyncPolicies.bundles.getNumBundles(), syncPolicies.bundles.getNumBundles(),
+                "Number of bundles should match between sync and async");
+            assertEquals(asyncPolicies.bundles.getBoundaries(), syncPolicies.bundles.getBoundaries(),
+                "Bundle boundaries should match between sync and async");
+
+            // Also verify the expected number of bundles
+            assertEquals(syncPolicies.bundles.getNumBundles(), numBundles);
+        } finally {
+            deleteNamespaceWithRetry(ns, false);
+        }
+    }
+
+    @Test
     public void testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages() throws Exception {
         final String topic = "persistent://prop-xyz/ns1/testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages";
         @Cleanup
