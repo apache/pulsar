@@ -922,6 +922,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxTopicsPerNamespace = 0;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Support for selecting brokers by throughput in LeastLongTermMessageRate."
+    )
+    private boolean selectBrokerByThroughput = false;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "The maximum number of connections in the broker. If it exceeds, new connections are rejected."
     )
