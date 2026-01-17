@@ -178,6 +178,40 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testCompactionWithEmptyValue() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/test1";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
+
+        producer.newMessage().key("withValue").value("data".getBytes()).send();
+        producer.newMessage().key("emptyValue").send();
+
+        compact(topic);
+
+
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .readCompacted(true).subscribe()) {
+            for (int i=0; i<2 ; i++) {
+                Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
+                if (m != null) {
+                    consumer.acknowledgeCumulative(m);
+                }
+            }
+
+            Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub1").getMsgBacklog(), 0));
+        }
+    }
+
+    @Test
     public void testCompaction() throws Exception {
         String topic = "persistent://my-tenant/my-ns/compaction";
         final int numMessages = 20;
