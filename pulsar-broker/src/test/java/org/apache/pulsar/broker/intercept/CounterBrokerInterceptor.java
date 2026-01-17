@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +63,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger consumerCount = new AtomicInteger();
     private final AtomicInteger messagePublishCount = new AtomicInteger();
     private final AtomicInteger messageCount = new AtomicInteger();
+
+    private LongCounter messageCounter;
+    public static final String MESSAGE_COUNTER = "pulsar.broker.interceptor.message.count";
+    public static final AttributeKey<String> CUSTOMIZE = AttributeKey.stringKey("pulsar.interceptor.customize");
     private final AtomicInteger messageDispatchCount = new AtomicInteger();
     private final AtomicInteger messageAckCount = new AtomicInteger();
     private final AtomicInteger handleAckCount = new AtomicInteger();
@@ -163,6 +170,12 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                     producer.getTopic().getName(), producer.getProducerName());
         }
         messageCount.incrementAndGet();
+
+        var builder = Attributes.builder()
+                .put(CUSTOMIZE, "customize");
+        var attributes = builder.build();
+
+        messageCounter.add(1, attributes);
     }
 
     @Override
@@ -284,7 +297,13 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
+        var meter = pulsarService.getOpenTelemetry().getMeter();
 
+        messageCounter = meter
+                .counterBuilder(MESSAGE_COUNTER)
+                .setUnit("{message}")
+                .setDescription("The total number of messages produced.")
+                .build();
     }
 
     @Override
