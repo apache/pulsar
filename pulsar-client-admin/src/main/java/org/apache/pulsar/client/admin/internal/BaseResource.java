@@ -332,7 +332,7 @@ public abstract class BaseResource {
         } catch (Exception ex) {
             try {
                 return ObjectMapperFactory.getMapper().reader().readValue(
-                        e.getResponse().getEntity().toString(), ErrorData.class).reason;
+                        e.getResponse().readEntity(String.class), ErrorData.class).reason;
             } catch (Exception ex1) {
                 try {
                     return ObjectMapperFactory.getMapper().reader()
