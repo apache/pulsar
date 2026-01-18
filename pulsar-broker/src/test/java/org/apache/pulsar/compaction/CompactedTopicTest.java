@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
@@ -749,7 +751,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 .create();
         // Create a consumer to generate a durable cursor, to avoid deleting the ledger before the reader receives.
         @Cleanup
-        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName("sub_" + UUID.randomUUID())
                 .topic(topic)
                 .subscribe();
@@ -821,14 +823,20 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         lastMessage.join();
         admin.topics().unload(topic);
         admin.topics().triggerCompaction(topic);
+        final MessageId finalLastMessage = lastMessage.get();
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, numMessages);
             Assert.assertEquals(admin.topics().getStats(topic)
                     .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry,
-                    stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+            long ledgerId = ((MessageIdImpl) finalLastMessage).getLedgerId();
+            long entryId = ((MessageIdImpl) finalLastMessage).getEntryId();
+            Assert.assertEquals(stats.lastConfirmedEntry, PositionFactory.create(ledgerId, entryId).toString());
+            // New ledger created, move markDeletePosition to currentLedgerId:-1
+            long currentLedgerId = stats.ledgers.get(stats.ledgers.size() - 1).ledgerId;
+            Assert.assertEquals(stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition,
+                    PositionFactory.create(currentLedgerId, -1).toString());
         });
 
         Awaitility.await()

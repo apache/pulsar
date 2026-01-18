@@ -94,7 +94,6 @@ public class MessageTTLTest extends BrokerTestBase {
         }
         FutureUtil.waitForAll(sendFutureList).get();
         MessageIdImpl firstMessageId = (MessageIdImpl) sendFutureList.get(0).get();
-        MessageIdImpl lastMessageId = (MessageIdImpl) sendFutureList.get(sendFutureList.size() - 1).get();
         producer.close();
         // unload a reload the topic
         // this action created a new ledger
@@ -113,12 +112,15 @@ public class MessageTTLTest extends BrokerTestBase {
                 .pollDelay(3, TimeUnit.SECONDS).untilAsserted(() -> {
             this.runMessageExpiryCheck();
             log.info("***** run message expiry now");
-            // verify that the markDeletePosition was moved forward, and exacly to the last message
+            // verify that the markDeletePosition was moved forward, and exactly to the last message
             PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
             CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
             log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
-            assertEquals(statsAfterExpire.markDeletePosition, PositionFactory.create(lastMessageId.getLedgerId(),
-                    lastMessageId.getEntryId()).toString());
+            // New ledger created, move markDeletePosition to currentLedgerId:-1
+            long currentLedgerId =
+                    internalStatsAfterExpire.ledgers.get(internalStatsAfterExpire.ledgers.size() - 1).ledgerId;
+            assertEquals(statsAfterExpire.markDeletePosition,
+                    PositionFactory.create(currentLedgerId, -1).toString());
         });
     }
 

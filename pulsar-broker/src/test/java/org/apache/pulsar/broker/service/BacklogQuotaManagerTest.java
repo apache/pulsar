@@ -1370,11 +1370,10 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         Awaitility.await().untilAsserted(() -> {
-            // Cause the last ledger is empty, it is not possible to skip first ledger,
-            // so the number of ledgers will keep unchanged, and backlog is clear
+            // Mark deleting moves cursor position to nextLedgerId:-1, and backlog is clear.
             PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
-            assertEquals(latestInternalStats.ledgers.size(), 2);
-            assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
+            assertEquals(latestInternalStats.ledgers.size(), 1);
+            assertEquals(latestInternalStats.ledgers.get(0).entries, 0);
             TopicStats latestStats = getTopicStats(topic);
             assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
         });
