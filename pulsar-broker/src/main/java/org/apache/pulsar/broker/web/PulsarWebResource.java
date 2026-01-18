@@ -1073,7 +1073,12 @@ public abstract class PulsarWebResource {
                         }
                     });
         }
-        return CompletableFuture.completedFuture(null);
+        return namespaceResources().namespaceExistsAsync(namespaceName)
+            .thenAccept(exists -> {
+                if (!exists) {
+                    throw new RestException(Status.NOT_FOUND, "Namespace [" + namespaceName + "] does not exist");
+                }
+            });
     }
 
     public void validateNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy,
