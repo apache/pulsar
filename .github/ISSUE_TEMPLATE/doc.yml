@@ -26,8 +26,9 @@ body:
         Thank you very much for your suggestion!
 
         For suggestions or help, please consider:
-        1. [User Mail List](mailto:users@pulsar.apache.org) ([subscribe](https://pulsar.apache.org/contact/#subscribing-to-a-mailing-list));
-        2. [Github Discussion Q&A](https://github.com/apache/pulsar/discussions/categories/q-a).
+        1. [Submit an issue to the site repository](https://github.com/apache/pulsar-site/issues/new)
+        2. [User Mail List](mailto:users@pulsar.apache.org) ([subscribe](https://pulsar.apache.org/contact/#subscribing-to-a-mailing-list));
+        3. [Github Discussion Q&A](https://github.com/apache/pulsar/discussions/categories/q-a).
 
         Otherwise, please answer the following questions before submitting a doc issue.
   - type: checkboxes
