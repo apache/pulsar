@@ -51,11 +51,6 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
                 if (override.getDefaultNumPartitions() <= 0) {
                     return ValidateResult.fail("[defaultNumPartitions] cannot be less than 1 for partition type.");
                 }
-            } else if (TopicType.NON_PARTITIONED.toString().equals(override.getTopicType())) {
-                if (override.getDefaultNumPartitions() != null) {
-                    return ValidateResult.fail("[defaultNumPartitions] is not allowed to be"
-                            + " set when the type is non-partition.");
-                }
             }
         }
         return ValidateResult.success();
