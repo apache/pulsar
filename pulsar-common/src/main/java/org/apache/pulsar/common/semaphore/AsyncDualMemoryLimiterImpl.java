@@ -175,5 +175,11 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
         public AsyncSemaphore.AsyncSemaphorePermit getUnderlyingPermit() {
             return underlyingPermit;
         }
+
+        @Override
+        public String toString() {
+            return "DualMemoryLimiterPermit@" + System.identityHashCode(this) + "{" + "limitType=" + limitType
+                    + ", permits=" + underlyingPermit.getPermits() + '}';
+        }
     }
 }
