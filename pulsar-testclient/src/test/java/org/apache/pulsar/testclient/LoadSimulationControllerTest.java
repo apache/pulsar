@@ -19,11 +19,14 @@
 package org.apache.pulsar.testclient;
 
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.annotations.Test;
+
+import static org.awaitility.Awaitility.await;
+import static org.testng.Assert.assertTrue;
 
 public class LoadSimulationControllerTest {
 
@@ -34,35 +37,23 @@ public class LoadSimulationControllerTest {
         threadPoolField.setAccessible(true);
         ExecutorService threadPool = (ExecutorService) threadPoolField.get(controller);
 
-        threadPool.submit(() -> {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-
-        Thread.sleep(100);
+        threadPool.submit(() -> {});
 
         controller.close();
 
-        long poolThreadCount = 0;
-        for (int i = 0; i < 20; i++) {
+        await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> {
             Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
-            poolThreadCount = threads.keySet().stream()
+            long poolThreadCount = threads.keySet().stream()
                     .filter(Thread::isAlive)
                     .filter(t -> !t.isDaemon())
                     .filter(t -> t.getName().startsWith("LoadSimulationController"))
                     .count();
-            if (poolThreadCount == 0) {
-                break;
-            }
-            Thread.sleep(25);
-        }
 
-        assertTrue(poolThreadCount == 0,
-            String.format("Found %d alive non-daemon LoadSimulationController threads after close", poolThreadCount));
-}
+            assertTrue(poolThreadCount == 0,
+                    String.format("Found %d alive non-daemon LoadSimulationController threads after close", poolThreadCount));
+        });
+
+    }
 }
 
 
