@@ -44,12 +44,19 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
             if (!TopicType.isValidTopicType(override.getTopicType())) {
                 return ValidateResult.fail(String.format("Unknown topic type [%s]", override.getTopicType()));
             }
+
             if (TopicType.PARTITIONED.toString().equals(override.getTopicType())) {
                 if (override.getDefaultNumPartitions() == null) {
                     return ValidateResult.fail("[defaultNumPartitions] cannot be null when the type is partitioned.");
                 }
                 if (override.getDefaultNumPartitions() <= 0) {
                     return ValidateResult.fail("[defaultNumPartitions] cannot be less than 1 for partition type.");
+                }
+            } else if (TopicType.NON_PARTITIONED.toString().equals(override.getTopicType())) {
+                Integer p = override.getDefaultNumPartitions();
+                if (p != null && p != 0 && p != 1) {
+                    return ValidateResult.fail(
+                            "[defaultNumPartitions] must be null, 0 or 1 when the type is non-partitioned.");
                 }
             }
         }
