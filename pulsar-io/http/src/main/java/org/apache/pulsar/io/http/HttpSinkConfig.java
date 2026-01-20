@@ -46,6 +46,14 @@ public class HttpSinkConfig implements Serializable {
         help = "The list of default headers added to each request")
     private Map<String, String> headers = new HashMap<>();
 
+    @FieldDoc(defaultValue = "POST",
+            help = "The HTTP method to use in the request,support POST/PUT")
+    private HttpMethod httpMethod = HttpMethod.POST;
+
+    public enum HttpMethod {
+        POST,
+        PUT
+    }
     public static HttpSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), HttpSinkConfig.class);

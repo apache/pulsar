@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
@@ -106,6 +107,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final Transactions transactions;
     protected final WebTarget root;
     protected final Authentication auth;
+    @Getter
+    private AsyncHttpConnectorProvider asyncConnectorProvider;
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
                            ClassLoader clientBuilderClassLoader) throws PulsarClientException {
@@ -128,7 +131,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
             clientConfigData.setServiceUrl(serviceUrl);
         }
 
-        AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
+        asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
                 clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression);
 
         ClientConfig httpConfig = new ClientConfig();
@@ -444,5 +447,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
         client.close();
 
         asyncHttpConnector.close();
+    }
+
+    @VisibleForTesting
+     WebTarget getRoot() {
+        return root;
     }
 }

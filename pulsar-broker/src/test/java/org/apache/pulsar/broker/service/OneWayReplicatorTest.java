@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -63,6 +64,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import lombok.Cleanup;
 import lombok.Data;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -90,6 +92,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -108,6 +111,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -1888,5 +1892,194 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitForReplicationTaskFinish(topicName);
         // Verify: all inflight tasks are done.
         ensureNoBacklogByInflightTask(getReplicator(topicName));
+    }
+
+    @DataProvider
+    public Object[] isPartitioned() {
+        return new Object[]{
+                true,
+                false
+        };
+    }
+
+    @Test(dataProvider = "isPartitioned")
+    public void testReplicatorCreateTopic(boolean isPartitioned) throws Exception {
+        String ns = defaultTenant + "/" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns);
+        if (!usingGlobalZK){
+            admin2.namespaces().createNamespace(ns);
+        }
+
+        int numPartitions = 4;
+        List<String> partitions = new ArrayList<>();
+        final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_");
+        if (isPartitioned) {
+            admin1.topics().createPartitionedTopic(tp, numPartitions);
+            for (int i = 0; i < numPartitions; i++) {
+                partitions.add(TopicName.getTopicPartitionNameString(tp, i));
+            }
+        } else {
+            admin1.topics().createNonPartitionedTopic(tp);
+        }
+
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker1.getTopic(
+                                    isPartitioned ? TopicName.get(tp).getPartition(0).toString() : tp, false).join()
+                            .get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        @Cleanup
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(tp).create();
+        p1.send("msg-1");
+
+        Awaitility.await().untilAsserted(() -> {
+            List<String> partitionedTopicList = admin2.topics().getPartitionedTopicList(ns);
+            if (isPartitioned) {
+                assertThat(partitionedTopicList).contains(tp);
+                assertThat(admin2.topics().getList(ns)).containsAll(partitions);
+            } else {
+                assertThat(partitionedTopicList).doesNotContain(tp);
+                assertThat(admin2.topics().getList(ns)).contains(tp);
+            }
+        });
+    }
+
+    @Test
+    public void testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters() throws Exception {
+        if (usingGlobalZK) {
+            // This test case is not applicable when using global ZK, because the namespace policies
+            // are shared among clusters.
+            return;
+        }
+
+        String ns = defaultTenant + "/" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns);
+        admin2.namespaces().createNamespace(ns);
+
+        final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_");
+        admin1.topics().createPartitionedTopic(tp, 4);
+        admin2.topics().createNonPartitionedTopic(tp);
+
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin2.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker1.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic = (PersistentTopic) broker2.getTopic(tp, false).join().get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        @Cleanup
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(tp).create();
+        p1.send("msg-p1-1");
+        @Cleanup
+        Producer<String> p2 = client2.newProducer(Schema.STRING).topic(tp).create();
+        p2.send("msg-p2-1");
+
+        // The topic exists, but its type differs between the local and remote clusters. The replicator should not
+        // recreate the topic.
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker1.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            persistentTopic.getReplicators().forEach((key, value) -> {
+                assertFalse(value.isConnected());
+            });
+        });
+        assertThat(admin2.topics().getPartitionedTopicList(ns)).doesNotContain(tp);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic = (PersistentTopic) broker2.getTopic(tp, false).join().get();
+            persistentTopic.getReplicators().forEach((key, value) -> {
+                assertFalse(value.isConnected());
+            });
+        });
+        assertThat(admin1.topics().getList(ns)).doesNotContain(tp);
+    }
+
+    @Test
+    public void testReplicatorWhenPartitionCountsDiffer() throws Exception {
+        if (usingGlobalZK) {
+            // This test case is not applicable when using global ZK, because the namespace policies
+            // are shared among clusters.
+            return;
+        }
+
+        String ns = defaultTenant + "/" + UUID.randomUUID().toString().replace("-", "");
+
+        admin1.namespaces().createNamespace(ns);
+        admin1.namespaces().setAutoTopicCreation(ns, AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.PARTITIONED.toString())
+                .defaultNumPartitions(12)
+                .build());
+
+        admin2.namespaces().createNamespace(ns);
+        admin2.namespaces().setAutoTopicCreation(ns, AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .build());
+
+        final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_");
+        admin1.topics().createPartitionedTopic(tp, 4);
+        admin2.topics().createPartitionedTopic(tp, 8);
+
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin2.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker1.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker2.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        // Trigger the replicator.
+        @Cleanup
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(tp).create();
+        p1.send("msg-p1-1");
+        @Cleanup
+        Producer<String> p2 = client2.newProducer(Schema.STRING).topic(tp).create();
+        p2.send("msg-p2-1");
+
+        // Topic partition counts differ between the local and remote clusters.
+        // The replicator should not replicate the messages.
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker1.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            persistentTopic.getReplicators().forEach((key, value) -> {
+                assertFalse(value.isConnected());
+            });
+        });
+
+        @Cleanup
+        Consumer<String> c2 = client2.newConsumer(Schema.STRING).topic(tp).subscriptionName("test-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+
+        while (true) {
+            Message<String> receive = c2.receive(3, TimeUnit.SECONDS);
+            if (receive == null) {
+                break;
+            }
+            assertEquals(receive.getValue(), "msg-p2-1");
+        }
     }
 }

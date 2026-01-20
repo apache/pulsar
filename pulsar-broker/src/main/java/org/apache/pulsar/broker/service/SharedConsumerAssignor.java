@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,7 @@ import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PulsarCompactorSubscription;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -36,7 +36,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
  */
-
 @Slf4j
 @RequiredArgsConstructor
 public class SharedConsumerAssignor {
@@ -66,7 +65,11 @@ public class SharedConsumerAssignor {
 
         Consumer consumer = getConsumer(numConsumers);
         if (consumer == null) {
-            entryAndMetadataList.forEach(EntryAndMetadata::release);
+            if (subscription != null) {
+                log.info("No consumer found to assign in topic:{}, subscription:{}, redelivering {} messages.",
+                        subscription.getTopic().getName(), subscription.getName(), entryAndMetadataList.size());
+            }
+            entryAndMetadataList.forEach(unassignedMessageProcessor);
             return consumerToEntries;
         }
         // The actual available permits might change, here we use the permits at the moment to assign entries

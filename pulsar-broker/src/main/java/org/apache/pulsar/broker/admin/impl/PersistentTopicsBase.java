@@ -128,6 +128,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -1000,8 +1001,9 @@ public class PersistentTopicsBase extends AdminResource {
             .thenApply(op -> {
                 OffloadPoliciesImpl offloadPolicies = op.map(TopicPolicies::getOffloadPolicies).orElse(null);
                 if (applied) {
-                    OffloadPoliciesImpl namespacePolicy =
-                            (OffloadPoliciesImpl) getNamespacePolicies(namespaceName).offload_policies;
+                    Policies policies = getNamespacePolicies(namespaceName);
+                    OffloadPoliciesImpl namespacePolicy = (OffloadPoliciesImpl) policies.offload_policies;
+                    namespacePolicy = OffloadPoliciesImpl.oldPoliciesCompatible(namespacePolicy, policies);
                     offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(offloadPolicies
                             , namespacePolicy, pulsar().getConfiguration().getProperties());
                 }
@@ -1693,6 +1695,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                         result.setEntries(rawResult.getEntries());
                         result.setMessages(rawResult.getMessages());
+                        result.setMarkerMessages(rawResult.getMarkerMessages());
 
                         result.setFilterAcceptedEntries(rawResult.getFilterAcceptedEntries());
                         result.setFilterRejectedEntries(rawResult.getFilterRejectedEntries());

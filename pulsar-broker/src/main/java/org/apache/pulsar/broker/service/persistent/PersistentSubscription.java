@@ -635,6 +635,7 @@ public class PersistentSubscription extends AbstractSubscription {
         AtomicLong rejected = new AtomicLong();
         AtomicLong rescheduled = new AtomicLong();
         AtomicLong messages = new AtomicLong();
+        AtomicLong markerMessages = new AtomicLong();
         AtomicLong acceptedMessages = new AtomicLong();
         AtomicLong rejectedMessages = new AtomicLong();
         AtomicLong rescheduledMessages = new AtomicLong();
@@ -666,6 +667,10 @@ public class PersistentSubscription extends AbstractSubscription {
                 messageMetadata = entry.getMessageMetadata();
             } else {
                 messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            }
+            if (messageMetadata.hasMarkerType()) {
+                markerMessages.incrementAndGet();
+                return true;
             }
             int numMessages = 1;
             if (messageMetadata.hasNumMessagesInBatch()) {
@@ -716,6 +721,7 @@ public class PersistentSubscription extends AbstractSubscription {
             result.setLastPosition(lastPosition.get());
             result.setEntries(entries.get());
             result.setMessages(messages.get());
+            result.setMarkerMessages(markerMessages.get());
             result.setFilterAcceptedEntries(accepted.get());
             result.setFilterAcceptedMessages(acceptedMessages.get());
             result.setFilterRejectedEntries(rejected.get());
@@ -829,7 +835,12 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+        }
+
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        inProgressResetCursorFuture = future;
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
                 config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
 
@@ -848,6 +859,8 @@ public class PersistentSubscription extends AbstractSubscription {
                         log.warn("[{}][{}] Unable to find position for timestamp {}."
                                         + " Unable to reset cursor to first position",
                                 topicName, subName, timestamp);
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         future.completeExceptionally(
                                 new SubscriptionInvalidCursorPosition(
                                         "Unable to find position for specified timestamp"));
@@ -860,7 +873,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 } else {
                     finalPosition = position.getNext();
                 }
-                CompletableFuture<Void> resetCursorFuture = resetCursor(finalPosition);
+                CompletableFuture<Void> resetCursorFuture = resetCursorInternal(finalPosition, future, true);
                 FutureUtil.completeAfter(future, resetCursorFuture);
             }
 
@@ -868,6 +881,8 @@ public class PersistentSubscription extends AbstractSubscription {
             public void findEntryFailed(ManagedLedgerException exception,
                                         Optional<Position> failedReadPosition, Object ctx) {
                 // todo - what can go wrong here that needs to be retried?
+                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 if (exception instanceof ConcurrentFindCursorPositionException) {
                     future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
                 } else {
@@ -881,11 +896,17 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> resetCursor(Position finalPosition) {
-        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        return resetCursorInternal(finalPosition, future, false);
+    }
+
+    private CompletableFuture<Void> resetCursorInternal(Position finalPosition, CompletableFuture<Void> future,
+                                                        boolean alreadyFenced) {
+        if (!alreadyFenced
+                && !IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
             return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
         }
 
-        final CompletableFuture<Void> future = new CompletableFuture<>();
         inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
 

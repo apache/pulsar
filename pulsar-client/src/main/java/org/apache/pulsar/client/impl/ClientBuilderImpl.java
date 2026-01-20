@@ -158,6 +158,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder enableTracing(boolean tracingEnabled) {
+        conf.setTracingEnabled(tracingEnabled);
+        return this;
+    }
+
+    @Override
     public ClientBuilder authentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         conf.setAuthPluginClassName(authPluginClassName);
