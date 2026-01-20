@@ -98,11 +98,11 @@ public class SharedConsumerAssignor {
                 if (consumerForUuid == null) {
                     if (metadata.getChunkId() != 0) {
                         if (subscription != null) {
-                            log.warn("[{}][{}] Skip the message because of it not the first chunk."
+                            log.warn("[{}][{}] Skip the message because it is not the first chunk."
                                             + " Position: {}, UUID: {}, ChunkId: {}, NumChunksFromMsg: {}",
                                     subscription.getTopicName(), subscription.getName(), entryAndMetadata.getPosition(),
                                     metadata.getUuid(), metadata.getChunkId(), metadata.getNumChunksFromMsg());
-                            // Directly ack the message
+                            // Directly ack the message.
                             if (!(subscription instanceof PulsarCompactorSubscription)) {
                                 subscription.acknowledgeMessage(Collections.singletonList(
                                         entryAndMetadata.getPosition()), AckType.Individual, Collections.emptyMap());
@@ -116,7 +116,7 @@ public class SharedConsumerAssignor {
 
                 final int permits = consumerToPermits.computeIfAbsent(consumerForUuid, Consumer::getAvailablePermits);
                 if (metadata.getChunkId() == metadata.getNumChunksFromMsg() - 1) {
-                    // The last chunk is received, we should remove the uuid
+                    // The last chunk is received, we should remove the uuid from the cache.
                     uuidToConsumer.remove(uuid);
                 }
 
