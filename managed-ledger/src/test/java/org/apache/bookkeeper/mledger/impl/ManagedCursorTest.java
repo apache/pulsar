@@ -6023,7 +6023,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), positions.get(lastIndex));
         Map<String, Long> properties = cursor.getProperties();
         assertEquals(properties.size(), 1);
-        assertEquals(properties.get(propertyKey), lastIndex);
+        assertEquals(properties.get(propertyKey), lastIndex - 1);
     }
 
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
