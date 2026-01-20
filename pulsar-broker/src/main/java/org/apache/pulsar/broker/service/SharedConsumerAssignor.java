@@ -109,6 +109,7 @@ public class SharedConsumerAssignor {
                                 entryAndMetadata.release();
                             }
                         }
+                        continue;
                     }
                     consumerForUuid = consumer;
                     uuidToConsumer.put(uuid, consumerForUuid);
