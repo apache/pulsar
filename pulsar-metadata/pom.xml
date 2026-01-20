@@ -229,5 +229,25 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <!-- Profile for Eclipse/M2E (including vim coc-java with jdt.ls) to resolve ZooKeeper classes.
+           The zookeeper-with-patched-admin module shades ZooKeeper classes into its jar,
+           but M2E cannot resolve classes from shaded jars. This profile adds the original
+           ZooKeeper dependency with provided scope for IDE classpath resolution only.
+           Activated by the existence of .classpath file which Eclipse/M2E creates. -->
+      <id>ide-zookeeper-resolution</id>
+      <activation>
+        <file>
+          <exists>.classpath</exists>
+        </file>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 </project>
