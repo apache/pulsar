@@ -4795,10 +4795,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload) {
         if (isDelayedDeliveryEnabled()) {
             long maxDeliveryDelayInMs = getDelayedDeliveryMaxDelayInMillis();
-            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
-            if (maxDeliveryDelayInMs <= 0 && (messageTTLInSeconds == null || messageTTLInSeconds <= 0)) {
+            if (maxDeliveryDelayInMs <= 0) {
                 return false;
             }
+            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
             headersAndPayload.markReaderIndex();
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
