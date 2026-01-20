@@ -339,7 +339,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
-    <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
+    <exec-maven-plugin.version>3.6.2</exec-maven-plugin.version>
     <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.3.0</maven-enforcer-plugin.version>
@@ -3134,6 +3134,63 @@ flexible messaging model and an intuitive client API.</description>
         </test.jvm.args>
         <redirectTestOutputToFile>false</redirectTestOutputToFile>
       </properties>
+    </profile>
+    <profile>
+      <id>testFiltering</id>
+      <!--
+      Profile used by org.apache.pulsar.tests.TestNGTestFilter generates
+      target/surefire-includes.txt and target/surefire-excludes.txt files
+      to efficiently select specific test groups to be run.
+      By default, all test classes must be initialized by Surefire & TestNG when selecting tests to be run
+      by group. It takes 1-2 seconds to evaluate whether each test class belongs to the test group without
+      this solution. This solution will reduce the duration of each test job and allow further splitting
+      of pulsar-broker tests to be run in separate test jobs in CI.
+      -->
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <configuration combine.children="append">
+                <includes/>
+                <groups/>
+                <excludes/>
+                <excludedGroups/>
+                <includesFile>${project.build.directory}/surefire-includes.txt</includesFile>
+                <excludesFile>${project.build.directory}/surefire-excludes.txt</excludesFile>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+    <profile>
+      <id>testFilterCreate</id>
+      <!--
+      Profile to be used for executing org.apache.pulsar.tests.TestNGTestFilter to generate
+      target/surefire-includes.txt and target/surefire-excludes.txt files
+      for efficient selection of specific test groups to be run
+      -->
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <configuration>
+              <classpathScope>test</classpathScope>
+              <workingDirectory>${project.basedir}</workingDirectory>
+              <executable>java</executable>
+              <arguments>
+                <argument>-classpath</argument>
+                <classpath/>
+                <argument>org.apache.pulsar.tests.TestNGTestFilter</argument>
+                <argument>${groups}</argument>
+              </arguments>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 
