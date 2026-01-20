@@ -107,6 +107,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final Transactions transactions;
     protected final WebTarget root;
     protected final Authentication auth;
+    @Getter
+    private AsyncHttpConnectorProvider asyncConnectorProvider;
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
                            ClassLoader clientBuilderClassLoader) throws PulsarClientException {
@@ -129,7 +131,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
             clientConfigData.setServiceUrl(serviceUrl);
         }
 
-        AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
+        asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
                 clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression);
 
         ClientConfig httpConfig = new ClientConfig();

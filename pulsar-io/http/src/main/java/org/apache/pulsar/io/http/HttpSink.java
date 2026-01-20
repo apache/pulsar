@@ -70,7 +70,7 @@ public class HttpSink implements Sink<GenericObject> {
         byte[] bytes = mapper.writeValueAsBytes(json);
         HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(uri)
-            .POST(HttpRequest.BodyPublishers.ofByteArray(bytes));
+            .method(httpSinkConfig.getHttpMethod().name(), HttpRequest.BodyPublishers.ofByteArray(bytes));
         httpSinkConfig.getHeaders().forEach(builder::header);
         record.getProperties().forEach((k, v) -> builder.header("PulsarProperties-" + k, v));
         record.getTopicName().ifPresent(topic -> builder.header("PulsarTopic", topic));

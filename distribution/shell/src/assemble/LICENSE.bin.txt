@@ -400,14 +400,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.4.jar
     - async-http-client-netty-utils-2.12.4.jar
  * Jetty
-    - jetty-client-9.4.58.v20250814.jar
-    - jetty-http-9.4.58.v20250814.jar
-    - jetty-io-9.4.58.v20250814.jar
-    - jetty-util-9.4.58.v20250814.jar
-    - javax-websocket-client-impl-9.4.58.v20250814.jar
-    - websocket-api-9.4.58.v20250814.jar
-    - websocket-client-9.4.58.v20250814.jar
-    - websocket-common-9.4.58.v20250814.jar
+    - jetty-alpn-client-12.1.5.jar
+    - jetty-client-12.1.5.jar
+    - jetty-compression-common-12.1.5.jar
+    - jetty-compression-gzip-12.1.5.jar
+    - jetty-http-12.1.5.jar
+    - jetty-io-12.1.5.jar
+    - jetty-util-12.1.5.jar
+    - jetty-websocket-core-client-12.1.5.jar
+    - jetty-websocket-core-common-12.1.5.jar
+    - jetty-websocket-jetty-api-12.1.5.jar
+    - jetty-websocket-jetty-client-12.1.5.jar
+    - jetty-websocket-jetty-common-12.1.5.jar
  * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.45.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
@@ -430,7 +434,6 @@ MIT License
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
     - jakarta.activation-1.2.2.jar
- * WebSocket Server API -- javax.websocket-client-api-1.0.jar
  * HK2 - Dependency Injection Kernel
     - hk2-api-2.6.1.jar
     - hk2-locator-2.6.1.jar

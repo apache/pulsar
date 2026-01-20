@@ -421,6 +421,7 @@ public class LookupProxyHandler {
                             clientAddress, t.getMessage());
                     writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
                             "Failed due to direct memory limit exceeded"));
+                    return CompletableFuture.completedFuture(null);
                 });
     }
 

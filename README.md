@@ -79,6 +79,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ### Dashboard & Management Tools
 
+- [Dekaf UI](https://github.com/visortelle/dekaf)
 - [Pulsar Manager](https://github.com/apache/pulsar-manager)
 
 ### Website

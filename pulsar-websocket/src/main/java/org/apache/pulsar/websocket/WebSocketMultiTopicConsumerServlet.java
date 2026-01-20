@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.websocket;
 
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
-import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
+import java.time.Duration;
+import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServletFactory;
 
-public class WebSocketMultiTopicConsumerServlet extends WebSocketServlet {
+public class WebSocketMultiTopicConsumerServlet extends JettyWebSocketServlet {
     private static final long serialVersionUID = 1L;
 
     public static final String SERVLET_PATH = "/ws/v3/consumer";
@@ -34,12 +35,16 @@ public class WebSocketMultiTopicConsumerServlet extends WebSocketServlet {
     }
 
     @Override
-    public void configure(WebSocketServletFactory factory) {
-        factory.getPolicy().setMaxTextMessageSize(service.getConfig().getWebSocketMaxTextFrameSize());
+    public void configure(JettyWebSocketServletFactory factory) {
+        factory.setMaxTextMessageSize(service.getConfig().getWebSocketMaxTextFrameSize());
         if (service.getConfig().getWebSocketSessionIdleTimeoutMillis() > 0) {
-            factory.getPolicy().setIdleTimeout(service.getConfig().getWebSocketSessionIdleTimeoutMillis());
+            factory.setIdleTimeout(Duration.ofMillis(service.getConfig().getWebSocketSessionIdleTimeoutMillis()));
         }
-        factory.setCreator((request, response) ->
-                new MultiTopicConsumerHandler(service, request.getHttpServletRequest(), response));
+        factory.setCreator((request, response) -> {
+            MultiTopicConsumerHandler multiTopicConsumerHandler =
+                    new MultiTopicConsumerHandler(service, request.getHttpServletRequest(), response);
+            return multiTopicConsumerHandler.isAllowConnect() && response.getStatusCode() < 400
+                    ? multiTopicConsumerHandler : null;
+        });
     }
 }
