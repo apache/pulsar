@@ -4798,7 +4798,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (maxDeliveryDelayInMs <= 0) {
                 return false;
             }
-            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
             headersAndPayload.markReaderIndex();
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
@@ -4807,10 +4806,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
             long deliverAtTime = msgMetadata.getDeliverAtTime();
             // count exceed ttl delayed messages
+            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
             if (messageTTLInSeconds != null && messageTTLInSeconds > 0
                     && deliverAtTime >= (messageTTLInSeconds * 1000L) + System.currentTimeMillis()) {
                 this.incrementTtlExceededDelayedMessages();
             }
+
             return deliverAtTime - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
         }
         return false;
