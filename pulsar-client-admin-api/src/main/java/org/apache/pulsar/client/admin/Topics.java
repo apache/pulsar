@@ -2253,13 +2253,13 @@ public interface Topics {
      *            the subscription
      * @param startPosition
      *           the position to start the scan from (empty means the last processed message)
-     * @param continuePredicate
-     *           the predicate to determine whether to continue the loop
+     * @param terminatePredicate
+     *           the predicate to determine whether to terminate the loop
      * @return an accurate analysis of the backlog
      */
     AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
                                                         Optional<MessageId> startPosition,
-                                                        Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate)
+                                                        Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate)
             throws PulsarAdminException;
 
     /**
@@ -2333,7 +2333,7 @@ public interface Topics {
      * This function takes into consideration batch messages
      * and also Subscription filters. <br/>
      * See also: {@link #analyzeSubscriptionBacklogAsync(String, String, Optional, long)} <br/>
-     * User can control the loop termination condition by continuePredicate.
+     * User can control the loop termination condition by terminatePredicate.
      *
      * @param topic
      *            Topic name
@@ -2341,13 +2341,13 @@ public interface Topics {
      *            the subscription
      * @param startPosition
      *           the position to start the scan from (empty means the last processed message)
-     * @param continuePredicate
-     *           the predicate to determine whether to continue the loop
+     * @param terminatePredicate
+     *           the predicate to determine whether to terminate the loop
      * @return an accurate analysis of the backlog
      */
     CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
                                                         String subscriptionName, Optional<MessageId> startPosition,
-                                                        Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate);
+                                                        Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate);
 
     /**
      * Get backlog size by a message ID.

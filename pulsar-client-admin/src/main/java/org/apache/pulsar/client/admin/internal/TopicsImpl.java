@@ -1577,9 +1577,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
                                                        Optional<MessageId> startPosition,
-                                                       Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate)
+                                                       Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate)
             throws PulsarAdminException {
-        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition, continuePredicate));
+        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition, terminatePredicate));
     }
 
     @Override
@@ -1625,7 +1625,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
                                                        String subscriptionName, Optional<MessageId> startPosition,
-                                                       Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate) {
+                                                       Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate) {
         final CompletableFuture<AnalyzeSubscriptionBacklogResult> future = new CompletableFuture<>();
         AtomicReference<AnalyzeSubscriptionBacklogResult> resultRef = new AtomicReference<>();
         int partitionIndex = TopicName.get(topic).getPartitionIndex();
@@ -1643,7 +1643,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                 AnalyzeSubscriptionBacklogResult mergedResult = mergeBacklogResults(currentResult, resultRef.get());
                 resultRef.set(mergedResult);
-                if (!mergedResult.isAborted() || continuePredicate.test(mergedResult)) {
+                if (!mergedResult.isAborted() || terminatePredicate.test(mergedResult)) {
                     future.complete(mergedResult);
                     return;
                 }
