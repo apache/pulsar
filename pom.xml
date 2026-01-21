@@ -3135,6 +3135,24 @@ flexible messaging model and an intuitive client API.</description>
         <redirectTestOutputToFile>false</redirectTestOutputToFile>
       </properties>
     </profile>
+    <profile>
+      <id>eclipse</id>
+      <activation>
+        <property>
+          <name>m2e.version</name>
+        </property>
+      </activation>
+      <dependencyManagement>
+        <dependencies>
+          <!-- don't exclude org.apache.zookeeper:zookeeper dependency when using Eclipse/VSCode -->
+          <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>zookeeper-with-patched-admin</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
+    </profile>
   </profiles>
 
   <repositories>
