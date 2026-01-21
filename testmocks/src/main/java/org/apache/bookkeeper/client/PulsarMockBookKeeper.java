@@ -172,7 +172,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public void asyncOpenLedger(long lId, DigestType digestType, byte[] passwd, OpenCallback cb, Object ctx) {
+    public void asyncOpenLedger(long lId, DigestType digestType, byte[] passwd, OpenCallback cb, Object ctx,
+                                boolean keepUpdateMetadata) {
         getProgrammedFailure().thenComposeAsync((res) -> {
                 PulsarMockLedgerHandle lh = ledgers.get(lId);
                 if (lh == null) {

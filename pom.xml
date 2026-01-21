@@ -177,7 +177,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.28.0</commons-compress.version>
 
-    <bookkeeper.version>4.17.2</bookkeeper.version>
+    <bookkeeper.version>4.17.3</bookkeeper.version>
     <zookeeper.version>3.9.4</zookeeper.version>
     <commons-cli.version>1.11.0</commons-cli.version>
     <commons-text.version>1.14.0</commons-text.version>
@@ -645,6 +645,11 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
+          </exclusion>
+          <!-- this can be removed after upgrading OpenTelemetry to version 1.52.0 or higher -->
+          <exclusion>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-common</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
