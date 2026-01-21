@@ -36,6 +36,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1574,6 +1575,14 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                       Optional<MessageId> startPosition,
+                                                       Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate)
+            throws PulsarAdminException {
+        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition, continuePredicate));
+    }
+
+    @Override
     public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
                                                                                 String subscriptionName,
                                                                                 Optional<MessageId> startPosition) {
@@ -1609,6 +1618,14 @@ public class TopicsImpl extends BaseResource implements Topics {
                                                                                String subscriptionName,
                                                                                Optional<MessageId> startPosition,
                                                                                long backlogScanMaxEntries) {
+        return analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition,
+                (backlogResult) -> backlogResult.getEntries() >= backlogScanMaxEntries);
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                       String subscriptionName, Optional<MessageId> startPosition,
+                                                       Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate) {
         final CompletableFuture<AnalyzeSubscriptionBacklogResult> future = new CompletableFuture<>();
         AtomicReference<AnalyzeSubscriptionBacklogResult> resultRef = new AtomicReference<>();
         int partitionIndex = TopicName.get(topic).getPartitionIndex();
@@ -1626,12 +1643,13 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                 AnalyzeSubscriptionBacklogResult mergedResult = mergeBacklogResults(currentResult, resultRef.get());
                 resultRef.set(mergedResult);
-                if (!mergedResult.isAborted() || mergedResult.getEntries() >= backlogScanMaxEntries) {
+                if (!mergedResult.isAborted() || continuePredicate.test(mergedResult)) {
                     future.complete(mergedResult);
                     return;
                 }
 
                 // To avoid infinite loops, we ensure the entry count is incremented after each loop.
+                // Should never happen.
                 if (currentResult.getEntries() <= 0) {
                     log.warn("[{}][{}] Scanned total entry count is zero or negative, abort analyze backlog, start "
                             + "position is: {}", topic, subscriptionName, startPositionRef.get());
@@ -1640,8 +1658,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                     return;
                 }
 
-                // In analyze-backlog, lastMessageId is null only when: total entries is 0,
-                // with false aborted flag returned.
+                // In analyze-backlog, lastMessageId is null only when: total entries is 0, with false aborted flag
+                // returned. Should never happen.
                 if (StringUtils.isBlank(mergedResult.getLastMessageId())) {
                     log.warn("[{}][{}] Scanned last message id is blank, abort analyze backlog, start position is: {}",
                             topic, subscriptionName, startPositionRef.get());

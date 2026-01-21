@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -2243,6 +2244,29 @@ public interface Topics {
      * This is a potentially expensive operation, as it requires
      * to read the messages from storage.
      * This function takes into consideration batch messages
+     * and also Subscription filters. <br/>
+     * See also: {@link #analyzeSubscriptionBacklogAsync(String, String, Optional, Predicate)} <br/>
+     *
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @param continuePredicate
+     *           the predicate to determine whether to continue the loop
+     * @return an accurate analysis of the backlog
+     */
+    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                        Optional<MessageId> startPosition,
+                                                        Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate)
+            throws PulsarAdminException;
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
      * and also Subscription filters.
      * @param topic
      *            Topic name
@@ -2301,6 +2325,29 @@ public interface Topics {
                                                                             String subscriptionName,
                                                                             Optional<MessageId> startPosition,
                                                                             long backlogScanMaxEntries);
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters. <br/>
+     * See also: {@link #analyzeSubscriptionBacklogAsync(String, String, Optional, long)} <br/>
+     * User can control the loop termination condition by continuePredicate.
+     *
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @param continuePredicate
+     *           the predicate to determine whether to continue the loop
+     * @return an accurate analysis of the backlog
+     */
+    CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                        String subscriptionName, Optional<MessageId> startPosition,
+                                                        Predicate<AnalyzeSubscriptionBacklogResult> continuePredicate);
 
     /**
      * Get backlog size by a message ID.
