@@ -207,7 +207,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                                         .build());
                             } else {
                                 if (StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())) {
-
                                     conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
                                 }
                                 if (StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
