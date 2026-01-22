@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -1608,4 +1610,62 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         consumer.close();
         deadLetterConsumer.close();
     }
+    @Test
+    public void testLimitAutoCreateDefaultRetryAndDLQTopic() throws Exception {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setDefaultNumPartitions(2);
+
+        String topic = "persistent://my-property/my-ns/my-topic";
+        String myRetryTopic = "persistent://my-property/my-ns/my-retry-topic";
+        String myDLQTopic = "persistent://my-property/my-ns/my-dlq-topic";
+
+        String defaultRetryTopic = "persistent://my-property/my-ns/sub-RETRY";
+        String defaultDLQTopic = "persistent://my-property/my-ns/sub-DLQ";
+
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .enableRetry(true)
+                .deadLetterPolicy(
+                        DeadLetterPolicy.builder()
+                                .retryLetterTopic(myRetryTopic)
+                                .maxRedeliverCount(1).build())
+                .subscribe();
+
+        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExists(TopicName.get(defaultRetryTopic)));
+        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExists(TopicName.get(defaultDLQTopic)));
+        admin.topics().delete(defaultDLQTopic);
+        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExists(TopicName.get(defaultDLQTopic)));
+        consumer1.close();
+
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .enableRetry(true)
+                .deadLetterPolicy(
+                        DeadLetterPolicy.builder()
+                                .deadLetterTopic(myDLQTopic)
+                                .maxRedeliverCount(1).build())
+                .subscribe();
+
+        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExists(TopicName.get(defaultDLQTopic)));
+        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExists(TopicName.get(defaultRetryTopic)));
+
+        consumer2.close();
+
+
+    }
+
+
 }
