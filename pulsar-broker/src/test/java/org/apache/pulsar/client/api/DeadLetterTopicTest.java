@@ -19,8 +19,16 @@
 package org.apache.pulsar.client.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -49,8 +57,11 @@ import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -1610,61 +1621,80 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         consumer.close();
         deadLetterConsumer.close();
     }
+
     @Test
-    public void testLimitAutoCreateDefaultRetryAndDLQTopic() throws Exception {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        pulsar.getConfiguration().setDefaultNumPartitions(2);
+    public void testCheckUnnecessaryGetPartitionedTopicMetadataWhenUseRetryAndDQL() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        when(client.getConfiguration()).thenReturn(clientConf);
+        when(client.getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
+        when(client.subscribeAsync(any(ConsumerConfigurationData.class), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(mock(Consumer.class)));
 
-        String topic = "persistent://my-property/my-ns/my-topic";
-        String myRetryTopic = "persistent://my-property/my-ns/my-retry-topic";
-        String myDLQTopic = "persistent://my-property/my-ns/my-dlq-topic";
+        // Case 1: DeadLetterPolicy is null
+        ConsumerBuilderImpl<byte[]> ConsumerBuilder1 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        ConsumerBuilder1.topic("persistent://public/default/test");
+        ConsumerBuilder1.subscriptionName("sub");
+        ConsumerBuilder1.enableRetry(true);
+        ConsumerBuilder1.subscribeAsync();
 
-        String defaultRetryTopic = "persistent://my-property/my-ns/sub-RETRY";
-        String defaultDLQTopic = "persistent://my-property/my-ns/sub-DLQ";
+        verify(client, times(1)).getPartitionedTopicMetadata(
+                eq("persistent://public/default/sub-RETRY"), anyBoolean(), anyBoolean());
+        verify(client, times(1)).getPartitionedTopicMetadata(
+                eq("persistent://public/default/sub-DLQ"), anyBoolean(), anyBoolean());
 
+        clearInvocations(client);
 
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableRetry(true)
-                .deadLetterPolicy(
-                        DeadLetterPolicy.builder()
-                                .retryLetterTopic(myRetryTopic)
-                                .maxRedeliverCount(1).build())
-                .subscribe();
+        // Case 2: DeadLetterPolicy with custom Retry topic
+        ConsumerBuilderImpl<byte[]> ConsumerBuilder2 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        ConsumerBuilder2.topic("persistent://public/default/test");
+        ConsumerBuilder2.subscriptionName("sub");
+        ConsumerBuilder2.enableRetry(true);
+        ConsumerBuilder2.deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(10)
+                .retryLetterTopic("persistent://public/default/topic-retry")
+                .build());
+        ConsumerBuilder2.subscribeAsync();
 
-        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .partitionedTopicExists(TopicName.get(defaultRetryTopic)));
-        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .partitionedTopicExists(TopicName.get(defaultDLQTopic)));
-        admin.topics().delete(defaultDLQTopic);
-        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .partitionedTopicExists(TopicName.get(defaultDLQTopic)));
-        consumer1.close();
+        verify(client, times(0)).getPartitionedTopicMetadata(
+                eq("persistent://public/default/sub-RETRY"), anyBoolean(), anyBoolean());
+        verify(client, times(1)).getPartitionedTopicMetadata(
+                eq("persistent://public/default/sub-DLQ"), anyBoolean(), anyBoolean());
 
+        clearInvocations(client);
 
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableRetry(true)
-                .deadLetterPolicy(
-                        DeadLetterPolicy.builder()
-                                .deadLetterTopic(myDLQTopic)
-                                .maxRedeliverCount(1).build())
-                .subscribe();
+        // Case 3: DeadLetterPolicy with custom DLQ topic
+        ConsumerBuilderImpl<byte[]> ConsumerBuilder3 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        ConsumerBuilder3.topic("persistent://public/default/test");
+        ConsumerBuilder3.subscriptionName("sub");
+        ConsumerBuilder3.enableRetry(true);
+        ConsumerBuilder3.deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(10)
+                .deadLetterTopic("persistent://public/default/topic-dlq")
+                .build());
+        ConsumerBuilder3.subscribeAsync();
 
-        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .partitionedTopicExists(TopicName.get(defaultDLQTopic)));
-        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .partitionedTopicExists(TopicName.get(defaultRetryTopic)));
+        verify(client, times(1)).getPartitionedTopicMetadata(
+                eq("persistent://public/default/sub-RETRY"), anyBoolean(), anyBoolean());
+        verify(client, times(0)).getPartitionedTopicMetadata(
+                eq("persistent://public/default/sub-DLQ"), anyBoolean(), anyBoolean());
 
-        consumer2.close();
+        clearInvocations(client);
 
+        // Case 4: DeadLetterPolicy with both custom topics
+        ConsumerBuilderImpl<byte[]> ConsumerBuilder4 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        ConsumerBuilder4.topic("persistent://public/default/test");
+        ConsumerBuilder4.subscriptionName("sub");
+        ConsumerBuilder4.enableRetry(true);
+        ConsumerBuilder4.deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(10)
+                .retryLetterTopic("custom-retry")
+                .deadLetterTopic("custom-dlq")
+                .build());
+        ConsumerBuilder4.subscribeAsync();
 
+        verify(client, times(0)).getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean());
     }
 
 
