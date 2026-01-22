@@ -406,6 +406,8 @@ public class Producer {
 
         private long entryTimestamp;
 
+        private MessageMetadata messageMetadata;
+
         @Override
         public long getLedgerId() {
             return ledgerId;
@@ -686,6 +688,17 @@ public class Producer {
             }
         };
 
+        @Override
+        public MessageMetadata peekMessageMetadata(ByteBuf entryData) {
+            if (messageMetadata == null) {
+                entryData.markReaderIndex();
+                messageMetadata = new MessageMetadata();
+                Commands.parseMessageMetadata(entryData, messageMetadata);
+                entryData.resetReaderIndex();
+            }
+            return messageMetadata;
+        }
+
         public void recycle() {
             producer = null;
             sequenceId = -1L;
@@ -701,6 +714,10 @@ public class Producer {
             isMarker = false;
             if (propertyMap != null) {
                 propertyMap.clear();
+            }
+            if (messageMetadata != null) {
+                messageMetadata.clear();
+                messageMetadata = null;
             }
             recyclerHandle.recycle(this);
         }

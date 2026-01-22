@@ -644,7 +644,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+        if (isExceedMaximumDeliveryDelay(headersAndPayload, publishContext)) {
             publishContext.completed(
                     new NotAllowedException(
                             String.format("Exceeds max allowed delivery delay of %s milliseconds",
@@ -652,6 +652,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
+        // Count exceed ttl delayed messages.
+        checkDelayedMessageExceededTTL(headersAndPayload, publishContext);
 
         MessageDeduplication.MessageDupStatus status =
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
@@ -4552,7 +4554,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+        if (isExceedMaximumDeliveryDelay(headersAndPayload, publishContext)) {
             publishContext.completed(
                     new NotAllowedException(
                             String.format("Exceeds max allowed delivery delay of %s milliseconds",
@@ -4560,6 +4562,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
+        // Count exceed ttl delayed messages.
+        checkDelayedMessageExceededTTL(headersAndPayload, publishContext);
 
         MessageDeduplication.MessageDupStatus status =
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
@@ -4792,29 +4796,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return Optional.ofNullable(shadowSourceTopic);
     }
 
-    protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload) {
+    protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload, PublishContext publishContext) {
         if (isDelayedDeliveryEnabled()) {
             long maxDeliveryDelayInMs = getDelayedDeliveryMaxDelayInMillis();
-            if (maxDeliveryDelayInMs <= 0) {
-                return false;
+            if (maxDeliveryDelayInMs > 0) {
+                MessageMetadata msgMetadata = publishContext.peekMessageMetadata(headersAndPayload);
+                if (msgMetadata == null || !msgMetadata.hasDeliverAtTime()) {
+                    return false;
+                }
+                return msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
             }
-            headersAndPayload.markReaderIndex();
-            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-            headersAndPayload.resetReaderIndex();
-            if (!msgMetadata.hasDeliverAtTime()) {
-                return false;
-            }
-            long deliverAtTime = msgMetadata.getDeliverAtTime();
-            // count exceed ttl delayed messages
-            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
-            if (messageTTLInSeconds != null && messageTTLInSeconds > 0
-                    && deliverAtTime >= (messageTTLInSeconds * 1000L) + System.currentTimeMillis()) {
-                this.incrementTtlExceededDelayedMessages();
-            }
-
-            return deliverAtTime - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
         }
         return false;
+    }
+
+    private void checkDelayedMessageExceededTTL(ByteBuf headersAndPayload, PublishContext publishContext) {
+        if (isDelayedDeliveryEnabled()) {
+            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+            if (messageTTLInSeconds != null && messageTTLInSeconds > 0) {
+                MessageMetadata msgMetadata = publishContext.peekMessageMetadata(headersAndPayload);
+                if (msgMetadata != null && msgMetadata.hasDeliverAtTime()) {
+                    if (msgMetadata.getDeliverAtTime() >= (messageTTLInSeconds * 1000L) + System.currentTimeMillis()) {
+                        this.incrementTtlExceededDelayedMessages();
+                    }
+                }
+            }
+        }
     }
 
     @Override
