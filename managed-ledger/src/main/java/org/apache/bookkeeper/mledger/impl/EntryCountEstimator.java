@@ -194,8 +194,10 @@ class EntryCountEstimator {
             readPosition = PositionFactory.create(lastLedgerId, Math.max(lastLedgerTotalEntries - 1, 0));
         } else if (lastLedgerId == null && readPosition.getLedgerId() > ledgersInfo.lastKey()) {
             Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> lastEntry = ledgersInfo.lastEntry();
-            readPosition =
-                    PositionFactory.create(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
+            if (lastEntry != null) {
+                readPosition =
+                        PositionFactory.create(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
+            }
         } else if (readPosition.getLedgerId() < ledgersInfo.firstKey()) {
             readPosition = PositionFactory.create(ledgersInfo.firstKey(), 0);
         }
