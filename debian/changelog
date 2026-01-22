@@ -1,3 +1,10 @@
+apache-pulsar (4.1.2-11) unstable; urgency=medium
+
+  * Added quilt patch with upstream vs debian code diffs (excluding debian/
+    and docker/) and documented patch metadata.
+
+ -- HelgiSaga <bglegb@gmail.com>  Tue, 21 Jan 2026 12:30:00 +0300
+
 apache-pulsar (4.1.2-10) unstable; urgency=medium
 
   * Fixed debian/rules: added symlink resolution fix for pulsar script.
