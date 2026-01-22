@@ -1,1 +1,10 @@
-0001-debian-diff.patch
+0001-buildtools-tests.patch
+0002-pip-docs.patch
+0003-client-api-schema.patch
+0004-pulsar-websocket.patch
+0005-structured-event-log.patch
+0006-testmocks.patch
+0007-tests.patch
+0008-tiered-storage.patch
+0009-src-scripts.patch
+0010-root-files.patch

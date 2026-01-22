@@ -1,9 +1,15 @@
+apache-pulsar (4.1.2-12) unstable; urgency=medium
+
+  * Updated debian/patches/series.
+
+ -- HelgiSaga <bglegb@gmail.com>  Tue, 21 Jan 2026 13:00:00 +0300
+
 apache-pulsar (4.1.2-11) unstable; urgency=medium
 
-  * Added quilt patch with upstream vs debian code diffs (excluding debian/
-    and docker/) and documented patch metadata.
+  * Split upstream vs debian diffs (excluding debian/ and docker/) into
+    logical DEP-3 quilt patches with per-area descriptions.
 
- -- HelgiSaga <bglegb@gmail.com>  Tue, 21 Jan 2026 12:30:00 +0300
+ -- HelgiSaga <bglegb@gmail.com>  Tue, 21 Jan 2026 12:45:00 +0300
 
 apache-pulsar (4.1.2-10) unstable; urgency=medium
 

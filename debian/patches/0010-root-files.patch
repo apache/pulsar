@@ -1,0 +1,10 @@
+From: HelgiSaga <bglegb@gmail.com>
+Date: Tue, 21 Jan 2026 12:30:00 +0300
+Subject: [PATCH] debian: Update repository root metadata files
+
+Description: Update repository root metadata files
+Author: HelgiSaga <bglegb@gmail.com>
+Forwarded: no
+Last-Update: 2026-01-21
+
+diff --git a/.gitattributes b/.gitattributes index 463ed90fe9..4b70fdd989 100644 --- a/.gitattributes +++ b/.gitattributes @@ -1,2 +1,4 @@ -# perform line endings normalization for markdown files -*.md text eol=lf \ No newline at end of file +# perform line endings normalization for markdown files +*.md text eol=lf +# force LF line endings for all Debian packaging files +debian/** text eol=lf \ No newline at end of file
