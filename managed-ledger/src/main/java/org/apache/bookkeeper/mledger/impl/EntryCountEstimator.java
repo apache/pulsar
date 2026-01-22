@@ -191,15 +191,14 @@ class EntryCountEstimator {
         // This handles special cases such as EARLIEST and LATEST positions by resetting them
         // to the first available ledger or the last active ledger, respectively.
         if (lastLedgerId != null && readPosition.getLedgerId() > lastLedgerId.longValue()) {
-            readPosition = PositionFactory.create(lastLedgerId, Math.max(lastLedgerTotalEntries - 1, 0));
+            return PositionFactory.create(lastLedgerId, Math.max(lastLedgerTotalEntries - 1, 0));
         } else if (lastLedgerId == null && readPosition.getLedgerId() > ledgersInfo.lastKey()) {
             Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> lastEntry = ledgersInfo.lastEntry();
             if (lastEntry != null) {
-                readPosition =
-                        PositionFactory.create(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
+                return PositionFactory.create(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
             }
         } else if (readPosition.getLedgerId() < ledgersInfo.firstKey()) {
-            readPosition = PositionFactory.create(ledgersInfo.firstKey(), 0);
+            return PositionFactory.create(ledgersInfo.firstKey(), 0);
         }
         return readPosition;
     }
