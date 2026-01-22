@@ -310,6 +310,7 @@ public class EntryCountEstimatorTest {
         ledgersInfo = mock(NavigableMap.class);
         when(ledgersInfo.isEmpty()).thenReturn(false);
         when(ledgersInfo.firstKey()).thenThrow(NoSuchElementException.class);
+        when(ledgersInfo.lastKey()).thenReturn(1L);
         int result = estimateEntryCountByBytesSize(5_000_000);
         // expect that result is 1 because the estimation couldn't be done
         assertEquals(result, 1);

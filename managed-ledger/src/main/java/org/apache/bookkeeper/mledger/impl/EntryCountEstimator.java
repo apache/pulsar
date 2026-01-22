@@ -192,13 +192,17 @@ class EntryCountEstimator {
         // to the first available ledger or the last active ledger, respectively.
         if (lastLedgerId != null && readPosition.getLedgerId() > lastLedgerId.longValue()) {
             return PositionFactory.create(lastLedgerId, Math.max(lastLedgerTotalEntries - 1, 0));
-        } else if (lastLedgerId == null && readPosition.getLedgerId() > ledgersInfo.lastKey()) {
+        }
+        long lastKey = ledgersInfo.lastKey();
+        if (lastLedgerId == null && readPosition.getLedgerId() > lastKey) {
             Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> lastEntry = ledgersInfo.lastEntry();
-            if (lastEntry != null) {
+            if (lastEntry != null && lastEntry.getKey() == lastKey) {
                 return PositionFactory.create(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
             }
-        } else if (readPosition.getLedgerId() < ledgersInfo.firstKey()) {
-            return PositionFactory.create(ledgersInfo.firstKey(), 0);
+        }
+        long firstKey = ledgersInfo.firstKey();
+        if (readPosition.getLedgerId() < firstKey) {
+            return PositionFactory.create(firstKey, 0);
         }
         return readPosition;
     }
