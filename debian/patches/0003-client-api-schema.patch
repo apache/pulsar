@@ -1,10 +1,911 @@
 From: HelgiSaga <bglegb@gmail.com>
-Date: Tue, 21 Jan 2026 12:30:00 +0300
+Date: Tue, 21 Jan 2026 13:00:00 +0300
 Subject: [PATCH] debian: Update client API and schema helpers
 
 Description: Update client API and schema helpers
-Author: HelgiSaga <bglegb@gmail.com>
+Origin: other, https://github.com/HelgiSaga/pulsar/tree/debian
+Bug-Debian: no
 Forwarded: no
+Author: HelgiSaga <bglegb@gmail.com>
 Last-Update: 2026-01-21
 
-diff --git a/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/DecryptFailListener.java b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/DecryptFailListener.java new file mode 100644 index 0000000000..3b5492987e --- /dev/null +++ b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/DecryptFailListener.java @@ -0,0 +1,56 @@ +/* + * Licensed to the Apache Software Foundation (ASF) under one + * or more contributor license agreements.  See the NOTICE file + * distributed with this work for additional information + * regarding copyright ownership.  The ASF licenses this file + * to you under the Apache License, Version 2.0 (the + * "License"); you may not use this file except in compliance + * with the License.  You may obtain a copy of the License at + * + *   http://www.apache.org/licenses/LICENSE-2.0 + * + * Unless required by applicable law or agreed to in writing, + * software distributed under the License is distributed on an + * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY + * KIND, either express or implied.  See the License for the + * specific language governing permissions and limitations + * under the License. + */ +package org.apache.pulsar.client.api; + +import java.io.Serializable; +import org.apache.pulsar.common.classification.InterfaceAudience; +import org.apache.pulsar.common.classification.InterfaceStability; + + +/** + * A listener that is called when message decryption fails. + * <p>This listener is invoked when receives an encrypted message and cannot be decrypted successfully, + * either because no {@link CryptoKeyReader} is configured or the configured {@link CryptoKeyReader} + * cannot decrypt the message. This allows applications to handle decryption failures separately + * from normal message processing. + * + * <p>This listener must be used together with a {@link MessageListener} and cannot be used + * with {@link ConsumerCryptoFailureAction}. + */ +@InterfaceAudience.Public +@InterfaceStability.Stable +public interface DecryptFailListener<T> extends Serializable { +    /** +     * This method is called whenever a new encrypted message is received and cannot be decrypted successfully +     * by {@link CryptoKeyReader} +     * <p>Messages are guaranteed to be delivered in order and from the same thread for a single consumer +     * +     * <p>This method will only be called once for each encrypted message. +     * +     * <p>Application is responsible for acknowledging the message by calling any of the consumer +     * acknowledgement methods if needed. +     * +     * <p>Application is responsible for handling any exception that could be thrown while +     * processing the undecryptable message. +     * +     * @param consumer the consumer that received the undecryptable message +     * @param msg the encrypted message object that failed decryption +     */ +    void received(Consumer<T> consumer, Message<T> msg); +} diff --git a/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ReaderDecryptFailListener.java b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ReaderDecryptFailListener.java new file mode 100644 index 0000000000..dfce5d482d --- /dev/null +++ b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ReaderDecryptFailListener.java @@ -0,0 +1,55 @@ +/* + * Licensed to the Apache Software Foundation (ASF) under one + * or more contributor license agreements.  See the NOTICE file + * distributed with this work for additional information + * regarding copyright ownership.  The ASF licenses this file + * to you under the Apache License, Version 2.0 (the + * "License"); you may not use this file except in compliance + * with the License.  You may obtain a copy of the License at + * + *   http://www.apache.org/licenses/LICENSE-2.0 + * + * Unless required by applicable law or agreed to in writing, + * software distributed under the License is distributed on an + * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY + * KIND, either express or implied.  See the License for the + * specific language governing permissions and limitations + * under the License. + */ +package org.apache.pulsar.client.api; + +import java.io.Serializable; +import org.apache.pulsar.common.classification.InterfaceAudience; +import org.apache.pulsar.common.classification.InterfaceStability; + +/** + * A listener that is called when message decryption fails. + * <p>This listener is invoked when receives an encrypted message and cannot be decrypted successfully, + * either because no {@link CryptoKeyReader} is configured or the configured {@link CryptoKeyReader} + * cannot decrypt the message. This allows applications to handle decryption failures separately + * from normal message processing. + * + * <p>This listener must be used together with a {@link ReaderBuilder#readerListener(ReaderListener)} and cannot be used + * with {@link ReaderBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}. + */ +@InterfaceAudience.Public +@InterfaceStability.Stable +public interface ReaderDecryptFailListener<T> extends Serializable { +    /** +     * This method is called whenever a new encrypted message is received and cannot be decrypted successfully +     * by {@link CryptoKeyReader} +     * <p>Messages are guaranteed to be delivered in order and from the same thread for a single reader +     * +     * <p>This method will only be called once for each encrypted message. +     * +     * <p>Application is responsible for acknowledging the message by calling any of the reader +     * acknowledgement methods if needed. +     * +     * <p>Application is responsible for handling any exception that could be thrown while +     * processing the undecryptable message. +     * +     * @param reader the reader that received the undecryptable message +     * @param msg the encrypted message object that failed decryption +     */ +    void received(Reader<T> reader, Message<T> msg); +} diff --git a/pulsar-client/src/main/java/org/apache/pulsar/client/impl/InProgressDeduplicationDecoratorLookupService.java b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/InProgressDeduplicationDecoratorLookupService.java new file mode 100644 index 0000000000..4d89399a5c --- /dev/null +++ b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/InProgressDeduplicationDecoratorLookupService.java @@ -0,0 +1,279 @@ +/* + * Licensed to the Apache Software Foundation (ASF) under one + * or more contributor license agreements.  See the NOTICE file + * distributed with this work for additional information + * regarding copyright ownership.  The ASF licenses this file + * to you under the Apache License, Version 2.0 (the + * "License"); you may not use this file except in compliance + * with the License.  You may obtain a copy of the License at + * + *   http://www.apache.org/licenses/LICENSE-2.0 + * + * Unless required by applicable law or agreed to in writing, + * software distributed under the License is distributed on an + * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY + * KIND, either express or implied.  See the License for the + * specific language governing permissions and limitations + * under the License. + */ +package org.apache.pulsar.client.impl; + +import java.net.InetSocketAddress; +import java.util.Arrays; +import java.util.Collections; +import java.util.HashMap; +import java.util.Map; +import java.util.Objects; +import java.util.Optional; +import java.util.concurrent.CompletableFuture; +import java.util.concurrent.ConcurrentHashMap; +import java.util.function.Supplier; +import org.apache.commons.lang3.mutable.MutableObject; +import org.apache.pulsar.client.api.PulsarClientException; +import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode; +import org.apache.pulsar.common.lookup.GetTopicsResult; +import org.apache.pulsar.common.naming.NamespaceName; +import org.apache.pulsar.common.naming.TopicName; +import org.apache.pulsar.common.partition.PartitionedTopicMetadata; +import org.apache.pulsar.common.schema.SchemaInfo; + +/** + * Decorator for {@link LookupService} that deduplicates in-progress lookups for topics, schemas, partitioned topics + * and topic listings for namespace. + */ +public class InProgressDeduplicationDecoratorLookupService implements LookupService { +    private final LookupService delegate; +    private final Supplier<Map<String, String>> lookupPropertiesSupplier; +    private final InProgressHolder<LookupBrokerKey, CompletableFuture<LookupTopicResult>> topicLookupsInProgress = +            new InProgressHolder<>(); +    private final InProgressHolder<PartitionedTopicMetadataKey, CompletableFuture<PartitionedTopicMetadata>> +            partitionedTopicMetadataInProgress = new InProgressHolder<>(); +    private final InProgressHolder<LookupSchemaKey, CompletableFuture<Optional<SchemaInfo>>> schemasInProgress = +            new InProgressHolder<>(); +    private final InProgressHolder<TopicsUnderNamespaceKey, CompletableFuture<GetTopicsResult>> +            topicsUnderNamespaceInProgress = new InProgressHolder<>(); + +    public InProgressDeduplicationDecoratorLookupService(LookupService delegate, +                                                         Supplier<Map<String, String>> lookupPropertiesSupplier) { +        this.delegate = delegate; +        this.lookupPropertiesSupplier = lookupPropertiesSupplier; +    } + +    @Override +    public void updateServiceUrl(String serviceUrl) throws PulsarClientException { +        delegate.updateServiceUrl(serviceUrl); +    } + +    @Override +    public String getServiceUrl() { +        return delegate.getServiceUrl(); +    } + +    @Override +    public InetSocketAddress resolveHost() { +        return delegate.resolveHost(); +    } + +    @Override +    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) { +        Map<String, String> lookupPropertiesToUse = lookupPropertiesSupplier.get(); +        return topicLookupsInProgress.getOrComputeIfAbsent( +                new LookupBrokerKey(topicName.toString(), lookupPropertiesToUse), +                () -> delegate.getBroker(topicName)); +    } + +    @Override +    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata( +            TopicName topicName, +            boolean metadataAutoCreationEnabled, +            boolean useFallbackForNonPIP344Brokers) { +        return partitionedTopicMetadataInProgress.getOrComputeIfAbsent( +                new PartitionedTopicMetadataKey(topicName, metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers), +                () -> delegate.getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled, +                        useFallbackForNonPIP344Brokers)); +    } + +    @Override +    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) { +        // all partitions of a partitioned topic share the same schema +        // therefore, perform the lookup with the partitioned topic name +        String topicForSchemaLookup = topicName.getPartitionedTopicName(); +        return schemasInProgress.getOrComputeIfAbsent(new LookupSchemaKey(topicForSchemaLookup, null), +                () -> delegate.getSchema(TopicName.get(topicForSchemaLookup))); +    } + +    @Override +    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) { +        // all partitions of a partitioned topic share the same schema +        // therefore, perform the lookup with the partitioned topic name +        String topicForSchemaLookup = topicName.getPartitionedTopicName(); +        return schemasInProgress.getOrComputeIfAbsent(new LookupSchemaKey(topicForSchemaLookup, version), +                () -> delegate.getSchema(TopicName.get(topicForSchemaLookup), version)); +    } + +    @Override +    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode, +                                                                      String topicPattern, String topicsHash) { +        return topicsUnderNamespaceInProgress.getOrComputeIfAbsent( +                new TopicsUnderNamespaceKey(namespace, mode, topicPattern, topicsHash), +                () -> delegate.getTopicsUnderNamespace(namespace, mode, topicPattern, topicsHash)); +    } + +    @Override +    public void close() throws Exception { +        delegate.close(); +    } + +    private static class InProgressHolder<K, V extends CompletableFuture<?>> { +        private final ConcurrentHashMap<K, V> inProgress = new ConcurrentHashMap<>(); + +        public V getOrComputeIfAbsent(K key, Supplier<V> supplier) { +            final MutableObject<V> newFutureCreated = new MutableObject<>(); +            try { +                return inProgress.computeIfAbsent(key, k -> { +                    V newFuture = supplier.get(); +                    newFutureCreated.setValue(newFuture); +                    return newFuture; +                }); +            } finally { +                V newFutureCreatedValue = newFutureCreated.getValue(); +                if (newFutureCreatedValue != null) { +                    newFutureCreatedValue.whenComplete((v, ex) -> { +                        inProgress.remove(key, newFutureCreatedValue); +                    }); +                } +            } +        } +    } + +    private static final class LookupBrokerKey { +        private final String topic; +        private final Map<String, String> properties; + +        private LookupBrokerKey(String topic, Map<String, String> properties) { +            this.topic = topic; +            this.properties = properties.isEmpty() ? Collections.emptyMap() : new HashMap<>(properties); +        } + +        @Override +        public boolean equals(Object o) { +            if (o == null || getClass() != o.getClass()) { +                return false; +            } + +            LookupBrokerKey lookupBrokerKey = (LookupBrokerKey) o; +            return Objects.equals(topic, lookupBrokerKey.topic) && properties.equals(lookupBrokerKey.properties); +        } + +        @Override +        public int hashCode() { +            int result = Objects.hashCode(topic); +            result = 31 * result + properties.hashCode(); +            return result; +        } +    } + +    private static final class LookupSchemaKey { +        private final String topic; +        private final byte[] version; + +        private LookupSchemaKey(String topic, byte[] version) { +            this.topic = topic; +            this.version = version != null ? version.clone() : null; +        } + +        @Override +        public boolean equals(Object o) { +            if (o == null || getClass() != o.getClass()) { +                return false; +            } + +            LookupSchemaKey that = (LookupSchemaKey) o; +            return Objects.equals(topic, that.topic) && Arrays.equals(version, that.version); +        } + +        @Override +        public int hashCode() { +            int result = Objects.hashCode(topic); +            result = 31 * result + Arrays.hashCode(version); +            return result; +        } +    } + +    private static final class TopicsUnderNamespaceKey { +        private final NamespaceName namespace; +        private final Mode mode; +        private final String topicsPattern; +        private final String topicsHash; + +        TopicsUnderNamespaceKey(NamespaceName namespace, Mode mode, String topicsPattern, String topicsHash) { +            this.namespace = namespace; +            this.mode = mode; +            this.topicsPattern = topicsPattern; +            this.topicsHash = topicsHash; +        } + +        @Override +        public boolean equals(Object o) { +            if (this == o) { +                return true; +            } +            if (o == null || getClass() != o.getClass()) { +                return false; +            } +            TopicsUnderNamespaceKey that = (TopicsUnderNamespaceKey) o; +            return Objects.equals(namespace, that.namespace) && mode == that.mode && Objects.equals(topicsPattern, +                    that.topicsPattern) && Objects.equals(topicsHash, that.topicsHash); +        } + +        @Override +        public int hashCode() { +            return Objects.hash(namespace, mode, topicsPattern, topicsHash); +        } + +        @Override +        public String toString() { +            return "TopicsUnderNamespaceKey{" + "namespace=" + namespace + ", mode=" + mode + ", topicsPattern='" +                    + topicsPattern + '\'' + ", topicsHash='" + topicsHash + '\'' + '}'; +        } +    } + +    private static final class PartitionedTopicMetadataKey { +        private final TopicName topicName; +        private final boolean metadataAutoCreationEnabled; +        private final boolean useFallbackForNonPIP344Brokers; + +        PartitionedTopicMetadataKey(TopicName topicName, boolean metadataAutoCreationEnabled, +                                    boolean useFallbackForNonPIP344Brokers) { +            this.topicName = topicName; +            this.metadataAutoCreationEnabled = metadataAutoCreationEnabled; +            this.useFallbackForNonPIP344Brokers = useFallbackForNonPIP344Brokers; +        } + +        @Override +        public boolean equals(Object o) { +            if (this == o) { +                return true; +            } +            if (o == null || getClass() != o.getClass()) { +                return false; +            } +            PartitionedTopicMetadataKey that = (PartitionedTopicMetadataKey) o; +            return metadataAutoCreationEnabled == that.metadataAutoCreationEnabled +                    && useFallbackForNonPIP344Brokers == that.useFallbackForNonPIP344Brokers && Objects.equals( +                    topicName, that.topicName); +        } + +        @Override +        public int hashCode() { +            return Objects.hash(topicName, metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers); +        } + +        @Override +        public String toString() { +            return "PartitionedTopicMetadataKey{" + "topicName=" + topicName + ", metadataAutoCreationEnabled=" +                    + metadataAutoCreationEnabled + ", useFallbackForNonPIP344Brokers=" + useFallbackForNonPIP344Brokers +                    + '}'; +        } +    } +} \ No newline at end of file diff --git a/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java index 8641d14d7d..86d0877807 100644 --- a/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java +++ b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java @@ -1,120 +1,133 @@ -/* - * Licensed to the Apache Software Foundation (ASF) under one - * or more contributor license agreements.  See the NOTICE file - * distributed with this work for additional information - * regarding copyright ownership.  The ASF licenses this file - * to you under the Apache License, Version 2.0 (the - * "License"); you may not use this file except in compliance - * with the License.  You may obtain a copy of the License at - * - *   http://www.apache.org/licenses/LICENSE-2.0 - * - * Unless required by applicable law or agreed to in writing, - * software distributed under the License is distributed on an - * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY - * KIND, either express or implied.  See the License for the - * specific language governing permissions and limitations - * under the License. - */ -package org.apache.pulsar.client.impl.schema; - -import static com.google.common.base.Preconditions.checkState; -import java.util.Optional; -import lombok.Setter; -import org.apache.pulsar.client.api.Schema; -import org.apache.pulsar.client.api.schema.KeyValueSchema; -import org.apache.pulsar.common.schema.KeyValueEncodingType; -import org.apache.pulsar.common.schema.SchemaInfo; -import org.apache.pulsar.common.schema.SchemaType; - -/** - * Auto detect schema. - */ -public class AutoProduceBytesSchema<T> implements Schema<byte[]> { - -    @Setter -    private boolean requireSchemaValidation = true; -    private Schema<T> schema; - -    public AutoProduceBytesSchema() { -    } - -    public AutoProduceBytesSchema(Schema<T> schema) { -        this.schema = schema; -        SchemaInfo schemaInfo = schema.getSchemaInfo(); -        this.requireSchemaValidation = schemaInfo != null -                                       && schemaInfo.getType() != SchemaType.BYTES -                                       && schemaInfo.getType() != SchemaType.NONE; -    } - -    public void setSchema(Schema<T> schema) { -        this.schema = schema; -        this.requireSchemaValidation = schema.getSchemaInfo() != null -            && SchemaType.BYTES != schema.getSchemaInfo().getType() -            && SchemaType.NONE != schema.getSchemaInfo().getType(); -    } - -    private void ensureSchemaInitialized() { -        checkState(schemaInitialized(), "Schema is not initialized before used"); -    } - -    public boolean schemaInitialized() { -        return schema != null; -    } - -    @Override -    public void validate(byte[] message) { -        ensureSchemaInitialized(); - -        schema.validate(message); -    } - -    @Override -    public byte[] encode(byte[] message) { -        ensureSchemaInitialized(); - -        if (requireSchemaValidation) { -            // verify if the message can be decoded by the underlying schema -            if (schema instanceof KeyValueSchema -                    && ((KeyValueSchema) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) { -                ((KeyValueSchema) schema).getValueSchema().validate(message); -            } else { -                schema.validate(message); -            } -        } - -        return message; -    } - -    @Override -    public byte[] decode(byte[] bytes, byte[] schemaVersion) { -        ensureSchemaInitialized(); - -        if (requireSchemaValidation) { -            // verify the message can be detected by the underlying schema -            schema.decode(bytes, schemaVersion); -        } - -        return bytes; -    } - -    @Override -    public SchemaInfo getSchemaInfo() { -        ensureSchemaInitialized(); - -        return schema.getSchemaInfo(); -    } - -    @Override -    public Optional<Object> getNativeSchema() { -        return Optional -                .ofNullable(schema) -                .map(s->s.getNativeSchema()) -                .orElse(Optional.empty()); -    } - -    @Override -    public Schema<byte[]> clone() { -        return new AutoProduceBytesSchema<>(schema.clone()); -    } -} +/* + * Licensed to the Apache Software Foundation (ASF) under one + * or more contributor license agreements.  See the NOTICE file + * distributed with this work for additional information + * regarding copyright ownership.  The ASF licenses this file + * to you under the Apache License, Version 2.0 (the + * "License"); you may not use this file except in compliance + * with the License.  You may obtain a copy of the License at + * + *   http://www.apache.org/licenses/LICENSE-2.0 + * + * Unless required by applicable law or agreed to in writing, + * software distributed under the License is distributed on an + * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY + * KIND, either express or implied.  See the License for the + * specific language governing permissions and limitations + * under the License. + */ +package org.apache.pulsar.client.impl.schema; + +import static com.google.common.base.Preconditions.checkState; +import java.util.Optional; +import lombok.Setter; +import org.apache.pulsar.client.api.Schema; +import org.apache.pulsar.client.api.schema.KeyValueSchema; +import org.apache.pulsar.common.schema.KeyValueEncodingType; +import org.apache.pulsar.common.schema.SchemaInfo; +import org.apache.pulsar.common.schema.SchemaType; + +/** + * Auto detect schema. + */ +public class AutoProduceBytesSchema<T> implements Schema<byte[]> { + +    @Setter +    private boolean requireSchemaValidation = true; +    private Schema<T> schema; +    private boolean userProvidedSchema = false; + +    public AutoProduceBytesSchema() { +    } + +    public AutoProduceBytesSchema(Schema<T> schema) { +        this.schema = schema; +        this.userProvidedSchema = true; +        SchemaInfo schemaInfo = schema.getSchemaInfo(); +        this.requireSchemaValidation = schemaInfo != null +                                       && schemaInfo.getType() != SchemaType.BYTES +                                       && schemaInfo.getType() != SchemaType.NONE; +    } + +    public void setSchema(Schema<T> schema) { +        this.schema = schema; +        this.userProvidedSchema = false; +        this.requireSchemaValidation = schema.getSchemaInfo() != null +            && SchemaType.BYTES != schema.getSchemaInfo().getType() +            && SchemaType.NONE != schema.getSchemaInfo().getType(); +    } + +    public boolean hasUserProvidedSchema() { +        return userProvidedSchema; +    } + +    private void ensureSchemaInitialized() { +        checkState(schemaInitialized(), "Schema is not initialized before used"); +    } + +    public boolean schemaInitialized() { +        return schema != null; +    } + +    @Override +    public void validate(byte[] message) { +        ensureSchemaInitialized(); + +        schema.validate(message); +    } + +    @Override +    public byte[] encode(byte[] message) { +        ensureSchemaInitialized(); + +        if (requireSchemaValidation) { +            // verify if the message can be decoded by the underlying schema +            if (schema instanceof KeyValueSchema +                    && ((KeyValueSchema) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) { +                ((KeyValueSchema) schema).getValueSchema().validate(message); +            } else { +                schema.validate(message); +            } +        } + +        return message; +    } + +    @Override +    public byte[] decode(byte[] bytes, byte[] schemaVersion) { +        ensureSchemaInitialized(); + +        if (requireSchemaValidation) { +            // verify the message can be detected by the underlying schema +            schema.decode(bytes, schemaVersion); +        } + +        return bytes; +    } + +    @Override +    public SchemaInfo getSchemaInfo() { +        ensureSchemaInitialized(); + +        return schema.getSchemaInfo(); +    } + +    @Override +    public Optional<Object> getNativeSchema() { +        return Optional +                .ofNullable(schema) +                .map(s->s.getNativeSchema()) +                .orElse(Optional.empty()); +    } + +    @Override +    public Schema<byte[]> clone() { +        AutoProduceBytesSchema<T> cloned = new AutoProduceBytesSchema<>(); +        if (schema != null) { +            cloned.schema = schema.clone(); +            cloned.userProvidedSchema = this.userProvidedSchema; +            cloned.requireSchemaValidation = this.requireSchemaValidation; +        } +        return cloned; +    } +} diff --git a/pulsar-client/src/test/java/org/apache/pulsar/client/impl/auth/oauth2/AuthenticationFactoryOAuth2Test.java b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/auth/oauth2/AuthenticationFactoryOAuth2Test.java new file mode 100644 index 0000000000..de642050b0 --- /dev/null +++ b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/auth/oauth2/AuthenticationFactoryOAuth2Test.java @@ -0,0 +1,40 @@ +/* + * Licensed to the Apache Software Foundation (ASF) under one + * or more contributor license agreements.  See the NOTICE file + * distributed with this work for additional information + * regarding copyright ownership.  The ASF licenses this file + * to you under the Apache License, Version 2.0 (the + * "License"); you may not use this file except in compliance + * with the License.  You may obtain a copy of the License at + * + *   http://www.apache.org/licenses/LICENSE-2.0 + * + * Unless required by applicable law or agreed to in writing, + * software distributed under the License is distributed on an + * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY + * KIND, either express or implied.  See the License for the + * specific language governing permissions and limitations + * under the License. + */ +package org.apache.pulsar.client.impl.auth.oauth2; + +import static org.testng.Assert.assertTrue; +import java.io.IOException; +import java.net.URL; +import org.apache.pulsar.client.api.Authentication; +import org.testng.annotations.Test; + +public class AuthenticationFactoryOAuth2Test { + +    @Test +    public void testClientCredentials() throws IOException { +        URL issuerUrl = new URL("http://localhost"); +        URL credentialsUrl = new URL("http://localhost"); +        String audience = "audience"; +        try (Authentication authentication = +                     AuthenticationFactoryOAuth2.clientCredentials(issuerUrl, credentialsUrl, audience)) { +            assertTrue(authentication instanceof AuthenticationOAuth2); +        } +    } + +} diff --git a/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchemaTest.java b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchemaTest.java new file mode 100644 index 0000000000..b67763d5d8 --- /dev/null +++ b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchemaTest.java @@ -0,0 +1,78 @@ +/* + * Licensed to the Apache Software Foundation (ASF) under one + * or more contributor license agreements.  See the NOTICE file + * distributed with this work for additional information + * regarding copyright ownership.  The ASF licenses this file + * to you under the Apache License, Version 2.0 (the + * "License"); you may not use this file except in compliance + * with the License.  You may obtain a copy of the License at + * + *   http://www.apache.org/licenses/LICENSE-2.0 + * + * Unless required by applicable law or agreed to in writing, + * software distributed under the License is distributed on an + * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY + * KIND, either express or implied.  See the License for the + * specific language governing permissions and limitations + * under the License. + */ +package org.apache.pulsar.client.impl.schema; + +import static org.mockito.Mockito.spy; +import static org.mockito.Mockito.times; +import static org.mockito.Mockito.verify; +import static org.testng.Assert.assertEquals; +import static org.testng.Assert.assertFalse; +import static org.testng.Assert.assertNotSame; +import static org.testng.Assert.assertTrue; +import org.apache.pulsar.client.api.Schema; +import org.apache.pulsar.common.schema.SchemaType; +import org.testng.annotations.Test; + +public class AutoProduceBytesSchemaTest { +    @Test +    public void testClone() { +        // test user provided schema +        Schema<String> stringSchema = Schema.STRING; +        AutoProduceBytesSchema<String> schema1 = new AutoProduceBytesSchema<>(stringSchema); +        Schema<byte[]> clone1 = schema1.clone(); + +        assertNotSame(schema1, clone1); +        assertTrue(clone1 instanceof AutoProduceBytesSchema); +        AutoProduceBytesSchema<String> castedClone1 = (AutoProduceBytesSchema<String>) clone1; +        assertTrue(castedClone1.hasUserProvidedSchema()); +        assertTrue(castedClone1.schemaInitialized()); +        assertEquals(castedClone1.getSchemaInfo().getType(), SchemaType.STRING); + +        // test no user provided schema +        AutoProduceBytesSchema<String> schema2 = new AutoProduceBytesSchema<>(); +        Schema<byte[]> clone2 = schema2.clone(); + +        assertNotSame(schema2, clone2); +        assertTrue(clone2 instanceof AutoProduceBytesSchema); +        AutoProduceBytesSchema<String> castedClone2 = (AutoProduceBytesSchema<String>) clone2; +        assertFalse(castedClone2.hasUserProvidedSchema()); +        assertFalse(castedClone2.schemaInitialized()); + +        // test no user provided schema after setSchema +        AutoProduceBytesSchema<String> schema3 = new AutoProduceBytesSchema<>(); +        schema3.setSchema(stringSchema); +        Schema<byte[]> clone3 = schema3.clone(); + +        assertNotSame(schema3, clone3); +        assertTrue(clone3 instanceof AutoProduceBytesSchema); +        AutoProduceBytesSchema<String> castedClone3 = (AutoProduceBytesSchema<String>) clone3; +        assertFalse(castedClone3.hasUserProvidedSchema()); +        assertTrue(castedClone3.schemaInitialized()); +        assertEquals(castedClone3.getSchemaInfo().getType(), SchemaType.STRING); +    } + +    @Test +    public void testInnerSchemaGetsCloned() { +        Schema<String> stringSchema = spy(Schema.STRING); +        AutoProduceBytesSchema<String> schema = new AutoProduceBytesSchema<>(stringSchema); +        schema.clone(); +        verify(stringSchema, times(1)).clone(); +    } + +} \ No newline at end of file diff --git a/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/util/SchemaUtilTest.java b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/util/SchemaUtilTest.java new file mode 100644 index 0000000000..a489ed18f7 --- /dev/null +++ b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/util/SchemaUtilTest.java @@ -0,0 +1,86 @@ +/* + * Licensed to the Apache Software Foundation (ASF) under one + * or more contributor license agreements.  See the NOTICE file + * distributed with this work for additional information + * regarding copyright ownership.  The ASF licenses this file + * to you under the Apache License, Version 2.0 (the + * "License"); you may not use this file except in compliance + * with the License.  You may obtain a copy of the License at + * + *   http://www.apache.org/licenses/LICENSE-2.0 + * + * Unless required by applicable law or agreed to in writing, + * software distributed under the License is distributed on an + * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY + * KIND, either express or implied.  See the License for the + * specific language governing permissions and limitations + * under the License. + */ +package org.apache.pulsar.client.impl.schema.util; + +import static org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED; +import static org.testng.Assert.assertFalse; +import static org.testng.Assert.assertTrue; +import java.util.HashMap; +import java.util.Map; +import org.apache.pulsar.common.schema.SchemaInfo; +import org.apache.pulsar.common.schema.SchemaType; +import org.testng.annotations.Test; + +public class SchemaUtilTest { + +    @Test +    public void schemaWithoutJsr310EnabledPropertyReturnsFalse() { +        SchemaInfo schemaInfo = emptyPropertiesSchema(); +        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo); +        assertFalse(isJsr310Enabled); +    } + +    @Test +    public void schemaWithJsr310DisabledPropertyReturnsFalse() { +        SchemaInfo schemaInfo = disabledJsr310PropertiesSchema(); +        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo); +        assertFalse(isJsr310Enabled); +    } + +    @Test +    public void schemaWithJsr310EnabledPropertyReturnsTrue() { +        SchemaInfo schemaInfo = enabledJsr310PropertiesSchema(); +        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo); +        assertTrue(isJsr310Enabled); +    } + +    private static SchemaInfo emptyPropertiesSchema() { +        return SchemaInfo.builder() +                .schema("{\"type\": \"string\"}".getBytes()) +                .type(SchemaType.AVRO) +                .name("unitTest") +                .properties(new HashMap<>()) +                .build(); +    } + +    private static SchemaInfo disabledJsr310PropertiesSchema() { +        Map<String, String> properties = new HashMap<>(); +        properties.put(JSR310_CONVERSION_ENABLED, "false"); + +        return SchemaInfo.builder() +                .schema("{\"type\": \"string\"}".getBytes()) +                .type(SchemaType.AVRO) +                .name("unitTest") +                .properties(properties) +                .build(); +    } + +    private static SchemaInfo enabledJsr310PropertiesSchema() { +        Map<String, String> properties = new HashMap<>(); +        properties.put(JSR310_CONVERSION_ENABLED, "true"); + +        return SchemaInfo.builder() +                .schema("{\"type\": \"string\"}".getBytes()) +                .type(SchemaType.AVRO) +                .name("unitTest") +                .properties(properties) +                .build(); +    } + +}
+---
+ .../pulsar/client/api/DecryptFailListener.java     |  56 +++++
+ .../client/api/ReaderDecryptFailListener.java      |  55 ++++
+ ...rogressDeduplicationDecoratorLookupService.java | 279 +++++++++++++++++++++
+ .../client/impl/schema/AutoProduceBytesSchema.java | 253 ++++++++++---------
+ .../oauth2/AuthenticationFactoryOAuth2Test.java    |  40 +++
+ .../impl/schema/AutoProduceBytesSchemaTest.java    |  78 ++++++
+ .../client/impl/schema/util/SchemaUtilTest.java    |  86 +++++++
+ 7 files changed, 727 insertions(+), 120 deletions(-)
+
+diff --git a/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/DecryptFailListener.java b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/DecryptFailListener.java
+new file mode 100644
+index 0000000000..3b5492987e
+--- /dev/null
++++ b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/DecryptFailListener.java
+@@ -0,0 +1,56 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.pulsar.client.api;
++
++import java.io.Serializable;
++import org.apache.pulsar.common.classification.InterfaceAudience;
++import org.apache.pulsar.common.classification.InterfaceStability;
++
++
++/**
++ * A listener that is called when message decryption fails.
++ * <p>This listener is invoked when receives an encrypted message and cannot be decrypted successfully,
++ * either because no {@link CryptoKeyReader} is configured or the configured {@link CryptoKeyReader}
++ * cannot decrypt the message. This allows applications to handle decryption failures separately
++ * from normal message processing.
++ *
++ * <p>This listener must be used together with a {@link MessageListener} and cannot be used
++ * with {@link ConsumerCryptoFailureAction}.
++ */
++@InterfaceAudience.Public
++@InterfaceStability.Stable
++public interface DecryptFailListener<T> extends Serializable {
++    /**
++     * This method is called whenever a new encrypted message is received and cannot be decrypted successfully
++     * by {@link CryptoKeyReader}
++     * <p>Messages are guaranteed to be delivered in order and from the same thread for a single consumer
++     *
++     * <p>This method will only be called once for each encrypted message.
++     *
++     * <p>Application is responsible for acknowledging the message by calling any of the consumer
++     * acknowledgement methods if needed.
++     *
++     * <p>Application is responsible for handling any exception that could be thrown while
++     * processing the undecryptable message.
++     *
++     * @param consumer the consumer that received the undecryptable message
++     * @param msg the encrypted message object that failed decryption
++     */
++    void received(Consumer<T> consumer, Message<T> msg);
++}
+diff --git a/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ReaderDecryptFailListener.java b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ReaderDecryptFailListener.java
+new file mode 100644
+index 0000000000..dfce5d482d
+--- /dev/null
++++ b/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ReaderDecryptFailListener.java
+@@ -0,0 +1,55 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.pulsar.client.api;
++
++import java.io.Serializable;
++import org.apache.pulsar.common.classification.InterfaceAudience;
++import org.apache.pulsar.common.classification.InterfaceStability;
++
++/**
++ * A listener that is called when message decryption fails.
++ * <p>This listener is invoked when receives an encrypted message and cannot be decrypted successfully,
++ * either because no {@link CryptoKeyReader} is configured or the configured {@link CryptoKeyReader}
++ * cannot decrypt the message. This allows applications to handle decryption failures separately
++ * from normal message processing.
++ *
++ * <p>This listener must be used together with a {@link ReaderBuilder#readerListener(ReaderListener)} and cannot be used
++ * with {@link ReaderBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}.
++ */
++@InterfaceAudience.Public
++@InterfaceStability.Stable
++public interface ReaderDecryptFailListener<T> extends Serializable {
++    /**
++     * This method is called whenever a new encrypted message is received and cannot be decrypted successfully
++     * by {@link CryptoKeyReader}
++     * <p>Messages are guaranteed to be delivered in order and from the same thread for a single reader
++     *
++     * <p>This method will only be called once for each encrypted message.
++     *
++     * <p>Application is responsible for acknowledging the message by calling any of the reader
++     * acknowledgement methods if needed.
++     *
++     * <p>Application is responsible for handling any exception that could be thrown while
++     * processing the undecryptable message.
++     *
++     * @param reader the reader that received the undecryptable message
++     * @param msg the encrypted message object that failed decryption
++     */
++    void received(Reader<T> reader, Message<T> msg);
++}
+diff --git a/pulsar-client/src/main/java/org/apache/pulsar/client/impl/InProgressDeduplicationDecoratorLookupService.java b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/InProgressDeduplicationDecoratorLookupService.java
+new file mode 100644
+index 0000000000..4d89399a5c
+--- /dev/null
++++ b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/InProgressDeduplicationDecoratorLookupService.java
+@@ -0,0 +1,279 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.pulsar.client.impl;
++
++import java.net.InetSocketAddress;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Objects;
++import java.util.Optional;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.function.Supplier;
++import org.apache.commons.lang3.mutable.MutableObject;
++import org.apache.pulsar.client.api.PulsarClientException;
++import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
++import org.apache.pulsar.common.lookup.GetTopicsResult;
++import org.apache.pulsar.common.naming.NamespaceName;
++import org.apache.pulsar.common.naming.TopicName;
++import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
++import org.apache.pulsar.common.schema.SchemaInfo;
++
++/**
++ * Decorator for {@link LookupService} that deduplicates in-progress lookups for topics, schemas, partitioned topics
++ * and topic listings for namespace.
++ */
++public class InProgressDeduplicationDecoratorLookupService implements LookupService {
++    private final LookupService delegate;
++    private final Supplier<Map<String, String>> lookupPropertiesSupplier;
++    private final InProgressHolder<LookupBrokerKey, CompletableFuture<LookupTopicResult>> topicLookupsInProgress =
++            new InProgressHolder<>();
++    private final InProgressHolder<PartitionedTopicMetadataKey, CompletableFuture<PartitionedTopicMetadata>>
++            partitionedTopicMetadataInProgress = new InProgressHolder<>();
++    private final InProgressHolder<LookupSchemaKey, CompletableFuture<Optional<SchemaInfo>>> schemasInProgress =
++            new InProgressHolder<>();
++    private final InProgressHolder<TopicsUnderNamespaceKey, CompletableFuture<GetTopicsResult>>
++            topicsUnderNamespaceInProgress = new InProgressHolder<>();
++
++    public InProgressDeduplicationDecoratorLookupService(LookupService delegate,
++                                                         Supplier<Map<String, String>> lookupPropertiesSupplier) {
++        this.delegate = delegate;
++        this.lookupPropertiesSupplier = lookupPropertiesSupplier;
++    }
++
++    @Override
++    public void updateServiceUrl(String serviceUrl) throws PulsarClientException {
++        delegate.updateServiceUrl(serviceUrl);
++    }
++
++    @Override
++    public String getServiceUrl() {
++        return delegate.getServiceUrl();
++    }
++
++    @Override
++    public InetSocketAddress resolveHost() {
++        return delegate.resolveHost();
++    }
++
++    @Override
++    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
++        Map<String, String> lookupPropertiesToUse = lookupPropertiesSupplier.get();
++        return topicLookupsInProgress.getOrComputeIfAbsent(
++                new LookupBrokerKey(topicName.toString(), lookupPropertiesToUse),
++                () -> delegate.getBroker(topicName));
++    }
++
++    @Override
++    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
++            TopicName topicName,
++            boolean metadataAutoCreationEnabled,
++            boolean useFallbackForNonPIP344Brokers) {
++        return partitionedTopicMetadataInProgress.getOrComputeIfAbsent(
++                new PartitionedTopicMetadataKey(topicName, metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers),
++                () -> delegate.getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled,
++                        useFallbackForNonPIP344Brokers));
++    }
++
++    @Override
++    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
++        // all partitions of a partitioned topic share the same schema
++        // therefore, perform the lookup with the partitioned topic name
++        String topicForSchemaLookup = topicName.getPartitionedTopicName();
++        return schemasInProgress.getOrComputeIfAbsent(new LookupSchemaKey(topicForSchemaLookup, null),
++                () -> delegate.getSchema(TopicName.get(topicForSchemaLookup)));
++    }
++
++    @Override
++    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
++        // all partitions of a partitioned topic share the same schema
++        // therefore, perform the lookup with the partitioned topic name
++        String topicForSchemaLookup = topicName.getPartitionedTopicName();
++        return schemasInProgress.getOrComputeIfAbsent(new LookupSchemaKey(topicForSchemaLookup, version),
++                () -> delegate.getSchema(TopicName.get(topicForSchemaLookup), version));
++    }
++
++    @Override
++    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
++                                                                      String topicPattern, String topicsHash) {
++        return topicsUnderNamespaceInProgress.getOrComputeIfAbsent(
++                new TopicsUnderNamespaceKey(namespace, mode, topicPattern, topicsHash),
++                () -> delegate.getTopicsUnderNamespace(namespace, mode, topicPattern, topicsHash));
++    }
++
++    @Override
++    public void close() throws Exception {
++        delegate.close();
++    }
++
++    private static class InProgressHolder<K, V extends CompletableFuture<?>> {
++        private final ConcurrentHashMap<K, V> inProgress = new ConcurrentHashMap<>();
++
++        public V getOrComputeIfAbsent(K key, Supplier<V> supplier) {
++            final MutableObject<V> newFutureCreated = new MutableObject<>();
++            try {
++                return inProgress.computeIfAbsent(key, k -> {
++                    V newFuture = supplier.get();
++                    newFutureCreated.setValue(newFuture);
++                    return newFuture;
++                });
++            } finally {
++                V newFutureCreatedValue = newFutureCreated.getValue();
++                if (newFutureCreatedValue != null) {
++                    newFutureCreatedValue.whenComplete((v, ex) -> {
++                        inProgress.remove(key, newFutureCreatedValue);
++                    });
++                }
++            }
++        }
++    }
++
++    private static final class LookupBrokerKey {
++        private final String topic;
++        private final Map<String, String> properties;
++
++        private LookupBrokerKey(String topic, Map<String, String> properties) {
++            this.topic = topic;
++            this.properties = properties.isEmpty() ? Collections.emptyMap() : new HashMap<>(properties);
++        }
++
++        @Override
++        public boolean equals(Object o) {
++            if (o == null || getClass() != o.getClass()) {
++                return false;
++            }
++
++            LookupBrokerKey lookupBrokerKey = (LookupBrokerKey) o;
++            return Objects.equals(topic, lookupBrokerKey.topic) && properties.equals(lookupBrokerKey.properties);
++        }
++
++        @Override
++        public int hashCode() {
++            int result = Objects.hashCode(topic);
++            result = 31 * result + properties.hashCode();
++            return result;
++        }
++    }
++
++    private static final class LookupSchemaKey {
++        private final String topic;
++        private final byte[] version;
++
++        private LookupSchemaKey(String topic, byte[] version) {
++            this.topic = topic;
++            this.version = version != null ? version.clone() : null;
++        }
++
++        @Override
++        public boolean equals(Object o) {
++            if (o == null || getClass() != o.getClass()) {
++                return false;
++            }
++
++            LookupSchemaKey that = (LookupSchemaKey) o;
++            return Objects.equals(topic, that.topic) && Arrays.equals(version, that.version);
++        }
++
++        @Override
++        public int hashCode() {
++            int result = Objects.hashCode(topic);
++            result = 31 * result + Arrays.hashCode(version);
++            return result;
++        }
++    }
++
++    private static final class TopicsUnderNamespaceKey {
++        private final NamespaceName namespace;
++        private final Mode mode;
++        private final String topicsPattern;
++        private final String topicsHash;
++
++        TopicsUnderNamespaceKey(NamespaceName namespace, Mode mode, String topicsPattern, String topicsHash) {
++            this.namespace = namespace;
++            this.mode = mode;
++            this.topicsPattern = topicsPattern;
++            this.topicsHash = topicsHash;
++        }
++
++        @Override
++        public boolean equals(Object o) {
++            if (this == o) {
++                return true;
++            }
++            if (o == null || getClass() != o.getClass()) {
++                return false;
++            }
++            TopicsUnderNamespaceKey that = (TopicsUnderNamespaceKey) o;
++            return Objects.equals(namespace, that.namespace) && mode == that.mode && Objects.equals(topicsPattern,
++                    that.topicsPattern) && Objects.equals(topicsHash, that.topicsHash);
++        }
++
++        @Override
++        public int hashCode() {
++            return Objects.hash(namespace, mode, topicsPattern, topicsHash);
++        }
++
++        @Override
++        public String toString() {
++            return "TopicsUnderNamespaceKey{" + "namespace=" + namespace + ", mode=" + mode + ", topicsPattern='"
++                    + topicsPattern + '\'' + ", topicsHash='" + topicsHash + '\'' + '}';
++        }
++    }
++
++    private static final class PartitionedTopicMetadataKey {
++        private final TopicName topicName;
++        private final boolean metadataAutoCreationEnabled;
++        private final boolean useFallbackForNonPIP344Brokers;
++
++        PartitionedTopicMetadataKey(TopicName topicName, boolean metadataAutoCreationEnabled,
++                                    boolean useFallbackForNonPIP344Brokers) {
++            this.topicName = topicName;
++            this.metadataAutoCreationEnabled = metadataAutoCreationEnabled;
++            this.useFallbackForNonPIP344Brokers = useFallbackForNonPIP344Brokers;
++        }
++
++        @Override
++        public boolean equals(Object o) {
++            if (this == o) {
++                return true;
++            }
++            if (o == null || getClass() != o.getClass()) {
++                return false;
++            }
++            PartitionedTopicMetadataKey that = (PartitionedTopicMetadataKey) o;
++            return metadataAutoCreationEnabled == that.metadataAutoCreationEnabled
++                    && useFallbackForNonPIP344Brokers == that.useFallbackForNonPIP344Brokers && Objects.equals(
++                    topicName, that.topicName);
++        }
++
++        @Override
++        public int hashCode() {
++            return Objects.hash(topicName, metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
++        }
++
++        @Override
++        public String toString() {
++            return "PartitionedTopicMetadataKey{" + "topicName=" + topicName + ", metadataAutoCreationEnabled="
++                    + metadataAutoCreationEnabled + ", useFallbackForNonPIP344Brokers=" + useFallbackForNonPIP344Brokers
++                    + '}';
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java
+index 8641d14d7d..86d0877807 100644
+--- a/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java
++++ b/pulsar-client/src/main/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchema.java
+@@ -1,120 +1,133 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one
+- * or more contributor license agreements.  See the NOTICE file
+- * distributed with this work for additional information
+- * regarding copyright ownership.  The ASF licenses this file
+- * to you under the Apache License, Version 2.0 (the
+- * "License"); you may not use this file except in compliance
+- * with the License.  You may obtain a copy of the License at
+- *
+- *   http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing,
+- * software distributed under the License is distributed on an
+- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+- * KIND, either express or implied.  See the License for the
+- * specific language governing permissions and limitations
+- * under the License.
+- */
+-package org.apache.pulsar.client.impl.schema;
+-
+-import static com.google.common.base.Preconditions.checkState;
+-import java.util.Optional;
+-import lombok.Setter;
+-import org.apache.pulsar.client.api.Schema;
+-import org.apache.pulsar.client.api.schema.KeyValueSchema;
+-import org.apache.pulsar.common.schema.KeyValueEncodingType;
+-import org.apache.pulsar.common.schema.SchemaInfo;
+-import org.apache.pulsar.common.schema.SchemaType;
+-
+-/**
+- * Auto detect schema.
+- */
+-public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
+-
+-    @Setter
+-    private boolean requireSchemaValidation = true;
+-    private Schema<T> schema;
+-
+-    public AutoProduceBytesSchema() {
+-    }
+-
+-    public AutoProduceBytesSchema(Schema<T> schema) {
+-        this.schema = schema;
+-        SchemaInfo schemaInfo = schema.getSchemaInfo();
+-        this.requireSchemaValidation = schemaInfo != null
+-                                       && schemaInfo.getType() != SchemaType.BYTES
+-                                       && schemaInfo.getType() != SchemaType.NONE;
+-    }
+-
+-    public void setSchema(Schema<T> schema) {
+-        this.schema = schema;
+-        this.requireSchemaValidation = schema.getSchemaInfo() != null
+-            && SchemaType.BYTES != schema.getSchemaInfo().getType()
+-            && SchemaType.NONE != schema.getSchemaInfo().getType();
+-    }
+-
+-    private void ensureSchemaInitialized() {
+-        checkState(schemaInitialized(), "Schema is not initialized before used");
+-    }
+-
+-    public boolean schemaInitialized() {
+-        return schema != null;
+-    }
+-
+-    @Override
+-    public void validate(byte[] message) {
+-        ensureSchemaInitialized();
+-
+-        schema.validate(message);
+-    }
+-
+-    @Override
+-    public byte[] encode(byte[] message) {
+-        ensureSchemaInitialized();
+-
+-        if (requireSchemaValidation) {
+-            // verify if the message can be decoded by the underlying schema
+-            if (schema instanceof KeyValueSchema
+-                    && ((KeyValueSchema) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
+-                ((KeyValueSchema) schema).getValueSchema().validate(message);
+-            } else {
+-                schema.validate(message);
+-            }
+-        }
+-
+-        return message;
+-    }
+-
+-    @Override
+-    public byte[] decode(byte[] bytes, byte[] schemaVersion) {
+-        ensureSchemaInitialized();
+-
+-        if (requireSchemaValidation) {
+-            // verify the message can be detected by the underlying schema
+-            schema.decode(bytes, schemaVersion);
+-        }
+-
+-        return bytes;
+-    }
+-
+-    @Override
+-    public SchemaInfo getSchemaInfo() {
+-        ensureSchemaInitialized();
+-
+-        return schema.getSchemaInfo();
+-    }
+-
+-    @Override
+-    public Optional<Object> getNativeSchema() {
+-        return Optional
+-                .ofNullable(schema)
+-                .map(s->s.getNativeSchema())
+-                .orElse(Optional.empty());
+-    }
+-
+-    @Override
+-    public Schema<byte[]> clone() {
+-        return new AutoProduceBytesSchema<>(schema.clone());
+-    }
+-}
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.pulsar.client.impl.schema;
++
++import static com.google.common.base.Preconditions.checkState;
++import java.util.Optional;
++import lombok.Setter;
++import org.apache.pulsar.client.api.Schema;
++import org.apache.pulsar.client.api.schema.KeyValueSchema;
++import org.apache.pulsar.common.schema.KeyValueEncodingType;
++import org.apache.pulsar.common.schema.SchemaInfo;
++import org.apache.pulsar.common.schema.SchemaType;
++
++/**
++ * Auto detect schema.
++ */
++public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
++
++    @Setter
++    private boolean requireSchemaValidation = true;
++    private Schema<T> schema;
++    private boolean userProvidedSchema = false;
++
++    public AutoProduceBytesSchema() {
++    }
++
++    public AutoProduceBytesSchema(Schema<T> schema) {
++        this.schema = schema;
++        this.userProvidedSchema = true;
++        SchemaInfo schemaInfo = schema.getSchemaInfo();
++        this.requireSchemaValidation = schemaInfo != null
++                                       && schemaInfo.getType() != SchemaType.BYTES
++                                       && schemaInfo.getType() != SchemaType.NONE;
++    }
++
++    public void setSchema(Schema<T> schema) {
++        this.schema = schema;
++        this.userProvidedSchema = false;
++        this.requireSchemaValidation = schema.getSchemaInfo() != null
++            && SchemaType.BYTES != schema.getSchemaInfo().getType()
++            && SchemaType.NONE != schema.getSchemaInfo().getType();
++    }
++
++    public boolean hasUserProvidedSchema() {
++        return userProvidedSchema;
++    }
++
++    private void ensureSchemaInitialized() {
++        checkState(schemaInitialized(), "Schema is not initialized before used");
++    }
++
++    public boolean schemaInitialized() {
++        return schema != null;
++    }
++
++    @Override
++    public void validate(byte[] message) {
++        ensureSchemaInitialized();
++
++        schema.validate(message);
++    }
++
++    @Override
++    public byte[] encode(byte[] message) {
++        ensureSchemaInitialized();
++
++        if (requireSchemaValidation) {
++            // verify if the message can be decoded by the underlying schema
++            if (schema instanceof KeyValueSchema
++                    && ((KeyValueSchema) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
++                ((KeyValueSchema) schema).getValueSchema().validate(message);
++            } else {
++                schema.validate(message);
++            }
++        }
++
++        return message;
++    }
++
++    @Override
++    public byte[] decode(byte[] bytes, byte[] schemaVersion) {
++        ensureSchemaInitialized();
++
++        if (requireSchemaValidation) {
++            // verify the message can be detected by the underlying schema
++            schema.decode(bytes, schemaVersion);
++        }
++
++        return bytes;
++    }
++
++    @Override
++    public SchemaInfo getSchemaInfo() {
++        ensureSchemaInitialized();
++
++        return schema.getSchemaInfo();
++    }
++
++    @Override
++    public Optional<Object> getNativeSchema() {
++        return Optional
++                .ofNullable(schema)
++                .map(s->s.getNativeSchema())
++                .orElse(Optional.empty());
++    }
++
++    @Override
++    public Schema<byte[]> clone() {
++        AutoProduceBytesSchema<T> cloned = new AutoProduceBytesSchema<>();
++        if (schema != null) {
++            cloned.schema = schema.clone();
++            cloned.userProvidedSchema = this.userProvidedSchema;
++            cloned.requireSchemaValidation = this.requireSchemaValidation;
++        }
++        return cloned;
++    }
++}
+diff --git a/pulsar-client/src/test/java/org/apache/pulsar/client/impl/auth/oauth2/AuthenticationFactoryOAuth2Test.java b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/auth/oauth2/AuthenticationFactoryOAuth2Test.java
+new file mode 100644
+index 0000000000..de642050b0
+--- /dev/null
++++ b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/auth/oauth2/AuthenticationFactoryOAuth2Test.java
+@@ -0,0 +1,40 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.pulsar.client.impl.auth.oauth2;
++
++import static org.testng.Assert.assertTrue;
++import java.io.IOException;
++import java.net.URL;
++import org.apache.pulsar.client.api.Authentication;
++import org.testng.annotations.Test;
++
++public class AuthenticationFactoryOAuth2Test {
++
++    @Test
++    public void testClientCredentials() throws IOException {
++        URL issuerUrl = new URL("http://localhost");
++        URL credentialsUrl = new URL("http://localhost");
++        String audience = "audience";
++        try (Authentication authentication =
++                     AuthenticationFactoryOAuth2.clientCredentials(issuerUrl, credentialsUrl, audience)) {
++            assertTrue(authentication instanceof AuthenticationOAuth2);
++        }
++    }
++
++}
+diff --git a/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchemaTest.java b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchemaTest.java
+new file mode 100644
+index 0000000000..b67763d5d8
+--- /dev/null
++++ b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/AutoProduceBytesSchemaTest.java
+@@ -0,0 +1,78 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.pulsar.client.impl.schema;
++
++import static org.mockito.Mockito.spy;
++import static org.mockito.Mockito.times;
++import static org.mockito.Mockito.verify;
++import static org.testng.Assert.assertEquals;
++import static org.testng.Assert.assertFalse;
++import static org.testng.Assert.assertNotSame;
++import static org.testng.Assert.assertTrue;
++import org.apache.pulsar.client.api.Schema;
++import org.apache.pulsar.common.schema.SchemaType;
++import org.testng.annotations.Test;
++
++public class AutoProduceBytesSchemaTest {
++    @Test
++    public void testClone() {
++        // test user provided schema
++        Schema<String> stringSchema = Schema.STRING;
++        AutoProduceBytesSchema<String> schema1 = new AutoProduceBytesSchema<>(stringSchema);
++        Schema<byte[]> clone1 = schema1.clone();
++
++        assertNotSame(schema1, clone1);
++        assertTrue(clone1 instanceof AutoProduceBytesSchema);
++        AutoProduceBytesSchema<String> castedClone1 = (AutoProduceBytesSchema<String>) clone1;
++        assertTrue(castedClone1.hasUserProvidedSchema());
++        assertTrue(castedClone1.schemaInitialized());
++        assertEquals(castedClone1.getSchemaInfo().getType(), SchemaType.STRING);
++
++        // test no user provided schema
++        AutoProduceBytesSchema<String> schema2 = new AutoProduceBytesSchema<>();
++        Schema<byte[]> clone2 = schema2.clone();
++
++        assertNotSame(schema2, clone2);
++        assertTrue(clone2 instanceof AutoProduceBytesSchema);
++        AutoProduceBytesSchema<String> castedClone2 = (AutoProduceBytesSchema<String>) clone2;
++        assertFalse(castedClone2.hasUserProvidedSchema());
++        assertFalse(castedClone2.schemaInitialized());
++
++        // test no user provided schema after setSchema
++        AutoProduceBytesSchema<String> schema3 = new AutoProduceBytesSchema<>();
++        schema3.setSchema(stringSchema);
++        Schema<byte[]> clone3 = schema3.clone();
++
++        assertNotSame(schema3, clone3);
++        assertTrue(clone3 instanceof AutoProduceBytesSchema);
++        AutoProduceBytesSchema<String> castedClone3 = (AutoProduceBytesSchema<String>) clone3;
++        assertFalse(castedClone3.hasUserProvidedSchema());
++        assertTrue(castedClone3.schemaInitialized());
++        assertEquals(castedClone3.getSchemaInfo().getType(), SchemaType.STRING);
++    }
++
++    @Test
++    public void testInnerSchemaGetsCloned() {
++        Schema<String> stringSchema = spy(Schema.STRING);
++        AutoProduceBytesSchema<String> schema = new AutoProduceBytesSchema<>(stringSchema);
++        schema.clone();
++        verify(stringSchema, times(1)).clone();
++    }
++
++}
+\ No newline at end of file
+diff --git a/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/util/SchemaUtilTest.java b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/util/SchemaUtilTest.java
+new file mode 100644
+index 0000000000..a489ed18f7
+--- /dev/null
++++ b/pulsar-client/src/test/java/org/apache/pulsar/client/impl/schema/util/SchemaUtilTest.java
+@@ -0,0 +1,86 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.pulsar.client.impl.schema.util;
++
++import static org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED;
++import static org.testng.Assert.assertFalse;
++import static org.testng.Assert.assertTrue;
++import java.util.HashMap;
++import java.util.Map;
++import org.apache.pulsar.common.schema.SchemaInfo;
++import org.apache.pulsar.common.schema.SchemaType;
++import org.testng.annotations.Test;
++
++public class SchemaUtilTest {
++
++    @Test
++    public void schemaWithoutJsr310EnabledPropertyReturnsFalse() {
++        SchemaInfo schemaInfo = emptyPropertiesSchema();
++        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
++        assertFalse(isJsr310Enabled);
++    }
++
++    @Test
++    public void schemaWithJsr310DisabledPropertyReturnsFalse() {
++        SchemaInfo schemaInfo = disabledJsr310PropertiesSchema();
++        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
++        assertFalse(isJsr310Enabled);
++    }
++
++    @Test
++    public void schemaWithJsr310EnabledPropertyReturnsTrue() {
++        SchemaInfo schemaInfo = enabledJsr310PropertiesSchema();
++        boolean isJsr310Enabled = SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
++        assertTrue(isJsr310Enabled);
++    }
++
++    private static SchemaInfo emptyPropertiesSchema() {
++        return SchemaInfo.builder()
++                .schema("{\"type\": \"string\"}".getBytes())
++                .type(SchemaType.AVRO)
++                .name("unitTest")
++                .properties(new HashMap<>())
++                .build();
++    }
++
++    private static SchemaInfo disabledJsr310PropertiesSchema() {
++        Map<String, String> properties = new HashMap<>();
++        properties.put(JSR310_CONVERSION_ENABLED, "false");
++
++        return SchemaInfo.builder()
++                .schema("{\"type\": \"string\"}".getBytes())
++                .type(SchemaType.AVRO)
++                .name("unitTest")
++                .properties(properties)
++                .build();
++    }
++
++    private static SchemaInfo enabledJsr310PropertiesSchema() {
++        Map<String, String> properties = new HashMap<>();
++        properties.put(JSR310_CONVERSION_ENABLED, "true");
++
++        return SchemaInfo.builder()
++                .schema("{\"type\": \"string\"}".getBytes())
++                .type(SchemaType.AVRO)
++                .name("unitTest")
++                .properties(properties)
++                .build();
++    }
++
++}
