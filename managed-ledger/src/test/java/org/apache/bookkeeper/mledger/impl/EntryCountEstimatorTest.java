@@ -19,9 +19,12 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import java.util.HashSet;
 import java.util.NavigableMap;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeMap;
 import org.apache.bookkeeper.mledger.Position;
@@ -288,5 +291,41 @@ public class EntryCountEstimatorTest {
         maxEntries = 100;
         int result = estimateEntryCountByBytesSize(Long.MAX_VALUE);
         assertEquals(result, maxEntries);
+    }
+
+    @Test
+    public void testNoLedgers() {
+        readPosition = PositionFactory.EARLIEST;
+        // remove all ledgers from ledgersInfo
+        ledgersInfo.clear();
+        int result = estimateEntryCountByBytesSize(5_000_000);
+        // expect that result is 1 because the estimation couldn't be done
+        assertEquals(result, 1);
+    }
+
+    @Test
+    public void testNoLedgersRaceFirstKey() {
+        readPosition = PositionFactory.EARLIEST;
+        // remove all ledgers from ledgersInfo
+        ledgersInfo = mock(NavigableMap.class);
+        when(ledgersInfo.isEmpty()).thenReturn(false);
+        when(ledgersInfo.firstKey()).thenThrow(NoSuchElementException.class);
+        int result = estimateEntryCountByBytesSize(5_000_000);
+        // expect that result is 1 because the estimation couldn't be done
+        assertEquals(result, 1);
+    }
+
+    @Test
+    public void testNoLedgersRaceLastKey() {
+        readPosition = PositionFactory.EARLIEST;
+        // remove all ledgers from ledgersInfo
+        ledgersInfo = mock(NavigableMap.class);
+        lastLedgerId = null;
+        when(ledgersInfo.isEmpty()).thenReturn(false);
+        when(ledgersInfo.firstKey()).thenReturn(1L);
+        when(ledgersInfo.lastKey()).thenThrow(NoSuchElementException.class);
+        int result = estimateEntryCountByBytesSize(5_000_000);
+        // expect that result is 1 because the estimation couldn't be done
+        assertEquals(result, 1);
     }
 }
