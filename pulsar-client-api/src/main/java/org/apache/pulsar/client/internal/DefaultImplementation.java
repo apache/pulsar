@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.internal;
 
+import java.util.WeakHashMap;
+
 /**
  * This class loads the implementation for {@link PulsarClientImplementationBinding}
  * and allows you to decouple the API from the actual implementation.
