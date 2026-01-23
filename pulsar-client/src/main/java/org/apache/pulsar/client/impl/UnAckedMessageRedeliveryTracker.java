@@ -41,13 +41,16 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
     protected final ArrayDeque<HashSet<UnackMessageIdWrapper>> redeliveryTimePartitions;
 
     protected final HashMap<MessageId, Long> ackTimeoutMessages;
+
+    protected final HashMap<MessageId, Integer> ackTimeoutMessagesRedeliveryCount;
     private final RedeliveryBackoff ackTimeoutRedeliveryBackoff;
 
     public UnAckedMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
                                            ConsumerConfigurationData<?> conf) {
         super(client, consumerBase, conf);
         this.ackTimeoutRedeliveryBackoff = conf.getAckTimeoutRedeliveryBackoff();
-        this.ackTimeoutMessages = new HashMap<MessageId, Long>();
+        this.ackTimeoutMessages = new HashMap<>();
+        this.ackTimeoutMessagesRedeliveryCount = new HashMap<>();
         this.redeliveryMessageIdPartitionMap = new HashMap<>();
         this.redeliveryTimePartitions = new ArrayDeque<>();
 
@@ -86,6 +89,12 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         try {
             MessageId messageId = messageIdWrapper.getMessageId();
             int redeliveryCount = messageIdWrapper.getRedeliveryCount();
+            if (redeliveryCount == 0) {
+                redeliveryCount = ackTimeoutMessagesRedeliveryCount.getOrDefault(messageId, 0);
+                ackTimeoutMessagesRedeliveryCount.put(messageId, redeliveryCount + 1);
+            } else {
+                ackTimeoutMessagesRedeliveryCount.remove(messageId);
+            }
             long backoffNs = ackTimeoutRedeliveryBackoff.next(redeliveryCount);
             ackTimeoutMessages.put(messageId, System.currentTimeMillis() + backoffNs);
         } finally {
@@ -185,6 +194,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
             if (exist != null) {
                 removed = exist.remove(messageIdWrapper);
             }
+            ackTimeoutMessagesRedeliveryCount.remove(messageId);
             return removed || ackTimeoutMessages.remove(messageId) != null;
         } finally {
             messageIdWrapper.recycle();
@@ -225,6 +235,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                 MessageId messageId = iteratorAckTimeOut.next();
                 if (messageId.compareTo(msgId) <= 0) {
                     iteratorAckTimeOut.remove();
+                    ackTimeoutMessagesRedeliveryCount.remove(messageId);
                     removed++;
                 }
             }
