@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKK
 import java.util.Collection;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.NoSuchElementException;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -81,17 +82,15 @@ class EntryCountEstimator {
             return maxEntries;
         }
 
-        // Adjust the read position to ensure it falls within the valid range of available ledgers.
-        // This handles special cases such as EARLIEST and LATEST positions by resetting them
-        // to the first available ledger or the last active ledger, respectively.
-        if (lastLedgerId != null && readPosition.getLedgerId() > lastLedgerId.longValue()) {
-            readPosition = PositionImpl.get(lastLedgerId, Math.max(lastLedgerTotalEntries - 1, 0));
-        } else if (lastLedgerId == null && readPosition.getLedgerId() > ledgersInfo.lastKey()) {
-            Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> lastEntry = ledgersInfo.lastEntry();
-            readPosition =
-                    PositionImpl.get(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
-        } else if (readPosition.getLedgerId() < ledgersInfo.firstKey()) {
-            readPosition = PositionImpl.get(ledgersInfo.firstKey(), 0);
+        if (ledgersInfo.isEmpty()) {
+            return 1;
+        }
+
+        try {
+            readPosition = adjustReadPosition(readPosition, ledgersInfo, lastLedgerId, lastLedgerTotalEntries);
+        } catch (NoSuchElementException e) {
+            // there was a race condition where ledgersInfo became empty just before adjustReadPosition was called
+            return 1;
         }
 
         long estimatedEntryCount = 0;
@@ -181,5 +180,29 @@ class EntryCountEstimator {
 
         // Ensure at least one entry is always returned as the result
         return Math.max((int) Math.min(estimatedEntryCount, maxEntries), 1);
+    }
+
+    private static Position adjustReadPosition(Position readPosition,
+                                               NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>
+                                                       ledgersInfo,
+                                               Long lastLedgerId, long lastLedgerTotalEntries) {
+        // Adjust the read position to ensure it falls within the valid range of available ledgers.
+        // This handles special cases such as EARLIEST and LATEST positions by resetting them
+        // to the first available ledger or the last active ledger, respectively.
+        if (lastLedgerId != null && readPosition.getLedgerId() > lastLedgerId.longValue()) {
+            return PositionImpl.get(lastLedgerId, Math.max(lastLedgerTotalEntries - 1, 0));
+        }
+        long lastKey = ledgersInfo.lastKey();
+        if (lastLedgerId == null && readPosition.getLedgerId() > lastKey) {
+            Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> lastEntry = ledgersInfo.lastEntry();
+            if (lastEntry != null && lastEntry.getKey() == lastKey) {
+                return PositionImpl.get(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
+            }
+        }
+        long firstKey = ledgersInfo.firstKey();
+        if (readPosition.getLedgerId() < firstKey) {
+            return PositionImpl.get(firstKey, 0);
+        }
+        return readPosition;
     }
 }
