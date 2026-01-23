@@ -2789,6 +2789,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double maxUnloadPercentage = 0.2;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Whether to unload at least one bundle in ThresholdShedder or OverloadShedder. "
+                    + "The default is true, which means at least one bundle is unloaded."
+    )
+    private boolean atLeastOneBundleSelected = true;
+
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Message-rate percentage threshold between highest and least loaded brokers for "
