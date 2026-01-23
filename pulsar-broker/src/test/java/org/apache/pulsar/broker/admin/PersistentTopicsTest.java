@@ -2019,4 +2019,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             assertEquals(batchMessage.getProperties().get("BaTcH-kEy3"), "BaTcH-vAlUe3");
         }
     }
+
+    @Test
+    public void testCreateNonPersistentPartitionedTopic() {
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic", 3, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic-partition-0", 3, true);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode());
+    }
 }
