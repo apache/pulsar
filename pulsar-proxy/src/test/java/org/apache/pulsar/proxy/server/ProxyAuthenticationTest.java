@@ -151,7 +151,8 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         }
 
         public BasicAuthenticationState(AuthenticationDataSource authData) {
-            this(authData.hasDataFromCommand()? authData.getCommandData(): authData.getHttpHeader("BasicAuthentication"));
+            this(authData.hasDataFromCommand() ? authData.getCommandData()
+                    : authData.getHttpHeader("BasicAuthentication"));
         }
 
         public BasicAuthenticationState(AuthData authData) {
