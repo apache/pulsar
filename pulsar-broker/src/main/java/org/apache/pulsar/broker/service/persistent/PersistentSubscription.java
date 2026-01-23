@@ -677,7 +677,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 numMessages = messageMetadata.getNumMessagesInBatch();
             }
             EntryFilter.FilterResult filterResult = entryFilterSupport
-                    .runFiltersForEntry(entry, messageMetadata, null);
+                    .runFiltersForAnalyzeBacklog(entry, messageMetadata, null);
 
             if (filterResult == null) {
                 filterResult = EntryFilter.FilterResult.ACCEPT;
