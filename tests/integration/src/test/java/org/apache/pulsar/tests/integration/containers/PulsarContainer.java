@@ -57,7 +57,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_HTTP_PORT = 8080;
     public static final int BROKER_HTTPS_PORT = 8081;
 
-    public static final String ALPINE_IMAGE_NAME = "alpine:3.22";
+    public static final String ALPINE_IMAGE_NAME = "alpine:3.23";
     public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/pulsar-test-latest-version:latest");
     public static final String UPGRADE_TEST_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_UPGRADE_TEST_IMAGE_NAME",
