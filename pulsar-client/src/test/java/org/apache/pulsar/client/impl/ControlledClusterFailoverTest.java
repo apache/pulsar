@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.asynchttpclient.Request;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -54,6 +55,14 @@ public class ControlledClusterFailoverTest {
             .build();
 
         ControlledClusterFailover controlledClusterFailover = (ControlledClusterFailover) provider;
+
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
+        when(pulsarClient.getConfiguration()).thenReturn(clientConf);
+        controlledClusterFailover.initialize(pulsarClient);
+
         Request request = controlledClusterFailover.getRequestBuilder().build();
 
         Assert.assertTrue(provider instanceof ControlledClusterFailover);
@@ -91,7 +100,9 @@ public class ControlledClusterFailoverTest {
         ControlledClusterFailover controlledClusterFailover = Mockito.spy((ControlledClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
+        ClientConfigurationData clientConf = new ClientConfigurationData();
         when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
+        when(pulsarClient.getConfiguration()).thenReturn(clientConf);
 
         controlledClusterFailover.initialize(pulsarClient);
 
