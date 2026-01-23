@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricStreams;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -68,6 +69,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger txnCount = new AtomicInteger();
     private final AtomicInteger committedTxnCount = new AtomicInteger();
     private final AtomicInteger abortedTxnCount = new AtomicInteger();
+    private final AtomicInteger metricsCount = new AtomicInteger();
     public static final String NAME = "COUNTER-BROKER-INTERCEPTOR";
 
     public void reset() {
@@ -282,6 +284,18 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         }
     }
 
+    /**
+     * Add customize metrics to PrometheusMetricStreams.
+     *
+     * @param metricStreams
+     * @param pulsar
+     */
+    @Override
+    public void addCustomizedMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
+        metricStreams.writeSample("test_metric", 10, "cluster", pulsar.getConfiguration().getClusterName());
+        metricsCount.incrementAndGet();
+    }
+
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
 
@@ -353,5 +367,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public int getAbortedTxnCount() {
         return abortedTxnCount.get();
+    }
+
+    public int getMetricsCount() {
+        return metricsCount.get();
     }
 }
