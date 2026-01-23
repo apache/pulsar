@@ -2685,11 +2685,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private boolean isMessageSizeExceeded(OpSendMsg op) {
         if (op.msg != null && !conf.isChunkingEnabled()) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
-            if (messageSize > getMaxMessageSize()) {
+            int maxMessageSize = getMaxMessageSize();
+            if (messageSize > maxMessageSize) {
+                // Log the message size exceeding the limit
+                log.warn("Message size exceeded: Producer {} attempted to send a message of {} bytes, "
+                                + "exceeding the configured maximum size of {} bytes on topic {}.",
+                        producerName, messageSize, maxMessageSize, topic);
                 releaseSemaphoreForSendOp(op);
                 op.sendComplete(new PulsarClientException.InvalidMessageException(
                         format("The producer %s of the topic %s sends a message with %d bytes that exceeds %d bytes",
-                                producerName, topic, messageSize, getMaxMessageSize()),
+                                producerName, topic, messageSize, maxMessageSize),
                         op.sequenceId));
                 return true;
             }
