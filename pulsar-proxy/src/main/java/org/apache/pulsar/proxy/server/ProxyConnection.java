@@ -147,7 +147,12 @@ public class ProxyConnection extends PulsarHandler {
 
         Closing,
 
-        Closed,
+        Closed;
+
+        boolean isAuthenticatedState() {
+            return this == ProxyLookupRequests
+                    || this == ProxyConnectionToBroker;
+        }
     }
 
     ConnectionPool getConnectionPool() {
@@ -406,15 +411,7 @@ public class ProxyConnection extends PulsarHandler {
 
             state = State.ProxyLookupRequests;
             lookupProxyHandler = service.newLookupProxyHandler(this);
-            if (service.getConfiguration().isAuthenticationEnabled()
-                    && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0) {
-                authRefreshTask = ctx.executor().scheduleAtFixedRate(
-                        Runnables.catchingAndLoggingThrowables(
-                                this::refreshAuthenticationCredentialsAndCloseIfTooExpired),
-                        service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
-                        service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
-                        TimeUnit.SECONDS);
-            }
+            startAuthRefreshTaskIfNotStarted();
             final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
             writeAndFlush(msg);
         }
@@ -430,6 +427,10 @@ public class ProxyConnection extends PulsarHandler {
             final ByteBuf msg = Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
                     connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers());
             writeAndFlush(msg);
+            // Start auth refresh task only if we are not forwarding authorization credentials
+            if (!service.getConfiguration().isForwardAuthorizationCredentials()) {
+                startAuthRefreshTaskIfNotStarted();
+            }
         } else {
             LOG.warn("[{}] Channel is {}. ProxyConnection is in {}. "
                             + "Closing connection to broker '{}'.",
@@ -511,13 +512,41 @@ public class ProxyConnection extends PulsarHandler {
         }
     }
 
+    private void startAuthRefreshTaskIfNotStarted() {
+        if (service.getConfiguration().isAuthenticationEnabled()
+                && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0
+                && authRefreshTask == null) {
+            authRefreshTask = ctx.executor().scheduleAtFixedRate(
+                    Runnables.catchingAndLoggingThrowables(
+                            this::refreshAuthenticationCredentialsAndCloseIfTooExpired),
+                    service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                    service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                    TimeUnit.SECONDS);
+        }
+    }
+
     private void refreshAuthenticationCredentialsAndCloseIfTooExpired() {
         assert ctx.executor().inEventLoop();
-        if (state != State.ProxyLookupRequests) {
-            // Happens when an exception is thrown that causes this connection to close.
+
+        // Only check expiration in authenticated states
+        if (!state.isAuthenticatedState()) {
             return;
-        } else if (!authState.isExpired()) {
+        }
+
+        if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
+            return;
+        }
+
+        // If we are not forwarding authorization credentials to the broker, the broker cannot
+        // refresh the client's credentials. In this case, we must close the connection immediately
+        // when credentials expire.
+        if (!service.getConfiguration().isForwardAuthorizationCredentials()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("[{}] Closing connection because client credentials have expired and "
+                        + "forwardAuthorizationCredentials is disabled (broker cannot refresh)", remoteAddress);
+            }
+            ctx.close();
             return;
         }
 
