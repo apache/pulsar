@@ -210,6 +210,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             log.warn("[{}] Attempting to add a consumer that already registered {}", name, consumer);
         }
 
+        if (consumerList.contains(consumer)) {
+            log.warn("[{}] Consumer with the same id is already created:"
+                            + " consumerId={}, consumer={}",
+                    consumer.cnx().clientAddress(), consumer.consumerId(), consumer);
+            throw new ConsumerBusyException("Consumer with the same id is already created!");
+        }
+
         consumerList.add(consumer);
         if (consumerList.size() > 1
                 && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
@@ -230,7 +237,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         // decrement unack-message count for removed consumer
         addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+            consumerList.removeIf(consumer::equals);
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
