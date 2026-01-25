@@ -333,7 +333,12 @@ public abstract class AdminResource extends PulsarWebResource {
                             .getBundlesAsync(namespaceName)
                             .thenApply(bundles -> bundles.getBundlesData());
                     CompletableFuture<Optional<LocalPolicies>> localPoliciesFuture =
-                            getLocalPolicies().getLocalPoliciesAsync(namespaceName);
+                            getLocalPolicies().getLocalPoliciesAsync(namespaceName)
+                                    .exceptionally(ex -> {
+                                        log.warn("Failed to load local policies for {}, using empty: {}",
+                                                namespaceName, ex.getMessage());
+                                        return Optional.empty();
+                                    });
 
                     return bundlesFuture.thenCombine(localPoliciesFuture, (bundleData, localPolicies) -> {
                         policies.bundles = bundleData != null ? bundleData : policies.bundles;
