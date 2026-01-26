@@ -1633,11 +1633,11 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .thenReturn(CompletableFuture.completedFuture(mock(Consumer.class)));
 
         // Case 1: DeadLetterPolicy is null
-        ConsumerBuilderImpl<byte[]> ConsumerBuilder1 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
-        ConsumerBuilder1.topic("persistent://public/default/test");
-        ConsumerBuilder1.subscriptionName("sub");
-        ConsumerBuilder1.enableRetry(true);
-        ConsumerBuilder1.subscribeAsync();
+        ConsumerBuilderImpl<byte[]> consumerBuilder1 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        consumerBuilder1.topic("persistent://public/default/test");
+        consumerBuilder1.subscriptionName("sub");
+        consumerBuilder1.enableRetry(true);
+        consumerBuilder1.subscribeAsync();
 
         verify(client, times(1)).getPartitionedTopicMetadata(
                 eq("persistent://public/default/sub-RETRY"), anyBoolean(), anyBoolean());
@@ -1647,15 +1647,15 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         clearInvocations(client);
 
         // Case 2: DeadLetterPolicy with custom Retry topic
-        ConsumerBuilderImpl<byte[]> ConsumerBuilder2 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
-        ConsumerBuilder2.topic("persistent://public/default/test");
-        ConsumerBuilder2.subscriptionName("sub");
-        ConsumerBuilder2.enableRetry(true);
-        ConsumerBuilder2.deadLetterPolicy(DeadLetterPolicy.builder()
+        ConsumerBuilderImpl<byte[]> consumerBuilder2 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        consumerBuilder2.topic("persistent://public/default/test");
+        consumerBuilder2.subscriptionName("sub");
+        consumerBuilder2.enableRetry(true);
+        consumerBuilder2.deadLetterPolicy(DeadLetterPolicy.builder()
                 .maxRedeliverCount(10)
                 .retryLetterTopic("persistent://public/default/topic-retry")
                 .build());
-        ConsumerBuilder2.subscribeAsync();
+        consumerBuilder2.subscribeAsync();
 
         verify(client, times(0)).getPartitionedTopicMetadata(
                 eq("persistent://public/default/sub-RETRY"), anyBoolean(), anyBoolean());
@@ -1665,15 +1665,15 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         clearInvocations(client);
 
         // Case 3: DeadLetterPolicy with custom DLQ topic
-        ConsumerBuilderImpl<byte[]> ConsumerBuilder3 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
-        ConsumerBuilder3.topic("persistent://public/default/test");
-        ConsumerBuilder3.subscriptionName("sub");
-        ConsumerBuilder3.enableRetry(true);
-        ConsumerBuilder3.deadLetterPolicy(DeadLetterPolicy.builder()
+        ConsumerBuilderImpl<byte[]> consumerBuilder3 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        consumerBuilder3.topic("persistent://public/default/test");
+        consumerBuilder3.subscriptionName("sub");
+        consumerBuilder3.enableRetry(true);
+        consumerBuilder3.deadLetterPolicy(DeadLetterPolicy.builder()
                 .maxRedeliverCount(10)
                 .deadLetterTopic("persistent://public/default/topic-dlq")
                 .build());
-        ConsumerBuilder3.subscribeAsync();
+        consumerBuilder3.subscribeAsync();
 
         verify(client, times(1)).getPartitionedTopicMetadata(
                 eq("persistent://public/default/sub-RETRY"), anyBoolean(), anyBoolean());
@@ -1683,16 +1683,16 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         clearInvocations(client);
 
         // Case 4: DeadLetterPolicy with both custom topics
-        ConsumerBuilderImpl<byte[]> ConsumerBuilder4 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
-        ConsumerBuilder4.topic("persistent://public/default/test");
-        ConsumerBuilder4.subscriptionName("sub");
-        ConsumerBuilder4.enableRetry(true);
-        ConsumerBuilder4.deadLetterPolicy(DeadLetterPolicy.builder()
+        ConsumerBuilderImpl<byte[]> consumerBuilder4 = new ConsumerBuilderImpl<>(client, Schema.BYTES);
+        consumerBuilder4.topic("persistent://public/default/test");
+        consumerBuilder4.subscriptionName("sub");
+        consumerBuilder4.enableRetry(true);
+        consumerBuilder4.deadLetterPolicy(DeadLetterPolicy.builder()
                 .maxRedeliverCount(10)
                 .retryLetterTopic("custom-retry")
                 .deadLetterTopic("custom-dlq")
                 .build());
-        ConsumerBuilder4.subscribeAsync();
+        consumerBuilder4.subscribeAsync();
 
         verify(client, times(0)).getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean());
     }
