@@ -42,7 +42,7 @@ public class TokenClientTest {
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
+        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient, null);
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .audience("test-audience")
                 .clientId("test-client-id")
@@ -75,7 +75,7 @@ public class TokenClientTest {
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
+        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient, null);
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .clientId("test-client-id")
                 .clientSecret("test-client-secret")

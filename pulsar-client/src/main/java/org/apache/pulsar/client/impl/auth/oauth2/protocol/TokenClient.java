@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
+import io.netty.resolver.NameResolver;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.Response;
 
 /**
@@ -38,10 +41,12 @@ public class TokenClient implements ClientCredentialsExchanger {
 
     private final URL tokenUrl;
     private final AsyncHttpClient httpClient;
+    private final NameResolver<InetAddress> nameResolver;
 
-    public TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
+    public TokenClient(URL tokenUrl, AsyncHttpClient httpClient, NameResolver<InetAddress> nameResolver) {
         this.httpClient = httpClient;
         this.tokenUrl = tokenUrl;
+        this.nameResolver = nameResolver;
     }
 
     @Override
@@ -85,13 +90,14 @@ public class TokenClient implements ClientCredentialsExchanger {
         String body = buildClientCredentialsBody(req);
 
         try {
-
-            Response res = httpClient.preparePost(tokenUrl.toString())
+            BoundRequestBuilder requestBuilder = httpClient.preparePost(tokenUrl.toString())
                     .setHeader("Accept", "application/json")
                     .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                    .setBody(body)
-                    .execute()
-                    .get();
+                    .setBody(body);
+            if (nameResolver != null) {
+                requestBuilder.setNameResolver(nameResolver);
+            }
+            Response res = requestBuilder.execute().get();
 
             switch (res.getStatusCode()) {
                 case 200:
