@@ -52,7 +52,8 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @BeforeMethod
     protected void setup() throws Exception {
-        //No-op
+        // configure pulsarAdmin connectionsPerBroker to 1, to reproduce issue 24879
+        conf.getProperties().put("brokerClient_connectionsPerBroker", 1);
     }
 
     @AfterMethod(alwaysRun = true)
