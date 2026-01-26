@@ -1224,6 +1224,16 @@ public class ClientCnx extends PulsarHandler {
                 RequestType.Command, true);
     }
 
+    /**
+     * Create and send a WatchTopicList request including the topics-hash.
+     * Delegates to the existing BaseCommand-based method after building the command.
+     */
+    public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
+            long requestId, long watcherId, String namespace, String topicsPattern, String topicsHash) {
+        BaseCommand cmd = Commands.newWatchTopicList(requestId, watcherId, namespace, topicsPattern, topicsHash);
+        return newWatchTopicList(cmd, requestId);
+    }
+
     public CompletableFuture<CommandSuccess> newWatchTopicListClose(
             BaseCommand commandWatchTopicListClose, long requestId) {
         return sendRequestAndHandleTimeout(

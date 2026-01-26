@@ -27,7 +27,6 @@ import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
@@ -38,23 +37,17 @@ public class PatternMultiTopicsConsumerImplTest {
 
     private PatternMultiTopicsConsumerImpl.TopicsChangedListener mockListener;
 
-    private Consumer<String> mockTopicsHashSetter;
-
-
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         mockListener = mock(PatternMultiTopicsConsumerImpl.TopicsChangedListener.class);
         when(mockListener.onTopicsAdded(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(mockListener.onTopicsRemoved(any())).thenReturn(CompletableFuture.completedFuture(null));
-        mockTopicsHashSetter = mock(Consumer.class);
-
     }
 
     @Test
     public void testChangedUnfilteredResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 TopicsPatternFactory.create(Pattern.compile("tenant/my-ns/name-.*")),
-                mockTopicsHashSetter,
                 new GetTopicsResult(Arrays.asList(
                         "persistent://tenant/my-ns/name-1",
                         "persistent://tenant/my-ns/name-2",
@@ -66,14 +59,12 @@ public class PatternMultiTopicsConsumerImplTest {
                 "persistent://tenant/my-ns/name-1",
                 "persistent://tenant/my-ns/name-2"));
         verify(mockListener).onTopicsRemoved(Collections.emptySet());
-        verify(mockTopicsHashSetter).accept(null);
     }
 
     @Test
     public void testChangedFilteredResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 TopicsPatternFactory.create(Pattern.compile("tenant/my-ns/name-.*")),
-                mockTopicsHashSetter,
                 new GetTopicsResult(Arrays.asList(
                         "persistent://tenant/my-ns/name-0",
                         "persistent://tenant/my-ns/name-1",
@@ -85,14 +76,12 @@ public class PatternMultiTopicsConsumerImplTest {
                 "persistent://tenant/my-ns/name-1",
                 "persistent://tenant/my-ns/name-2"));
         verify(mockListener).onTopicsRemoved(Collections.emptySet());
-        verify(mockTopicsHashSetter).accept("TOPICS_HASH");
     }
 
     @Test
     public void testUnchangedResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 TopicsPatternFactory.create(Pattern.compile("tenant/my-ns/name-.*")),
-                mockTopicsHashSetter,
                 new GetTopicsResult(Arrays.asList(
                         "persistent://tenant/my-ns/name-0",
                         "persistent://tenant/my-ns/name-1",
@@ -102,6 +91,5 @@ public class PatternMultiTopicsConsumerImplTest {
                 Arrays.asList("persistent://tenant/my-ns/name-0"), "");
         verify(mockListener, never()).onTopicsAdded(any());
         verify(mockListener, never()).onTopicsRemoved(any());
-        verify(mockTopicsHashSetter).accept("TOPICS_HASH");
     }
 }

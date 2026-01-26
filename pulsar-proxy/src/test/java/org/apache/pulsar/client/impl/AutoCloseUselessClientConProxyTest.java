@@ -20,10 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertTrue;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -38,9 +41,12 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
+import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.Test;
 
 @Test
+@Slf4j
 public class AutoCloseUselessClientConProxyTest extends AutoCloseUselessClientConSupports {
     private static final String TOPIC_NAME = BrokerTestUtil.newUniqueName("pattern_");
     private static final String TOPIC_FULL_NAME = "persistent://public/default/" + TOPIC_NAME;
@@ -108,6 +114,9 @@ public class AutoCloseUselessClientConProxyTest extends AutoCloseUselessClientCo
                 .subscriptionName("my-subscription-y")
                 .subscribe();
 
+        waitForTopicListWatcherStarted(consumer);
+        waitForTopicListWatcherStarted(consumer2);
+
         int poolSizeAfterCreatingConsumersAndProducer = pulsarClient.getCnxPool().getPoolSize();
         // check that there are more than 3 connections
         // at least 3 connections are required:
@@ -147,5 +156,15 @@ public class AutoCloseUselessClientConProxyTest extends AutoCloseUselessClientCo
                 .as("No new connections should be created after releasing unused connections since that would "
                         + "mean that an used connection was released.")
                 .isEqualTo(connectionsCreatedBefore);
+    }
+
+    private void waitForTopicListWatcherStarted(Consumer<?> consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<TopicListWatcher> completableFuture =
+                    WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            log.info("isDone: {}, isCompletedExceptionally: {}", completableFuture.isDone(),
+                    completableFuture.isCompletedExceptionally());
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
     }
 }

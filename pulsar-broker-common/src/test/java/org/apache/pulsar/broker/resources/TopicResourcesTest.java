@@ -21,24 +21,23 @@ package org.apache.pulsar.broker.resources;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import java.util.function.BiConsumer;
+import static org.mockito.Mockito.when;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class TopicResourcesTest {
 
-    private MetadataStore metadataStore;
+    private MetadataStoreExtended metadataStore;
     private TopicResources topicResources;
 
     @BeforeMethod
     public void setup() {
-        metadataStore = mock(MetadataStore.class);
+        metadataStore = mock(MetadataStoreExtended.class);
         topicResources = new TopicResources(metadataStore);
     }
 
@@ -49,65 +48,76 @@ public class TopicResourcesTest {
 
     @Test
     public void testListenerInvokedWhenTopicCreated() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic"));
-        verify(listener).accept("persistent://tenant/namespace/topic", NotificationType.Created);
+        verify(listener).onTopicEvent("persistent://tenant/namespace/topic", NotificationType.Created);
     }
 
     @Test
     public void testListenerInvokedWhenTopicV1Created() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/cluster/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/cluster/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/cluster/namespace/persistent/topic"));
-        verify(listener).accept("persistent://tenant/cluster/namespace/topic", NotificationType.Created);
+        verify(listener).onTopicEvent("persistent://tenant/cluster/namespace/topic", NotificationType.Created);
     }
 
     @Test
     public void testListenerInvokedWhenTopicDeleted() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
         topicResources.handleNotification(new Notification(NotificationType.Deleted,
                 "/managed-ledgers/tenant/namespace/persistent/topic"));
-        verify(listener).accept("persistent://tenant/namespace/topic", NotificationType.Deleted);
+        verify(listener).onTopicEvent("persistent://tenant/namespace/topic", NotificationType.Deleted);
     }
 
     @Test
     public void testListenerNotInvokedWhenSubscriptionCreated() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
+        verify(listener).getNamespaceName();
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic/subscription"));
-        verifyNoInteractions(listener);
+        verifyNoMoreInteractions(listener);
     }
 
     @Test
     public void testListenerNotInvokedWhenTopicCreatedInOtherNamespace() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
+        verify(listener).getNamespaceName();
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace2/persistent/topic"));
-        verifyNoInteractions(listener);
+        verifyNoMoreInteractions(listener);
     }
 
     @Test
     public void testListenerNotInvokedWhenTopicModified() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
+        verify(listener).getNamespaceName();
         topicResources.handleNotification(new Notification(NotificationType.Modified,
                 "/managed-ledgers/tenant/namespace/persistent/topic"));
-        verifyNoInteractions(listener);
+        verifyNoMoreInteractions(listener);
     }
 
     @Test
     public void testListenerNotInvokedAfterDeregistered() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
+        verify(listener).getNamespaceName();
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic"));
-        verify(listener).accept("persistent://tenant/namespace/topic", NotificationType.Created);
+        verify(listener).onTopicEvent("persistent://tenant/namespace/topic", NotificationType.Created);
         topicResources.deregisterPersistentTopicListener(listener);
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic2"));
@@ -116,22 +126,26 @@ public class TopicResourcesTest {
 
     @Test
     public void testListenerInvokedWithDecodedTopicName() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
+        verify(listener).getNamespaceName();
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic%3Atest"));
-        verify(listener).accept("persistent://tenant/namespace/topic:test", NotificationType.Created);
+        verify(listener).onTopicEvent("persistent://tenant/namespace/topic:test", NotificationType.Created);
     }
 
     @Test
     public void testNamespaceContainsDotsShouldntMatchAny() {
-        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
-        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/name.pace"), listener);
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/name.pace"));
+        topicResources.registerPersistentTopicListener(listener);
+        verify(listener).getNamespaceName();
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic"));
-        verifyNoInteractions(listener);
+        verifyNoMoreInteractions(listener);
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/name.pace/persistent/topic"));
-        verify(listener).accept("persistent://tenant/name.pace/topic", NotificationType.Created);
+        verify(listener).onTopicEvent("persistent://tenant/name.pace/topic", NotificationType.Created);
     }
 }
