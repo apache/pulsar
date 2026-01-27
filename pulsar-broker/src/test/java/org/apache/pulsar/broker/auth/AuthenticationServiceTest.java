@@ -221,6 +221,36 @@ public class AuthenticationServiceTest {
                 (AuthenticationDataSource) null)).isEqualTo("role2");
     }
 
+    @Test(timeOut = 10000)
+    public void testStrictAuthMethodEnforcement() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
+        config.setAuthenticationProviders(providersClassNames);
+        config.setAuthenticationEnabled(true);
+        config.setStrictAuthMethod(true);
+        @Cleanup
+        AuthenticationService service = new AuthenticationService(config);
+
+        // Test: Request without auth method header should fail when strictAuthMethod is enabled
+        HttpServletRequest requestWithoutAuthMethod = mock(HttpServletRequest.class);
+        when(requestWithoutAuthMethod.getRemoteAddr()).thenReturn("192.168.1.1");
+        when(requestWithoutAuthMethod.getRemotePort()).thenReturn(8080);
+        // No X-Pulsar-Auth-Method-Name header set
+
+        assertThatThrownBy(() -> service.authenticateHttpRequest(requestWithoutAuthMethod, (HttpServletResponse) null))
+                .isInstanceOf(AuthenticationException.class)
+                .hasMessage("Authentication method missing");
+
+        // Test: Request with auth method header should still succeed
+        HttpServletRequest requestWithAuthMethod = mock(HttpServletRequest.class);
+        when(requestWithAuthMethod.getRemoteAddr()).thenReturn("192.168.1.1");
+        when(requestWithAuthMethod.getRemotePort()).thenReturn(8080);
+        when(requestWithAuthMethod.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("auth");
+
+        boolean result = service.authenticateHttpRequest(requestWithAuthMethod, (HttpServletResponse) null);
+        assertTrue(result, "Authentication should succeed when auth method is provided");
+    }
+
     public static class MockHttpAuthenticationProvider implements AuthenticationProvider {
         @Override
         public void close() throws IOException {
