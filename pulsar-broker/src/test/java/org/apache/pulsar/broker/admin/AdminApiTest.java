@@ -3430,6 +3430,54 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetNamespacePoliciesAsyncReflectsBundleSplit() throws Exception {
+        // Test that getPoliciesAsync reflects latest bundles from NamespaceBundleFactory after bundle split.
+        // This verifies that the async method uses NamespaceBundleFactory.getBundlesAsync()
+        // instead of LocalPolicies.bundles (which may be stale after split).
+        String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+
+        // Create namespace with 1 bundle
+        admin.namespaces().createNamespace(ns, 1);
+
+        try {
+            // Verify initial state - should have 1 bundle
+            Policies initialPolicies = admin.namespaces().getPoliciesAsync(ns).get();
+            assertEquals(initialPolicies.bundles.getNumBundles(), 1, "Should start with 1 bundle");
+            assertEquals(initialPolicies.bundles.getBoundaries().size(), 2,
+                    "1 bundle should have 2 boundaries");
+
+            // Split the bundle into 2
+            admin.namespaces().splitNamespaceBundle(ns, "0x00000000_0xffffffff", true, null);
+
+            // Wait for split to complete in NamespaceBundleFactory
+            Awaitility.await().untilAsserted(() -> {
+                NamespaceBundles bundles = pulsar.getNamespaceService()
+                        .getNamespaceBundleFactory()
+                        .getBundles(NamespaceName.get(ns));
+                assertEquals(bundles.getBundles().size(), 2,
+                        "NamespaceBundleFactory should have 2 bundles after split");
+            });
+
+            // getPoliciesAsync should now reflect the split bundles from NamespaceBundleFactory
+            // Before the fix: LocalPolicies.bundles would still show 1 bundle (stale data)
+            // After the fix: NamespaceBundleFactory.getBundlesAsync() provides latest 2 bundles
+            Policies afterSplitPolicies = admin.namespaces().getPoliciesAsync(ns).get();
+            assertEquals(afterSplitPolicies.bundles.getNumBundles(), 2,
+                    "getPoliciesAsync should reflect bundles from NamespaceBundleFactory after split");
+            assertEquals(afterSplitPolicies.bundles.getBoundaries().size(), 3,
+                    "2 bundles should have 3 boundaries");
+
+            // Verify the boundaries are correct (0x00000000, 0x7fffffff, 0xffffffff)
+            List<String> boundaries = afterSplitPolicies.bundles.getBoundaries();
+            assertEquals(boundaries.get(0), "0x00000000");
+            assertEquals(boundaries.get(1), "0x7fffffff");
+            assertEquals(boundaries.get(2), "0xffffffff");
+        } finally {
+            deleteNamespaceWithRetry(ns, false);
+        }
+    }
+
+    @Test
     public void testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages() throws Exception {
         final String topic = "persistent://prop-xyz/ns1/testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages";
         @Cleanup

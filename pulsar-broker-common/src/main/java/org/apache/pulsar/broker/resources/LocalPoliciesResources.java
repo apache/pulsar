@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.resources;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -47,7 +48,19 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     }
 
     public CompletableFuture<Optional<LocalPolicies>> getLocalPoliciesAsync(NamespaceName ns) {
-        return getCache().get(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        return getCache().get(joinPath(LOCAL_POLICIES_ROOT, ns.toString()))
+                .exceptionally(ex -> {
+                    // Handle empty or corrupted LocalPolicies gracefully
+                    // Walk the exception chain to find ContentDeserializationException
+                    Throwable cause = ex;
+                    while (cause != null) {
+                        if (cause instanceof MetadataStoreException.ContentDeserializationException) {
+                            return Optional.empty();
+                        }
+                        cause = cause.getCause();
+                    }
+                    throw new CompletionException(ex);
+                });
     }
 
     public void setLocalPoliciesWithCreate(NamespaceName ns, Function<Optional<LocalPolicies>,
