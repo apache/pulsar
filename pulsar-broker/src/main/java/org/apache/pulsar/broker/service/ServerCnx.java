@@ -3721,6 +3721,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return commandSender;
     }
 
+    @VisibleForTesting
+    public void setCommandSender(PulsarCommandSender commandSender) {
+        this.commandSender = commandSender;
+    }
+
     @Override
     public void execute(Runnable runnable) {
         ctx().channel().eventLoop().execute(runnable);
