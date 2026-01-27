@@ -43,6 +43,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
@@ -102,6 +104,22 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
                 .createConfigurationMetadataStore();
 
         proxyService.start();
+    }
+
+    private void createNamespaceIfAbsent(TopicName topicName) throws Exception {
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        NamespaceName namespaceName = topicName.getNamespaceObject();
+        if (!namespaceName.isV2()) {
+            tenantInfo.getAllowedClusters().add(namespaceName.getCluster());
+        }
+        if (!admin.tenants().getTenants().contains(topicName.getTenant())) {
+            admin.tenants().createTenant(topicName.getTenant(), tenantInfo);
+        }
+        try {
+            admin.namespaces().createNamespace(topicName.getNamespace());
+        } catch (Exception ex) {
+            // Namespace may already exist.
+        }
     }
 
     @Override
@@ -173,6 +191,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://sample/test/local/partitioned-topic" + System.currentTimeMillis();
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
+        createNamespaceIfAbsent(TopicName.get(topicName));
         admin.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
