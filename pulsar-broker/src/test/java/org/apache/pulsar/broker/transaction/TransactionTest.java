@@ -123,6 +123,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
@@ -146,6 +147,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
@@ -1939,6 +1941,27 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(messages, List.of("V2", "V3"));
     }
 
+    @Test
+    public void testRawReaderWithTransactionMarker() throws Exception {
+        final String namespace = "tnx/ns-read-marker";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+
+        @Cleanup
+        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
+            .topic(topic)
+            .create();
+
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value("message-1").send();
+        txn.commit().get();
+
+        var reader = RawReader.create(pulsarClient, topic, "__supervisor-01").get();
+        var message1 = reader.readNextAsync().get();
+        var message2 = reader.readNextAsync().get();
+        var metadata = Commands.parseMessageMetadata(message2.getHeadersAndPayload());
+        assertTrue(metadata.hasMarkerType());
+    }
 
     @Test
     public void testReadCommittedWithCompaction() throws Exception{

@@ -187,7 +187,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
-                    if (cursor == null || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                    if (!isMarkerAllowedDeliveryToSubscription(cursor)) {
                         // because consumer can receive message is smaller than maxReadPosition,
                         // so this marker is useless for this subscription
                         individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
@@ -219,8 +219,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
                 // Deliver marker to __compaction cursor to avoid compaction task stuck,
                 // and filter out them when doing topic compaction.
-                if (msgMetadata == null || cursor == null
-                        || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                if (msgMetadata == null || !isMarkerAllowedDeliveryToSubscription(cursor)) {
                     entries.set(i, null);
                     entry.release();
                     individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),
@@ -324,6 +323,22 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
         return totalEntries;
+    }
+
+    private boolean isMarkerAllowedDeliveryToSubscription(ManagedCursor cursor) {
+        if (cursor == null || cursor.getName() == null) {
+            return false;
+        }
+        var name = cursor.getName();
+        if (Compactor.COMPACTION_SUBSCRIPTION.equals(name)) {
+            return true;
+        }
+        for (String prefix : serviceConfig.getSubscriptionPrefixToSkipServerMarkerCheck()) {
+            if (name.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void individualAcknowledgeMessageIfNeeded(List<Position> positions, Map<String, Long> properties) {

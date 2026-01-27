@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
@@ -164,6 +165,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             // Disable the dispatcher retry backoff in tests by default
             conf.setDispatcherRetryBackoffInitialTimeInMs(0);
             conf.setDispatcherRetryBackoffMaxTimeInMs(0);
+            conf.setSubscriptionPrefixToSkipServerMarkerCheck(Set.of("__supervisor"));
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =

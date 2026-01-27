@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -71,6 +72,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -91,6 +93,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     @Override
     @BeforeClass(timeOut = 300000)
     public void setup() throws Exception {
+        config1.setSubscriptionPrefixToSkipServerMarkerCheck(Set.of("__supervisor"));
         super.setup();
     }
 
@@ -1021,6 +1024,47 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         }
 
         Assert.assertEquals(result, List.of("V2"));
+    }
+
+    @Test
+    public void testReplicatedSubscriptionWithSpecificSubscriptionName() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/testReadMarkers";
+        final String subName = "__supervisor-01";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+            .statsInterval(0, TimeUnit.SECONDS).build();
+
+
+        Producer<String> producer = client1.newProducer(Schema.STRING).topic(topicName).create();
+        producer.newMessage().value("message-1").send();
+        producer.newMessage().value("message-2").send();
+        producer.close();
+
+        // create subscription in r1
+        createReplicatedSubscription(client1, topicName, subName, true);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName, subName);
+            assertTrue(status.get(topicName));
+        });
+
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+            .statsInterval(0, TimeUnit.SECONDS).build();
+
+        var reader = RawReader.create(client2, topicName, subName).get();
+
+        var message1 = reader.readNextAsync().get();
+        var message2 = reader.readNextAsync().get();
+        var message3 = reader.readNextAsync().get();
+
+        var metadata = Commands.parseMessageMetadata(message3.getHeadersAndPayload());
+        assertTrue(metadata.hasMarkerType());
     }
 
     @Test
