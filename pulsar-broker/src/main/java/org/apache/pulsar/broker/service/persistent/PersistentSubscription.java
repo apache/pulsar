@@ -1409,17 +1409,28 @@ public class PersistentSubscription extends AbstractSubscription {
                     ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getBucketDelayedIndexStats();
         }
 
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
         if (Subscription.isIndividualAckMode(subType)) {
             if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
                 AbstractPersistentDispatcherMultipleConsumers d =
                         (AbstractPersistentDispatcherMultipleConsumers) dispatcher;
                 subStats.unackedMessages = d.getTotalUnackedMessages();
                 subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
-                subStats.msgDelayed = d.getNumberOfDelayedMessages();
                 subStats.msgInReplay = d.getNumberOfMessagesInReplay();
+                if (d.isAllWaitingReadMessagesAreFixedDelayed()) {
+                    long msgDeliveredOut = 0;
+                    for (Consumer c : dispatcher.getConsumers()){
+                        msgDeliveredOut += c.getUnackedMessages();
+                    }
+                    subStats.msgDelayed = subStats.msgBacklog - msgDeliveredOut - subStats.msgInReplay;
+                    subStats.msgDelayedInMemory = d.getNumberOfDelayedMessages();
+                } else {
+                    subStats.msgDelayed = d.getNumberOfDelayedMessages();
+                    subStats.msgDelayedInMemory = subStats.msgDelayed;
+                }
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+
         if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = topic.getManagedLedger()
                     .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());
